@@ -77,17 +77,6 @@ h2 { font-size: 1.35rem; margin: 0 0 0.4rem; }
   margin: 0.8rem 0;
 }
 
-.clock {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-}
-.clock strong {
-  font-variant-numeric: tabular-nums;
-  font-size: 1.6rem;
-}
-
 .stack { display: grid; gap: 0.6rem; }
 .row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .grow { flex: 1; }

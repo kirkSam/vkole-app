@@ -14,8 +14,16 @@ await page.addInitScript(() => {
 });
 page.on("pageerror", (error) => opened.push(`pageerror:${error.message}`));
 
+async function assertNoClockCopy() {
+  const text = await page.locator("body").innerText();
+  if (/2\.5|two and a half|two-and-a-half|midnight Pacific|five quiet minutes|practice timer/i.test(text)) {
+    throw new Error(`clock wording remains: ${text}`);
+  }
+}
+
 await page.goto(base);
 await page.getByRole("heading", { name: "Do the Impossible" }).waitFor();
+await assertNoClockCopy();
 await page.getByTestId("nav-practice").click();
 const start = page.getByTestId("start-sheet");
 await page.waitForFunction(() => {
@@ -48,9 +56,11 @@ if (!note.includes("Saved on this device only")) throw new Error(note);
 await page.getByTestId("nav-home").click();
 await page.getByTestId("open-privacy").click();
 await page.getByRole("heading", { name: "Privacy" }).waitFor();
+await assertNoClockCopy();
 await page.getByTestId("nav-home").click();
 await page.getByTestId("open-terms").click();
 await page.getByRole("heading", { name: "Terms" }).waitFor();
+await assertNoClockCopy();
 await page.getByTestId("nav-home").click();
 await page.getByTestId("open-purchases").click();
 const body = await page.locator("body").innerText();
@@ -80,6 +90,7 @@ await page.getByTestId("gate-math").fill("60");
 await page.getByTestId("gate-word").fill("parent");
 await page.getByTestId("gate-submit").click();
 await page.getByTestId("erased").waitFor();
+await assertNoClockCopy();
 
 await page.getByTestId("nav-practice").click();
 await page.waitForFunction(() => {

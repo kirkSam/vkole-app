@@ -21,14 +21,6 @@ export const DATA_INVENTORY: readonly DataRow[] = [
     purpose: "Show the next offline worksheet",
   },
   {
-    id: "device-timer",
-    collectedBy: "this app",
-    what: "How many seconds of practice were used today on this device",
-    where: "On the device only",
-    linkedToIdentity: "no",
-    purpose: "Stop at two and a half hours, then open again at midnight Pacific",
-  },
-  {
     id: "device-reminder",
     collectedBy: "this app",
     what: "Whether a daily reminder is on, and the hour and minute",
@@ -63,7 +55,7 @@ export const DATA_INVENTORY: readonly DataRow[] = [
   {
     id: "school-site-progress",
     collectedBy: "school site, if opened",
-    what: "Starting grade, level reached, missed work, questions already given, daily office timer",
+    what: "Starting grade, level reached, missed work, and questions already given",
     where: "The school site says the engine copy stays in the browser",
     linkedToIdentity: "yes, on the school site",
     purpose: "Place the next assignment",

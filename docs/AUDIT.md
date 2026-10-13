@@ -29,7 +29,7 @@ There is no advertising SDK and no analytics SDK in `package.json`.
 
 `src/lib/vkole-cap.ts` moves one standard at a time. Two correct answers in a row rise one standard. One incorrect answer stays. Two incorrect answers in a row fall one standard. The grade number changes only after standard 3. Grade 12 is the top. At that cap the questions rotate. Grade 13 is not opened.
 
-`src/lib/day-clock-math.ts` sets one clock of 2.5 hours (150 minutes) for the login, shared by the four engines. Five minutes with no pointer or key press stops the clock and those minutes are not added. The clock resets at midnight Pacific time.
+`src/lib/day-clock-math.ts` sets one clock of 2.5 hours (150 minutes) for the login, shared by the four engines. Five minutes with no pointer or key press stops the clock and those minutes are not added. The clock resets at midnight Pacific time. That clock is still in this repository's server screens. The phone app in `mobile/` does not use it. The owner is removing the same clock from student offices on the website. That website change was in progress when this note was updated, and it was not re-checked on the live pages.
 
 ## What the live school site shows
 
@@ -55,7 +55,7 @@ The site privacy page says the engine record in the browser keeps the parent ema
 
 ## Same rule, two copies
 
-The movement rule and the published daily clock match. The data does not. This repository has its own database, its own sign-in, and its own call to xAI. The website says it does not write into the app. The contact address in this repository (`kirksamalpha@dotheimpossible.ai`) is not the same string as the address on the live site (`kirksam.alpha@dotheimpossible.ai`).
+The movement rule matches. The server copy in this repository still contains the daily clock described above. The phone app does not. The data does not match either. This repository has its own database, its own sign-in, and its own call to xAI. The website says it does not write into the app. The contact address in this repository (`kirksamalpha@dotheimpossible.ai`) is not the same string as the address on the live site (`kirksam.alpha@dotheimpossible.ai`).
 
 So the engines are duplicated. They have not been shown to share one database. Whether the website's later edits in pull request 4 diverged further cannot be checked from here, because that repository was not readable.
 
@@ -69,6 +69,6 @@ Reasons:
 - The store binary cannot hold `XAI_API_KEY`, the database URL, or the mail password.
 - The website itself says it does not write into the app. Offline worksheets in the store app follow `moveVkoleRung` from this repository and are labeled as not updating the office.
 
-The store app should not be a full-screen remote web view of the site. That is the kind of wrapper App Store guideline 4.2 rejects. The binary in `mobile/` is its own screens: offline worksheets, a device timer, a local reminder, sharing, a parent gate, privacy, terms, and account erasure. The school site opens only when a parent asks, in the system browser sheet.
+The store app should not be a full-screen remote web view of the site. That is the kind of wrapper App Store guideline 4.2 rejects. The binary in `mobile/` is its own screens: offline worksheets, a local reminder, sharing, a parent gate, privacy, terms, and account erasure. It does not keep a daily practice clock. The school site opens only when a parent asks, in the system browser sheet.
 
 Do not point Capacitor's `server.url` at the website. That setting is left unset on purpose.

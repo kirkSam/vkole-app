@@ -29,15 +29,16 @@ No signing key, store password, or API key belongs in git.
 
 Add this paragraph to the website privacy page before review, so the public policy mentions the app. The in-app page already says it.
 
-> The iPhone and Android app named Do the Impossible stores practice scores, a practice timer, and an optional reminder on the device. It does not show ads. It does not send those practice scores to the school. Opening the school from the app uses this same website.
+> The iPhone and Android app named Do the Impossible stores practice scores and an optional reminder on the device. It does not show ads. It does not send those practice scores to the school. Opening the school from the app uses this same website.
 
 ## What this build collects
 
 On the device, not sent by this app:
 
 - `device-practice` — subject, grade, standard, and how many answers were correct. Used to show the next offline worksheet.
-- `device-timer` — seconds of practice used today. Used to stop at two and a half hours and open again at midnight Pacific.
 - `device-reminder` — whether a daily reminder is on, and the hour and minute. The notification is scheduled on the phone. There is no push token and no child's name in the text.
+
+This app does not store a daily practice clock. Older installs may still have a leftover `vkole.clock` value. Erase this device deletes that leftover along with the worksheet and the reminder.
 
 Not collected by this app: advertising id, location, contacts, photos, third-party analytics.
 
@@ -50,7 +51,7 @@ The button opens https://www.dotheimpossible.ai in the system browser sheet, aft
 - `school-site-email` — parent email.
 - `school-site-password-hash` — a hash of the registration password, not the password.
 - `school-site-student-name` — student first name.
-- `school-site-progress` — starting grade, level, missed work, questions already given, daily office timer.
+- `school-site-progress` — starting grade, level, missed work, and questions already given. On 13 October 2026 the public privacy page also listed a daily office timer. The owner is removing that clock from student offices. This checklist does not treat that clock as data the app keeps.
 - `school-site-xai` — subject, grade, question, and the student's answer, sent to Space x.AI when the site grades a question.
 - `school-site-mail` — a finished sitting emailed to the registration address.
 - `school-site-stripe` — card payment on Stripe. The site says the school never sees the card number. This app does not link to the pay page.
@@ -62,7 +63,7 @@ The website says it does not sell information, does not show ads, and does not u
 
 For data the app itself writes:
 
-- Data not linked to identity: Product Interaction (practice progress and the on-device timer). The reminder time is a setting, not an identifier. Do not mark advertising id, location, contacts, or photos as collected by the shell.
+- Data not linked to identity: Product Interaction (practice progress). The reminder time is a setting, not an identifier. Do not mark advertising id, location, contacts, or photos as collected by the shell.
 - Data not linked to identity: nothing else from the shell. The reminder time is a setting, not an identifier.
 
 For the school site, if you declare it:
@@ -77,7 +78,7 @@ Tracking: No. The shell has no tracking SDK. Do not check "used to track."
 
 ## Google Play Data safety
 
-- Does the app collect or share any of the required user data types? For the shell alone, the practice data stays on device. Google still asks you to say whether it is collected. Collected means transmitted off the device. The shell does not transmit practice, the timer, or the reminder. Answer "no" for those three.
+- Does the app collect or share any of the required user data types? For the shell alone, the practice data stays on device. Google still asks you to say whether it is collected. Collected means transmitted off the device. The shell does not transmit practice or the reminder. Answer "no" for those two.
 - If the in-app browser is in the declaration, answer "yes" for name, email, and app activity (answers and grades), shared with the school host and, for a graded answer, with the xAI API the site already uses. Purpose: app functionality. Not sold. Not used for ads.
 - Data is encrypted in transit (HTTPS).
 - Users can ask for deletion. The app has Delete account data. It erases the device. The school record is closed by the email the privacy page already uses. The app copies that note and does not send it.
@@ -111,7 +112,7 @@ Digital access to the engine, if it is sold inside the app, has to use StoreKit 
 
 Apple, iPhone 6.7-inch (required) and 6.5-inch if Connect still asks:
 
-1. Home, with the timer and the four-subject practice.
+1. Home, with the four-subject practice.
 2. An offline worksheet question.
 3. The reminder screen.
 4. Privacy.
@@ -128,7 +129,7 @@ Google Play:
 
 ## Review notes you can paste
 
-This is a parent's education app for the school at https://www.dotheimpossible.ai. The app itself has offline worksheets, a two-and-a-half-hour practice timer, and a local daily reminder. It does not create an account. Delete account data erases practice, the timer, and the reminder on the device, then shows the note the parent emails to close the school record. The school site opens only after a parent answers 17 × 4 − 8 and types the word parent. There are no ads and no third-party analytics. Purchases are not enabled in this build. The demo needs no login. Open Practice, start a worksheet, and use Remind. Sample offices on the website, if you open School, are the school's public sample.
+This is a parent's education app for the school at https://www.dotheimpossible.ai. The app itself has offline worksheets and a local daily reminder. It does not create an account. Delete account data erases practice and the reminder on the device, then shows the note the parent emails to close the school record. The school site opens only after a parent answers 17 × 4 − 8 and types the word parent. There are no ads and no third-party analytics. Purchases are not enabled in this build. The demo needs no login. Open Practice, start a worksheet, and use Remind. Sample offices on the website, if you open School, are the school's public sample.
 
 ## Deep links the website must host
 
@@ -181,7 +182,7 @@ In Xcode, set the team, the bundle id, and the associated domain `applinks:www.d
 
 ## Risks a reviewer can still reject
 
-- Guideline 4.2, minimum functionality. The offline worksheets, reminder, timer, and share sheet are the native part. If the review build is switched to a remote `server.url`, that protection is gone.
+- Guideline 4.2, minimum functionality. The offline worksheets, reminder, and share sheet are the native part. If the review build is switched to a remote `server.url`, that protection is gone.
 - Guideline 3.1.1. A link to Stripe for the digital engine is a likely rejection. This app does not include that link. Do not add one.
 - Kids category. Do not opt in while the school site collects a child's name and sends answers to xAI.
 - The school site can navigate to other sites. A reviewer who opens it may call that unrestricted web access. The parent gate is there for that reason. If review complains, remove the School button and keep the offline app only.

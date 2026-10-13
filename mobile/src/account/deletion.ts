@@ -1,4 +1,7 @@
-export const DEVICE_STORAGE_KEYS = ["vkole.practice", "vkole.reminder", "vkole.clock"] as const;
+export const DEVICE_STORAGE_KEYS = ["vkole.practice", "vkole.reminder"] as const;
+
+/** Written by older installs that kept a daily practice clock. Erase still deletes it. */
+export const RETIRED_DEVICE_KEYS = ["vkole.clock"] as const;
 
 export const DELETION_EMAIL = "kirksam.alpha@dotheimpossible.ai";
 

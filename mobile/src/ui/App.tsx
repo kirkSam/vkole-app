@@ -17,8 +17,6 @@ import {
 } from "../native/device.ts";
 import { gateStillOpen, PARENT_GATE_MATH, parentGatePasses } from "../parent-gate.ts";
 import { DATA_INVENTORY, NOT_COLLECTED } from "../privacy/inventory.ts";
-import { formatClock } from "../../../src/lib/day-clock-math.ts";
-import { displayClock, freshClock, noteActivity, type DeviceClock } from "../practice/clock.ts";
 import {
   applyAnswers,
   buildWorksheet,
@@ -66,17 +64,6 @@ function savedPractice(raw: string | null): SavedPractice {
   }
 }
 
-function savedClock(raw: string | null): DeviceClock {
-  if (!raw) return freshClock(Date.now());
-  try {
-    const value = JSON.parse(raw) as DeviceClock;
-    if (!value.dayKey || typeof value.usedSeconds !== "number") return freshClock(Date.now());
-    return value;
-  } catch {
-    return freshClock(Date.now());
-  }
-}
-
 function Mark() {
   return (
     <svg className="mark" viewBox="0 0 64 64" aria-hidden="true">
@@ -91,8 +78,6 @@ function Mark() {
 
 export function App() {
   const [screen, setScreen] = useState<Screen>("home");
-  const [now, setNow] = useState(() => Date.now());
-  const [clock, setClock] = useState<DeviceClock>(() => freshClock(Date.now()));
   const [practice, setPractice] = useState<SavedPractice>(() => savedPractice(null));
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [sheetNote, setSheetNote] = useState("");
@@ -109,22 +94,15 @@ export function App() {
   const [erased, setErased] = useState(false);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
     let stop = () => undefined as void;
     void (async () => {
       await prepareShell();
-      const [practiceRaw, clockRaw, reminderRaw, platform] = await Promise.all([
+      const [practiceRaw, reminderRaw, platform] = await Promise.all([
         readDeviceKey("vkole.practice"),
-        readDeviceKey("vkole.clock"),
         readDeviceKey("vkole.reminder"),
         nativePlatform(),
       ]);
       setPractice(savedPractice(practiceRaw));
-      setClock(savedClock(clockRaw));
       setReminder(parseReminder(reminderRaw));
       const store = createStoreBilling(
         revenueCatKeyFor(platform, REVENUECAT_ANDROID_API_KEY, REVENUECAT_IOS_API_KEY),
@@ -142,11 +120,6 @@ export function App() {
     return () => stop();
   }, []);
 
-  async function saveClock(next: DeviceClock) {
-    setClock(next);
-    await writeDeviceKey("vkole.clock", JSON.stringify(next));
-  }
-
   async function savePractice(next: SavedPractice) {
     setPractice(next);
     await writeDeviceKey("vkole.practice", JSON.stringify(next));
@@ -156,9 +129,6 @@ export function App() {
     if (gateStillOpen(gateAt, Date.now())) action();
     else setPending({ run: action });
   }
-
-  const face = displayClock(clock, now);
-  const closed = face.closed;
 
   return (
     <div className="app">
@@ -172,9 +142,6 @@ export function App() {
 
       {screen === "home" ? (
         <Home
-          remaining={formatClock(face.remaining)}
-          closed={closed}
-          idle={face.idleStopped}
           practice={practice}
           onPractice={() => setScreen("practice")}
           onSchool={() => setScreen("school")}
@@ -190,19 +157,15 @@ export function App() {
           practice={practice}
           sheet={sheet}
           note={sheetNote}
-          closed={closed}
           ready={ready}
           onChange={(next) => void savePractice({ ...next, seed: practice.seed })}
           onStart={() => {
-            if (closed) return;
             const items = buildWorksheet(practice.subject, practice.rung.grade, practice.seed);
             setSheet({ items, index: 0, correct: 0, flags: [] });
             setSheetNote("");
-            void saveClock(noteActivity(clock, Date.now()));
           }}
           onAnswer={(correct) => {
-            if (!sheet || closed) return;
-            void saveClock(noteActivity(clock, Date.now()));
+            if (!sheet) return;
             const flags = [...sheet.flags, correct];
             const correctCount = sheet.correct + (correct ? 1 : 0);
             if (sheet.index + 1 >= sheet.items.length) {
@@ -277,7 +240,6 @@ export function App() {
             withParent(() => {
               void eraseDeviceRecords().then(() => {
                 setPractice(savedPractice(null));
-                setClock(freshClock(Date.now()));
                 setReminder(parseReminder(null));
                 setSheet(null);
                 setSheetNote("");
@@ -343,9 +305,6 @@ export function App() {
 }
 
 function Home(props: {
-  remaining: string;
-  closed: boolean;
-  idle: boolean;
   practice: SavedPractice;
   onPractice: () => void;
   onSchool: () => void;
@@ -356,19 +315,6 @@ function Home(props: {
 }) {
   return (
     <>
-      <section className="card clock">
-        <div>
-          <p className="kicker">Today on this device</p>
-          <strong>{props.remaining}</strong>
-        </div>
-        <p className="muted fine">
-          {props.closed
-            ? "Practice is closed until midnight Pacific."
-            : props.idle
-              ? "Five quiet minutes paused the timer."
-              : "Two and a half hours, shared by the four subjects."}
-        </p>
-      </section>
       <section className="card">
         <h2>Worksheets live here</h2>
         <p className="muted">
@@ -405,7 +351,6 @@ function Practice(props: {
   practice: SavedPractice;
   sheet: Sheet | null;
   note: string;
-  closed: boolean;
   ready: boolean;
   onChange: (next: SavedPractice) => void;
   onStart: () => void;
@@ -446,10 +391,9 @@ function Practice(props: {
           </select>
         </label>
       </div>
-      {props.closed ? <p className="warn">The daily time on this device is used up.</p> : null}
       {!props.sheet ? (
         <div className="stack">
-          <button className="btn" type="button" data-testid="start-sheet" disabled={!props.ready || props.closed} onClick={props.onStart}>
+          <button className="btn" type="button" data-testid="start-sheet" disabled={!props.ready} onClick={props.onStart}>
             Start worksheet
           </button>
           {props.note ? <p data-testid="sheet-note">{props.note}</p> : null}
@@ -577,11 +521,7 @@ function Terms(props: { onSchool: () => void }) {
       <h2>Terms</h2>
       <p className="muted">
         A parent is responsible for the child who uses this app. Offline practice is a worksheet on the device.
-        It is not the school office, and it does not enroll a student.
-      </p>
-      <p className="muted">
-        The daily practice limit on this device is two and a half hours. It resets at midnight Pacific time.
-        Five minutes with no taps pauses it. The school office keeps its own clock.
+        It is not the school office, and it does not enroll a student. A worksheet on this device has no daily time limit.
       </p>
       <p className="muted">
         This app does not show a price. If a purchase is offered, the App Store or Google Play shows the price and charges the parent.
@@ -598,7 +538,7 @@ function Account(props: { erased: boolean; onDelete: () => void }) {
     <section className="card">
       <h2>Delete account data</h2>
       <p className="muted">
-        This app does not create the school login. Erasing the device removes the worksheet progress, the practice timer, and the reminder.
+        This app does not create the school login. Erasing the device removes the worksheet progress and the reminder.
       </p>
       <button className="btn" type="button" data-testid="delete-device" onClick={props.onDelete}>
         Erase this device

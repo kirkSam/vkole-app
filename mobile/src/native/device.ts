@@ -1,4 +1,4 @@
-import { DEVICE_STORAGE_KEYS } from "../account/deletion.ts";
+import { DEVICE_STORAGE_KEYS, RETIRED_DEVICE_KEYS } from "../account/deletion.ts";
 import { REMINDER_ID } from "../reminders.ts";
 import { schoolHref } from "../school-link.ts";
 
@@ -36,10 +36,11 @@ export async function writeDeviceKey(key: string, value: string): Promise<void> 
 }
 
 export async function eraseDeviceRecords(): Promise<void> {
+  const keys = [...DEVICE_STORAGE_KEYS, ...RETIRED_DEVICE_KEYS];
   const native = (await nativePlatform()) !== "web";
   if (native) {
     const { Preferences } = await import("@capacitor/preferences");
-    await Promise.all(DEVICE_STORAGE_KEYS.map((key) => Preferences.remove({ key })));
+    await Promise.all(keys.map((key) => Preferences.remove({ key })));
     try {
       const { LocalNotifications } = await import("@capacitor/local-notifications");
       const pending = await LocalNotifications.getPending();
@@ -49,7 +50,7 @@ export async function eraseDeviceRecords(): Promise<void> {
     }
     return;
   }
-  for (const key of DEVICE_STORAGE_KEYS) localStorage.removeItem(key);
+  for (const key of keys) localStorage.removeItem(key);
 }
 
 export async function shareText(title: string, text: string): Promise<"shared" | "copied" | "unavailable"> {
