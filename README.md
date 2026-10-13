@@ -96,3 +96,17 @@ The app also reads `VITE_AUTH_ENABLED`, `VITE_PUBLIC_HOSTNAME`, and `NODE_ENV`. 
 - Secret keys and passwords
 - The published database
 - The sandbox-only agent instructions
+
+## Phone and tablet build
+
+The App Store and Play build is the Capacitor app in `mobile/`. It keeps worksheets, a practice timer, and a reminder on the device, and it opens https://www.dotheimpossible.ai only after a parent gate. Read `docs/AUDIT.md` for how this engine compares with the live school, and `docs/STORE_SUBMISSION.md` for the upload checklist.
+
+```bash
+cd mobile
+npm install
+npm test
+npm run build
+npx cap sync
+```
+
+iOS can be generated here and has to be archived on a Mac. Do not put store keys or passwords in the repository.

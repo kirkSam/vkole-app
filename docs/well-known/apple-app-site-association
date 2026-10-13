@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["TEAMID.ai.dotheimpossible.vkole"],
+        "components": [
+          {
+            "/": "/*",
+            "comment": "Replace TEAMID with the Apple Team ID, then host this file with no extension."
+          }
+        ]
+      }
+    ]
+  }
+}
