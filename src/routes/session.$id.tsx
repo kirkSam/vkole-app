@@ -1,0 +1,587 @@
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { APP_NAME } from "@/lib/brand";
+import { TrialFinished } from "@/components/trial-finished";
+import { PageSkeleton, Shell } from "@/components/shell";
+import { endReasonSentence, formatOnline, IDLE_MS, type EndReason } from "@/lib/academic-email";
+import { GRADES, levelLabel, subjectMeta } from "@/lib/climb-rules";
+import { stepName } from "@/lib/cc-steps";
+import {
+  academicReport,
+  beginSitting,
+  endChildSession,
+  getClimb,
+  recordAnswer,
+  revealNextQuestion,
+  setChildAge,
+  setClimbLevel,
+  touchSitting,
+  type Climb,
+} from "@/lib/climbs";
+import { beatStudentClock, readStudentClock, resumeStudentClock } from "@/lib/day-clock";
+import { deviceTimeZone } from "@/lib/day-clock-math";
+import type { ClockFace } from "@/components/vkole-rules";
+import { SchoolPath } from "@/components/school-path";
+
+export const Route = createFileRoute("/session/$id")({ component: SessionPage });
+
+type Closure = {
+  reason: EndReason;
+  recipient: string;
+  sent: boolean;
+  error: string;
+  subject: string;
+  body: string;
+  sittingSeconds: number;
+  totalSeconds: number;
+  sheetNote: string;
+};
+
+let pendingLeave: { id: string; cancel: () => void } | null = null;
+
+function Feedback({ text }: { text: string }) {
+  const matched = text.match(/^Answer:\s*([\s\S]+?)\n+\s*Explanation:\s*([\s\S]+)$/i) ?? text.match(/^Answer:\s*(.+?)\s+Explanation:\s*(.+)$/i);
+  if (!matched) return <p className="mt-4 whitespace-pre-wrap text-ink">{text}</p>;
+  return (
+    <div className="mt-4">
+      <p className="text-xs tracking-wide text-muted uppercase">Answer</p>
+      <p className="mt-1 text-ink">{matched[1]?.trim()}</p>
+      <p className="mt-3 text-xs tracking-wide text-muted uppercase">Explanation</p>
+      <p className="mt-1 whitespace-pre-wrap text-ink">{matched[2]?.trim()}</p>
+    </div>
+  );
+}
+
+function Reading({ prompt }: { prompt: string }) {
+  const matched = prompt.match(/^Read:\s*([\s\S]+?)\n+\s*Question:\s*([\s\S]+)$/i);
+  if (!matched) {
+    return <h2 className="mt-2 whitespace-pre-wrap font-display text-2xl leading-snug text-ink">{prompt}</h2>;
+  }
+  return (
+    <>
+      <p className="mt-4 text-xs tracking-wide text-muted uppercase">Read</p>
+      <p className="mt-2 whitespace-pre-wrap text-base leading-relaxed text-ink">{matched[1]?.trim()}</p>
+      <h2 className="mt-4 font-display text-2xl leading-snug text-ink">{matched[2]?.trim()}</h2>
+    </>
+  );
+}
+
+function SessionPage() {
+  const { id } = Route.useParams();
+  const navigate = useNavigate();
+  const { user, isPending } = useCurrentUserState();
+  const [climb, setClimb] = useState<Climb | null>(null);
+  const [missing, setMissing] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [pendingAnswer, setPendingAnswer] = useState(false);
+  const [error, setError] = useState("");
+  const [ageInput, setAgeInput] = useState(8);
+  const [report, setReport] = useState("");
+  const [onlineAt, setOnlineAt] = useState<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [closure, setClosure] = useState<Closure | null>(null);
+  const [clock, setClock] = useState<ClockFace | null>(null);
+  const [levelPassword, setLevelPassword] = useState("");
+  const [studentPassword, setStudentPassword] = useState("");
+  const finishRef = useRef<(reason: EndReason) => void>(() => {});
+
+  const userId = user?.id;
+  const clockOpen = Boolean(clock?.armed && !clock.closed);
+  const climbId = climb && !climb.blocked && clockOpen ? climb.id : undefined;
+
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    getClimb({ data: { id } })
+      .then((row) => {
+        if (!live) return;
+        setClimb(row);
+      })
+      .catch(() => {
+        if (live) setMissing(true);
+      });
+    return () => {
+      live = false;
+    };
+  }, [id, userId]);
+
+  useEffect(() => {
+    if (!climb || climb.blocked) return;
+    const deadline = climb.subscribed ? climb.subscriptionEndsAt : climb.endsAt;
+    if (!deadline) return;
+    const ms = new Date(deadline).getTime() - Date.now();
+    const stop = () => {
+      setClimb((row) => (row ? { ...row, expired: true, blocked: true, daysLeft: 0, subscribed: false } : row));
+    };
+    if (ms <= 0) {
+      stop();
+      return;
+    }
+    const id = window.setTimeout(stop, ms);
+    return () => window.clearTimeout(id);
+  }, [climb?.id, climb?.endsAt, climb?.subscriptionEndsAt, climb?.subscribed, climb?.renews, climb?.blocked]);
+
+  useEffect(() => {
+    if (!userId || !climb || climb.blocked) return;
+    let live = true;
+    readStudentClock({ data: { id: climb.id, timeZone: deviceTimeZone() } })
+      .then((row) => {
+        if (live) setClock(row);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [userId, climb?.id, climb?.blocked]);
+
+  useEffect(() => {
+    if (!climb?.age) return;
+    let live = true;
+    academicReport({ data: { id: climb.id } })
+      .then((letter) => {
+        if (live) setReport(`${letter.subject}\n\n${letter.body}`);
+      })
+      .catch(() => {
+        if (live) setReport("");
+      });
+    return () => {
+      live = false;
+    };
+  }, [climb?.id, climb?.age, climb?.level, climb?.asked, climb?.rightCount]);
+
+  useEffect(() => {
+    if (!onlineAt || closure) return;
+    const tick = () => setElapsed(Math.max(0, Date.now() - onlineAt));
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [onlineAt, closure]);
+
+  useEffect(() => {
+    const leaving = pendingLeave;
+    if (leaving && leaving.id === climbId) {
+      leaving.cancel();
+      pendingLeave = null;
+    }
+    if (!userId || !climbId) return;
+    let stopped = false;
+    const closing = { current: false };
+    let last = Date.now();
+    let lastSent = 0;
+    let opened = Promise.resolve();
+
+    const finish = (reason: EndReason) => {
+      if (closing.current) return;
+      closing.current = true;
+      try {
+        sessionStorage.setItem("vkole-last-mail", JSON.stringify({ pending: true, reason }));
+      } catch {
+        /* storage may be unavailable */
+      }
+      void opened
+        .catch(() => undefined)
+        .then(() => endChildSession({ data: { id: climbId, reason } }))
+        .then((result) => {
+          const leaveThisEngine = reason !== "inactivity";
+          if (!result || (result.alreadyClosed && !result.body)) {
+            if (!stopped && leaveThisEngine) void navigate({ to: "/" });
+            return;
+          }
+          const note: Closure = {
+            reason: result.reason,
+            recipient: result.recipient,
+            sent: result.sent,
+            error: result.error,
+            subject: result.subject,
+            body: result.body,
+            sittingSeconds: result.sittingSeconds,
+            totalSeconds: result.totalSeconds,
+            sheetNote: result.sheetNote,
+          };
+          try {
+            if (leaveThisEngine || stopped) sessionStorage.setItem("vkole-last-mail", JSON.stringify(note));
+            else sessionStorage.removeItem("vkole-last-mail");
+          } catch {
+            /* storage may be unavailable */
+          }
+          if (stopped) return;
+          if (leaveThisEngine) void navigate({ to: "/" });
+          else setClosure(note);
+        })
+        .catch(() => {
+          closing.current = false;
+        });
+    };
+    finishRef.current = finish;
+
+    const mark = () => {
+      last = Date.now();
+    };
+    opened = beginSitting({ data: { id: climbId } })
+      .then((row) => {
+        if (!stopped) setOnlineAt(new Date(row.startedAt).getTime());
+      })
+      .catch((err: unknown) => {
+        if (!stopped) setError(err instanceof Error ? err.message : "Could not start this sitting.");
+        throw err;
+      });
+
+    const names = ["pointerdown", "keydown", "touchstart"] as const;
+    for (const name of names) window.addEventListener(name, mark, { passive: true });
+    const poll = window.setInterval(() => {
+      if (Date.now() - last >= IDLE_MS) finish("inactivity");
+    }, 5000);
+    const beat = window.setInterval(() => {
+      if (last > lastSent && Date.now() - last < IDLE_MS) {
+        lastSent = last;
+        void touchSitting({ data: { id: climbId } });
+        void beatStudentClock({ data: { id: climbId, timeZone: deviceTimeZone() } }).then((next) => {
+          if (stopped) return;
+          setClock(next);
+          if (next.closed) finish("logout");
+          else if (!next.armed) finish("inactivity");
+        });
+      }
+    }, 5000);
+    const onVisible = () => {
+      if (document.visibilityState === "hidden") {
+        void touchSitting({ data: { id: climbId } });
+        return;
+      }
+      if (Date.now() - last >= IDLE_MS) finish("inactivity");
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(poll);
+      window.clearInterval(beat);
+      for (const name of names) window.removeEventListener(name, mark);
+      document.removeEventListener("visibilitychange", onVisible);
+      if (closing.current) return;
+      const timer = window.setTimeout(() => finish("logout"), 500);
+      pendingLeave = { id: climbId, cancel: () => window.clearTimeout(timer) };
+    };
+  }, [userId, climbId, navigate]);
+
+  if (isPending) return <PageSkeleton />;
+  if (!user) return <Navigate to="/login" />;
+  if (missing) {
+    return (
+      <Shell>
+        <h1 className="font-display text-3xl">Session not found</h1>
+        <Link to="/" className="mt-4 inline-flex min-h-11 items-center text-accent">
+          Back to sessions
+        </Link>
+      </Shell>
+    );
+  }
+  if (!climb) return <PageSkeleton />;
+  if (climb.blocked) {
+    return (
+      <TrialFinished
+        subject={climb.subject}
+        wholeApp
+        reason={climb.plan === "month" || climb.plan === "year" ? climb.plan : "trial"}
+        stopped={climb.plan === "month" || climb.plan === "year" ? (climb.renews ? "unpaid" : "cancelled") : undefined}
+        onSplash={() => {
+          try {
+            sessionStorage.setItem("vkole-unpaid", "1");
+            sessionStorage.setItem("vkole-tour", "1");
+          } catch {
+            /* storage may be unavailable */
+          }
+          window.location.assign("/");
+        }}
+      />
+    );
+  }
+
+  const meta = subjectMeta(climb.subject);
+
+  async function submitAnswer(event: FormEvent) {
+    event.preventDefault();
+    if (!climb || pendingAnswer || climb.awaitingNext) return;
+    const given = answer.trim();
+    if (!given) return;
+    setPendingAnswer(true);
+    setError("");
+    try {
+      const result = await recordAnswer({ data: { id: climb.id, answer: given } });
+      setClimb(result.climb);
+      if (result.status === "again") setError("Please try again.");
+      else setAnswer("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Please try again.");
+    } finally {
+      setPendingAnswer(false);
+    }
+  }
+
+  async function revealNext() {
+    if (!climb) return;
+    setError("");
+    try {
+      setClimb(await revealNextQuestion({ data: { id: climb.id } }));
+      setAnswer("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Please try again.");
+    }
+  }
+
+  async function stepLevel(direction: "up" | "down") {
+    if (!climb) return;
+    if (levelPassword.length < 8) {
+      setError("Enter the password of the account that registered.");
+      return;
+    }
+    setError("");
+    try {
+      const row = await setClimbLevel({ data: { id: climb.id, direction, password: levelPassword } });
+      setClimb(row);
+      setAnswer("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not set the level.");
+    }
+  }
+
+  async function saveAge(event: FormEvent) {
+    event.preventDefault();
+    if (!climb) return;
+    setError("");
+    try {
+      const row = await setChildAge({ data: { id: climb.id, age: ageInput } });
+      setClimb(row);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the age.");
+    }
+  }
+
+  return (
+    <Shell>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold tracking-wide text-accent uppercase">VKOLE/{meta.code}</p>
+          <h1 className="font-display text-3xl text-ink">{climb.childName}</h1>
+          <p className="text-sm text-muted">{APP_NAME}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {closure ? null : (
+            <button
+              type="button"
+              onClick={() => finishRef.current("logout")}
+              className="inline-flex min-h-11 items-center rounded-xl border border-line bg-surface px-4 text-sm text-ink"
+            >
+              Log out
+            </button>
+          )}
+          <Link to="/" className="inline-flex min-h-11 items-center text-sm text-muted">
+            All sessions
+          </Link>
+        </div>
+      </div>
+      <div className="mt-4 flex gap-1" aria-hidden="true">
+        {GRADES.map((grade, index) => (
+          <span key={grade} className={index <= Math.min(climb.level, 12) ? "h-2 flex-1 rounded-full bg-accent" : "h-2 flex-1 rounded-full bg-line"} />
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted">
+        <span className="rounded-full border border-line bg-surface px-3 py-1">
+          Level <strong className="font-semibold text-ink">{levelLabel(climb.level)} · {stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · {(climb.standardStep ?? 0) + 1} of 3</strong>
+        </span>
+        <span className="rounded-full border border-line bg-surface px-3 py-1">
+          Correct <strong className="font-semibold text-ink">{climb.correctAtLevel}/2</strong>
+        </span>
+        <span className="rounded-full border border-line bg-surface px-3 py-1">
+          Miss streak <strong className="font-semibold text-ink">{climb.incorrectStreak}/2</strong>
+        </span>
+        <span className="rounded-full border border-line bg-surface px-3 py-1">
+          Session <strong className="font-semibold text-ink">{climb.rightCount}/{climb.asked}</strong>
+        </span>
+        <span className="rounded-full border border-line bg-surface px-3 py-1">
+          Free period <strong className="font-semibold text-ink">{climb.subscribed ? `subscribed until ${new Date(climb.subscriptionEndsAt ?? climb.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : climb.expired ? "ended" : `${climb.daysLeft} days`}</strong>
+        </span>
+        {climb.age != null ? (
+          <span className="rounded-full border border-line bg-surface px-3 py-1">
+            Age <strong className="font-semibold text-ink">{climb.age}</strong>
+          </span>
+        ) : null}
+        {onlineAt && !closure ? (
+          <span className="rounded-full border border-line bg-surface px-3 py-1">
+            Online <strong className="font-semibold text-ink">{formatOnline(Math.round(elapsed / 1000))}</strong>
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-3 text-sm text-muted">
+        Two correct answers move up one Common Core standard. One incorrect answer stays on that standard. Two incorrect answers in a row move down one standard. The grade number stops at 12. Two correct answers on grade 12, standard 3 stay there, and the grade 12 questions rotate.
+      </p>
+      <SchoolPath />
+      {!closure && clock?.closed ? (
+        <p className="mt-5 text-ink">The 2.5 hours for this login are used. The engines open again at midnight Pacific time.</p>
+      ) : null}
+      {!closure && clock && !clock.armed && !clock.closed ? (
+        <form
+          className="mt-5 rounded-2xl border border-line bg-surface p-5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setError("");
+            void resumeStudentClock({ data: { id: climb.id, password: studentPassword, timeZone: deviceTimeZone() } })
+              .then((next) => {
+                setClock(next);
+                setStudentPassword("");
+              })
+              .catch((err: unknown) => {
+                setError(err instanceof Error ? err.message : "Could not continue.");
+              });
+          }}
+        >
+          <p className="text-ink">
+            {clock.passwordSet
+              ? `Enter the student password to continue as ${clock.childName}. Time already used today stays on this login.`
+              : `Choose an easy password for ${clock.childName}. It is required the next time the clock stops.`}
+          </p>
+          <label className="mt-3 block text-sm text-muted">
+            Student password
+            <input
+              type="password"
+              value={studentPassword}
+              onChange={(event) => setStudentPassword(event.target.value)}
+              autoComplete="current-password"
+              className="mt-1 w-full rounded-xl border border-line bg-bg px-3 py-2 text-ink"
+            />
+          </label>
+          {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
+          <button type="submit" className="mt-4 min-h-11 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
+            Continue
+          </button>
+        </form>
+      ) : null}
+      {closure ? (
+        <section className="mt-5 rounded-2xl border border-line bg-surface p-5">
+          <h2 className="font-display text-2xl text-ink">Session closed</h2>
+          <p className="mt-2 text-ink">{endReasonSentence(closure.reason)}</p>
+          <p className="mt-2 text-ink">Time online this sitting: {formatOnline(closure.sittingSeconds)}.</p>
+          <p className="text-ink">Total time online in this program: {formatOnline(closure.totalSeconds)}.</p>
+          <p className="mt-2 text-sm text-muted">
+            {closure.sent
+              ? `Academic email sent to ${closure.recipient}.`
+              : closure.error || "The academic email was not sent."}
+          </p>
+          {closure.sheetNote ? <p className="mt-2 text-sm text-miss">{closure.sheetNote}</p> : null}
+          {closure.body ? (
+            <pre className="mt-4 whitespace-pre-wrap font-sans text-sm leading-relaxed text-ink">{`${closure.subject}\n\n${closure.body}`}</pre>
+          ) : null}
+          <Link
+            to="/"
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-ink bg-paper px-5 text-base font-semibold text-ink"
+          >
+            Other engines
+          </Link>
+        </section>
+      ) : !clockOpen ? null : climb.age == null ? (
+        <form onSubmit={saveAge} className="mt-5 rounded-2xl border border-line bg-surface p-5">
+          <p className="text-ink">Age is required for the academic record. The saved level stays {levelLabel(climb.level)}.</p>
+          <label className="mt-3 block text-sm text-muted">
+            Age
+            <input
+              type="number"
+              min={4}
+              max={18}
+              value={ageInput}
+              onChange={(event) => setAgeInput(Number(event.target.value))}
+              className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
+            />
+          </label>
+          <button type="submit" className="mt-4 min-h-11 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
+            Save age
+          </button>
+        </form>
+      ) : (
+      <article className="mt-5 rounded-2xl border border-line bg-surface p-5">
+        <p className="text-xs tracking-wide text-muted uppercase">{climb.standardCode}</p>
+        <Reading prompt={climb.currentPrompt} />
+        {climb.awaitingNext ? (
+          <>
+            <Feedback text={climb.lastFeedback} />
+            <button
+              type="button"
+              onClick={() => void revealNext()}
+              className="mt-4 min-h-11 rounded-xl bg-accent px-5 font-semibold text-accent-ink"
+            >
+              Next question
+            </button>
+          </>
+        ) : (
+          <form onSubmit={submitAnswer} className="mt-4">
+            <label className="block text-sm text-muted">
+              Answer
+              <input
+                value={answer}
+                onChange={(event) => setAnswer(event.target.value)}
+                className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={pendingAnswer || answer.trim().length === 0}
+              className="mt-4 min-h-11 rounded-xl bg-accent px-5 font-semibold text-accent-ink disabled:opacity-40"
+            >
+              {pendingAnswer ? "Checking…" : "Submit"}
+            </button>
+          </form>
+        )}
+        {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={() => finishRef.current("finished")}
+            className="min-h-12 flex-1 rounded-xl border border-ink bg-paper px-5 text-base font-semibold text-ink"
+          >
+            Finished
+          </button>
+          <Link
+            to="/"
+            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-ink bg-paper px-5 text-base font-semibold text-ink"
+          >
+            Other engines
+          </Link>
+        </div>
+      </article>
+      )}
+      {!closure && climb.age != null ? (
+        <div className="mt-6 space-y-2">
+          <label className="block text-sm text-muted">
+            Account password
+            <input
+              type="password"
+              value={levelPassword}
+              onChange={(event) => setLevelPassword(event.target.value)}
+              autoComplete="current-password"
+              className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
+            />
+          </label>
+          <p className="text-sm text-muted">Only the person who registered this account can change the working level.</p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => void stepLevel("down")} className="min-h-11 rounded-xl border border-line bg-surface px-4 text-sm text-ink">
+              Lower the working level. The earned level stays.
+            </button>
+            <button type="button" onClick={() => void stepLevel("up")} className="min-h-11 rounded-xl border border-line bg-surface px-4 text-sm text-ink">
+              Raise the working level. The earned level stays.
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {error && climb.age == null && !closure ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
+      {!closure && report ? (
+        <section className="mt-6 rounded-2xl border border-line bg-surface p-5">
+          <h2 className="font-display text-2xl text-ink">Academic email</h2>
+          <p className="mt-1 text-sm text-muted">
+            Sent to the email the parent gave at registration when the child presses Finished or Log out on this engine, or after 5 minutes with no activity. The other engines stay open. It includes time online and how the session ended.
+          </p>
+          <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed text-ink">{report}</pre>
+        </section>
+      ) : null}
+    </Shell>
+  );
+}
