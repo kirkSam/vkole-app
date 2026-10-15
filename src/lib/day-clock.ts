@@ -4,7 +4,7 @@ import { childAccess, rollRenewals } from "@/lib/subscription";
 import { getSql, type Sql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { TRIAL_MS } from "@/lib/academic-email";
-import { localItem } from "@/lib/vkole-cycle";
+import { dealQuestion } from "@/lib/question-history";
 import { isSubject, type SubjectId } from "@/lib/climb-rules";
 import { localDayKey, PACIFIC, projectClock, type ClockProjection } from "@/lib/day-clock-math";
 import type { ClockFace } from "@/components/vkole-rules";
@@ -141,18 +141,22 @@ async function ensureTrial(sql: Sql, userId: string) {
   `;
 }
 
-async function seedPrompt(sql: Sql, userId: string, id: string, subject: SubjectId, grade: number) {
+async function seedPrompt(sql: Sql, userId: string, id: string, subject: SubjectId, grade: number, childName: string) {
   const rows = await sql<{ current_prompt: string | null }>`
     select current_prompt from climbs where id = ${id} and user_id = ${userId}
   `;
   if (rows[0]?.current_prompt) return;
-  const item = localItem(subject, grade);
+  const item = await dealQuestion(sql, userId, childName, subject, grade, 0);
   await sql`
     update climbs
     set start_grade = coalesce(start_grade, ${grade}),
-        standard_code = ${item.code},
-        standard_label = ${item.label},
-        current_prompt = ${item.prompt}
+        standard_code = ${item.standard},
+        standard_label = ${item.note},
+        current_prompt = ${item.stem},
+        answer_key = ${item.answer},
+        answer_aliases = ${JSON.stringify(item.aliases)},
+        answer_note = ${item.note},
+        question_id = ${item.id}
     where id = ${id} and user_id = ${userId}
   `;
 }
@@ -202,7 +206,7 @@ export const enterEngine = createServerFn({ method: "POST" })
       }
       if (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12) return { status: "new" as const };
       id = crypto.randomUUID();
-      const item = localItem(data.subject, data.grade, 0);
+      const item = await dealQuestion(sql, context.userId, data.firstName.trim(), data.subject, data.grade, 0);
       level = data.grade;
       await sql`alter table climbs add column if not exists registration_email text`;
       const prior = await sql<{ email: string | null }>`
@@ -223,11 +227,13 @@ export const enterEngine = createServerFn({ method: "POST" })
       await sql`
         insert into climbs (
           id, user_id, child_name, subject, level, performance_level, age,
-          start_grade, standard_code, standard_label, current_prompt, registration_email
+          start_grade, standard_code, standard_label, current_prompt, registration_email,
+          answer_key, answer_aliases, answer_note, question_id
         )
         values (
           ${id}, ${context.userId}, ${data.firstName.trim()}, ${data.subject}, ${data.grade}, ${data.grade}, ${data.age},
-          ${data.grade}, ${item.code}, ${item.label}, ${item.prompt}, ${registrationEmail || null}
+          ${data.grade}, ${item.standard}, ${item.note}, ${item.stem}, ${registrationEmail || null},
+          ${item.answer}, ${JSON.stringify(item.aliases)}, ${item.note}, ${item.id}
         )
       `;
     }
@@ -236,7 +242,7 @@ export const enterEngine = createServerFn({ method: "POST" })
     if (access === "extra") return { status: "extra" as const };
     if (!isSubject(data.subject)) return { status: "blocked" as const };
     if (level == null) return { status: "new" as const };
-    await seedPrompt(sql, context.userId, id, data.subject, level);
+    await seedPrompt(sql, context.userId, id, data.subject, level, data.firstName.trim());
     const clock = await observe(sql, context.userId);
     if (clock.closed) return { status: "closed" as const };
     if (clock.held) return { status: "hold" as const, id };
