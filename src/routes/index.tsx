@@ -136,18 +136,7 @@ function Home() {
   if (isPending && !createAccount) return <PageSkeleton />;
   if (stage === "splash") {
     return (
-      <SchoolSplash
-        onEnter={() => setStage(trialClosed() ? "trial" : "teletype")}
-        onLogin={() => {
-          if (trialClosed()) {
-            setUnpaid(true);
-            setStage("trial");
-            return;
-          }
-          setCreateAccount(false);
-          setStage("app");
-        }}
-      />
+      <SchoolSplash onEnter={() => setStage(trialClosed() ? "trial" : "teletype")} />
     );
   }
   if (stage === "teletype") {
