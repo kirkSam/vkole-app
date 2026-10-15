@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { APP_NAME } from "@/lib/brand";
+import { APP_NAME, SCHOOL_EMAIL, SCHOOL_SITE } from "@/lib/brand";
 import { authClient, authEnabled, signOut } from "@/lib/auth/client";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { notifyParentSignedOut } from "@/lib/climbs";
@@ -52,7 +52,7 @@ function ParentAccount() {
               }
             });
           }}
-          className="text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
+          className="inline-flex min-h-11 items-center px-2 text-sm text-muted underline-offset-4 hover:underline disabled:opacity-60"
         >
           {signingOut ? "Signing out…" : "Sign out"}
         </button>
@@ -64,20 +64,61 @@ function ParentAccount() {
 export function Shell({ children, onSplash }: { children: ReactNode; onSplash?: () => void }) {
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 py-6 sm:px-6 sm:py-8">
-      <header className="mb-6 flex items-center justify-between gap-3 border-b border-line pb-4">
+      <header className="mb-6 flex flex-col items-stretch gap-3 border-b border-line pb-4 sm:flex-row sm:items-center sm:justify-between">
         {onSplash ? (
-          <button type="button" onClick={onSplash} className="vkole-nav text-left font-display text-lg leading-tight tracking-wide text-ink sm:text-xl">
+          <button
+            type="button"
+            onClick={onSplash}
+            className="vkole-nav text-left font-display text-lg leading-tight tracking-wide text-ink sm:text-xl"
+          >
             {APP_NAME}
           </button>
         ) : (
-          <Link to="/" className="vkole-nav text-left font-display text-lg leading-tight tracking-wide text-ink sm:text-xl">
+          <Link
+            to="/"
+            className="vkole-nav text-left font-display text-lg leading-tight tracking-wide text-ink sm:text-xl"
+          >
             {APP_NAME}
           </Link>
         )}
         <ParentAccount />
       </header>
       <div className="flex-1">{children}</div>
+      <SchoolFooter />
     </div>
+  );
+}
+
+function SchoolFooter() {
+  return (
+    <footer className="school-footer">
+      <div className="school-footer-inner">
+        <blockquote>
+          <p>
+            “What is in the zone of proximal development today will be the actual developmental
+            level tomorrow.”
+          </p>
+          <footer>Lev Vygotsky, Mind in Society, 1978</footer>
+        </blockquote>
+        <p className="school-footer-name">ADOL with {APP_NAME}</p>
+        <p className="school-footer-line">
+          An online academy for homeschool parents and parents guiding after-school study. Each
+          child has a private office. Assignments stay within reach, and just far enough to require
+          a stretch.
+        </p>
+        <nav className="school-footer-links" aria-label="School">
+          <a href={SCHOOL_SITE}>Home</a>
+          <a href={`${SCHOOL_SITE}/parents`}>Parents</a>
+          <a href={`${SCHOOL_SITE}/contact`}>Contact</a>
+          <a href={`${SCHOOL_SITE}/privacy`}>Privacy</a>
+          <a href={`${SCHOOL_SITE}/terms`}>Terms</a>
+        </nav>
+        <p className="school-footer-meta">
+          <a href={`mailto:${SCHOOL_EMAIL}`}>{SCHOOL_EMAIL}</a>
+          <span>© 2026 ADOL with {APP_NAME}</span>
+        </p>
+      </div>
+    </footer>
   );
 }
 

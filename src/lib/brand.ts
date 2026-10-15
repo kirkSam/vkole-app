@@ -1,3 +1,4 @@
-export const APP_NAME = "VKOLE/ZPD - Space x.AI Supported Learning Engine";
-export const SCHOOL_NAME = "\"Do the Impossible\" Alpha Academy";
-export const SCHOOL_EMAIL = "kirksamalpha@dotheimpossible.ai";
+export const APP_NAME = "VKOLE/ZPD - Space x.AI Integrated Learning Engine";
+export const SCHOOL_NAME = "Do the Impossible Alpha Academy";
+export const SCHOOL_EMAIL = "kirksam.alpha@dotheimpossible.ai";
+export const SCHOOL_SITE = "https://www.dotheimpossible.ai";

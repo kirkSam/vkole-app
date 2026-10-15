@@ -57,7 +57,7 @@ export async function buildAssignmentPdf(input: {
     }
   };
 
-  drawLines(wrap("VKOLE/ZPD - Space x.AI Supported Learning Engine", bold, 11, max), bold, 11, ink, 3);
+  drawLines(wrap("VKOLE/ZPD - Space x.AI Integrated Learning Engine", bold, 11, max), bold, 11, ink, 3);
   drawLines(wrap(`VKOLE/${meta.code}  ·  ${meta.name}`, bold, 11, max), bold, 11, muted, 3);
   drawLines(wrap(`${input.childName}  ·  earned ${levelLabel(input.level)}  ·  8-question assignment`, bold, 18, max), bold, 18, ink, 6);
   drawLines(

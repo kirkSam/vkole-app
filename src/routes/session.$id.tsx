@@ -380,7 +380,7 @@ function SessionPage() {
               Log out
             </button>
           )}
-          <Link to="/" className="inline-flex min-h-11 items-center text-sm text-muted">
+          <Link to="/" className="inline-flex min-h-11 items-center px-3 text-sm text-muted">
             All sessions
           </Link>
         </div>

@@ -319,7 +319,7 @@ export const resumeStudentClock = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
-    if (!(await accessOpen(sql, context.userId))) throw new Error("The 7-day trial for VKOLE/ZPD - Space x.AI Supported Learning Engine has ended.");
+    if (!(await accessOpen(sql, context.userId))) throw new Error("The 7-day trial for VKOLE/ZPD - Space x.AI Integrated Learning Engine has ended.");
     const { name, clock } = await clockForClimb(sql, context.userId, data.id);
     if (clock.closed) return face(sql, context.userId, name, clock);
     await acceptStudentPassword(sql, context.userId, name, data.password);

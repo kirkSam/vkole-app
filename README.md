@@ -1,4 +1,4 @@
-# VKOLE/ZPD - Space x.AI Supported Learning Engine
+# VKOLE/ZPD - Space x.AI Integrated Learning Engine
 
 The learning app for one student. Four engines share one registration: VKOLE/M, VKOLE/ELA, VKOLE/SS, and VKOLE/gen.
 
@@ -26,7 +26,7 @@ This repository is the application source. It does not contain secret keys or pa
 - Gmail SMTP: smtp.gmail.com port 465
 - Auth broker used by the Grok host: https://auth.grok.me
 - Connector host used by the Grok host: https://connectors.grok.me
-- School reply address in the code: kirksamalpha@dotheimpossible.ai
+- School reply address in the code: kirksam.alpha@dotheimpossible.ai
 
 Stripe checkout is not attached. `STRIPE_MONTHLY_URL` in `src/lib/stripe-pay.ts` is empty. The prices shown in the app are $9.00 USD plus tax a month, or $79.00 USD plus tax a year, for one student.
 
