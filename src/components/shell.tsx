@@ -66,11 +66,11 @@ export function Shell({ children, onSplash }: { children: ReactNode; onSplash?: 
     <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 py-6 sm:px-6 sm:py-8">
       <header className="mb-6 flex items-center justify-between gap-3 border-b border-line pb-4">
         {onSplash ? (
-          <button type="button" onClick={onSplash} className="text-left font-display text-lg leading-tight tracking-wide text-ink sm:text-xl">
+          <button type="button" onClick={onSplash} className="vkole-nav text-left font-display text-lg leading-tight tracking-wide text-ink sm:text-xl">
             {APP_NAME}
           </button>
         ) : (
-          <Link to="/" className="text-left font-display text-lg leading-tight tracking-wide text-ink sm:text-xl">
+          <Link to="/" className="vkole-nav text-left font-display text-lg leading-tight tracking-wide text-ink sm:text-xl">
             {APP_NAME}
           </Link>
         )}
