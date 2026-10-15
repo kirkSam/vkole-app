@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { IDLE_MS, academicLetter, parentLogoutLetter, trialState, type AppTime, type EndReason, type ReportEvent } from "@/lib/academic-email";
-import { authMiddleware } from "@/lib/auth/middleware";
+import { schoolMiddleware } from "@/lib/school-middleware";
+import { isSchoolAccountId } from "@/lib/school-account";
 import { isSubject, SUBJECTS, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { moveRung, stepName, stepSentence } from "@/lib/cc-steps";
 import { fillSheet, rememberPrompt, seenKeys } from "@/lib/next-sheet";
@@ -94,6 +95,31 @@ type ClimbRow = {
 };
 
 async function accountState(sql: Sql, userId: string) {
+  if (isSchoolAccountId(userId)) {
+    const { readSchoolMirror } = await import("@/lib/school-mirror.server");
+    const mirror = await readSchoolMirror(sql, userId);
+    const startedAt = mirror?.freeWeekStart ?? new Date(0).toISOString();
+    const trial = trialState(startedAt);
+    const open = mirror?.access === "open";
+    if (!open) {
+      return {
+        ...trial,
+        expired: true,
+        daysLeft: 0,
+        subscribed: false,
+        subscriptionEndsAt: null,
+        plan: null,
+        renews: false,
+      };
+    }
+    return {
+      ...trial,
+      subscribed: trial.expired,
+      subscriptionEndsAt: null,
+      plan: mirror?.plan ?? null,
+      renews: false,
+    };
+  }
   const trials = await sql<{ started_at: unknown }>`
     select started_at from app_trials where user_id = ${userId} and subject = 'app'
   `;
@@ -167,31 +193,24 @@ async function selectOwned(sql: Sql, userId: string, id: string): Promise<Climb>
   return finishLoad(sql, userId, rows[0]);
 }
 
-export async function accountPasswordMatches(sql: Sql, userId: string, password: string): Promise<boolean> {
-  const rows = await sql.query<{ password: string | null }>(
-    'select "password" from "account" where "userId" = $1 and "providerId" = $2',
-    [userId, "credential"],
-  );
-  const hash = rows[0]?.password;
-  if (!hash) return false;
-  const { verifyPassword } = await import("better-auth/crypto");
-  return verifyPassword({ hash, password });
+export async function accountPasswordMatches(_sql: Sql, userId: string, password: string): Promise<boolean> {
+  if (!isSchoolAccountId(userId)) return false;
+  const { SchoolCallError, signInSchoolAccount } = await import("@/lib/school-account.server");
+  try {
+    await signInSchoolAccount({ email: userId, password });
+    return true;
+  } catch (err) {
+    if (err instanceof SchoolCallError && err.reason !== "offline" && err.reason !== "wait") return false;
+    throw err;
+  }
 }
 
 export const beginSharedTrial = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    const sql = await getSql();
-    await sql`
-      insert into app_trials (user_id, subject, started_at)
-      values (${context.userId}, 'app', now())
-      on conflict (user_id, subject) do nothing
-    `;
-    return { ok: true as const };
-  });
+  .middleware([schoolMiddleware])
+  .handler(async () => ({ ok: true as const }));
 
 export const listClimbs = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context }) => {
     const sql = await getSql();
     const rows = await sql.query<ClimbRow>(
@@ -217,12 +236,12 @@ export const listClimbs = createServerFn({ method: "GET" })
 
 export const getClimb = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => selectOwned(await getSql(), context.userId, data.id));
 
 export const setChildAge = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema.extend({ age: z.number().int().min(4).max(18) }), data))
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     await sql`update climbs set age = ${data.age}, updated_at = now() where id = ${data.id} and user_id = ${context.userId}`;
@@ -233,7 +252,7 @@ export const setClimbLevel = createServerFn({ method: "POST" })
   .validator((data: unknown) =>
     parse(idSchema.extend({ direction: z.enum(["up", "down"]), password: z.string().min(8).max(80) }), data),
   )
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     if (!(await accountPasswordMatches(sql, context.userId, data.password))) {
@@ -267,7 +286,7 @@ export const setClimbLevel = createServerFn({ method: "POST" })
 
 export const recordAnswer = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(answerSchema, data))
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const current = await selectOwned(sql, context.userId, data.id);
@@ -404,7 +423,7 @@ export const recordAnswer = createServerFn({ method: "POST" })
 
 export const revealNextQuestion = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const current = await selectOwned(sql, context.userId, data.id);
@@ -627,7 +646,7 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
 
 export const beginSitting = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const stale = await openSitting(sql, context.userId, data.id);
@@ -642,7 +661,7 @@ export const beginSitting = createServerFn({ method: "POST" })
 
 export const touchSitting = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     await sql`
@@ -654,7 +673,7 @@ export const touchSitting = createServerFn({ method: "POST" })
 
 export const endChildSession = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(endSchema, data))
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const climb = await selectOwned(sql, context.userId, data.id);
@@ -693,7 +712,7 @@ export const endChildSession = createServerFn({ method: "POST" })
 
 export const academicReport = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const climb = await selectOwned(sql, context.userId, data.id);
@@ -742,7 +761,7 @@ async function appsForChild(sql: Sql, userId: string, childName: string): Promis
 }
 
 export const notifyParentSignedOut = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context }) => {
     const sql = await getSql();
     const parents = await sql.query<{ name: string; email: string }>('select "name", "email" from "user" where "id" = $1', [context.userId]);

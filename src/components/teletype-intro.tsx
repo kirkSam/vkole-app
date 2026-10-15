@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { APP_NAME } from "@/lib/brand";
-import { recordPayment } from "@/lib/ledger";
 import { beginSharedTrial } from "@/lib/climbs";
-import { STRIPE_MONTHLY_URL } from "@/lib/stripe-pay";
+import { SCHOOL_ENGINE_URL } from "@/lib/school-account";
 
 const LEAD =
   "What if you and your child could access a \"State of the Art\" learning engine, VKOLE/ZPD - the Space x.AI Integrated Learning Engine? It is developed in conjunction with Space x.AI and a team of educators dedicated to bringing applied Superintelligence to parents at an affordable cost. Additionally, what if your educational agent stored your child's levels, and gave you control of your child's levels to send you a private email report of your child's progress and achievements?";
@@ -139,18 +138,9 @@ export function TeletypeIntro({
           type="button"
           className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
           onClick={() => {
-            if (onEnroll) {
-              onEnroll();
-              return;
-            }
-            void recordPayment({ data: { plan: "year" } }).catch(() => undefined);
-            if (!STRIPE_MONTHLY_URL) {
-              setNote(
-                "Stripe is not attached. Sign in and the year is kept with your email. The card is not charged.",
-              );
-              return;
-            }
-            window.open(STRIPE_MONTHLY_URL, "_blank", "noopener,noreferrer");
+            onEnroll?.();
+            const opened = window.open(SCHOOL_ENGINE_URL, "_blank", "noopener,noreferrer");
+            if (!opened) setNote("Pay on the school website. This app does not charge the card.");
           }}
         >
           $79.00 USD + tax a year for this student · Stripe Secure Pay
@@ -159,17 +149,9 @@ export function TeletypeIntro({
           type="button"
           className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
           onClick={() => {
-            if (onEnroll) {
-              onEnroll();
-              return;
-            }
-            void recordPayment({ data: { plan: "month" } })
-              .then(() =>
-                setNote(
-                  "The $9.00 month is kept with your sign-in email. Stripe is not attached, so the card is not charged.",
-                ),
-              )
-              .catch(() => setNote("Sign in so this payment is kept with your email."));
+            onEnroll?.();
+            const opened = window.open(SCHOOL_ENGINE_URL, "_blank", "noopener,noreferrer");
+            if (!opened) setNote("Pay on the school website. This app does not charge the card.");
           }}
         >
           $9.00 USD + tax a month for this student · Stripe Secure Pay

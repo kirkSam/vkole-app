@@ -2,8 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { Shell } from "@/components/shell";
-import { STRIPE_MONTHLY_URL } from "@/lib/stripe-pay";
-import { recordPayment } from "@/lib/ledger";
+import { SCHOOL_ENGINE_URL } from "@/lib/school-account";
 
 export const Route = createFileRoute("/enroll")({ component: EnrollPage });
 
@@ -16,6 +15,15 @@ const RECEIVES = [
   "Continued tracking, and the child’s access to VKOLE/ZPD - Space x.AI Integrated Learning Engine.",
 ];
 
+function openSchoolPay(setNote: (note: string) => void) {
+  const opened = window.open(SCHOOL_ENGINE_URL, "_blank", "noopener,noreferrer");
+  setNote(
+    opened
+      ? "The school website is open. This app does not charge the card."
+      : "Open the school website to pay. This app does not charge the card.",
+  );
+}
+
 function EnrollPage() {
   const [note, setNote] = useState("");
   return (
@@ -25,7 +33,7 @@ function EnrollPage() {
       <p className="mt-2 text-sm text-muted">One week FREE.</p>
       <p className="mt-4 font-display text-3xl text-ink">$9.00 USD + tax a month, or $79.00 USD + tax a year, for this student</p>
       <p className="mt-3 text-muted">
-        This renews only when a new charge is recorded. Tax would be added at Stripe. This app does not charge the card, and it does not store the card number.
+        Paying opens the school website, where the card is charged. This app does not charge the card, and it does not store the card number.
       </p>
       <h2 className="mt-8 font-display text-2xl text-ink">What you receive</h2>
       <ul className="mt-3 space-y-3 text-ink">
@@ -41,50 +49,19 @@ function EnrollPage() {
       <button
         type="button"
         className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 text-base font-semibold text-[#1c1408]"
-        onClick={() => {
-          void recordPayment({ data: { plan: "year" } })
-            .then((result) => {
-              if (result.keptEnd) {
-                setNote("This student is already paid through the current end date. No new charge.");
-                return;
-              }
-              try {
-                sessionStorage.removeItem("vkole-unpaid");
-              } catch {
-                /* storage may be unavailable */
-              }
-              window.location.assign("/?open=1");
-            })
-            .catch(() => setNote("Sign in so this payment is kept with your email."));
-          if (STRIPE_MONTHLY_URL) window.open(STRIPE_MONTHLY_URL, "_blank", "noopener,noreferrer");
-        }}
+        onClick={() => openSchoolPay(setNote)}
       >
         $79.00 USD + tax a year for this student · Stripe Secure Pay
       </button>
       <button
         type="button"
         className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 text-base font-semibold text-[#1c1408]"
-        onClick={() => {
-          void recordPayment({ data: { plan: "month" } })
-            .then((result) => {
-              if (result.keptEnd) {
-                setNote("This student is already paid through the current end date. No new charge.");
-                return;
-              }
-              try {
-                sessionStorage.removeItem("vkole-unpaid");
-              } catch {
-                /* storage may be unavailable */
-              }
-              window.location.assign("/?open=1");
-            })
-            .catch(() => setNote("Sign in so this payment is kept with your email."));
-        }}
+        onClick={() => openSchoolPay(setNote)}
       >
         $9.00 USD + tax a month for this student · Stripe Secure Pay
       </button>
       <p className="mt-3 text-sm text-muted">
-        {note || "Paying here opens the engines for the month or the year. Stripe is not attached, so the card is not charged."}
+        {note || "Paying opens the school website. This app does not mark the account paid, and it does not charge the card."}
       </p>
       <Link to="/" className="mt-4 inline-flex min-h-11 items-center text-sm text-accent">
         Back

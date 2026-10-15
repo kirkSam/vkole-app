@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { childAccess, rollRenewals } from "@/lib/subscription";
 import { getSql, type Sql } from "@/lib/db";
-import { authMiddleware } from "@/lib/auth/middleware";
+import { schoolMiddleware } from "@/lib/school-middleware";
+import { isSchoolAccountId } from "@/lib/school-account";
 import { TRIAL_MS } from "@/lib/academic-email";
 import { dealQuestion } from "@/lib/question-history";
 import { isSubject, type SubjectId } from "@/lib/climb-rules";
@@ -63,6 +64,10 @@ async function observe(sql: Sql, userId: string) {
 }
 
 async function accessOpen(sql: Sql, userId: string) {
+  if (isSchoolAccountId(userId)) {
+    const access = await childAccess(sql, userId, "");
+    return access === "open";
+  }
   await rollRenewals(sql, userId);
   const rows = await sql<{ started_at: unknown; subscribed: boolean | string | number | null }>`
     select t.started_at,
@@ -134,6 +139,7 @@ async function acceptStudentPassword(sql: Sql, userId: string, name: string, pas
 }
 
 async function ensureTrial(sql: Sql, userId: string) {
+  if (isSchoolAccountId(userId)) return;
   await sql`
     insert into app_trials (user_id, subject, started_at)
     values (${userId}, 'app', now())
@@ -182,7 +188,7 @@ export const enterEngine = createServerFn({ method: "POST" })
     if (!parsed.success) throw new Error("Enter the student’s first name.");
     return parsed.data;
   })
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     await ensureTrial(sql, context.userId);
@@ -205,9 +211,20 @@ export const enterEngine = createServerFn({ method: "POST" })
         throw new Error("This registration is for one student. Download the app on the other student’s device and register there.");
       }
       if (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12) return { status: "new" as const };
+      let grade = data.grade;
+      let step = 0;
+      if (isSchoolAccountId(context.userId)) {
+        const { readSchoolMirror } = await import("@/lib/school-mirror.server");
+        const mirror = await readSchoolMirror(sql, context.userId);
+        const site = mirror?.level[data.subject];
+        if (site) {
+          grade = site.grade;
+          step = site.step;
+        }
+      }
       id = crypto.randomUUID();
-      const item = await dealQuestion(sql, context.userId, data.firstName.trim(), data.subject, data.grade, 0);
-      level = data.grade;
+      const item = await dealQuestion(sql, context.userId, data.firstName.trim(), data.subject, grade, step);
+      level = grade;
       await sql`alter table climbs add column if not exists registration_email text`;
       const prior = await sql<{ email: string | null }>`
         select registration_email as email
@@ -231,10 +248,14 @@ export const enterEngine = createServerFn({ method: "POST" })
           answer_key, answer_aliases, answer_note, question_id
         )
         values (
-          ${id}, ${context.userId}, ${data.firstName.trim()}, ${data.subject}, ${data.grade}, ${data.grade}, ${data.age},
-          ${data.grade}, ${item.standard}, ${item.note}, ${item.stem}, ${registrationEmail || null},
+          ${id}, ${context.userId}, ${data.firstName.trim()}, ${data.subject}, ${grade}, ${grade}, ${data.age},
+          ${grade}, ${item.standard}, ${item.note}, ${item.stem}, ${registrationEmail || null},
           ${item.answer}, ${JSON.stringify(item.aliases)}, ${item.note}, ${item.id}
         )
+      `;
+      await sql`
+        update climbs set standard_step = ${step}
+        where id = ${id} and user_id = ${context.userId}
       `;
     }
     const access = await childAccess(sql, context.userId, data.firstName);
@@ -256,7 +277,7 @@ export const listDayClocks = createServerFn({ method: "POST" })
     if (!parsed.success) throw new Error("Check the local time and try again.");
     return parsed.data;
   })
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const names = await sql<{ child_name: string }>`
@@ -285,7 +306,7 @@ export const readStudentClock = createServerFn({ method: "POST" })
     if (!parsed.success) throw new Error("Check the session and try again.");
     return parsed.data;
   })
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const { name, clock } = await clockForClimb(sql, context.userId, data.id);
@@ -300,7 +321,7 @@ export const beatStudentClock = createServerFn({ method: "POST" })
     if (!parsed.success) throw new Error("Check the session and try again.");
     return parsed.data;
   })
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const { name, clock } = await clockForClimb(sql, context.userId, data.id);
@@ -322,7 +343,7 @@ export const resumeStudentClock = createServerFn({ method: "POST" })
     if (!parsed.success) throw new Error("Enter the student password.");
     return parsed.data;
   })
-  .middleware([authMiddleware])
+  .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     if (!(await accessOpen(sql, context.userId))) throw new Error("The 7-day trial for VKOLE/ZPD - Space x.AI Integrated Learning Engine has ended.");

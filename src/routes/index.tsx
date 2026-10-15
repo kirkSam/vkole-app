@@ -5,7 +5,8 @@ import { ParentLogin } from "@/components/parent-login";
 import { SchoolSplash } from "@/components/school-splash";
 import { TeletypeIntro } from "@/components/teletype-intro";
 import { TrialFinished, type EndedReason, type StoppedBecause } from "@/components/trial-finished";
-import { cancelRenewal } from "@/lib/subscription";
+import { SchoolAccountScreen } from "@/components/school-account-screen";
+import { schoolScreen, SCHOOL_ENGINE_URL } from "@/lib/school-account";
 import { PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
 import { SUBJECTS, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
@@ -317,6 +318,18 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
     );
   }
 
+  if (loadError && schoolScreen(loadError)) {
+    return (
+      <SchoolAccountScreen
+        message={loadError}
+        onRetry={() => {
+          setLoadError("");
+          setRevision((value) => value + 1);
+        }}
+      />
+    );
+  }
+
   return (
     <Shell onSplash={onSplash}>
       <p className="text-sm font-semibold tracking-wide text-accent uppercase">Parent</p>
@@ -390,25 +403,18 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       {sub ? (
         <div className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-ink">
           <p>
-            {sub.plan === "year" ? "The $79.00 year" : "The $9.00 month"}{" "}
-            {sub.renews
-              ? `is open through ${new Date(sub.endsAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}. The card is not charged from this app, so when that day ends the engines close until you pay again.`
-              : `will not renew. Access continues until ${new Date(sub.endsAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}, then the engines close.`}
+            The school account is open
+            {sub.plan === "year" ? " on the yearly plan." : sub.plan === "month" ? " on the monthly plan." : "."} Pay
+            and cancel on the school website. This app does not charge the card.
           </p>
-          <p className="mt-2 text-muted">Only the person who registered this account can cancel.</p>
-          {sub.renews ? (
-            <button
-              type="button"
-              className="mt-3 min-h-11 rounded-xl border border-line bg-paper px-4 text-ink"
-              onClick={() => {
-                void cancelRenewal()
-                  .then(() => setRevision((value) => value + 1))
-                  .catch(() => undefined);
-              }}
-            >
-              Cancel automatic renewal
-            </button>
-          ) : null}
+          <a
+            className="mt-3 inline-flex min-h-11 items-center text-accent"
+            href={SCHOOL_ENGINE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open the school engine
+          </a>
         </div>
       ) : null}
       {mailNote ? <p className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-ink">{mailNote}</p> : null}

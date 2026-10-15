@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { TRIAL_MS } from "@/lib/academic-email";
+import { isSchoolAccountId } from "@/lib/school-account";
 import { getSql, type Sql } from "@/lib/db";
 
 /** A renewal is not collected here. The card is not charged, so a finished period stays finished. */
@@ -14,6 +15,11 @@ export async function childAccess(
   userId: string,
   childName: string,
 ): Promise<"open" | "ended" | "extra"> {
+  if (isSchoolAccountId(userId)) {
+    const { readSchoolMirror } = await import("@/lib/school-mirror.server");
+    const mirror = await readSchoolMirror(sql, userId);
+    return mirror?.access === "open" ? "open" : "ended";
+  }
   const trials = await sql<{ started_at: unknown }>`
     select started_at from app_trials where user_id = ${userId} and subject = 'app'
   `;
