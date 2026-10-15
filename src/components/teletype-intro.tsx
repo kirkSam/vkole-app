@@ -5,7 +5,7 @@ import { beginSharedTrial } from "@/lib/climbs";
 import { STRIPE_MONTHLY_URL } from "@/lib/stripe-pay";
 
 const LEAD =
-  'What if you and your child could access a "State of the Art" learning engine, VKOLE/ZPD - the Space s.AI Supported Learning Engine? It is developed in conjunction with Space x.AI and a team of educators dedicated to bringing applied Superintelligence to parents at an affordable cost. Additionally, what if your educational agent stored your child\'s levels, and gave you control of your child\'s levels to send you a private email report of your child\'s progress and achievements?';
+  "What if you and your child could access a \"State of the Art\" learning engine, VKOLE/ZPD - the Space x.AI Integrated Learning Engine? It is developed in conjunction with Space x.AI and a team of educators dedicated to bringing applied Superintelligence to parents at an affordable cost. Additionally, what if your educational agent stored your child's levels, and gave you control of your child's levels to send you a private email report of your child's progress and achievements?";
 const CAN = "YOU CAN.";
 const PRICE = "FREE for a week, $79.00 USD + tax per YEAR or $9.00 USD + tax per month.";
 const SPOKEN = `${LEAD} ${CAN} ${PRICE}`;
@@ -83,7 +83,11 @@ export function TeletypeIntro({
 
   return (
     <main className="flex min-h-svh flex-col bg-[#05070d] px-6 py-10 text-[#f4f1ea]">
-      <button type="button" onClick={onSplash} className="vkole-nav text-left font-display text-sm leading-tight tracking-wide text-[#e6c65c]">
+      <button
+        type="button"
+        onClick={onSplash}
+        className="vkole-nav text-left font-display text-sm leading-tight tracking-wide text-[#e6c65c]"
+      >
         {APP_NAME}
       </button>
       <p className="mt-8 max-w-2xl font-mono text-xl leading-relaxed" aria-label={SPOKEN}>
@@ -102,7 +106,11 @@ export function TeletypeIntro({
           {price ? (
             <p
               className="mt-3 font-display text-[#101412]"
-              style={{ fontSize: "clamp(1.12rem, 2.5vw, 1.42rem)", fontWeight: 650, lineHeight: 1.3 }}
+              style={{
+                fontSize: "clamp(1.12rem, 2.5vw, 1.42rem)",
+                fontWeight: 650,
+                lineHeight: 1.3,
+              }}
             >
               {price}
               {phase === "price" ? caret : null}
@@ -124,7 +132,9 @@ export function TeletypeIntro({
         >
           One week FREE
         </button>
-        <p className="mt-2 text-center text-sm text-[#cfc6b8]">No credit card. Email registration only.</p>
+        <p className="mt-2 text-center text-sm text-[#cfc6b8]">
+          No credit card. Email registration only.
+        </p>
         <button
           type="button"
           className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
@@ -135,7 +145,9 @@ export function TeletypeIntro({
             }
             void recordPayment({ data: { plan: "year" } }).catch(() => undefined);
             if (!STRIPE_MONTHLY_URL) {
-              setNote("Stripe is not attached. Sign in and the year is kept with your email. The card is not charged.");
+              setNote(
+                "Stripe is not attached. Sign in and the year is kept with your email. The card is not charged.",
+              );
               return;
             }
             window.open(STRIPE_MONTHLY_URL, "_blank", "noopener,noreferrer");
@@ -152,7 +164,11 @@ export function TeletypeIntro({
               return;
             }
             void recordPayment({ data: { plan: "month" } })
-              .then(() => setNote("The $9.00 month is kept with your sign-in email. Stripe is not attached, so the card is not charged."))
+              .then(() =>
+                setNote(
+                  "The $9.00 month is kept with your sign-in email. Stripe is not attached, so the card is not charged.",
+                ),
+              )
               .catch(() => setNote("Sign in so this payment is kept with your email."));
           }}
         >
@@ -160,10 +176,18 @@ export function TeletypeIntro({
         </button>
         {note ? <p className="mt-3 text-sm text-[#cfc6b8]">{note}</p> : null}
         <div className="mt-4 flex items-center justify-between">
-          <button type="button" onClick={onContinue} className="min-h-11 text-sm text-[#e6c65c]">
+          <button
+            type="button"
+            onClick={onContinue}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center px-3 text-sm text-[#e6c65c]"
+          >
             Sign in
           </button>
-          <button type="button" onClick={onContinue} className="min-h-11 text-sm text-[#e6c65c]">
+          <button
+            type="button"
+            onClick={onContinue}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center px-3 text-sm text-[#e6c65c]"
+          >
             Skip
           </button>
         </div>

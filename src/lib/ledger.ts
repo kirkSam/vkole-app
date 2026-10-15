@@ -75,7 +75,7 @@ async function notifyOwner(sql: Sql): Promise<{ sent: boolean; error: string; pe
     const lines = (rows: { email: string; name: string }[]) =>
       rows.map((row) => (row.name ? `${row.email} · ${row.name}` : row.email)).join("\n");
     const body = [
-      pendingRows.length === 1 ? "A registration for VKOLE/ZPD - Space x.AI Supported Learning Engine was saved." : `${pendingRows.length} registrations for VKOLE/ZPD - Space x.AI Supported Learning Engine were saved.`,
+      pendingRows.length === 1 ? "A registration for VKOLE/ZPD - Space x.AI Integrated Learning Engine was saved." : `${pendingRows.length} registrations for VKOLE/ZPD - Space x.AI Integrated Learning Engine were saved.`,
       "",
       "New:",
       lines(pendingRows),
@@ -87,8 +87,8 @@ async function notifyOwner(sql: Sql): Promise<{ sent: boolean; error: string; pe
     ].join("\n");
     const subject =
       pendingRows.length === 1
-        ? `VKOLE/ZPD - Space x.AI Supported Learning Engine registration: ${pendingRows[0]?.email}`
-        : `VKOLE/ZPD - Space x.AI Supported Learning Engine registrations: ${pendingRows.length} new`;
+        ? `VKOLE/ZPD - Space x.AI Integrated Learning Engine registration: ${pendingRows[0]?.email}`
+        : `VKOLE/ZPD - Space x.AI Integrated Learning Engine registrations: ${pendingRows.length} new`;
     const { sendAppMail } = await mailer();
     const mailed = await sendAppMail(OWNER_EMAIL, subject, body);
     if (mailed === "sent") {
@@ -210,7 +210,7 @@ export const allowGmail = createServerFn({ method: "POST" })
     await saveAppMailPassword(sql, email, data.password);
     const sent = await sendAppMail(
       OWNER_EMAIL,
-      "VKOLE/ZPD - Space x.AI Supported Learning Engine: Gmail is allowed",
+      "VKOLE/ZPD - Space x.AI Integrated Learning Engine: Gmail is allowed",
       "Gmail is allowed for this app. Registration notices and student reports can be sent from this account.",
     );
     if (sent !== "sent") throw new Error("That app password was not accepted. Create a new one and try again.");

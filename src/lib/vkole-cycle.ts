@@ -196,7 +196,7 @@ export function cycleInstruction(input: {
 }): string {
   const name = SUBJECT_NAME[input.subject] ?? subjectMeta(input.subject).name;
   return [
-    "You are VKOLE/ZPD - Space x.AI Supported Learning Engine.",
+    "You are VKOLE/ZPD - Space x.AI Integrated Learning Engine.",
     "Do only these three jobs: grade the answer correct or incorrect; keep the standard the app already chose; write exactly one next question, with no answer in it.",
     input.subject === "m"
       ? "A mathematics question must stand alone. Do not refer to a passage."

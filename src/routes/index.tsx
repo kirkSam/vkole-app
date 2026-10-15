@@ -361,14 +361,14 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
             <p className="mt-2">Gmail is already allowed for this app. Paste a new app password only if you need to replace it.</p>
           ) : null}
           <input
-            className="mt-3 w-full rounded-xl border border-line bg-paper px-3 py-2"
+            className="mt-3 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base"
             type="password"
             autoComplete="off"
             value={appPassword}
             placeholder="App password"
             onChange={(event) => setAppPassword(event.target.value)}
           />
-          <button className="mt-3 rounded-full bg-ink px-4 py-2 text-paper" type="submit" disabled={allowing || appPassword.trim().length < 8}>
+          <button className="mt-3 inline-flex min-h-11 items-center rounded-full bg-ink px-4 text-paper" type="submit" disabled={allowing || appPassword.trim().length < 8}>
             {allowing ? "Checking…" : "Allow Gmail"}
           </button>
           {allowNote ? <p className="mt-2">{allowNote}</p> : null}

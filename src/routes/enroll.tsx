@@ -13,7 +13,7 @@ const RECEIVES = [
   "A record of each child’s work, emailed to the address given at registration when the child presses Finished or Log out on one engine, or after 5 minutes with no activity. The other engines stay open.",
   "You may raise or lower the level a student is working on. The level that student has earned stays on the record.",
   "An eight-question assignment in each engine, answered online or printed.",
-  "Continued tracking, and the child’s access to VKOLE/ZPD - Space x.AI Supported Learning Engine.",
+  "Continued tracking, and the child’s access to VKOLE/ZPD - Space x.AI Integrated Learning Engine.",
 ];
 
 function EnrollPage() {
