@@ -7,6 +7,8 @@
  * The account id is the lowercase parent email.
  */
 
+import { heuristicIdOf, strandIdOf } from "./vkole-singapore.ts";
+
 export const SCHOOL_ORIGIN = "https://www.dotheimpossible.ai";
 export const SCHOOL_ENGINE_URL = `${SCHOOL_ORIGIN}/engine`;
 
@@ -29,7 +31,15 @@ export type EngineId = (typeof ENGINE_IDS)[number];
 
 export type MasteryTally = { correct: number; asked: number };
 
-/** Strand and heuristic tallies for VKOLE Singapore. The website account is the store. */
+/**
+ * Strand and heuristic tallies for VKOLE Singapore.
+ * Written on the shared account as level.sg:
+ * { grade: 1-12, step: 0|1|2, mastery?: { strands, heuristics } }.
+ * step 0 is concrete, 1 pictorial, 2 abstract.
+ * Strand ids: number, measure, data.
+ * Heuristic ids: bar-model, work-backwards, guess-and-check, patterns.
+ * Each tally is { correct, asked }. Display names are accepted on read.
+ */
 export type LevelMastery = {
   strands: Record<string, MasteryTally>;
   heuristics: Record<string, MasteryTally>;
@@ -93,15 +103,32 @@ function asMastery(value: unknown): LevelMastery | undefined {
   const strandRow = asRecord(row.strands);
   const heuristicRow = asRecord(row.heuristics);
   for (const [key, item] of Object.entries(strandRow ?? {})) {
+    const id = strandIdOf(key);
     const tally = asTally(item);
-    if (tally) strands[key] = tally;
+    if (id && tally) strands[id] = tally;
   }
   for (const [key, item] of Object.entries(heuristicRow ?? {})) {
+    const id = heuristicIdOf(key);
     const tally = asTally(item);
-    if (tally) heuristics[key] = tally;
+    if (id && tally) heuristics[id] = tally;
   }
   if (Object.keys(strands).length === 0 && Object.keys(heuristics).length === 0) return undefined;
   return { strands, heuristics };
+}
+
+const STAGE_STEP: Record<string, number> = { concrete: 0, pictorial: 1, abstract: 2 };
+
+function asStep(value: unknown): number {
+  if (typeof value === "string") {
+    const named = STAGE_STEP[value.trim().toLowerCase()];
+    if (named !== undefined) return named;
+  }
+  const step = Number(value);
+  return Math.min(2, Math.max(0, Number.isFinite(step) ? Math.round(step) : 0));
+}
+
+export function normalizeEngineLevel(value: unknown): EngineLevel | null {
+  return asLevel(value);
 }
 
 function asLevel(value: unknown): EngineLevel | null {
@@ -111,12 +138,11 @@ function asLevel(value: unknown): EngineLevel | null {
   const row = asRecord(value);
   if (!row) return null;
   const grade = Number(row.grade ?? row.level);
-  const step = Number(row.step ?? row.standardStep ?? 0);
   if (!Number.isInteger(grade) || grade < 1 || grade > 12) return null;
   const mastery = asMastery(row.mastery);
   return {
     grade,
-    step: Math.min(2, Math.max(0, Number.isFinite(step) ? Math.round(step) : 0)),
+    step: asStep(row.step ?? row.stage ?? row.standardStep ?? 0),
     ...(mastery ? { mastery } : {}),
   };
 }

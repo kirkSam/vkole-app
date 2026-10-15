@@ -699,7 +699,7 @@ export function singaporeBandCensus(): { bands: BandCount[]; distinct: number; r
   return {
     bands: BANDS.map((band) => ({
       id: band.id,
-      name: band.name,
+      name: band.label,
       raw: raw.get(band.id) ?? 0,
       distinct: seen.get(band.id)?.size ?? 0,
     })),

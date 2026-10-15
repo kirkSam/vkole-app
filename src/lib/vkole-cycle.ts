@@ -1,5 +1,5 @@
 import { subjectMeta, type SubjectId } from "@/lib/climb-rules";
-import { capVkoleGrade } from "@/lib/vkole-cap";
+import { capVkoleGrade, moveVkoleRung } from "@/lib/vkole-cap";
 import { poolCount, poolQuestion } from "@/lib/question-pool";
 
 const SUBJECT_NAME: Record<SubjectId, string> = {
@@ -22,6 +22,7 @@ export type CycleReply = {
 
 export type CycleState = {
   level: number;
+  step?: number;
   correctAtLevel: number;
   incorrectStreak: number;
   asked: number;
@@ -164,27 +165,22 @@ export function parseCycle(text: string): CycleReply | null {
   };
 }
 
-/** Two correct answers in a row move up one level. Two misses in a row move down one. A correct answer clears the miss streak. A miss clears the correct streak. */
+/** Two correct answers move up one step. The grade changes only after abstract. Two misses move down one step. */
 export function applyCycle(current: CycleState, reply: Pick<CycleReply, "correct" | "move">): CycleState & { reached: boolean } {
-  const start = clampStoredGrade(Number(current.level));
-  let level = start;
-  let correctAtLevel = reply.correct ? Number(current.correctAtLevel) + 1 : 0;
-  let incorrectStreak = reply.correct ? 0 : Number(current.incorrectStreak) + 1;
-  if (!Number.isFinite(correctAtLevel) || correctAtLevel < 0) correctAtLevel = reply.correct ? 1 : 0;
-  if (!Number.isFinite(incorrectStreak) || incorrectStreak < 0) incorrectStreak = reply.correct ? 0 : 1;
-  if (reply.correct && correctAtLevel >= 2) {
-    level = Math.min(12, level + 1);
-    correctAtLevel = 0;
-    incorrectStreak = 0;
-  } else if (!reply.correct && incorrectStreak >= 2) {
-    level -= 1;
-    correctAtLevel = 0;
-    incorrectStreak = 0;
-  }
+  const correctStreak = Number(current.correctAtLevel);
+  const missStreak = Number(current.incorrectStreak);
+  const moved = moveVkoleRung({
+    grade: clampStoredGrade(Number(current.level)),
+    step: current.step ?? 0,
+    correct: reply.correct,
+    correctStreak: Number.isFinite(correctStreak) && correctStreak > 0 ? correctStreak : 0,
+    missStreak: Number.isFinite(missStreak) && missStreak > 0 ? missStreak : 0,
+  });
   return {
-    level: clampStoredGrade(level),
-    correctAtLevel,
-    incorrectStreak,
+    level: moved.grade,
+    step: moved.step,
+    correctAtLevel: moved.correctAtLevel,
+    incorrectStreak: moved.incorrectStreak,
     asked: current.asked + 1,
     rightCount: current.rightCount + (reply.correct ? 1 : 0),
     reached: reply.correct,
@@ -193,10 +189,13 @@ export function applyCycle(current: CycleState, reply: Pick<CycleReply, "correct
 
 export function sequenceSentence(beforeLevel: number, applied: CycleState & { reached: boolean }): string {
   const level = clampStoredGrade(applied.level);
-  if (level > clampStoredGrade(beforeLevel)) return `Two correct answers in a row. The level moves up to grade ${level}.`;
-  if (level < clampStoredGrade(beforeLevel)) return `Two misses in a row. The level moves down to grade ${level}.`;
-  if (applied.reached) return `Correct. ${applied.correctAtLevel} of 2 at this level.`;
-  return `Not correct. Miss ${applied.incorrectStreak} of 2 at this level.`;
+  const before = clampStoredGrade(beforeLevel);
+  if (level > before) return `Two correct answers on the abstract step. The level moves up to grade ${level}.`;
+  if (level < before) return `Two incorrect answers in a row. The level moves down to grade ${level}.`;
+  if (applied.reached && applied.correctAtLevel === 0) return "Two correct answers in a row. The next question is one step up.";
+  if (!applied.reached && applied.incorrectStreak === 0) return "Two incorrect answers in a row. The next question is one step down.";
+  if (applied.reached) return `Correct. ${applied.correctAtLevel} of 2 at this step.`;
+  return `Not correct. Miss ${applied.incorrectStreak} of 2 at this step.`;
 }
 
 export function cycleInstruction(input: {

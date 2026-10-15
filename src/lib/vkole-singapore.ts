@@ -1,8 +1,9 @@
 /**
  * VKOLE Singapore curriculum spine.
- * Public MOE structure only: Primary 1–6, Secondary 1–4 (O-Level mathematics,
- * with Additional Mathematics in Secondary 3–4), and pre-university H1/H2.
- * Each US grade shows the matching Singapore level. No publisher items.
+ * Twelve one-grade bands, the same labels as the school website:
+ * US 1–6 = P1–P6, US 7–10 = S1–S4, US 11 = AM (Additional Mathematics),
+ * US 12 = H2 (H1 and H2 Mathematics). Public MOE structure only.
+ * No publisher items.
  *
  * The same file shape is src/lib/school/vkole-singapore* on the school website.
  */
@@ -25,10 +26,20 @@ export const HEURISTICS = [
 ] as const;
 export type HeuristicId = (typeof HEURISTICS)[number]["id"];
 
+/** One band per US grade. Labels match the school website. */
 export const BANDS = [
-  { id: "primary", name: "Primary 1–6", grades: [1, 2, 3, 4, 5, 6] },
-  { id: "secondary", name: "Secondary 1–4", grades: [7, 8, 9, 10] },
-  { id: "pre-university", name: "Pre-university H1/H2", grades: [11, 12] },
+  { id: "p1", label: "P1", grades: [1] },
+  { id: "p2", label: "P2", grades: [2] },
+  { id: "p3", label: "P3", grades: [3] },
+  { id: "p4", label: "P4", grades: [4] },
+  { id: "p5", label: "P5", grades: [5] },
+  { id: "p6", label: "P6", grades: [6] },
+  { id: "s1", label: "S1", grades: [7] },
+  { id: "s2", label: "S2", grades: [8] },
+  { id: "s3", label: "S3", grades: [9] },
+  { id: "s4", label: "S4", grades: [10] },
+  { id: "am", label: "AM (Additional Mathematics)", grades: [11] },
+  { id: "h2", label: "H2 (H1 and H2 Mathematics)", grades: [12] },
 ] as const;
 export type BandId = (typeof BANDS)[number]["id"];
 
@@ -119,7 +130,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
   },
   9: {
     moe: "Secondary 3",
-    course: "O-Level Mathematics and Additional Mathematics",
+    course: "O-Level Mathematics",
     topics: [
       { strand: "number", name: "Indices and quadratic expressions" },
       { strand: "measure", name: "Pythagoras and similarity" },
@@ -128,7 +139,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
   },
   10: {
     moe: "Secondary 4",
-    course: "O-Level Mathematics and Additional Mathematics",
+    course: "O-Level Mathematics",
     topics: [
       { strand: "number", name: "Differentiation of a power" },
       { strand: "measure", name: "Area and right triangles" },
@@ -136,21 +147,21 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     ],
   },
   11: {
-    moe: "H1 Mathematics",
-    course: "Pre-university H1 Mathematics",
+    moe: "AM (Additional Mathematics)",
+    course: "Additional Mathematics",
     topics: [
-      { strand: "number", name: "Functions and graphs" },
-      { strand: "measure", name: "Gradient" },
-      { strand: "data", name: "Combinations" },
+      { strand: "number", name: "Indices, surds, and quadratic functions" },
+      { strand: "measure", name: "Coordinate geometry and trigonometry" },
+      { strand: "data", name: "Binomial expansion" },
     ],
   },
   12: {
-    moe: "H2 Mathematics",
-    course: "Pre-university H2 Mathematics",
+    moe: "H2 (H1 and H2 Mathematics)",
+    course: "H1 and H2 Mathematics",
     topics: [
-      { strand: "number", name: "Arithmetic series and complex modulus" },
-      { strand: "measure", name: "Vectors" },
-      { strand: "data", name: "Sample mean" },
+      { strand: "number", name: "Functions, series, and complex numbers" },
+      { strand: "measure", name: "Vectors and calculus" },
+      { strand: "data", name: "Probability and the sample mean" },
     ],
   },
 };
@@ -159,7 +170,7 @@ export function singaporePlace(grade: number): SingaporePlace {
   const usGrade = Math.min(12, Math.max(1, Math.round(grade) || 1));
   const row = SPINE[usGrade]!;
   const band = BANDS.find((item) => (item.grades as readonly number[]).includes(usGrade))!;
-  const short = `US Grade ${usGrade} · ${row.moe}`;
+  const short = `US ${usGrade} · ${band.label}`;
   return {
     usGrade,
     moe: row.moe,
@@ -172,9 +183,27 @@ export function singaporePlace(grade: number): SingaporePlace {
 }
 
 export const SG_STAGE_NOTE =
-  "Each topic goes concrete, then pictorial, then abstract. The level moves up only after the abstract step is correct.";
+  "Each topic goes concrete, then pictorial, then abstract. Two correct answers move up one step. The grade changes only after the abstract step. Two incorrect answers in a row move down one step.";
 
 const SG_CODE = /^SG\.(\d+)\.(number|measure|data)(?:\.(bar-model|work-backwards|guess-and-check|patterns))?$/;
+
+export function strandIdOf(key: string): StrandId | null {
+  const text = key.trim().toLowerCase();
+  for (const strand of STRANDS) {
+    if (text === strand.id || text === strand.name.toLowerCase()) return strand.id;
+  }
+  if (text === "statistics and probability") return "data";
+  if (text === "geometry" || text === "measurement") return "measure";
+  return null;
+}
+
+export function heuristicIdOf(key: string): HeuristicId | null {
+  const text = key.trim().toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ");
+  for (const heuristic of HEURISTICS) {
+    if (text === heuristic.id || text === heuristic.name.toLowerCase() || text === heuristic.id.replace(/-/g, " ")) return heuristic.id;
+  }
+  return null;
+}
 
 export function sgStandard(grade: number, strand: StrandId, heuristic: HeuristicId | null): string {
   const level = Math.min(12, Math.max(1, Math.round(grade) || 1));
