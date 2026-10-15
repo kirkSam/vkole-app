@@ -20,6 +20,7 @@ import {
   type Climb,
 } from "@/lib/climbs";
 import { beatStudentClock, readStudentClock, resumeStudentClock } from "@/lib/day-clock";
+import { GRADING_PAUSE_MESSAGE } from "@/lib/grading-pause";
 import { deviceTimeZone } from "@/lib/day-clock-math";
 import type { ClockFace } from "@/components/vkole-rules";
 import { SchoolPath } from "@/components/school-path";
@@ -76,6 +77,7 @@ function SessionPage() {
   const [answer, setAnswer] = useState("");
   const [pendingAnswer, setPendingAnswer] = useState(false);
   const [error, setError] = useState("");
+  const [pause, setPause] = useState("");
   const [ageInput, setAgeInput] = useState(8);
   const [report, setReport] = useState("");
   const [onlineAt, setOnlineAt] = useState<number | null>(null);
@@ -307,10 +309,12 @@ function SessionPage() {
     if (!given) return;
     setPendingAnswer(true);
     setError("");
+    setPause("");
     try {
       const result = await recordAnswer({ data: { id: climb.id, answer: given } });
       setClimb(result.climb);
       if (result.status === "again") setError("Please try again.");
+      else if (result.status === "rest") setPause(GRADING_PAUSE_MESSAGE);
       else setAnswer("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Please try again.");
@@ -512,6 +516,8 @@ function SessionPage() {
               Next question
             </button>
           </>
+        ) : pause ? (
+          <p className="mt-4 text-ink">{pause}</p>
         ) : (
           <form onSubmit={submitAnswer} className="mt-4">
             <label className="block text-sm text-muted">

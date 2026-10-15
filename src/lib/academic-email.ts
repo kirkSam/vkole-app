@@ -165,7 +165,7 @@ export function academicLetter(input: {
   const account = [
     `The free week for ${name} ends ${when}. The free week is 168 hours from the moment that student was registered. Another student does not move it.`,
     `After the free week, the price is $9.00 USD plus tax a month, or $79.00 USD plus tax a year. It auto-renews until cancelled by email at ${SCHOOL_EMAIL}.`,
-    "The level and the free week stay on the device that was used. This email is the same report on a phone or a laptop.",
+    "The level and the free week follow the account's login. This email is the same report on a phone or a laptop.",
   ];
   const movement =
     input.moved === "up"
