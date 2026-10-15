@@ -72,7 +72,9 @@ function dress(stage: Stage, core: Core): string {
 
 function pack(grade: number, stage: Stage, core: Core): Built {
   const place = singaporePlace(grade);
-  const shownHeuristic = core.heuristic ?? (stage === "pictorial" && core.bar ? "bar-model" : null);
+  const shownHeuristic =
+    core.heuristic ??
+    (stage === "pictorial" && core.bond ? "number bond" : stage === "pictorial" && core.bar ? "bar model" : null);
   return {
     stem: dress(stage, core),
     answer: core.answer,
@@ -181,7 +183,7 @@ function numberCore(grade: number, variant: number): Core {
     const solved = whole(x);
     const equation = added === 0 ? `${coefficient}x = ${right}` : `${coefficient}x + ${added} = ${right}`;
     return {
-      strand: "number",
+      strand: "algebra",
       heuristic: null,
       topic,
       concrete: `${name} starts with ${x} equal bags and adds ${added}. The total is ${right}. Each bag is the same. x = ?`,
@@ -199,7 +201,7 @@ function numberCore(grade: number, variant: number): Core {
     const constant = a * b;
     const solved = whole(constant);
     return {
-      strand: "number",
+      strand: "algebra",
       heuristic: null,
       topic,
       concrete: `${name} expands (x + ${a})(x + ${b}). The constant term is ${a} × ${b} = ?`,
@@ -215,7 +217,7 @@ function numberCore(grade: number, variant: number): Core {
     const a = 1 + variant;
     const solved = whole(2 * a);
     return {
-      strand: "number",
+      strand: "calculus",
       heuristic: null,
       topic,
       concrete: `${name} differentiates ${a}x^2. The coefficient of x is 2 × ${a} = ?`,
@@ -235,7 +237,7 @@ function numberCore(grade: number, variant: number): Core {
     const solved = whole(value);
     const signed = intercept === 0 ? "" : intercept > 0 ? ` + ${intercept}` : ` - ${-intercept}`;
     return {
-      strand: "number",
+      strand: "algebra",
       heuristic: null,
       topic,
       concrete: `${name} uses f(x) = ${slope}x${signed}. f(${input}) = ${slope} × ${input} + ${intercept} = ?`,
@@ -253,8 +255,8 @@ function numberCore(grade: number, variant: number): Core {
   const sum = (terms * (2 * first + (terms - 1) * difference)) / 2;
   const solved = whole(sum);
   return {
-    strand: "number",
-    heuristic: "patterns",
+    strand: "algebra",
+    heuristic: "look for a pattern",
     topic,
     concrete: `${name} adds the series that starts at ${first} and rises by + ${difference}, for ${terms} terms. The sum is ?`,
     pictorial: `Five bars start at ${first} and each next bar is + ${difference}. The total is ?`,
@@ -277,7 +279,7 @@ function measureCore(grade: number, variant: number): Core {
     const right = grade === 1 ? b : 10 + b;
     const solved = whole(left + right);
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete: `${name} places a ${left} cm strip + a ${right} cm strip in one line. How many cm long is the line?`,
@@ -293,7 +295,7 @@ function measureCore(grade: number, variant: number): Core {
     const value = grade === 3 ? 2 * (a + b) : a * b;
     const solved = whole(value);
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete:
@@ -313,7 +315,7 @@ function measureCore(grade: number, variant: number): Core {
     const height = b;
     const solved = whole((base * height) / 2);
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete: `${name} finds the area of a triangle with base ${base} cm and height ${height} cm. (${base} × ${height}) ÷ 2 = ?`,
@@ -329,7 +331,7 @@ function measureCore(grade: number, variant: number): Core {
     const depth = 2 + (variant % 3);
     const solved = whole(a * b * depth);
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete: `${name} fills a cuboid ${a} cm × ${b} cm × ${depth} cm. Volume = ?`,
@@ -344,7 +346,7 @@ function measureCore(grade: number, variant: number): Core {
   if (!geometry && grade === 7) {
     const solved = whole(a * b);
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete: `${name} travels at ${a} km/h for ${b} h. Distance = ${a} × ${b} = ?`,
@@ -360,7 +362,7 @@ function measureCore(grade: number, variant: number): Core {
     const k = grade + Math.floor(variant / 2);
     const solved = whole(5 * k);
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete: `${name} has a right triangle with legs ${3 * k} and ${4 * k}. (${3 * k})^2 + (${4 * k})^2 gives a hypotenuse of ?`,
@@ -378,7 +380,7 @@ function measureCore(grade: number, variant: number): Core {
     const rise = run * slope;
     const solved = whole(slope);
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete: `${name} reads a line that rises ${rise} and runs ${run}. Slope = ${rise} ÷ ${run} = ?`,
@@ -396,7 +398,7 @@ function measureCore(grade: number, variant: number): Core {
     const shape = grade === 1 ? "triangle" : "square";
     const corners = grade === 1 ? 3 : 4;
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete: `${name} has ${count} ${shape}s. Each has ${corners} corners. ${count} × ${corners} = ?`,
@@ -412,7 +414,7 @@ function measureCore(grade: number, variant: number): Core {
     const count = 1 + variant;
     const solved = whole(count * 4);
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete: `${name} has ${count} rectangles. Each has 4 right angles. ${count} × 4 = ?`,
@@ -428,7 +430,7 @@ function measureCore(grade: number, variant: number): Core {
     const angle = 20 + variant * 3;
     const solved = whole(180 - angle);
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete: `${name} sees ${angle}° on a straight line. ${angle}° + ? = 180°`,
@@ -444,7 +446,7 @@ function measureCore(grade: number, variant: number): Core {
     const angle = 12 + variant * 3;
     const solved = whole(angle);
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete: `${name} sees vertically opposite angles. One angle is ${angle}°. The opposite angle is ?`,
@@ -462,7 +464,7 @@ function measureCore(grade: number, variant: number): Core {
     const third = 180 - first - second;
     const solved = whole(third);
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete: `${name} knows two angles of a triangle: ${first}° and ${second}°. ${first} + ${second} + ? = 180`,
@@ -478,7 +480,7 @@ function measureCore(grade: number, variant: number): Core {
     const sides = 3 + variant;
     const solved = whole((sides - 2) * 180);
     return {
-      strand: "measure",
+      strand: geometry ? "geometry" : "measurement",
       heuristic: null,
       topic,
       concrete: `${name} finds the interior-angle sum of a ${sides}-sided polygon. (${sides} - 2) × 180 = ?`,
@@ -493,7 +495,7 @@ function measureCore(grade: number, variant: number): Core {
   const k = grade + variant;
   const solved = whole(5 * k);
   return {
-    strand: "measure",
+    strand: geometry ? "geometry" : "measurement",
     heuristic: null,
     topic,
     concrete: `${name} measures legs ${3 * k} and ${4 * k}. (${3 * k})^2 + (${4 * k})^2. Hypotenuse = ?`,
@@ -580,16 +582,16 @@ function dataCore(grade: number, variant: number): Core {
 
 function heuristicCore(grade: number, variant: number): Core {
   const name = kid(variant);
-  const kind = (["bar-model", "work-backwards", "guess-and-check", "patterns"] as const)[variant % 4]!;
+  const kind = (["bar model", "work backwards", "guess and check", "look for a pattern"] as const)[variant % 4]!;
   const slot = Math.floor(variant / 4);
   const topic = "Thinking skills and heuristics";
   const a = 2 + (slot % 9) + grade;
   const b = 3 + (slot % 5);
-  if (kind === "bar-model") {
+  if (kind === "bar model") {
     const solved = whole(a + b);
     return {
       strand: "number",
-      heuristic: "bar-model",
+      heuristic: "bar model",
       topic,
       concrete: `${name} uses a bar model for ${a} + ${b}. What is the whole?`,
       pictorial: `Read the bar for ${a} + ${b}. What is the whole?`,
@@ -600,12 +602,12 @@ function heuristicCore(grade: number, variant: number): Core {
       note: "A bar model shows the parts and the whole.",
     };
   }
-  if (kind === "work-backwards") {
+  if (kind === "work backwards") {
     const total = a + b;
     const solved = whole(a);
     return {
       strand: "number",
-      heuristic: "work-backwards",
+      heuristic: "work backwards",
       topic,
       concrete: `${name} ended at ${total} after adding ${b}. Work backwards. ${total} - ${b} = ?`,
       pictorial: `The bond shows the whole ${total} and the added part ${b}. The start is ?`,
@@ -616,11 +618,11 @@ function heuristicCore(grade: number, variant: number): Core {
       note: "Work backwards undoes the last step.",
     };
   }
-  if (kind === "guess-and-check") {
+  if (kind === "guess and check") {
     const solved = whole(a);
     return {
       strand: "number",
-      heuristic: "guess-and-check",
+      heuristic: "guess and check",
       topic,
       concrete: `${name} tries ${a} and ${a + 1}. Which one makes the number + ${b} equal ${a + b}?`,
       pictorial: `Check ${a} + ${b} and ${a + 1} + ${b}. Which first number works?`,
@@ -637,7 +639,7 @@ function heuristicCore(grade: number, variant: number): Core {
   const solved = whole(next);
   return {
     strand: "number",
-    heuristic: "patterns",
+    heuristic: "look for a pattern",
     topic,
     concrete: `${name} sees ${start}, ${start + difference}, ${start + 2 * difference}. The pattern adds + ${difference}. What is next?`,
     pictorial: `Each step of the bar grows by + ${difference}. After ${start + 2 * difference}, the next is ?`,

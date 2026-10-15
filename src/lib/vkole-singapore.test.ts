@@ -4,7 +4,7 @@ import { applyAnswer } from "./climb-rules.ts";
 import { questionKey } from "./next-sheet.ts";
 import { moveVkoleRung } from "./vkole-cap.ts";
 import { nextVariant, poolQuestion, type BagState } from "./question-pool.ts";
-import { parseSchoolProfile } from "./school-account.ts";
+import { parseSchoolProfile, sgAccountLevel } from "./school-account.ts";
 import { formatMasteryReport, masteryFromDetails } from "./vkole-singapore-report.ts";
 import { sgCell, singaporeBandCensus } from "./vkole-singapore-pool.ts";
 import { BANDS, gradeRisesOnlyAfterAbstract, parseSgCode, singaporePlace, STAGES } from "./vkole-singapore.ts";
@@ -107,7 +107,7 @@ describe("Singapore questions", () => {
     assert.equal(abstract.stem, "1 + 1 = ?");
     assert.equal(abstract.answer, "2");
     assert.equal(parseSgCode(abstract.standard)?.strand, "number");
-    assert.equal(parseSgCode(pictorial.standard)?.heuristic, "bar-model");
+    assert.equal(parseSgCode(pictorial.standard)?.heuristic, "bar model");
   });
 
   it("gives every stage at least 50 distinct questions and reports bands", () => {
@@ -156,18 +156,24 @@ describe("Singapore questions", () => {
 describe("Singapore mastery", () => {
   it("reports each strand and each heuristic", () => {
     const mastery = masteryFromDetails([
-      { detail: JSON.stringify({ code: "SG.3.number.bar-model" }), correct: true },
-      { detail: JSON.stringify({ code: "SG.3.measure" }), correct: false },
-      { detail: JSON.stringify({ code: "SG.3.number.patterns" }), correct: true },
+      { detail: JSON.stringify({ code: "SG.3.number.bar model" }), correct: true },
+      { detail: JSON.stringify({ code: "SG.3.geometry" }), correct: false },
+      { detail: JSON.stringify({ code: "SG.3.algebra.look for a pattern" }), correct: true },
     ]);
     const report = formatMasteryReport(mastery);
-    assert.match(report, /Number and algebra: 2 of 2 correct/);
-    assert.match(report, /Measurement and geometry: 0 of 1 correct/);
-    assert.match(report, /Statistics: 0 of 0 correct/);
-    assert.match(report, /Bar model: 1 of 1 correct/);
-    assert.match(report, /Patterns: 1 of 1 correct/);
-    assert.match(report, /Work backwards: 0 of 0 correct/);
-    assert.match(report, /Guess and check: 0 of 0 correct/);
+    assert.match(report, /number: 1 of 1 correct/);
+    assert.match(report, /measurement: 0 of 0 correct/);
+    assert.match(report, /geometry: 0 of 1 correct/);
+    assert.match(report, /data and statistics: 0 of 0 correct/);
+    assert.match(report, /algebra: 1 of 1 correct/);
+    assert.match(report, /calculus: 0 of 0 correct/);
+    assert.match(report, /bar model: 1 of 1 correct/);
+    assert.match(report, /look for a pattern: 1 of 1 correct/);
+    assert.match(report, /work backwards: 0 of 0 correct/);
+    assert.match(report, /guess and check: 0 of 0 correct/);
+    assert.deepEqual(mastery.strands.number, { asked: 1, correct: 1 });
+    assert.deepEqual(mastery.strands.geometry, { asked: 1, correct: 0 });
+    assert.equal(mastery.strands.measurement, undefined);
   });
 
   it("keeps mastery on the website account level", () => {
@@ -181,8 +187,14 @@ describe("Singapore mastery", () => {
             grade: 4,
             step: 2,
             mastery: {
-              strands: { number: { correct: 3, asked: 4 } },
-              heuristics: { "bar-model": { correct: 1, asked: 1 } },
+              strands: {
+                number: { asked: 4, correct: 3 },
+                "Number and algebra": { asked: 9, correct: 9 },
+              },
+              heuristics: {
+                "bar model": { asked: 1, correct: 1 },
+                "bar-model": { asked: 8, correct: 8 },
+              },
             },
           },
         },
@@ -190,31 +202,84 @@ describe("Singapore mastery", () => {
     });
     assert.equal(parsed?.profile.level.sg?.grade, 4);
     assert.equal(parsed?.profile.level.sg?.step, 2);
-    assert.deepEqual(parsed?.profile.level.sg?.mastery?.strands.number, { correct: 3, asked: 4 });
-    assert.deepEqual(parsed?.profile.level.sg?.mastery?.heuristics["bar-model"], { correct: 1, asked: 1 });
+    assert.deepEqual(parsed?.profile.level.sg?.mastery?.strands.number, { asked: 4, correct: 3 });
+    assert.equal(parsed?.profile.level.sg?.mastery?.strands.measurement, undefined);
+    assert.deepEqual(parsed?.profile.level.sg?.mastery?.heuristics["bar model"], { asked: 1, correct: 1 });
+    assert.equal(parsed?.profile.level.sg?.mastery?.heuristics["bar-model" as "bar model"], undefined);
   });
 
-  it("reads the website step name and strand name onto the same sg level", () => {
+  it("keeps the website sg field names and drops an empty tally", () => {
+    const source = {
+      id: "sg-alex",
+      name: "Alex",
+      enteredBy: "parent",
+      grade: 4,
+      step: 1,
+      earnedGrade: 4,
+      standardId: "4-1",
+      tier: "on",
+      simple: false,
+      streak: 0,
+      missStreak: 1,
+      reached: 2,
+      missed: 0,
+      updatedAt: 1710000000000,
+      pending: {
+        prompt: "3 + 4 = ?",
+        code: "SG.4.number",
+        label: "number",
+        grade: 4,
+        figure: { kind: "bar", whole: 7, parts: [{ label: "3", value: 3 }, { label: "?", value: null }] },
+      },
+      mastery: {
+        strands: {
+          number: { asked: 4, correct: 3 },
+          measurement: { asked: 0, correct: 0 },
+          geometry: { asked: 2, correct: 9 },
+        },
+        heuristics: { "work backwards": { asked: 1, correct: 0 } },
+      },
+    };
     const parsed = parseSchoolProfile({
       ok: true,
       id: "ada@school.test",
-      profile: {
-        access: "open",
-        level: {
-          sg: {
-            grade: 11,
-            step: "abstract",
-            mastery: {
-              strands: { "Number and algebra": { correct: 2, asked: 2 } },
-              heuristics: { "Work backwards": { correct: 1, asked: 2 } },
-            },
-          },
-        },
-      },
+      profile: { access: "open", level: { sg: source } },
     });
-    assert.equal(parsed?.profile.level.sg?.grade, 11);
-    assert.equal(parsed?.profile.level.sg?.step, 2);
-    assert.deepEqual(parsed?.profile.level.sg?.mastery?.strands.number, { correct: 2, asked: 2 });
-    assert.deepEqual(parsed?.profile.level.sg?.mastery?.heuristics["work-backwards"], { correct: 1, asked: 2 });
+    const sg = parsed?.profile.level.sg;
+    assert.equal(sg?.id, "sg-alex");
+    assert.equal(sg?.name, "Alex");
+    assert.equal(sg?.enteredBy, "parent");
+    assert.equal(sg?.earnedGrade, 4);
+    assert.equal(sg?.standardId, "4-1");
+    assert.equal(sg?.tier, "on");
+    assert.equal(sg?.simple, false);
+    assert.equal(sg?.streak, 0);
+    assert.equal(sg?.missStreak, 1);
+    assert.equal(sg?.reached, 2);
+    assert.equal(sg?.missed, 0);
+    assert.equal(sg?.updatedAt, 1710000000000);
+    assert.equal(sg?.pending?.figure?.kind, "bar");
+    assert.equal(sg?.mastery?.strands.measurement, undefined);
+    assert.deepEqual(sg?.mastery?.strands.geometry, { asked: 2, correct: 2 });
+    assert.deepEqual(sg?.mastery?.heuristics["work backwards"], { asked: 1, correct: 0 });
+    const written = sgAccountLevel(sg, {
+      name: "Alex",
+      grade: 5,
+      step: 0,
+      earnedGrade: 4,
+      streak: 0,
+      missStreak: 0,
+      reached: 2,
+      missed: 0,
+      mastery: sg?.mastery,
+      updatedAt: 1710000001000,
+    });
+    assert.equal(written.id, "sg-alex");
+    assert.equal(written.standardId, "4-1");
+    assert.equal(written.grade, 5);
+    assert.equal(written.step, 0);
+    assert.equal(written.tier, "on");
+    assert.equal(written.pending?.code, "SG.4.number");
+    assert.deepEqual(written.mastery?.heuristics["work backwards"], { asked: 1, correct: 0 });
   });
 });

@@ -7,7 +7,7 @@
  * The account id is the lowercase parent email.
  */
 
-import { heuristicIdOf, strandIdOf } from "./vkole-singapore.ts";
+import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 
 export const SCHOOL_ORIGIN = "https://www.dotheimpossible.ai";
 export const SCHOOL_ENGINE_URL = `${SCHOOL_ORIGIN}/engine`;
@@ -29,23 +29,62 @@ export const CLOCK_LIMIT_SECONDS = 9000;
 export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg"] as const;
 export type EngineId = (typeof ENGINE_IDS)[number];
 
-export type MasteryTally = { correct: number; asked: number };
+/** Website tally. `asked` is stored first. `correct` is never above `asked`. Asked 0 is omitted. */
+export type MasteryTally = { asked: number; correct: number };
 
 /**
- * Strand and heuristic tallies for VKOLE Singapore.
- * Written on the shared account as level.sg:
- * { grade: 1-12, step: 0|1|2, mastery?: { strands, heuristics } }.
- * step 0 is concrete, 1 pictorial, 2 abstract.
- * Strand ids: number, measure, data.
- * Heuristic ids: bar-model, work-backwards, guess-and-check, patterns.
- * Each tally is { correct, asked }. Display names are accepted on read.
+ * Singapore mastery on level.sg. Strand ids: number, measurement, geometry, data, algebra, calculus.
+ * Heuristic ids keep the website's spaces: "bar model", "work backwards", and the rest of that list.
+ * A strand or heuristic with no answers is omitted here. The parent report fills the six strands back in.
  */
 export type LevelMastery = {
-  strands: Record<string, MasteryTally>;
-  heuristics: Record<string, MasteryTally>;
+  strands: Partial<Record<StrandId, MasteryTally>>;
+  heuristics: Partial<Record<HeuristicId, MasteryTally>>;
 };
 
-export type EngineLevel = { grade: number; step: number; mastery?: LevelMastery };
+export type SgFigure =
+  | { kind: "bond"; whole: number; left: number; right: number; missing: "left" | "right" | "whole" }
+  | { kind: "bar"; whole: number; parts: { label: string; value: number | null }[] };
+
+/** Optional question waiting on the website. Field names match docs/vkole-shared-api.md. */
+export type SgPending = {
+  prompt: string;
+  code: string;
+  label: string;
+  grade: number;
+  answer?: string;
+  also?: string[];
+  strand?: StrandId;
+  heuristic?: HeuristicId;
+  figure?: SgFigure;
+};
+
+/**
+ * One engine on the shared account. level.sg uses these field names with no renaming.
+ * Other engines are read for grade and step. A write of sg replaces the stored sg record,
+ * so the app sends the whole object.
+ */
+export type EngineLevel = {
+  grade: number;
+  step: number;
+  id?: string;
+  name?: string;
+  enteredBy?: string;
+  earnedGrade?: number;
+  standardId?: string;
+  tier?: string;
+  simple?: boolean;
+  streak?: number;
+  missStreak?: number;
+  reached?: number;
+  missed?: number;
+  updatedAt?: number;
+  startingGrade?: number;
+  levelCode?: string;
+  levelLabel?: string;
+  pending?: SgPending;
+  mastery?: LevelMastery;
+};
 
 export type SeenQuestion = { key: string; text: string };
 
@@ -89,31 +128,82 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 function asTally(value: unknown): MasteryTally | null {
   const row = asRecord(value);
   if (!row) return null;
-  const correct = Number(row.correct);
   const asked = Number(row.asked);
-  if (!Number.isInteger(correct) || !Number.isInteger(asked) || correct < 0 || asked < correct) return null;
-  return { correct, asked };
+  let correct = Number(row.correct);
+  if (!Number.isInteger(asked) || !Number.isInteger(correct) || asked < 1 || correct < 0) return null;
+  if (correct > asked) correct = asked;
+  return { asked, correct };
 }
 
 function asMastery(value: unknown): LevelMastery | undefined {
   const row = asRecord(value);
   if (!row) return undefined;
-  const strands: Record<string, MasteryTally> = {};
-  const heuristics: Record<string, MasteryTally> = {};
+  const strands: Partial<Record<StrandId, MasteryTally>> = {};
+  const heuristics: Partial<Record<HeuristicId, MasteryTally>> = {};
   const strandRow = asRecord(row.strands);
   const heuristicRow = asRecord(row.heuristics);
-  for (const [key, item] of Object.entries(strandRow ?? {})) {
-    const id = strandIdOf(key);
-    const tally = asTally(item);
-    if (id && tally) strands[id] = tally;
+  for (const strand of STRANDS) {
+    const tally = asTally(strandRow?.[strand.id]);
+    if (tally) strands[strand.id] = tally;
   }
-  for (const [key, item] of Object.entries(heuristicRow ?? {})) {
-    const id = heuristicIdOf(key);
-    const tally = asTally(item);
-    if (id && tally) heuristics[id] = tally;
+  for (const heuristic of HEURISTICS) {
+    const tally = asTally(heuristicRow?.[heuristic.id]);
+    if (tally) heuristics[heuristic.id] = tally;
   }
   if (Object.keys(strands).length === 0 && Object.keys(heuristics).length === 0) return undefined;
   return { strands, heuristics };
+}
+
+function wholeNumber(value: unknown): number | null {
+  const number = Number(value);
+  return Number.isInteger(number) ? number : null;
+}
+
+function readFigure(value: unknown): SgFigure | undefined {
+  const row = asRecord(value);
+  if (!row) return undefined;
+  if (row.kind === "bond") {
+    const whole = wholeNumber(row.whole);
+    const left = wholeNumber(row.left);
+    const right = wholeNumber(row.right);
+    const missing = row.missing === "left" || row.missing === "right" || row.missing === "whole" ? row.missing : null;
+    if (whole == null || left == null || right == null || !missing) return undefined;
+    return { kind: "bond", whole, left, right, missing };
+  }
+  if (row.kind === "bar") {
+    const whole = wholeNumber(row.whole);
+    if (whole == null || !Array.isArray(row.parts)) return undefined;
+    const parts: { label: string; value: number | null }[] = [];
+    for (const part of row.parts) {
+      const item = asRecord(part);
+      if (!item || typeof item.label !== "string") return undefined;
+      const value = item.value == null ? null : wholeNumber(item.value);
+      if (item.value != null && value == null) return undefined;
+      parts.push({ label: item.label, value });
+    }
+    return { kind: "bar", whole, parts };
+  }
+  return undefined;
+}
+
+function readPending(value: unknown): SgPending | undefined {
+  const row = asRecord(value);
+  if (!row) return undefined;
+  const prompt = typeof row.prompt === "string" ? row.prompt : "";
+  const code = typeof row.code === "string" ? row.code : "";
+  const label = typeof row.label === "string" ? row.label : "";
+  const grade = wholeNumber(row.grade);
+  if (!prompt || !code || !label || grade == null) return undefined;
+  const pending: SgPending = { prompt, code, label, grade };
+  if (typeof row.answer === "string") pending.answer = row.answer;
+  if (Array.isArray(row.also) && row.also.every((item) => typeof item === "string")) pending.also = row.also;
+  const strand = typeof row.strand === "string" ? strandIdOf(row.strand) : null;
+  if (strand) pending.strand = strand;
+  const heuristic = typeof row.heuristic === "string" ? heuristicIdOf(row.heuristic) : null;
+  if (heuristic) pending.heuristic = heuristic;
+  const figure = readFigure(row.figure);
+  if (figure) pending.figure = figure;
+  return pending;
 }
 
 const STAGE_STEP: Record<string, number> = { concrete: 0, pictorial: 1, abstract: 2 };
@@ -127,11 +217,15 @@ function asStep(value: unknown): number {
   return Math.min(2, Math.max(0, Number.isFinite(step) ? Math.round(step) : 0));
 }
 
-export function normalizeEngineLevel(value: unknown): EngineLevel | null {
-  return asLevel(value);
+export function normalizeEngineLevel(value: unknown, engine: EngineId = "m"): EngineLevel | null {
+  return asLevel(value, engine);
 }
 
-function asLevel(value: unknown): EngineLevel | null {
+function copyText(row: Record<string, unknown>, key: string): string | undefined {
+  return typeof row[key] === "string" && row[key] !== "" ? String(row[key]) : undefined;
+}
+
+function asLevel(value: unknown, engine: EngineId): EngineLevel | null {
   if (typeof value === "number" && value >= 1 && value <= 12) {
     return { grade: Math.round(value), step: 0 };
   }
@@ -139,12 +233,99 @@ function asLevel(value: unknown): EngineLevel | null {
   if (!row) return null;
   const grade = Number(row.grade ?? row.level);
   if (!Number.isInteger(grade) || grade < 1 || grade > 12) return null;
-  const mastery = asMastery(row.mastery);
-  return {
+  const level: EngineLevel = {
     grade,
     step: asStep(row.step ?? row.stage ?? row.standardStep ?? 0),
-    ...(mastery ? { mastery } : {}),
   };
+  if (engine !== "sg") return level;
+  const id = copyText(row, "id");
+  const name = copyText(row, "name");
+  const enteredBy = copyText(row, "enteredBy");
+  const standardId = copyText(row, "standardId");
+  const tier = copyText(row, "tier");
+  const levelCode = copyText(row, "levelCode");
+  const levelLabel = copyText(row, "levelLabel");
+  if (id) level.id = id;
+  if (name) level.name = name;
+  if (enteredBy) level.enteredBy = enteredBy;
+  const earnedGrade = wholeNumber(row.earnedGrade);
+  if (earnedGrade != null) level.earnedGrade = earnedGrade;
+  if (standardId) level.standardId = standardId;
+  if (tier) level.tier = tier;
+  if (typeof row.simple === "boolean") level.simple = row.simple;
+  const streak = wholeNumber(row.streak);
+  const missStreak = wholeNumber(row.missStreak);
+  const reached = wholeNumber(row.reached);
+  const missed = wholeNumber(row.missed);
+  const updatedAt = wholeNumber(row.updatedAt);
+  const startingGrade = wholeNumber(row.startingGrade);
+  if (streak != null) level.streak = streak;
+  if (missStreak != null) level.missStreak = missStreak;
+  if (reached != null) level.reached = reached;
+  if (missed != null) level.missed = missed;
+  if (updatedAt != null) level.updatedAt = updatedAt;
+  if (startingGrade != null) level.startingGrade = startingGrade;
+  if (levelCode) level.levelCode = levelCode;
+  if (levelLabel) level.levelLabel = levelLabel;
+  const pending = readPending(row.pending);
+  if (pending) level.pending = pending;
+  const mastery = asMastery(row.mastery);
+  if (mastery) level.mastery = mastery;
+  return level;
+}
+
+/**
+ * Build the sg object the website stores.
+ * The example id is "m-alex" and the example standardId is "4-1" for grade 4, step 1.
+ * The doc does not define those two patterns, or the other values of tier, enteredBy, and simple.
+ * A stored value is kept. A missing id becomes sg- plus the lowercased name.
+ * A missing standardId becomes grade-step. tier, enteredBy, and simple default to "on", "parent", and false.
+ */
+export function sgAccountLevel(
+  remote: EngineLevel | undefined,
+  local: {
+    name: string;
+    grade: number;
+    step: number;
+    earnedGrade: number;
+    streak: number;
+    missStreak: number;
+    reached: number;
+    missed: number;
+    startingGrade?: number;
+    levelCode?: string;
+    levelLabel?: string;
+    mastery?: LevelMastery;
+    updatedAt: number;
+  },
+): EngineLevel {
+  const name = local.name.trim() || remote?.name || "";
+  const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") || "student";
+  const level: EngineLevel = {
+    id: remote?.id ?? `sg-${slug}`,
+    name,
+    enteredBy: remote?.enteredBy ?? "parent",
+    grade: local.grade,
+    step: local.step,
+    earnedGrade: local.earnedGrade,
+    standardId: remote?.standardId ?? `${local.grade}-${local.step}`,
+    tier: remote?.tier ?? "on",
+    simple: remote?.simple ?? false,
+    streak: local.streak,
+    missStreak: local.missStreak,
+    reached: local.reached,
+    missed: local.missed,
+    updatedAt: local.updatedAt,
+  };
+  const startingGrade = local.startingGrade ?? remote?.startingGrade;
+  if (startingGrade != null) level.startingGrade = startingGrade;
+  const levelCode = local.levelCode || remote?.levelCode;
+  if (levelCode) level.levelCode = levelCode;
+  const levelLabel = local.levelLabel || remote?.levelLabel;
+  if (levelLabel) level.levelLabel = levelLabel;
+  if (remote?.pending) level.pending = remote.pending;
+  if (local.mastery) level.mastery = local.mastery;
+  return level;
 }
 
 function asSeen(value: unknown): SeenQuestion[] {
@@ -194,7 +375,7 @@ export function parseSchoolProfile(body: unknown): { id: string; profile: School
   const level: Partial<Record<EngineId, EngineLevel>> = {};
   for (const [key, value] of Object.entries(levelSource)) {
     if (!isEngine(key)) continue;
-    const parsed = asLevel(value);
+    const parsed = asLevel(value, key);
     if (parsed) level[key] = parsed;
   }
   const freeRaw = profile.freeWeekStart ?? profile.freeWeek ?? profile.trialStartedAt ?? null;

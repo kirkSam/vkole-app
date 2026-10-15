@@ -1,6 +1,6 @@
 import { HEURISTICS, STRANDS, parseSgCode, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 
-export type Tally = { correct: number; asked: number };
+export type Tally = { asked: number; correct: number };
 
 export type SgMastery = {
   strands: Partial<Record<StrandId, Tally>>;
@@ -8,7 +8,7 @@ export type SgMastery = {
 };
 
 function emptyTally(): Tally {
-  return { correct: 0, asked: 0 };
+  return { asked: 0, correct: 0 };
 }
 
 export function emptyMastery(): SgMastery {
@@ -25,10 +25,11 @@ function bump(bucket: Partial<Record<string, Tally>>, id: string, correct: boole
 function asTally(value: unknown): Tally | null {
   if (!value || typeof value !== "object") return null;
   const row = value as { correct?: unknown; asked?: unknown };
-  const correct = Number(row.correct);
   const asked = Number(row.asked);
-  if (!Number.isInteger(correct) || !Number.isInteger(asked) || correct < 0 || asked < correct) return null;
-  return { correct, asked };
+  let correct = Number(row.correct);
+  if (!Number.isInteger(asked) || !Number.isInteger(correct) || asked < 1 || correct < 0) return null;
+  if (correct > asked) correct = asked;
+  return { asked, correct };
 }
 
 export function masteryFromUnknown(value: unknown): SgMastery | undefined {

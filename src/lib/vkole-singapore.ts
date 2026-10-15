@@ -11,18 +11,29 @@
 export const STAGES = ["concrete", "pictorial", "abstract"] as const;
 export type Stage = (typeof STAGES)[number];
 
+/** Ids and report labels from the website mastery report. `data` is labeled "data and statistics". */
 export const STRANDS = [
-  { id: "number", name: "Number and algebra" },
-  { id: "measure", name: "Measurement and geometry" },
-  { id: "data", name: "Statistics" },
+  { id: "number", name: "number" },
+  { id: "measurement", name: "measurement" },
+  { id: "geometry", name: "geometry" },
+  { id: "data", name: "data and statistics" },
+  { id: "algebra", name: "algebra" },
+  { id: "calculus", name: "calculus" },
 ] as const;
 export type StrandId = (typeof STRANDS)[number]["id"];
 
+/** Heuristic ids are the website's names, including the spaces. */
 export const HEURISTICS = [
-  { id: "bar-model", name: "Bar model" },
-  { id: "work-backwards", name: "Work backwards" },
-  { id: "guess-and-check", name: "Guess and check" },
-  { id: "patterns", name: "Patterns" },
+  { id: "bar model", name: "bar model" },
+  { id: "number bond", name: "number bond" },
+  { id: "work backwards", name: "work backwards" },
+  { id: "guess and check", name: "guess and check" },
+  { id: "look for a pattern", name: "look for a pattern" },
+  { id: "draw a diagram", name: "draw a diagram" },
+  { id: "make a table", name: "make a table" },
+  { id: "simplify the problem", name: "simplify the problem" },
+  { id: "before and after", name: "before and after" },
+  { id: "systematic list", name: "systematic list" },
 ] as const;
 export type HeuristicId = (typeof HEURISTICS)[number]["id"];
 
@@ -61,7 +72,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     course: "Primary Mathematics",
     topics: [
       { strand: "number", name: "Numbers to 100, addition and subtraction" },
-      { strand: "measure", name: "Length and 2D shapes" },
+      { strand: "measurement", name: "Length and 2D shapes" },
       { strand: "data", name: "Picture graphs" },
     ],
   },
@@ -70,7 +81,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     course: "Primary Mathematics",
     topics: [
       { strand: "number", name: "Numbers to 1 000 and multiplication tables" },
-      { strand: "measure", name: "Length, mass, and time" },
+      { strand: "measurement", name: "Length, mass, and time" },
       { strand: "data", name: "Picture graphs with scales" },
     ],
   },
@@ -79,7 +90,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     course: "Primary Mathematics",
     topics: [
       { strand: "number", name: "Multiplication tables and equivalent fractions" },
-      { strand: "measure", name: "Area, perimeter, and angles" },
+      { strand: "measurement", name: "Area, perimeter, and angles" },
       { strand: "data", name: "Bar graphs" },
     ],
   },
@@ -88,7 +99,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     course: "Primary Mathematics",
     topics: [
       { strand: "number", name: "Factors, multiples, and decimals" },
-      { strand: "measure", name: "Area of a rectangle and angles" },
+      { strand: "measurement", name: "Area of a rectangle and angles" },
       { strand: "data", name: "Tables and line graphs" },
     ],
   },
@@ -97,7 +108,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     course: "Primary Mathematics",
     topics: [
       { strand: "number", name: "Percentage, rate, and fractions" },
-      { strand: "measure", name: "Area of a triangle and volume" },
+      { strand: "measurement", name: "Area of a triangle and volume" },
       { strand: "data", name: "Average" },
     ],
   },
@@ -106,7 +117,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     course: "Primary Mathematics",
     topics: [
       { strand: "number", name: "Ratio and simple algebra" },
-      { strand: "measure", name: "Circle and volume of a cuboid" },
+      { strand: "measurement", name: "Circle and volume of a cuboid" },
       { strand: "data", name: "Average of a set" },
     ],
   },
@@ -115,7 +126,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     course: "O-Level Mathematics",
     topics: [
       { strand: "number", name: "Integers, primes, HCF, and LCM" },
-      { strand: "measure", name: "Rate and polygons" },
+      { strand: "measurement", name: "Rate and polygons" },
       { strand: "data", name: "Mean" },
     ],
   },
@@ -124,7 +135,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     course: "O-Level Mathematics",
     topics: [
       { strand: "number", name: "Linear equations and proportion" },
-      { strand: "measure", name: "Pythagoras" },
+      { strand: "measurement", name: "Pythagoras" },
       { strand: "data", name: "Simple probability" },
     ],
   },
@@ -133,7 +144,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     course: "O-Level Mathematics",
     topics: [
       { strand: "number", name: "Indices and quadratic expressions" },
-      { strand: "measure", name: "Pythagoras and similarity" },
+      { strand: "measurement", name: "Pythagoras and similarity" },
       { strand: "data", name: "Probability" },
     ],
   },
@@ -142,7 +153,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     course: "O-Level Mathematics",
     topics: [
       { strand: "number", name: "Differentiation of a power" },
-      { strand: "measure", name: "Area and right triangles" },
+      { strand: "measurement", name: "Area and right triangles" },
       { strand: "data", name: "Probability of a single event" },
     ],
   },
@@ -151,7 +162,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     course: "Additional Mathematics",
     topics: [
       { strand: "number", name: "Indices, surds, and quadratic functions" },
-      { strand: "measure", name: "Coordinate geometry and trigonometry" },
+      { strand: "measurement", name: "Coordinate geometry and trigonometry" },
       { strand: "data", name: "Binomial expansion" },
     ],
   },
@@ -160,7 +171,7 @@ const SPINE: Record<number, { moe: string; course: string; topics: readonly Spin
     course: "H1 and H2 Mathematics",
     topics: [
       { strand: "number", name: "Functions, series, and complex numbers" },
-      { strand: "measure", name: "Vectors and calculus" },
+      { strand: "measurement", name: "Vectors and calculus" },
       { strand: "data", name: "Probability and the sample mean" },
     ],
   },
@@ -185,23 +196,17 @@ export function singaporePlace(grade: number): SingaporePlace {
 export const SG_STAGE_NOTE =
   "Each topic goes concrete, then pictorial, then abstract. Two correct answers move up one step. The grade changes only after the abstract step. Two incorrect answers in a row move down one step.";
 
-const SG_CODE = /^SG\.(\d+)\.(number|measure|data)(?:\.(bar-model|work-backwards|guess-and-check|patterns))?$/;
-
+/** Exact website id only. A different spelling is not a known strand. */
 export function strandIdOf(key: string): StrandId | null {
-  const text = key.trim().toLowerCase();
-  for (const strand of STRANDS) {
-    if (text === strand.id || text === strand.name.toLowerCase()) return strand.id;
-  }
-  if (text === "statistics and probability") return "data";
-  if (text === "geometry" || text === "measurement") return "measure";
+  const text = key.trim();
+  for (const strand of STRANDS) if (text === strand.id) return strand.id;
   return null;
 }
 
+/** Exact website name only. Hyphenated spellings are not known heuristics. */
 export function heuristicIdOf(key: string): HeuristicId | null {
-  const text = key.trim().toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ");
-  for (const heuristic of HEURISTICS) {
-    if (text === heuristic.id || text === heuristic.name.toLowerCase() || text === heuristic.id.replace(/-/g, " ")) return heuristic.id;
-  }
+  const text = key.trim();
+  for (const heuristic of HEURISTICS) if (text === heuristic.id) return heuristic.id;
   return null;
 }
 
@@ -211,13 +216,15 @@ export function sgStandard(grade: number, strand: StrandId, heuristic: Heuristic
 }
 
 export function parseSgCode(code: string): { grade: number; strand: StrandId; heuristic: HeuristicId | null } | null {
-  const matched = SG_CODE.exec(code.trim());
+  const matched = /^SG\.(\d+)\.([^.]+)(?:\.(.+))?$/.exec(code.trim());
   if (!matched) return null;
-  return {
-    grade: Number(matched[1]),
-    strand: matched[2] as StrandId,
-    heuristic: (matched[3] as HeuristicId | undefined) ?? null,
-  };
+  const strand = strandIdOf(matched[2] ?? "");
+  if (!strand) return null;
+  const heuristicText = matched[3];
+  if (!heuristicText) return { grade: Number(matched[1]), strand, heuristic: null };
+  const heuristic = heuristicIdOf(heuristicText);
+  if (!heuristic) return null;
+  return { grade: Number(matched[1]), strand, heuristic };
 }
 
 export function sgCodeLabel(code: string): string {

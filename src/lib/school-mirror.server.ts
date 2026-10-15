@@ -44,7 +44,7 @@ function parseLevels(raw: string | null): Partial<Record<EngineId, EngineLevel>>
     const parsed = JSON.parse(raw) as Partial<Record<EngineId, EngineLevel>>;
     const level: Partial<Record<EngineId, EngineLevel>> = {};
     for (const id of ENGINE_IDS) {
-      const item = normalizeEngineLevel(parsed[id]);
+      const item = normalizeEngineLevel(parsed[id], id);
       if (item) level[id] = item;
     }
     return level;
