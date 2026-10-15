@@ -14,17 +14,14 @@ type Phase = "lead" | "can" | "price" | "done";
 export function TeletypeIntro({
   onSplash,
   onContinue,
-  onEnroll,
 }: {
   onSplash: () => void;
   onContinue: () => void;
-  onEnroll?: () => void;
 }) {
   const [lead, setLead] = useState("");
   const [can, setCan] = useState("");
   const [price, setPrice] = useState("");
   const [phase, setPhase] = useState<Phase>("lead");
-  const [note, setNote] = useState("");
   const caretRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -134,29 +131,23 @@ export function TeletypeIntro({
         <p className="mt-2 text-center text-sm text-[#cfc6b8]">
           No credit card. Email registration only.
         </p>
-        <button
-          type="button"
+        <a
           className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
-          onClick={() => {
-            onEnroll?.();
-            const opened = window.open(SCHOOL_ENGINE_URL, "_blank", "noopener,noreferrer");
-            if (!opened) setNote("Pay on the school website. This app does not charge the card.");
-          }}
+          href={SCHOOL_ENGINE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
         >
           $79.00 USD + tax a year for this student · Stripe Secure Pay
-        </button>
-        <button
-          type="button"
+        </a>
+        <a
           className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
-          onClick={() => {
-            onEnroll?.();
-            const opened = window.open(SCHOOL_ENGINE_URL, "_blank", "noopener,noreferrer");
-            if (!opened) setNote("Pay on the school website. This app does not charge the card.");
-          }}
+          href={SCHOOL_ENGINE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
         >
           $9.00 USD + tax a month for this student · Stripe Secure Pay
-        </button>
-        {note ? <p className="mt-3 text-sm text-[#cfc6b8]">{note}</p> : null}
+        </a>
+        <p className="mt-3 text-sm text-[#cfc6b8]">Pay on the school website. This app does not charge the card.</p>
         <div className="mt-4 flex items-center justify-between">
           <button
             type="button"

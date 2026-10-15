@@ -151,7 +151,6 @@ function Home() {
           touring.current = false;
           setStage(unpaid ? "trial" : "app");
         }}
-        onEnroll={unpaid ? () => void navigate({ to: "/enroll" }) : undefined}
       />
     );
   }

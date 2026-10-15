@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { Shell } from "@/components/shell";
@@ -15,17 +14,7 @@ const RECEIVES = [
   "Continued tracking, and the child’s access to VKOLE/ZPD - Space x.AI Integrated Learning Engine.",
 ];
 
-function openSchoolPay(setNote: (note: string) => void) {
-  const opened = window.open(SCHOOL_ENGINE_URL, "_blank", "noopener,noreferrer");
-  setNote(
-    opened
-      ? "The school website is open. This app does not charge the card."
-      : "Open the school website to pay. This app does not charge the card.",
-  );
-}
-
 function EnrollPage() {
-  const [note, setNote] = useState("");
   return (
     <Shell>
       <p className="text-sm font-semibold tracking-wide text-accent uppercase">Parent</p>
@@ -46,22 +35,24 @@ function EnrollPage() {
       <p className="mt-6 text-sm text-muted">
         This payment covers this student for a full month or a full year, starting the day you pay. Another student downloads the app and registers on that student’s own device. That registration has its own start date. When this student’s paid time ends, the engines close until you pay again. You may cancel before then. The student’s record stays.
       </p>
-      <button
-        type="button"
+      <a
         className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 text-base font-semibold text-[#1c1408]"
-        onClick={() => openSchoolPay(setNote)}
+        href={SCHOOL_ENGINE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
       >
         $79.00 USD + tax a year for this student · Stripe Secure Pay
-      </button>
-      <button
-        type="button"
+      </a>
+      <a
         className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 text-base font-semibold text-[#1c1408]"
-        onClick={() => openSchoolPay(setNote)}
+        href={SCHOOL_ENGINE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
       >
         $9.00 USD + tax a month for this student · Stripe Secure Pay
-      </button>
+      </a>
       <p className="mt-3 text-sm text-muted">
-        {note || "Paying opens the school website. This app does not mark the account paid, and it does not charge the card."}
+        Paying opens the school website. This app does not mark the account paid, and it does not charge the card.
       </p>
       <Link to="/" className="mt-4 inline-flex min-h-11 items-center text-sm text-accent">
         Back
