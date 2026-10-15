@@ -28,7 +28,9 @@ This repository is the application source. It does not contain secret keys or pa
 - Connector host used by the Grok host: https://connectors.grok.me
 - School reply address in the code: kirksam.alpha@dotheimpossible.ai
 
-Stripe checkout is not attached. `STRIPE_MONTHLY_URL` in `src/lib/stripe-pay.ts` is empty. The prices shown in the app are $9.00 USD plus tax a month, or $79.00 USD plus tax a year, for one student.
+The school website is the only account book. Parent email and password, the student level, the free week, the day clock, seen questions, and whether access is open live at https://www.dotheimpossible.ai. This app calls that API from its own server. The browser never sees the shared secret. After a successful sign-in the app still sets its own HttpOnly session cookie, keyed to the lowercase parent email.
+
+Pay buttons open https://www.dotheimpossible.ai/engine. This app does not record a payment and does not charge the card. The prices shown are $9.00 USD plus tax a month, or $79.00 USD plus tax a year, for one student. Google and X stay separate from the school account.
 
 ## Install
 
@@ -82,11 +84,12 @@ npm run db:migrate
 | Postgres | Accounts, students, levels, mail record | `DATABASE_URL` |
 | xAI API | Grade one answer and write the next question | `XAI_API_KEY` |
 | Gmail SMTP | Parent progress reports, password codes, registration notices | `GMAIL_APP_PASSWORD` or `VKOLE_MAIL_SECRET` |
-| Better Auth | Parent email and password sessions | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` |
+| Better Auth | This app's session cookie after the school website accepts the password | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` |
+| School website | Parent account, password, level, free week, clock, seen questions, and access | `VKOLE_SHARED_SECRET` |
 | Grok auth broker | Google and X sign-in on the Grok host | `GROK_AUTH_ISSUER`, `GROK_AUTH_CLIENT_ID`, `GROK_AUTH_CLIENT_SECRET` |
 | Grok preview auth | Live-preview sign-in only | `GROK_PREVIEW_CLIENT_SECRET` |
 | Grok connectors | Gmail connector on the published Grok host | `GROK_PROJECT_ID`, `GROK_GATE_ORIGIN`, `GROK_CONNECTORS_URL`, `GROK_CONNECTOR_ACCESS_TOKEN` |
-| Stripe | Pay buttons. Not connected. The URL constant is empty. | none |
+| Stripe | Charged on the school website, not in this app | none |
 
 The app also reads `VITE_AUTH_ENABLED`, `VITE_PUBLIC_HOSTNAME`, and `NODE_ENV`. Do not put real values in the repository.
 

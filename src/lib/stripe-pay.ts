@@ -1,3 +1,6 @@
-/** Stripe hosted checkout for VKOLE at $79.00 USD a year, plus tax. Monthly is $9.00 USD plus tax. */
+/**
+ * This app does not charge a card. Pay buttons open the school website engine page.
+ * The empty URL stays so an older caller cannot open a payment link from here.
+ */
 export const STRIPE_MONTHLY_URL = "";
 

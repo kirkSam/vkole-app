@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { APP_NAME } from "@/lib/brand";
-import { recordPayment } from "@/lib/ledger";
 import { beginSharedTrial } from "@/lib/climbs";
-import { STRIPE_MONTHLY_URL } from "@/lib/stripe-pay";
+import { SCHOOL_ENGINE_URL } from "@/lib/school-account";
 
 const LEAD =
   "What if you and your child could access a \"State of the Art\" learning engine, VKOLE/ZPD - the Space x.AI Integrated Learning Engine? It is developed in conjunction with Space x.AI and a team of educators dedicated to bringing applied Superintelligence to parents at an affordable cost. Additionally, what if your educational agent stored your child's levels, and gave you control of your child's levels to send you a private email report of your child's progress and achievements?";
@@ -15,17 +14,14 @@ type Phase = "lead" | "can" | "price" | "done";
 export function TeletypeIntro({
   onSplash,
   onContinue,
-  onEnroll,
 }: {
   onSplash: () => void;
   onContinue: () => void;
-  onEnroll?: () => void;
 }) {
   const [lead, setLead] = useState("");
   const [can, setCan] = useState("");
   const [price, setPrice] = useState("");
   const [phase, setPhase] = useState<Phase>("lead");
-  const [note, setNote] = useState("");
   const caretRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -135,46 +131,23 @@ export function TeletypeIntro({
         <p className="mt-2 text-center text-sm text-[#cfc6b8]">
           No credit card. Email registration only.
         </p>
-        <button
-          type="button"
+        <a
           className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
-          onClick={() => {
-            if (onEnroll) {
-              onEnroll();
-              return;
-            }
-            void recordPayment({ data: { plan: "year" } }).catch(() => undefined);
-            if (!STRIPE_MONTHLY_URL) {
-              setNote(
-                "Stripe is not attached. Sign in and the year is kept with your email. The card is not charged.",
-              );
-              return;
-            }
-            window.open(STRIPE_MONTHLY_URL, "_blank", "noopener,noreferrer");
-          }}
+          href={SCHOOL_ENGINE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
         >
           $79.00 USD + tax a year for this student · Stripe Secure Pay
-        </button>
-        <button
-          type="button"
+        </a>
+        <a
           className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
-          onClick={() => {
-            if (onEnroll) {
-              onEnroll();
-              return;
-            }
-            void recordPayment({ data: { plan: "month" } })
-              .then(() =>
-                setNote(
-                  "The $9.00 month is kept with your sign-in email. Stripe is not attached, so the card is not charged.",
-                ),
-              )
-              .catch(() => setNote("Sign in so this payment is kept with your email."));
-          }}
+          href={SCHOOL_ENGINE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
         >
           $9.00 USD + tax a month for this student · Stripe Secure Pay
-        </button>
-        {note ? <p className="mt-3 text-sm text-[#cfc6b8]">{note}</p> : null}
+        </a>
+        <p className="mt-3 text-sm text-[#cfc6b8]">Pay on the school website. This app does not charge the card.</p>
         <div className="mt-4 flex items-center justify-between">
           <button
             type="button"

@@ -1,12 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { GROK_PROVIDERS, authClient, signIn } from "@/lib/auth/client";
-import { confirmPasswordReset, requestPasswordReset, requestUsernameReminder } from "@/lib/recovery";
+import { schoolPasswordReset, schoolSignIn, schoolSignUp } from "@/lib/school-auth";
+import { SCHOOL_ENGINE_URL, SCHOOL_SEPARATE_MESSAGE, schoolScreen } from "@/lib/school-account";
+import { requestUsernameReminder } from "@/lib/recovery";
 import { recordLogin } from "@/lib/ledger";
 import { beginSharedTrial } from "@/lib/climbs";
+import { SchoolAccountScreen } from "@/components/school-account-screen";
 import { Shell } from "@/components/shell";
 
-type Mode = "in" | "up" | "forgot-password" | "reset-password" | "forgot-username";
+type Mode = "in" | "up" | "forgot-password" | "forgot-username";
 
 export function ParentLogin({
   onSplash,
@@ -22,7 +24,6 @@ export function ParentLogin({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
@@ -38,30 +39,21 @@ export function ParentLogin({
     event.preventDefault();
     setError("");
     setNote("");
-    if ((mode === "in" || mode === "up" || mode === "reset-password") && password.length < 8) {
+    if ((mode === "in" || mode === "up") && password.length < 8) {
       setError("Use at least 8 characters.");
       return;
     }
     setPending(true);
     try {
       if (mode === "forgot-password") {
-        const result = await requestPasswordReset({ data: { email: email.trim() } });
+        const result = await schoolPasswordReset({ data: { email: email.trim() } });
+        if (!result.ok) {
+          setError(result.message);
+          return;
+        }
         setNote(
-          result.delivered
-            ? "If that email is on an account, a 6-digit code is on its way. It expires in 30 minutes."
-            : result.code
-              ? `Email is not connected, so the code is shown here: ${result.code}. It expires in 30 minutes.`
-              : "If that email is on an account, a 6-digit code is on its way.",
+          "If the school has that email, a 6-digit code is on its way. It expires in 30 minutes. Set the new password on the school website, then sign in here. The code is not shown on this screen.",
         );
-        setMode("reset-password");
-        return;
-      }
-      if (mode === "reset-password") {
-        await confirmPasswordReset({ data: { email: email.trim(), code: code.trim(), password } });
-        setPassword("");
-        setCode("");
-        setNote("Password updated. Sign in with the new one.");
-        setMode("in");
         return;
       }
       if (mode === "forgot-username") {
@@ -76,27 +68,15 @@ export function ParentLogin({
         return;
       }
       if (mode === "up") {
-        const res = await authClient.signUp.email({
-          email: email.trim(),
-          password,
-          name: name.trim() || "Parent",
-        });
-        if (res.error) {
-          const message = res.error.message ?? "Could not create the parent account.";
-          setError(
-            /already exists/i.test(message)
-              ? "That email is already registered. Use Sign in, and the same password you chose when you created it."
-              : message,
-          );
+        const res = await schoolSignUp({ data: { email: email.trim(), password, name: name.trim() || "Parent" } });
+        if (!res.ok) {
+          setError(res.message);
           return;
         }
       } else {
-        const res = await authClient.signIn.email({
-          email: email.trim(),
-          password,
-        });
-        if (res.error) {
-          setError(res.error.message ?? "Email or password did not match.");
+        const res = await schoolSignIn({ data: { email: email.trim(), password } });
+        if (!res.ok) {
+          setError(res.message);
           return;
         }
       }
@@ -115,7 +95,7 @@ export function ParentLogin({
   const title =
     mode === "up"
       ? "Create a parent account"
-      : mode === "forgot-password" || mode === "reset-password"
+      : mode === "forgot-password"
         ? "Forgot password"
         : mode === "forgot-username"
           ? "Forgot username"
@@ -124,13 +104,15 @@ export function ParentLogin({
   const lead =
     mode === "up"
       ? "No credit card is required for the first seven days. Only this email registration. Any email address may be used. It does not have to be Gmail. This registration opens all four engines for this student. Another student registers on their own device. Reports are sent only to this address."
-      : mode === "forgot-password"
-        ? "Enter the email on the account. A 6-digit code will be sent there."
-        : mode === "reset-password"
-          ? "Enter the code from the email and choose a new password."
-          : mode === "forgot-username"
+        : mode === "forgot-password"
+        ? "Enter the email on the account. A 6-digit code is emailed only to that address. Set the new password on the school website, then sign in here."
+        : mode === "forgot-username"
             ? "The username is the email on the account. Enter the name you used when you created it. That email will be sent to the address on file."
-            : "This sign-in is for one student. The four engines share that student’s 7-day trial. A name already on file continues at the saved Common Core level.";
+            : "This sign-in uses the school website. The four engines share that student’s 7-day trial, level, and clock. Google and X do not open this account.";
+
+  if (schoolScreen(error)) {
+    return <SchoolAccountScreen message={error} onRetry={() => setError("")} />;
+  }
 
   return (
     <Shell onSplash={onSplash}>
@@ -163,22 +145,9 @@ export function ParentLogin({
             />
           </label>
         ) : null}
-        {mode === "reset-password" ? (
+        {mode === "in" || mode === "up" ? (
           <label className="block text-sm text-muted">
-            Code from the email
-            <input
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              required
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
-            />
-          </label>
-        ) : null}
-        {mode === "in" || mode === "up" || mode === "reset-password" ? (
-          <label className="block text-sm text-muted">
-            {mode === "reset-password" ? "New password" : "Password"}
+            Password
             <input
               type="password"
               required
@@ -202,11 +171,9 @@ export function ParentLogin({
               ? "Create account"
               : mode === "forgot-password"
                 ? "Send code"
-                : mode === "reset-password"
-                  ? "Save new password"
-                  : mode === "forgot-username"
-                    ? "Send my username"
-                    : "Sign in and start"}
+                : mode === "forgot-username"
+                  ? "Send my username"
+                  : "Sign in and start"}
         </button>
         {mode === "in" ? (
           <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -232,21 +199,15 @@ export function ParentLogin({
           </button>
         ) : null}
       </form>
-      {mode === "in" || mode === "up" ? (
-        <div className="mt-6 space-y-2">
-          <p className="text-sm text-muted">Or continue with</p>
-          {GROK_PROVIDERS.map((provider) => (
-            <button
-              key={provider.providerId}
-              type="button"
-              onClick={() => signIn(provider.providerId, { callbackURL: "/" })}
-              className="min-h-11 w-full rounded-xl border border-line bg-paper px-4 text-sm text-ink"
-            >
-              Continue with {provider.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <p className="mt-6 max-w-prose text-sm text-muted">{SCHOOL_SEPARATE_MESSAGE}</p>
+      <a
+        className="mt-3 inline-flex min-h-11 items-center text-sm text-accent"
+        href={SCHOOL_ENGINE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Open the school engine to pay or set a password
+      </a>
     </Shell>
   );
 }

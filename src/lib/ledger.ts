@@ -4,11 +4,6 @@ import { getSql, type Sql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { publishedOrigin } from "@/lib/published-origin";
 
-const PLANS = {
-  year: 7900,
-  month: 900,
-} as const;
-
 const OWNER_EMAIL = "kirk.sam.alpha@gmail.com";
 
 async function mailer() {
@@ -215,57 +210,4 @@ export const allowGmail = createServerFn({ method: "POST" })
     );
     if (sent !== "sent") throw new Error("That app password was not accepted. Create a new one and try again.");
     return summary(sql, context.userId, email);
-  });
-
-export const recordPayment = createServerFn({ method: "POST" })
-  .validator((data: unknown) => {
-    const parsed = z.object({ plan: z.enum(["year", "month"]) }).safeParse(data);
-    if (!parsed.success) throw new Error("Choose a plan and try again.");
-    return parsed.data;
-  })
-  .middleware([authMiddleware])
-  .handler(async ({ context, data }) => {
-    const sql = await getSql();
-    const email = await emailFor(sql, context.userId);
-    const open = await sql<{ detail: string }>`
-      select detail from app_subscriptions
-      where user_id = ${context.userId}
-        and subject = 'app'
-        and detail in ('month', 'year')
-        and expires_at > now()
-      limit 1
-    `;
-    if (open[0]) {
-      return { ...(await summary(sql, context.userId, email)), added: 0, keptEnd: true };
-    }
-    const children = 1;
-    await sql`
-      insert into payments (id, user_id, email, plan, amount_cents, status)
-      values (
-        ${crypto.randomUUID()},
-        ${context.userId},
-        ${email},
-        ${data.plan},
-        ${PLANS[data.plan] * children},
-        'opened'
-      )
-    `;
-    await sql`
-      insert into app_subscriptions (user_id, subject, detail, expires_at, seats)
-      values (
-        ${context.userId},
-        'app',
-        ${data.plan},
-        now() + case when ${data.plan} = 'year' then interval '1 year' else interval '1 month' end,
-        ${children}
-      )
-      on conflict (user_id, subject) do update
-      set detail = excluded.detail,
-          created_at = now(),
-          expires_at = excluded.expires_at,
-          seats = excluded.seats,
-          renews = true,
-          cancelled_at = null
-    `;
-    return { ...await summary(sql, context.userId, email), added: children, keptEnd: false };
   });
