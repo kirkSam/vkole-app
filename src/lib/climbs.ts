@@ -4,13 +4,14 @@ import { IDLE_MS, academicLetter, parentLogoutLetter, trialState, type AppTime, 
 import { authMiddleware } from "@/lib/auth/middleware";
 import { isSubject, SUBJECTS, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { moveRung, stepName, stepSentence } from "@/lib/cc-steps";
-import { grade12QuestionBank } from "@/lib/questions";
-import { fillSheet, questionKey, rememberPrompt, seenKeys } from "@/lib/next-sheet";
-import { capVkoleGrade, rotateQuestions } from "@/lib/vkole-cap";
+import { fillSheet, rememberPrompt, seenKeys } from "@/lib/next-sheet";
+import { capVkoleGrade } from "@/lib/vkole-cap";
 import { getSql, type Sql } from "@/lib/db";
 import { childAccess } from "@/lib/subscription";
 import { settleGradingCall } from "@/lib/grading-pause";
-import { clampStoredGrade, cycleInstruction, localItem, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
+import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-history";
+import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
+import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
 
 export type Climb = {
   id: string;
@@ -242,16 +243,20 @@ export const setClimbLevel = createServerFn({ method: "POST" })
     const held = capVkoleGrade(current.level);
     const level = capVkoleGrade(current.level + (data.direction === "up" ? 1 : -1));
     const step = level === held && data.direction === "up" ? Math.min(2, Math.max(0, current.standardStep ?? 0)) : 0;
-    const item = localItem(current.subject, level, step);
+    const item = await dealQuestion(sql, context.userId, current.childName, current.subject, level, step);
     await sql`
       update climbs
       set level = ${level},
           standard_step = ${step},
           correct_at_level = 0,
           incorrect_streak = 0,
-          standard_code = ${item.code},
-          standard_label = ${item.label},
-          current_prompt = ${item.prompt},
+          standard_code = ${item.standard},
+          standard_label = ${item.note},
+          current_prompt = ${item.stem},
+          answer_key = ${item.answer},
+          answer_aliases = ${JSON.stringify(item.aliases)},
+          answer_note = ${item.note},
+          question_id = ${item.id},
           next_prompt = '',
           awaiting_next = 0,
           updated_at = now()
@@ -268,65 +273,90 @@ export const recordAnswer = createServerFn({ method: "POST" })
     const current = await selectOwned(sql, context.userId, data.id);
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
     if (current.awaitingNext) return { status: "saved" as const, climb: current };
-    const instruction = cycleInstruction({
-      subject: current.subject,
-      startGrade: current.startGrade ?? clampStoredGrade(current.level),
-      grade: Math.min(12, clampStoredGrade(current.level)),
-      code: current.standardCode,
-      label: current.standardLabel,
-      correctStreak: current.correctAtLevel,
-      incorrectStreak: current.incorrectStreak,
-      question: current.currentPrompt,
-      answer: data.answer,
-    });
-    let call = await requestCycle(instruction);
-    if (call.outcome === "absent") call = await requestCycle(instruction);
-    const settled = settleGradingCall(
-      call.outcome,
-      call.outcome === "graded" ? call.reply.correct : null,
-      current.gradingFailures,
-    );
-    if (settled.action !== "score") {
-      await sql`
-        update climbs
-        set grading_failures = ${settled.failures}, updated_at = now()
-        where id = ${data.id} and user_id = ${context.userId}
-      `;
-      return { status: settled.action, climb: { ...current, gradingFailures: settled.failures } };
+    const keyed = await keyedAnswer(sql, context.userId, data.id);
+    const recentRows = await recentQuestions(sql, context.userId, current.childName, RECENT_WINDOW);
+    const recent = recentRows.map((row) => row.text).filter(Boolean);
+    let correct = false;
+    let modelFeedback = "";
+    let modelPrompt = "";
+    let modelCode = current.standardCode;
+    let modelLabel = current.standardLabel;
+    if (keyed) {
+      correct = answersMatch(keyed.answer, data.answer, keyed.aliases);
+      modelFeedback = keyedFeedback(keyed.answer, keyed.note);
+    } else {
+      const instruction = cycleInstruction({
+        subject: current.subject,
+        startGrade: current.startGrade ?? clampStoredGrade(current.level),
+        grade: Math.min(12, clampStoredGrade(current.level)),
+        code: current.standardCode,
+        label: current.standardLabel,
+        correctStreak: current.correctAtLevel,
+        incorrectStreak: current.incorrectStreak,
+        question: current.currentPrompt,
+        answer: data.answer,
+        recentPrompts: recent,
+      });
+      let call = await requestCycle(instruction);
+      if (call.outcome === "absent") call = await requestCycle(instruction);
+      const settled = settleGradingCall(
+        call.outcome,
+        call.outcome === "graded" ? call.reply.correct : null,
+        current.gradingFailures,
+      );
+      if (settled.action !== "score") {
+        await sql`
+          update climbs
+          set grading_failures = ${settled.failures}, updated_at = now()
+          where id = ${data.id} and user_id = ${context.userId}
+        `;
+        return { status: settled.action, climb: { ...current, gradingFailures: settled.failures } };
+      }
+      const heldGrade = capVkoleGrade(current.level);
+      const reply =
+        call.outcome === "graded"
+          ? call.reply
+          : unreadableReply({
+              grade: heldGrade,
+              code: current.standardCode,
+              label: current.standardLabel,
+              nextPrompt: "",
+            });
+      correct = reply.correct;
+      modelFeedback = reply.feedback;
+      modelPrompt = reply.nextPrompt;
+      modelCode = reply.code;
+      modelLabel = reply.label;
     }
-    const heldGrade = capVkoleGrade(current.level);
-    const heldItem = localItem(current.subject, heldGrade, current.standardStep ?? 0);
-    const reply =
-      call.outcome === "graded"
-        ? call.reply
-        : unreadableReply({
-            grade: heldGrade,
-            code: current.standardCode || heldItem.code,
-            label: current.standardLabel || heldItem.label,
-            nextPrompt: heldItem.prompt,
-          });
     const beforeGrade = capVkoleGrade(current.level);
     const beforeStep = current.standardStep ?? 0;
     const moved = moveRung({
       grade: beforeGrade,
       step: beforeStep,
-      correct: reply.correct,
+      correct,
       correctStreak: current.correctAtLevel,
       missStreak: current.incorrectStreak,
     });
-    const reached = reply.correct;
-    const seen = moved.capped ? await seenKeys(sql, context.userId, current.childName) : null;
-    const rotated = seen ? rotateQuestions(grade12QuestionBank(current.subject), current.asked + 1, seen, questionKey) : null;
-    const stepChanged = moved.grade !== beforeGrade || moved.step !== beforeStep;
-    const fresh = rotated ? null : stepChanged ? localItem(current.subject, moved.grade, moved.step) : null;
-    const visible = fresh || rotated ? null : questionTheChildCanSee(reply.nextPrompt, current.subject, moved.grade);
-    const nextPrompt = rotated?.prompt ?? fresh?.prompt ?? visible?.prompt ?? reply.nextPrompt;
-    const nextCode = rotated?.code ?? fresh?.code ?? visible?.code ?? reply.code;
-    const nextLabel = rotated?.label ?? fresh?.label ?? visible?.label ?? reply.label;
+    const reached = correct;
+    const pool = await dealQuestion(sql, context.userId, current.childName, current.subject, moved.grade, moved.step);
+    const visible = questionTheChildCanSee(modelPrompt, current.subject, moved.grade);
+    const chosen = chooseNext({
+      modelPrompt: visible?.prompt ?? modelPrompt,
+      recent,
+      pool,
+      preferPool: true,
+    });
+    const nextPrompt = chosen.fromPool ? pool.stem : chosen.prompt;
+    const nextCode = chosen.fromPool ? pool.standard : visible?.code || modelCode;
+    const nextLabel = chosen.fromPool ? pool.note : visible?.label || modelLabel;
+    const nextAnswer = chosen.fromPool ? pool.answer : "";
+    const nextAliases = chosen.fromPool ? JSON.stringify(pool.aliases) : "[]";
+    const nextNote = chosen.fromPool ? pool.note : "";
+    const nextId = chosen.fromPool ? pool.id : "";
     const earnedMove = moved.grade > beforeGrade ? 1 : moved.grade < beforeGrade ? -1 : 0;
     const performanceLevel = capVkoleGrade(current.performanceLevel + earnedMove);
     const note = stepSentence(current.subject, beforeGrade, beforeStep, { ...moved, reached });
-    const feedback = reply.feedback ? (reply.feedback.includes(note) ? reply.feedback : `${reply.feedback}\n\n${note}`) : note;
+    const feedback = modelFeedback ? (modelFeedback.includes(note) ? modelFeedback : `${modelFeedback}\n\n${note}`) : note;
     await sql`
       update climbs
       set level = ${moved.grade},
@@ -340,6 +370,10 @@ export const recordAnswer = createServerFn({ method: "POST" })
           standard_code = ${nextCode},
           standard_label = ${nextLabel},
           next_prompt = ${nextPrompt},
+          answer_key = ${nextAnswer},
+          answer_aliases = ${nextAliases},
+          answer_note = ${nextNote},
+          question_id = ${nextId},
           last_feedback = ${feedback},
           awaiting_next = 1,
           updated_at = now()
@@ -364,7 +398,7 @@ export const recordAnswer = createServerFn({ method: "POST" })
         })}
       )
     `;
-    await rememberPrompt(sql, context.userId, current.childName, current.currentPrompt);
+    if (!keyed?.id && current.currentPrompt) await rememberPrompt(sql, context.userId, current.childName, current.currentPrompt);
     return { status: "saved" as const, climb: await selectOwned(sql, context.userId, data.id) };
   });
 
@@ -377,16 +411,32 @@ export const revealNextQuestion = createServerFn({ method: "POST" })
     const prompt = current.awaitingNext ? "" : current.currentPrompt;
     const rows = await sql<{ next_prompt: string | null }>`select next_prompt from climbs where id = ${data.id} and user_id = ${context.userId}`;
     const saved = rows[0]?.next_prompt?.trim() || prompt;
-    const item = saved ? null : localItem(current.subject, current.level, current.standardStep);
-    await sql`
-      update climbs
-      set current_prompt = ${saved || item?.prompt || current.currentPrompt},
-          next_prompt = '',
-          awaiting_next = 0,
-          updated_at = now()
-      where id = ${data.id} and user_id = ${context.userId}
-    `;
-    if (saved) await rememberPrompt(sql, context.userId, current.childName, saved);
+    if (saved) {
+      await sql`
+        update climbs
+        set current_prompt = ${saved},
+            next_prompt = '',
+            awaiting_next = 0,
+            updated_at = now()
+        where id = ${data.id} and user_id = ${context.userId}
+      `;
+    } else {
+      const item = await dealQuestion(sql, context.userId, current.childName, current.subject, current.level, current.standardStep);
+      await sql`
+        update climbs
+        set current_prompt = ${item.stem},
+            standard_code = ${item.standard},
+            standard_label = ${item.note},
+            answer_key = ${item.answer},
+            answer_aliases = ${JSON.stringify(item.aliases)},
+            answer_note = ${item.note},
+            question_id = ${item.id},
+            next_prompt = '',
+            awaiting_next = 0,
+            updated_at = now()
+        where id = ${data.id} and user_id = ${context.userId}
+      `;
+    }
     return selectOwned(sql, context.userId, data.id);
   });
 

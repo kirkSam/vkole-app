@@ -218,15 +218,17 @@ export async function seenKeys(sql: Sql, userId: string, childName: string): Pro
   return new Set(rows.map((row) => row.prompt_key));
 }
 
-export async function rememberPrompt(sql: Sql, userId: string, childName: string, prompt: string) {
-  const key = questionKey(prompt);
+export async function rememberPrompt(sql: Sql, userId: string, childName: string, prompt: string, variantId?: string) {
+  const key = variantId?.trim() || questionKey(prompt);
   if (!key) return;
   await ensureSeen(sql);
+  await sql`alter table seen_prompts add column if not exists prompt_text text`;
   const name = childKey(childName);
   await sql`
-    insert into seen_prompts (user_id, child_key, prompt_key)
-    values (${userId}, ${name}, ${key})
-    on conflict (user_id, child_key, prompt_key) do update set seen_at = now()
+    insert into seen_prompts (user_id, child_key, prompt_key, prompt_text)
+    values (${userId}, ${name}, ${key}, ${prompt})
+    on conflict (user_id, child_key, prompt_key) do update
+      set seen_at = now(), prompt_text = ${prompt}
   `;
   await sql`
     delete from seen_prompts

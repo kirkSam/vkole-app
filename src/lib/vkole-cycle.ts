@@ -1,6 +1,6 @@
 import { subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { capVkoleGrade } from "@/lib/vkole-cap";
-import { makeQuestion } from "@/lib/questions";
+import { poolCount, poolQuestion } from "@/lib/question-pool";
 
 const SUBJECT_NAME: Record<SubjectId, string> = {
   m: "Mathematics",
@@ -31,9 +31,24 @@ export function clampStoredGrade(level: number): number {
   return capVkoleGrade(level);
 }
 
-export function localItem(subject: SubjectId, level: number, step = 0): { prompt: string; code: string; label: string } {
-  const question = makeQuestion(subject, clampStoredGrade(level), step);
-  return { prompt: question.stem, code: question.standard, label: question.note };
+export function localItem(
+  subject: SubjectId,
+  level: number,
+  step = 0,
+): { prompt: string; code: string; label: string; answer: string; aliases: string[]; id: string } {
+  const grade = clampStoredGrade(level);
+  const rung = Math.min(2, Math.max(0, Math.round(step)));
+  const count = poolCount(subject, grade, rung);
+  const index = Math.floor(Math.random() * count);
+  const question = poolQuestion(subject, grade, rung, index);
+  return {
+    prompt: question.stem,
+    code: question.standard,
+    label: question.note,
+    answer: question.answer,
+    aliases: question.aliases,
+    id: question.id,
+  };
 }
 
 const UNSEEN_TEXT = /\b(the passage|this passage|the excerpt|the article|the story|the poem|the essay|the speech|paragraph \d+|the text above|the reading above)\b/i;
@@ -193,8 +208,10 @@ export function cycleInstruction(input: {
   incorrectStreak: number;
   question: string;
   answer: string;
+  recentPrompts?: string[];
 }): string {
   const name = SUBJECT_NAME[input.subject] ?? subjectMeta(input.subject).name;
+  const recent = (input.recentPrompts ?? []).map((prompt) => prompt.trim()).filter(Boolean).slice(0, 50);
   return [
     "You are VKOLE/ZPD - Space x.AI Integrated Learning Engine.",
     "Do only these three jobs: grade the answer correct or incorrect; keep the standard the app already chose; write exactly one next question, with no answer in it.",
@@ -213,6 +230,9 @@ export function cycleInstruction(input: {
     `Incorrect-in-a-row streak: ${input.incorrectStreak}.`,
     `Question: ${input.question}`,
     `Answer: ${input.answer}`,
+    recent.length
+      ? `The student has already seen these questions. Do not write a next question that repeats one of them or a near-duplicate:\n${recent.map((prompt, index) => `${index + 1}. ${prompt}`).join("\n")}`
+      : "Do not repeat a question this student has already seen.",
   ].join("\n");
 }
 
