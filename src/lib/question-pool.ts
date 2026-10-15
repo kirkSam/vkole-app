@@ -4,6 +4,7 @@ import { elaCell } from "./pool-ela.ts";
 import { genCell } from "./pool-gen.ts";
 import { mathCell } from "./pool-math.ts";
 import { type Cell } from "./pool-shared.ts";
+import { sgCell } from "./vkole-singapore-pool.ts";
 import { ssCell } from "./pool-ss.ts";
 
 export type PoolQuestion = {
@@ -51,7 +52,15 @@ function cellFor(subject: SubjectId, grade: number, step: number): Cell {
   const saved = cache.get(key);
   if (saved) return saved;
   const raw =
-    subject === "m" ? mathCell(grade, step) : subject === "ela" ? elaCell(grade, step) : subject === "ss" ? ssCell(grade, step) : genCell(grade, step);
+    subject === "m"
+      ? mathCell(grade, step)
+      : subject === "ela"
+        ? elaCell(grade, step)
+        : subject === "ss"
+          ? ssCell(grade, step)
+          : subject === "sg"
+            ? sgCell(grade, step)
+            : genCell(grade, step);
   const cell = withRoom(raw);
   cache.set(key, cell);
   return cell;
@@ -84,13 +93,14 @@ export type PoolCensus = {
 };
 
 export function poolCensus(): PoolCensus {
-  const subjects = ["m", "ela", "ss", "gen"] as const;
+  const subjects = ["m", "ela", "ss", "gen", "sg"] as const;
   const report = {
     subjects: {
       m: { total: 0, grades: {} },
       ela: { total: 0, grades: {} },
       ss: { total: 0, grades: {} },
       gen: { total: 0, grades: {} },
+      sg: { total: 0, grades: {} },
     },
     total: 0,
   } as PoolCensus;
@@ -107,7 +117,7 @@ export function poolCensus(): PoolCensus {
 }
 
 export function parseVariantId(id: string): { subject: SubjectId; grade: number; step: number; index: number } | null {
-  const matched = /^(m|ela|ss|gen):(\d+):(\d+):(\d+)$/.exec(id.trim());
+  const matched = /^(m|ela|ss|gen|sg):(\d+):(\d+):(\d+)$/.exec(id.trim());
   if (!matched) return null;
   return {
     subject: matched[1] as SubjectId,

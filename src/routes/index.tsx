@@ -10,6 +10,7 @@ import { schoolScreen, SCHOOL_ENGINE_URL } from "@/lib/school-account";
 import { PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
 import { SUBJECTS, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
+import { singaporePlace } from "@/lib/vkole-singapore";
 import { stepName } from "@/lib/cc-steps";
 import { beginSharedTrial, listClimbs, setClimbLevel, type Climb } from "@/lib/climbs";
 import { enterEngine } from "@/lib/day-clock";
@@ -332,9 +333,9 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
   return (
     <Shell onSplash={onSplash}>
       <p className="text-sm font-semibold tracking-wide text-accent uppercase">Parent</p>
-      <h1 className="mt-1 font-display text-4xl text-ink">Four climbs</h1>
+      <h1 className="mt-1 font-display text-4xl text-ink">Five climbs</h1>
       <p className="mt-3 text-muted">
-        The first sign-in starts a 7 day free trial for this registration. No credit card is required for those seven days. Only the email registration. Each student downloads the app and registers on that student’s own device. One registration is one student, and that student may use all four engines. The four engines share one clock of 2.5 hours for this login. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock, and the student password continues it. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved Common Core level. After the trial, the payment covers that student for a full month or a full year from the day of payment. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration, and the other three stay open.
+        The first sign-in starts a 7 day free trial for this registration. No credit card is required for those seven days. Only the email registration. Each student downloads the app and registers on that student’s own device. One registration is one student, and that student may use all five engines. The engines share one clock of 2.5 hours for this login. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock, and the student password continues it. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the trial, the payment covers that student for a full month or a full year from the day of payment. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration, and the other engines stay open.
       </p>
       {account ? (
         <p className="mt-3 text-sm text-ink">
@@ -536,6 +537,7 @@ function AppGate({
         </span>
       </div>
       <p className="text-sm text-muted">{meta.name}</p>
+      <p className="mt-2 text-sm text-ink">{meta.lede}</p>
       <label className="mt-3 block text-sm text-muted">
         Student’s first name
         <input
@@ -554,7 +556,7 @@ function AppGate({
         <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto text-sm text-muted">
           {roster.map((climb) => (
             <li key={climb.id}>
-              {climb.childName} · working {levelLabel(climb.level)}, {stepName(climb.subject, climb.level, climb.standardStep ?? 0)}, standard {(climb.standardStep ?? 0) + 1} of 3 · earned {levelLabel(climb.performanceLevel)}
+              {climb.childName} · working {climb.subject === "sg" ? singaporePlace(climb.level).short : levelLabel(climb.level)}, {stepName(climb.subject, climb.level, climb.standardStep ?? 0)}, standard {(climb.standardStep ?? 0) + 1} of 3 · earned {levelLabel(climb.performanceLevel)}
             </li>
           ))}
         </ul>

@@ -103,12 +103,12 @@ export function ParentLogin({
 
   const lead =
     mode === "up"
-      ? "No credit card is required for the first seven days. Only this email registration. Any email address may be used. It does not have to be Gmail. This registration opens all four engines for this student. Another student registers on their own device. Reports are sent only to this address."
+      ? "No credit card is required for the first seven days. Only this email registration. Any email address may be used. It does not have to be Gmail. This registration opens all five engines for this student. Another student registers on their own device. Reports are sent only to this address."
         : mode === "forgot-password"
         ? "Enter the email on the account. A 6-digit code is emailed only to that address. Set the new password on the school website, then sign in here."
         : mode === "forgot-username"
             ? "The username is the email on the account. Enter the name you used when you created it. That email will be sent to the address on file."
-            : "This sign-in uses the school website. The four engines share that student’s 7-day trial, level, and clock. Google and X do not open this account.";
+            : "This sign-in uses the school website. The engines share that student’s 7-day trial, level, and clock. Google and X do not open this account.";
 
   if (schoolScreen(error)) {
     return <SchoolAccountScreen message={error} onRetry={() => setError("")} />;

@@ -7,6 +7,7 @@ const SUBJECT_NAME: Record<SubjectId, string> = {
   ela: "English Language Arts",
   ss: "Social Studies",
   gen: "General",
+  sg: "Singapore mathematics",
 };
 
 export type CycleReply = {
@@ -215,7 +216,7 @@ export function cycleInstruction(input: {
   return [
     "You are VKOLE/ZPD - Space x.AI Integrated Learning Engine.",
     "Do only these three jobs: grade the answer correct or incorrect; keep the standard the app already chose; write exactly one next question, with no answer in it.",
-    input.subject === "m"
+    input.subject === "m" || input.subject === "sg"
       ? "A mathematics question must stand alone. Do not refer to a passage."
       : "If the next question depends on something the child must read, put the whole text in nextPrompt. Use exactly this shape: a line that says Read:, then four to six sentences a child at this grade can read, then a blank line, then a line that says Question:, then one question about only those sentences. Never mention a passage, article, story, poem, speech, or paragraph that is not inside Read.",
     "The app moves the standard. Two correct answers in a row rise one standard. One incorrect answer stays. Two incorrect answers in a row fall one standard. The grade number stops at 12. Two correct answers on grade 12, standard 3 stay there, and the grade 12 questions rotate. Do not open grade 13. Echo move as stay and echo the current grade. Write the next question on the current standard only.",

@@ -13,6 +13,7 @@ import {
 import { readSchoolAccount, writeSchoolAccount } from "@/lib/school-account.server";
 import { readSchoolMirror, saveSchoolMirror } from "@/lib/school-mirror.server";
 import { separateSignIn } from "@/lib/school-session.server";
+import { masteryFromDetails, richerMastery } from "@/lib/vkole-singapore-report";
 
 const LOGIN_CLOCK = "login";
 
@@ -96,6 +97,21 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Eng
     seen.add(row.subject);
     const grade = Math.min(12, Math.max(1, Math.round(Number(row.level) || 1)));
     const step = Math.min(2, Math.max(0, Math.round(Number(row.standard_step) || 0)));
+    if (row.subject === "sg") {
+      const events = await sql<{ detail: string; correct: boolean | number | string | null }>`
+        select detail, correct from climb_events
+        where user_id = ${userId} and subject = 'sg'
+      `;
+      const local = masteryFromDetails(
+        events.map((event) => ({
+          detail: event.detail,
+          correct: event.correct === true || event.correct === 1 || event.correct === "1" || event.correct === "t",
+        })),
+      );
+      const mastery = richerMastery(local, remote.sg?.mastery);
+      level.sg = mastery ? { grade, step, mastery } : { grade, step };
+      continue;
+    }
     level[row.subject as EngineId] = { grade, step };
   }
   return level;

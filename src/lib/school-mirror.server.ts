@@ -46,7 +46,11 @@ function parseLevels(raw: string | null): Partial<Record<EngineId, EngineLevel>>
     for (const id of ENGINE_IDS) {
       const item = parsed[id];
       if (!item || item.grade < 1 || item.grade > 12) continue;
-      level[id] = { grade: item.grade, step: Math.min(2, Math.max(0, item.step || 0)) };
+      level[id] = {
+        grade: item.grade,
+        step: Math.min(2, Math.max(0, item.step || 0)),
+        ...(item.mastery ? { mastery: item.mastery } : {}),
+      };
     }
     return level;
   } catch {

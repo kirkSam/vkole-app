@@ -1,8 +1,34 @@
 export const SUBJECTS = [
-  { id: "m", code: "M", name: "Mathematics" },
-  { id: "ela", code: "ELA", name: "English language arts" },
-  { id: "ss", code: "SS", name: "History and social studies" },
-  { id: "gen", code: "gen", name: "General" },
+  {
+    id: "m",
+    code: "M",
+    name: "Mathematics",
+    lede: "Math questions are drawn from Common Core mathematics standards. A parent or teacher enters the grade. That grade starts at standard 1. Two correct answers move one standard. The grade number changes only after the third standard.",
+  },
+  {
+    id: "ela",
+    code: "ELA",
+    name: "English language arts",
+    lede: "Reading and language questions are drawn from Common Core ELA standards. Each grade has three standards. Two correct answers move one standard. One incorrect answer stays. Two incorrect answers in a row move down one standard.",
+  },
+  {
+    id: "ss",
+    code: "SS",
+    name: "History and social studies",
+    lede: "History and social studies use three standards in each grade. Two correct answers move one standard. The grade number changes only after the third standard, or when standard 1 is missed two times. Grade 12 is the top. Grade 12 questions continue on a rotation.",
+  },
+  {
+    id: "gen",
+    code: "gen",
+    name: "General",
+    lede: "General uses three standards in each grade: science, numbers, and civics. Two correct answers move one standard, not a whole grade. Mathematics, English language arts, and history stay in their own engines.",
+  },
+  {
+    id: "sg",
+    code: "Singapore",
+    name: "Singapore mathematics",
+    lede: "Primary 1 through pre-university H2, shown with US grades 1–12. Each topic goes concrete, then pictorial, then abstract. The level moves up only after the abstract step is correct.",
+  },
 ] as const;
 
 export type SubjectId = (typeof SUBJECTS)[number]["id"];

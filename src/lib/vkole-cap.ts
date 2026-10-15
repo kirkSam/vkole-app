@@ -5,6 +5,14 @@
  */
 export const VKOLE_TOP_GRADE = 12;
 
+/** Movement rules shared with the school website. */
+export const VKOLE_MOVEMENT = [
+  "Two correct answers move up one standard. One incorrect answer stays on that standard. Two incorrect answers in a row move down one standard.",
+  "The grade number changes only after the third standard. Grade 12 is the top. Grade 12 questions continue on a rotation.",
+  "If the grading call never returns, it is tried once more. An unreadable reply counts as incorrect. No reply leaves the level unchanged.",
+  "After 3 failures in a row the screen says: Take a break and come back later. Your level stays the same.",
+].join(" ");
+
 export function capVkoleGrade(grade: number): number {
   const level = Math.round(grade);
   if (!Number.isFinite(level)) return 1;

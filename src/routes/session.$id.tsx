@@ -20,7 +20,10 @@ import {
   type Climb,
 } from "@/lib/climbs";
 import { beatStudentClock, readStudentClock, resumeStudentClock } from "@/lib/day-clock";
-import { GRADING_PAUSE_MESSAGE } from "@/lib/grading-pause";
+import { GRADING_PAUSE_MESSAGE, NO_REPLY_MESSAGE } from "@/lib/grading-pause";
+import { VKOLE_MOVEMENT } from "@/lib/vkole-cap";
+import { SG_STAGE_NOTE, sgCodeLabel, singaporePlace } from "@/lib/vkole-singapore";
+import { SgFigure, splitFigures } from "@/components/sg-figure";
 import { deviceTimeZone } from "@/lib/day-clock-math";
 import type { ClockFace } from "@/components/vkole-rules";
 import { SchoolPath } from "@/components/school-path";
@@ -56,14 +59,22 @@ function Feedback({ text }: { text: string }) {
 
 function Reading({ prompt }: { prompt: string }) {
   const matched = prompt.match(/^Read:\s*([\s\S]+?)\n+\s*Question:\s*([\s\S]+)$/i);
-  if (!matched) {
-    return <h2 className="mt-2 whitespace-pre-wrap font-display text-2xl leading-snug text-ink">{prompt}</h2>;
+  if (matched) {
+    return (
+      <>
+        <p className="mt-4 text-xs tracking-wide text-muted uppercase">Read</p>
+        <p className="mt-2 whitespace-pre-wrap text-base leading-relaxed text-ink">{matched[1]?.trim()}</p>
+        <h2 className="mt-4 font-display text-2xl leading-snug text-ink">{matched[2]?.trim()}</h2>
+      </>
+    );
   }
+  const drawn = splitFigures(prompt);
   return (
     <>
-      <p className="mt-4 text-xs tracking-wide text-muted uppercase">Read</p>
-      <p className="mt-2 whitespace-pre-wrap text-base leading-relaxed text-ink">{matched[1]?.trim()}</p>
-      <h2 className="mt-4 font-display text-2xl leading-snug text-ink">{matched[2]?.trim()}</h2>
+      {drawn.figures.map((line) => (
+        <SgFigure key={line} line={line} />
+      ))}
+      <h2 className="mt-2 whitespace-pre-wrap font-display text-2xl leading-snug text-ink">{drawn.text || prompt}</h2>
     </>
   );
 }
@@ -313,7 +324,7 @@ function SessionPage() {
     try {
       const result = await recordAnswer({ data: { id: climb.id, answer: given } });
       setClimb(result.climb);
-      if (result.status === "again") setError("Please try again.");
+      if (result.status === "again") setError(NO_REPLY_MESSAGE);
       else if (result.status === "rest") setPause(GRADING_PAUSE_MESSAGE);
       else setAnswer("");
     } catch (err) {
@@ -392,7 +403,7 @@ function SessionPage() {
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted">
         <span className="rounded-full border border-line bg-surface px-3 py-1">
-          Level <strong className="font-semibold text-ink">{levelLabel(climb.level)} · {stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · {(climb.standardStep ?? 0) + 1} of 3</strong>
+          Level <strong className="font-semibold text-ink">{climb.subject === "sg" ? singaporePlace(climb.level).short : levelLabel(climb.level)} · {stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · {(climb.standardStep ?? 0) + 1} of 3</strong>
         </span>
         <span className="rounded-full border border-line bg-surface px-3 py-1">
           Correct <strong className="font-semibold text-ink">{climb.correctAtLevel}/2</strong>
@@ -417,9 +428,8 @@ function SessionPage() {
           </span>
         ) : null}
       </div>
-      <p className="mt-3 text-sm text-muted">
-        Two correct answers move up one Common Core standard. One incorrect answer stays on that standard. Two incorrect answers in a row move down one standard. The grade number stops at 12. Two correct answers on grade 12, standard 3 stay there, and the grade 12 questions rotate.
-      </p>
+      <p className="mt-3 text-sm text-muted">{VKOLE_MOVEMENT}</p>
+      {climb.subject === "sg" ? <p className="mt-2 text-sm text-muted">{SG_STAGE_NOTE}</p> : null}
       <SchoolPath />
       {!closure && clock?.closed ? (
         <p className="mt-5 text-ink">The 2.5 hours for this login are used. The engines open again at midnight Pacific time.</p>
@@ -503,7 +513,7 @@ function SessionPage() {
         </form>
       ) : (
       <article className="mt-5 rounded-2xl border border-line bg-surface p-5">
-        <p className="text-xs tracking-wide text-muted uppercase">{climb.standardCode}</p>
+        <p className="text-xs tracking-wide text-muted uppercase">{climb.subject === "sg" ? sgCodeLabel(climb.standardCode) : climb.standardCode}</p>
         <Reading prompt={climb.currentPrompt} />
         {climb.awaitingNext ? (
           <>

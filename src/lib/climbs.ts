@@ -13,6 +13,7 @@ import { settleGradingCall } from "@/lib/grading-pause";
 import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-history";
 import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
 import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
+import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
 
 export type Climb = {
   id: string;
@@ -545,6 +546,23 @@ async function closeSitting(sql: Sql, userId: string, climbId: string, reason: E
   return { sittingId: open.id, seconds, startedAt: asIso(open.started_at) };
 }
 
+async function singaporeMastery(sql: Sql, userId: string, climbId: string, subject: string): Promise<string> {
+  if (subject !== "sg") return "";
+  const rows = await sql<{ detail: string; correct: boolean | number | string | null }>`
+    select detail, correct from climb_events
+    where climb_id = ${climbId} and user_id = ${userId}
+    order by created_at asc
+  `;
+  return formatMasteryReport(
+    masteryFromDetails(
+      rows.map((row) => ({
+        detail: row.detail,
+        correct: row.correct === true || row.correct === 1 || row.correct === "1" || row.correct === "t",
+      })),
+    ),
+  );
+}
+
 async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: EndReason, sittingSecondsValue: number, startedAt: string) {
   const climb = await selectOwned(sql, userId, climbId);
   const facts = await registrationFacts(sql, userId, climb.childName);
@@ -597,6 +615,7 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     age: climb.age ?? 0,
     subject: climb.subject,
     level: climb.level,
+    mastery: await singaporeMastery(sql, userId, climbId, climb.subject),
     performanceLevel: climb.performanceLevel,
     startGrade: climb.startGrade,
     standardCode: climb.standardCode,
@@ -727,6 +746,7 @@ export const academicReport = createServerFn({ method: "POST" })
       age: climb.age ?? 0,
       subject: climb.subject,
       level: climb.level,
+      mastery: await singaporeMastery(sql, context.userId, data.id, climb.subject),
       performanceLevel: climb.performanceLevel,
       startGrade: climb.startGrade,
       standardCode: climb.standardCode,

@@ -3,8 +3,17 @@ import type { Sql } from "@/lib/db";
 const ORDER = [0, 1, 2, 3, 0, 1, 2, 3, 0, 1] as const;
 const MEMORY = 400;
 
+/** Dedupe key. Operators stay, so 3 + 4 and 3 - 4 are different questions. */
 export function questionKey(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return text
+    .toLowerCase()
+    .replace(/×/g, "*")
+    .replace(/÷/g, "/")
+    .replace(/[−–—]/g, "-")
+    .replace(/[^a-z0-9+\-*/^=<>]+/g, " ")
+    .replace(/\s*([+\-*/^=<>])\s*/g, " $1 ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function at<T>(items: readonly T[], index: number): T {

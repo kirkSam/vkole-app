@@ -24,10 +24,18 @@ export const SCHOOL_WAIT_MESSAGE =
 
 export const CLOCK_LIMIT_SECONDS = 9000;
 
-export const ENGINE_IDS = ["m", "ela", "ss", "gen"] as const;
+export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg"] as const;
 export type EngineId = (typeof ENGINE_IDS)[number];
 
-export type EngineLevel = { grade: number; step: number };
+export type MasteryTally = { correct: number; asked: number };
+
+/** Strand and heuristic tallies for VKOLE Singapore. The website account is the store. */
+export type LevelMastery = {
+  strands: Record<string, MasteryTally>;
+  heuristics: Record<string, MasteryTally>;
+};
+
+export type EngineLevel = { grade: number; step: number; mastery?: LevelMastery };
 
 export type SeenQuestion = { key: string; text: string };
 
@@ -68,6 +76,34 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
+function asTally(value: unknown): MasteryTally | null {
+  const row = asRecord(value);
+  if (!row) return null;
+  const correct = Number(row.correct);
+  const asked = Number(row.asked);
+  if (!Number.isInteger(correct) || !Number.isInteger(asked) || correct < 0 || asked < correct) return null;
+  return { correct, asked };
+}
+
+function asMastery(value: unknown): LevelMastery | undefined {
+  const row = asRecord(value);
+  if (!row) return undefined;
+  const strands: Record<string, MasteryTally> = {};
+  const heuristics: Record<string, MasteryTally> = {};
+  const strandRow = asRecord(row.strands);
+  const heuristicRow = asRecord(row.heuristics);
+  for (const [key, item] of Object.entries(strandRow ?? {})) {
+    const tally = asTally(item);
+    if (tally) strands[key] = tally;
+  }
+  for (const [key, item] of Object.entries(heuristicRow ?? {})) {
+    const tally = asTally(item);
+    if (tally) heuristics[key] = tally;
+  }
+  if (Object.keys(strands).length === 0 && Object.keys(heuristics).length === 0) return undefined;
+  return { strands, heuristics };
+}
+
 function asLevel(value: unknown): EngineLevel | null {
   if (typeof value === "number" && value >= 1 && value <= 12) {
     return { grade: Math.round(value), step: 0 };
@@ -77,7 +113,12 @@ function asLevel(value: unknown): EngineLevel | null {
   const grade = Number(row.grade ?? row.level);
   const step = Number(row.step ?? row.standardStep ?? 0);
   if (!Number.isInteger(grade) || grade < 1 || grade > 12) return null;
-  return { grade, step: Math.min(2, Math.max(0, Number.isFinite(step) ? Math.round(step) : 0)) };
+  const mastery = asMastery(row.mastery);
+  return {
+    grade,
+    step: Math.min(2, Math.max(0, Number.isFinite(step) ? Math.round(step) : 0)),
+    ...(mastery ? { mastery } : {}),
+  };
 }
 
 function asSeen(value: unknown): SeenQuestion[] {
