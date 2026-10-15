@@ -9,7 +9,8 @@ import { fillSheet, questionKey, rememberPrompt, seenKeys } from "@/lib/next-she
 import { capVkoleGrade, rotateQuestions } from "@/lib/vkole-cap";
 import { getSql, type Sql } from "@/lib/db";
 import { childAccess } from "@/lib/subscription";
-import { clampStoredGrade, cycleInstruction, localItem, questionTheChildCanSee, requestCycle } from "@/lib/vkole-cycle";
+import { settleGradingCall } from "@/lib/grading-pause";
+import { clampStoredGrade, cycleInstruction, localItem, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
 
 export type Climb = {
   id: string;
@@ -19,6 +20,7 @@ export type Climb = {
   performanceLevel: number;
   correctAtLevel: number;
   incorrectStreak: number;
+  gradingFailures: number;
   asked: number;
   rightCount: number;
   age: number | null;
@@ -61,6 +63,12 @@ function flag(value: unknown): boolean {
   return value === true || value === 1 || value === "1" || value === "t";
 }
 
+function failureCount(value: unknown): number {
+  const count = Number(value);
+  if (!Number.isFinite(count) || count < 0) return 0;
+  return Math.floor(count);
+}
+
 type ClimbRow = {
   id: string;
   child_name: string;
@@ -69,6 +77,7 @@ type ClimbRow = {
   performance_level: number | string | null;
   correct_at_level: number | string;
   incorrect_streak: number | string;
+  grading_failures: number | string | null;
   asked: number | string;
   right_count: number | string;
   age: number | string | null;
@@ -116,6 +125,7 @@ function toClimb(row: ClimbRow, account: Awaited<ReturnType<typeof accountState>
     performanceLevel: Number(row.performance_level ?? level),
     correctAtLevel: Number(row.correct_at_level),
     incorrectStreak: Number(row.incorrect_streak),
+    gradingFailures: failureCount(row.grading_failures),
     asked: Number(row.asked),
     rightCount: Number(row.right_count),
     age: row.age == null ? null : Number(row.age),
@@ -133,7 +143,7 @@ function toClimb(row: ClimbRow, account: Awaited<ReturnType<typeof accountState>
 }
 
 const CLIMB_COLUMNS = `id, child_name, subject, level, performance_level, correct_at_level, incorrect_streak,
-  asked, right_count, age, start_grade, standard_code, standard_label, standard_step,
+  grading_failures, asked, right_count, age, start_grade, standard_code, standard_label, standard_step,
   current_prompt, last_feedback, awaiting_next, online_seconds, created_at`;
 
 function levelTitle(subject: SubjectId, grade: number, step: number): string {
@@ -269,9 +279,32 @@ export const recordAnswer = createServerFn({ method: "POST" })
       question: current.currentPrompt,
       answer: data.answer,
     });
-    let reply = await requestCycle(instruction);
-    if (!reply) reply = await requestCycle(instruction);
-    if (!reply) return { status: "again" as const, climb: current };
+    let call = await requestCycle(instruction);
+    if (call.outcome === "absent") call = await requestCycle(instruction);
+    const settled = settleGradingCall(
+      call.outcome,
+      call.outcome === "graded" ? call.reply.correct : null,
+      current.gradingFailures,
+    );
+    if (settled.action !== "score") {
+      await sql`
+        update climbs
+        set grading_failures = ${settled.failures}, updated_at = now()
+        where id = ${data.id} and user_id = ${context.userId}
+      `;
+      return { status: settled.action, climb: { ...current, gradingFailures: settled.failures } };
+    }
+    const heldGrade = capVkoleGrade(current.level);
+    const heldItem = localItem(current.subject, heldGrade, current.standardStep ?? 0);
+    const reply =
+      call.outcome === "graded"
+        ? call.reply
+        : unreadableReply({
+            grade: heldGrade,
+            code: current.standardCode || heldItem.code,
+            label: current.standardLabel || heldItem.label,
+            nextPrompt: heldItem.prompt,
+          });
     const beforeGrade = capVkoleGrade(current.level);
     const beforeStep = current.standardStep ?? 0;
     const moved = moveRung({
@@ -293,13 +326,14 @@ export const recordAnswer = createServerFn({ method: "POST" })
     const earnedMove = moved.grade > beforeGrade ? 1 : moved.grade < beforeGrade ? -1 : 0;
     const performanceLevel = capVkoleGrade(current.performanceLevel + earnedMove);
     const note = stepSentence(current.subject, beforeGrade, beforeStep, { ...moved, reached });
-    const feedback = reply.feedback.includes(note) ? reply.feedback : `${reply.feedback}\n\n${note}`;
+    const feedback = reply.feedback ? (reply.feedback.includes(note) ? reply.feedback : `${reply.feedback}\n\n${note}`) : note;
     await sql`
       update climbs
       set level = ${moved.grade},
           performance_level = ${performanceLevel},
           correct_at_level = ${moved.correctAtLevel},
           incorrect_streak = ${moved.incorrectStreak},
+          grading_failures = 0,
           standard_step = ${moved.step},
           asked = ${current.asked + 1},
           right_count = ${current.rightCount + (reached ? 1 : 0)},

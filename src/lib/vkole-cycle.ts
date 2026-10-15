@@ -216,9 +216,27 @@ export function cycleInstruction(input: {
   ].join("\n");
 }
 
-export async function requestCycle(instruction: string): Promise<CycleReply | null> {
+export type GradeCall =
+  | { outcome: "graded"; reply: CycleReply }
+  | { outcome: "absent" }
+  | { outcome: "unreadable" };
+
+/** A grader reply that cannot be read is marked incorrect. The level rules stay the same. */
+export function unreadableReply(input: { grade: number; code: string; label: string; nextPrompt: string }): CycleReply {
+  return {
+    correct: false,
+    feedback: "",
+    move: "stay",
+    grade: input.grade,
+    code: input.code,
+    label: input.label,
+    nextPrompt: input.nextPrompt,
+  };
+}
+
+export async function requestCycle(instruction: string): Promise<GradeCall> {
   const key = process.env.XAI_API_KEY?.trim();
-  if (!key) return null;
+  if (!key) return { outcome: "absent" };
   let response: Response;
   try {
     response = await fetch("https://api.x.ai/v1/chat/completions", {
@@ -238,16 +256,18 @@ export async function requestCycle(instruction: string): Promise<CycleReply | nu
       }),
     });
   } catch {
-    return null;
+    return { outcome: "absent" };
   }
-  if (!response.ok) return null;
+  if (!response.ok) return { outcome: "absent" };
   let body: unknown;
   try {
     body = await response.json();
   } catch {
-    return null;
+    return { outcome: "absent" };
   }
   const text = (body as { choices?: Array<{ message?: { content?: unknown } }> })?.choices?.[0]?.message?.content;
-  if (typeof text !== "string") return null;
-  return parseCycle(text);
+  if (typeof text !== "string") return { outcome: "absent" };
+  const reply = parseCycle(text);
+  if (!reply) return { outcome: "unreadable" };
+  return { outcome: "graded", reply };
 }
