@@ -18,6 +18,7 @@ import { deviceTimeZone } from "@/lib/day-clock-math";
 import { allowGmail, noteAccount } from "@/lib/ledger";
 import { useRefetchWhenConnectorReady } from "@/lib/app-data/use-connector-readiness";
 import { endReasonSentence, type EndReason } from "@/lib/academic-email";
+import { ACCOUNT_GONE_FLAG } from "@/lib/account-purge";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -26,6 +27,7 @@ function Home() {
   const { user, isPending } = useCurrentUserState();
   const [stage, setStage] = useState<"splash" | "teletype" | "app" | "trial">("splash");
   const [createAccount, setCreateAccount] = useState(false);
+  const [accountGone, setAccountGone] = useState(false);
   const [unpaid, setUnpaid] = useState(false);
   const [gate, setGate] = useState<"unknown" | "open" | "closed">("unknown");
   const [endsAt, setEndsAt] = useState<string | null>(null);
@@ -36,6 +38,11 @@ function Home() {
   stageRef.current = stage;
 
   useEffect(() => {
+    try {
+      if (sessionStorage.getItem(ACCOUNT_GONE_FLAG) === "1") setAccountGone(true);
+    } catch {
+      /* storage may be unavailable */
+    }
     try {
       if (sessionStorage.getItem("vkole-tour") === "1") {
         sessionStorage.removeItem("vkole-tour");
@@ -69,7 +76,7 @@ function Home() {
   }, []);
 
   useEffect(() => {
-    if (isPending || !user) return;
+    if (isPending || !user || accountGone) return;
     let live = true;
     listClimbs()
       .then((result) => {
@@ -102,7 +109,7 @@ function Home() {
     return () => {
       live = false;
     };
-  }, [user, isPending]);
+  }, [user, isPending, accountGone]);
 
   useEffect(() => {
     if (!endsAt || gate === "closed") return;
@@ -135,7 +142,7 @@ function Home() {
     }
   };
 
-  if (isPending && !createAccount) return <PageSkeleton />;
+  if (isPending && !createAccount && !accountGone) return <PageSkeleton />;
   if (stage === "splash") {
     return (
       <SchoolSplash onEnter={() => setStage(trialClosed() ? "trial" : "teletype")} />
@@ -169,15 +176,24 @@ function Home() {
       />
     );
   }
-  if (!user || createAccount) {
+  if (!user || createAccount || accountGone) {
     return (
       <ParentLogin
         onSplash={() => {
           setCreateAccount(false);
+          setAccountGone(false);
           setStage("splash");
         }}
         initialMode={createAccount ? "up" : "in"}
-        onAccountReady={() => setCreateAccount(false)}
+        onAccountReady={() => {
+          setCreateAccount(false);
+          setAccountGone(false);
+          try {
+            sessionStorage.removeItem(ACCOUNT_GONE_FLAG);
+          } catch {
+            /* storage may be unavailable */
+          }
+        }}
       />
     );
   }

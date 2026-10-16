@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SessionIdRouteImport } from './routes/session.$id'
 import { Route as ApiAssignmentIdRouteImport } from './routes/api/assignment/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiVkolePurgeRouteImport } from './routes/api/vkole/purge'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiVkolePurgeRoute = ApiVkolePurgeRouteImport.update({
+  id: '/api/vkole/purge',
+  path: '/api/vkole/purge',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/session/$id': typeof SessionIdRoute
   '/api/assignment/$id': typeof ApiAssignmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/vkole/purge': typeof ApiVkolePurgeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/session/$id': typeof SessionIdRoute
   '/api/assignment/$id': typeof ApiAssignmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/vkole/purge': typeof ApiVkolePurgeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/session/$id': typeof SessionIdRoute
   '/api/assignment/$id': typeof ApiAssignmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/vkole/purge': typeof ApiVkolePurgeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +90,7 @@ export interface FileRouteTypes {
     | '/session/$id'
     | '/api/assignment/$id'
     | '/api/auth/$'
+    | '/api/vkole/purge'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/session/$id'
     | '/api/assignment/$id'
     | '/api/auth/$'
+    | '/api/vkole/purge'
   id:
     | '__root__'
     | '/'
@@ -97,6 +108,7 @@ export interface FileRouteTypes {
     | '/session/$id'
     | '/api/assignment/$id'
     | '/api/auth/$'
+    | '/api/vkole/purge'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,6 +118,7 @@ export interface RootRouteChildren {
   SessionIdRoute: typeof SessionIdRoute
   ApiAssignmentIdRoute: typeof ApiAssignmentIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiVkolePurgeRoute: typeof ApiVkolePurgeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -152,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/vkole/purge': {
+      id: '/api/vkole/purge'
+      path: '/api/vkole/purge'
+      fullPath: '/api/vkole/purge'
+      preLoaderRoute: typeof ApiVkolePurgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -162,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   SessionIdRoute: SessionIdRoute,
   ApiAssignmentIdRoute: ApiAssignmentIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiVkolePurgeRoute: ApiVkolePurgeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -2,16 +2,17 @@ import { getSql, type Sql } from "@/lib/db";
 import { localDayKey, PACIFIC, projectClock } from "@/lib/day-clock-math";
 import {
   ENGINE_IDS,
+  SCHOOL_ACCOUNT_GONE_MESSAGE,
   SCHOOL_LEGACY_MESSAGE,
+  SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_SEPARATE_MESSAGE,
   schoolWriteBody,
   sgAccountLevel,
   type EngineId,
   type EngineLevel,
   type SchoolProfile,
-  type SeenQuestion,
 } from "@/lib/school-account";
-import { readSchoolAccount, writeSchoolAccount } from "@/lib/school-account.server";
+import { readSchoolAccount, SchoolCallError, writeSchoolAccount } from "@/lib/school-account.server";
 import { readSchoolMirror, saveSchoolMirror } from "@/lib/school-mirror.server";
 import { separateSignIn } from "@/lib/school-session.server";
 import { masteryFromDetails, richerMastery } from "@/lib/vkole-singapore-report";
@@ -213,7 +214,21 @@ export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>
   if (kind === "legacy") throw new Error(SCHOOL_LEGACY_MESSAGE);
   if (kind !== "school") throw new Error(SCHOOL_SEPARATE_MESSAGE);
   const sql = await getSql();
-  await pullSchoolAccount(sql, userId);
+  try {
+    await pullSchoolAccount(sql, userId);
+  } catch (err) {
+    if (err instanceof SchoolCallError && (err.reason === "unknown" || err.reason === "gone")) {
+      try {
+        const { expireLocalSignInCookies, forgetLocalAccount } = await import("./account-purge.server");
+        await forgetLocalAccount(sql, userId);
+        await expireLocalSignInCookies();
+      } catch {
+        throw new Error(SCHOOL_OFFLINE_MESSAGE);
+      }
+      throw new Error(SCHOOL_ACCOUNT_GONE_MESSAGE);
+    }
+    throw err;
+  }
   const result = await run();
   await pushSchoolAccount(sql, userId);
   return result;

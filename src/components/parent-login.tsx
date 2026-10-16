@@ -76,12 +76,17 @@ export function ParentLogin({
       } else {
         const res = await schoolSignIn({ data: { email: email.trim(), password } });
         if (!res.ok) {
+          if (res.reason === "gone") {
+            const { clearStaleSignIn } = await import("@/lib/account-purge");
+            await clearStaleSignIn();
+          }
           setError(res.message);
           return;
         }
       }
       await recordLogin({ data: { kind: mode === "up" ? "sign-up" : "sign-in" } }).catch(() => undefined);
       sessionStorage.removeItem("vkole-sync-trial");
+      sessionStorage.removeItem("vkole-account-gone");
       await beginSharedTrial().catch(() => undefined);
       onAccountReady?.();
       await navigate({ to: "/" });
