@@ -7,9 +7,11 @@ import {
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_ORIGIN,
   SCHOOL_WAIT_MESSAGE,
+  decideStudent,
   failureKind,
   parseSchoolProfile,
   resetCode,
+  websiteErrorText,
   type SchoolFailure,
   type SchoolProfile,
 } from "./school-account.ts";
@@ -88,12 +90,15 @@ async function postSchool(path: string, body: unknown, deps?: CallDeps): Promise
     if (reason === "wait") throw new SchoolCallError("wait", SCHOOL_WAIT_MESSAGE);
     if (reason === "gone") throw new SchoolCallError("gone", SCHOOL_ACCOUNT_GONE_MESSAGE);
     const signing = path === PATHS.signIn || path === PATHS.register;
+    const spoken = websiteErrorText(parsed);
     const message =
-      reason === "unknown"
-        ? "The school website has no password for that email."
-        : signing
-          ? "Email or password did not match."
-          : "The school website did not accept that request.";
+      !signing && spoken
+        ? spoken
+        : reason === "unknown"
+          ? "The school website has no password for that email."
+          : signing
+            ? "Email or password did not match."
+            : "The school website did not accept that request.";
     throw new SchoolCallError(reason, message);
   }
   return parsed;
@@ -129,6 +134,26 @@ export async function signInSchoolAccount(
   return parsed;
 }
 
+/**
+ * The student gate. Calls POST /api/vkole/read.
+ * A failed read throws the website's own sentence and never comes back as `extra`.
+ * An empty or missing student name is `new`. `extra` is only a different saved first name.
+ */
+export async function studentCheck(
+  userId: string,
+  typedFirstName: string,
+  read: (id: string) => Promise<SchoolProfile> = readSchoolAccount,
+): Promise<"new" | "extra" | "same"> {
+  let profile: SchoolProfile;
+  try {
+    profile = await read(userId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message.trim() : "";
+    throw new Error(message || "The school website did not accept that request.");
+  }
+  return decideStudent(profile.studentName, typedFirstName);
+}
+
 export async function readSchoolAccount(id: string, deps?: CallDeps): Promise<SchoolProfile> {
   const email = id.trim().toLowerCase();
   const body = await postSchool(PATHS.read, { id: email, email }, deps);
@@ -139,7 +164,7 @@ export async function readSchoolAccount(id: string, deps?: CallDeps): Promise<Sc
 }
 
 export async function writeSchoolAccount(
-  body: { id: string; level: unknown; clockSeconds: number; seen: unknown },
+  body: { id: string; level: unknown; clockSeconds: number; seen: unknown; student?: { name: string } },
   deps?: CallDeps,
 ): Promise<void> {
   await postSchool(PATHS.write, { ...body, email: body.id }, deps);

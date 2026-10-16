@@ -105,8 +105,14 @@ export async function purgeAllAccountRows(sql: Sql): Promise<Record<string, numb
 /**
  * Delete one website account's local rows (session, climbs, trial, mirror, and
  * the rest of the account tables). `id` is the parent email or the older user id.
+ * `keepSignIn` leaves the user, session, account, and verification rows so a
+ * parent who is already signed in stays signed in.
  */
-export async function forgetLocalAccount(sql: Sql, id: string): Promise<Record<string, number>> {
+export async function forgetLocalAccount(
+  sql: Sql,
+  id: string,
+  options?: { keepSignIn?: boolean },
+): Promise<Record<string, number>> {
   const key = id.trim().toLowerCase();
   if (!key) return {};
   const ids = new Set<string>([key]);
@@ -125,6 +131,7 @@ export async function forgetLocalAccount(sql: Sql, id: string): Promise<Record<s
     }
   }
 
+  const keepSignIn = options?.keepSignIn === true;
   const cleared: Record<string, number> = {};
   const add = (name: string, count: number) => {
     if (count <= 0) return;
@@ -133,6 +140,7 @@ export async function forgetLocalAccount(sql: Sql, id: string): Promise<Record<s
 
   for (const table of ACCOUNT_TABLES) {
     if (table.sqlName === '"user"' || table.sqlName === '"verification"') continue;
+    if (keepSignIn && (table.sqlName === '"session"' || table.sqlName === '"account"')) continue;
     if (!(await tableExists(sql, table.regclass))) continue;
     if (table.userColumn) {
       for (const userId of ids) {
@@ -149,7 +157,7 @@ export async function forgetLocalAccount(sql: Sql, id: string): Promise<Record<s
     }
   }
 
-  if (await tableExists(sql, '"verification"')) {
+  if (!keepSignIn && (await tableExists(sql, '"verification"'))) {
     const identifiers = new Set<string>([...ids, ...emails]);
     for (const email of emails) identifiers.add(`vkole-reset:${email}`);
     for (const identifier of identifiers) {
@@ -160,7 +168,7 @@ export async function forgetLocalAccount(sql: Sql, id: string): Promise<Record<s
     }
   }
 
-  if (await tableExists(sql, '"user"')) {
+  if (!keepSignIn && (await tableExists(sql, '"user"'))) {
     for (const userId of ids) {
       add("user", await deleteReturning(sql, '"user"', '"id" = $1', [userId]));
     }
@@ -170,6 +178,14 @@ export async function forgetLocalAccount(sql: Sql, id: string): Promise<Record<s
   }
 
   return cleared;
+}
+
+/**
+ * The website account is fresh: drop this email's copied climbs, login rows,
+ * and the other local student rows. The signed-in user and session stay.
+ */
+export async function clearFreshLocalRows(sql: Sql, id: string): Promise<Record<string, number>> {
+  return forgetLocalAccount(sql, id, { keepSignIn: true });
 }
 
 /** Expire this response's sign-in cookies. Safe to call when no request is open. */

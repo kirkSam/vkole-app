@@ -193,6 +193,16 @@ export const enterEngine = createServerFn({ method: "POST" })
     const sql = await getSql();
     await ensureTrial(sql, context.userId);
     if (!(await accessOpen(sql, context.userId))) return { status: "blocked" as const };
+    let websiteStudent: "new" | "same" | "local" = "local";
+    if (isSchoolAccountId(context.userId)) {
+      const { studentCheck } = await import("@/lib/school-account.server");
+      const gate = await studentCheck(context.userId, data.firstName);
+      if (gate === "extra") return { status: "extra" as const };
+      websiteStudent = gate;
+      if (websiteStudent === "new" && (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12)) {
+        return { status: "new" as const };
+      }
+    }
     const key = childKey(data.firstName);
     const existing = await sql<{ id: string; level: number | string; subject: string }>`
       select id, level, subject from climbs
@@ -202,13 +212,15 @@ export const enterEngine = createServerFn({ method: "POST" })
     let id = existing[0]?.id;
     let level = existing[0] ? Number(existing[0].level) : data.grade;
     if (!id) {
-      const others = await sql<{ name: string }>`
-        select child_name as name from climbs
-        where user_id = ${context.userId} and lower(child_name) <> ${key}
-        limit 1
-      `;
-      if (others[0]) {
-        throw new Error("This registration is for one student. Download the app on the other student’s device and register there.");
+      if (websiteStudent === "local") {
+        const others = await sql<{ name: string }>`
+          select child_name as name from climbs
+          where user_id = ${context.userId} and lower(child_name) <> ${key}
+          limit 1
+        `;
+        if (others[0]) {
+          throw new Error("This registration is for one student. Download the app on the other student’s device and register there.");
+        }
       }
       if (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12) return { status: "new" as const };
       let grade = data.grade;

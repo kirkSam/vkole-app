@@ -12,6 +12,7 @@ import {
 } from "./account-purge.ts";
 import {
   adminEmailList,
+  clearFreshLocalRows,
   forgetLocalAccount,
   handleAccountPurge,
   purgeAllAccountRows,
@@ -275,6 +276,107 @@ describe("row purge", () => {
     assert.equal(all.user, 1);
     const after = await pg.query<{ n: number }>("select count(*)::int as n from climbs");
     assert.equal(Number(after.rows[0]?.n), 0);
+    await pg.close();
+  });
+
+  it("clears the login count through the purge endpoint", async () => {
+    const pg = new PGlite();
+    await pg.waitReady;
+    await pg.exec(`
+      create table parent_logins (
+        id text primary key,
+        user_id text not null,
+        email text not null,
+        kind text not null,
+        created_at timestamptz not null default now()
+      );
+    `);
+    for (let i = 0; i < 7; i += 1) {
+      await pg.query(
+        `insert into parent_logins (id, user_id, email, kind) values ($1, 'parent@example.com', 'parent@example.com', 'sign-in')`,
+        [`login-${i}`],
+      );
+    }
+    const query = async <T = Record<string, unknown>>(text: string, params: unknown[] = []): Promise<T[]> => {
+      const result = await pg.query<T>(text, params);
+      return result.rows;
+    };
+    const sql = Object.assign(query, { query }) as unknown as Sql;
+    const response = await handleAccountPurge(
+      new Request("http://local/api/vkole/purge", {
+        method: "POST",
+        headers: { "x-vkole-secret": SECRET },
+        body: JSON.stringify({ confirm: "delete-all-accounts" }),
+      }),
+      {
+        expectedSecret: SECRET,
+        loadSql: async () => sql,
+        expireCookies: async () => undefined,
+      },
+    );
+    assert.equal(response.status, 200);
+    const body = (await response.json()) as { ok: boolean; cleared: Record<string, number> };
+    assert.equal(body.ok, true);
+    assert.equal(body.cleared.parent_logins, 7);
+    const left = await pg.query<{ n: number }>("select count(*)::int as n from parent_logins");
+    assert.equal(Number(left.rows[0]?.n), 0);
+    await pg.close();
+  });
+
+  it("drops leftover climbs and the login count for a fresh website account and keeps the sign-in", async () => {
+    const pg = new PGlite();
+    await pg.waitReady;
+    await pg.exec(`
+      create table "user" ("id" text primary key, "email" text, "name" text);
+      create table "session" ("id" text primary key, "userId" text);
+      create table climbs (id text primary key, user_id text, child_name text);
+      create table parent_logins (
+        id text primary key,
+        user_id text not null,
+        email text not null,
+        kind text not null
+      );
+    `);
+    await pg.query(
+      `insert into "user" ("id", "email", "name") values ('parent@example.com', 'parent@example.com', 'Parent')`,
+    );
+    await pg.query(`insert into "session" ("id", "userId") values ('s1', 'parent@example.com')`);
+    await pg.query(
+      `insert into climbs (id, user_id, child_name) values ('c1', 'parent@example.com', 'Old Child')`,
+    );
+    for (let i = 0; i < 7; i += 1) {
+      await pg.query(
+        `insert into parent_logins (id, user_id, email, kind) values ($1, 'parent@example.com', 'parent@example.com', 'sign-in')`,
+        [`login-${i}`],
+      );
+    }
+    await pg.query(
+      `insert into parent_logins (id, user_id, email, kind) values ('keep', 'other@example.com', 'other@example.com', 'sign-in')`,
+    );
+    const query = async <T = Record<string, unknown>>(text: string, params: unknown[] = []): Promise<T[]> => {
+      const result = await pg.query<T>(text, params);
+      return result.rows;
+    };
+    const sql = Object.assign(query, { query }) as unknown as Sql;
+    const cleared = await clearFreshLocalRows(sql, "Parent@Example.com");
+    assert.equal(cleared.parent_logins, 7);
+    assert.equal(cleared.climbs, 1);
+    assert.equal(cleared.user, undefined);
+    assert.equal(cleared.session, undefined);
+    const logins = await pg.query<{ n: number }>(
+      "select count(*)::int as n from parent_logins where email = 'parent@example.com'",
+    );
+    assert.equal(Number(logins.rows[0]?.n), 0);
+    const climbs = await pg.query<{ n: number }>("select count(*)::int as n from climbs");
+    assert.equal(Number(climbs.rows[0]?.n), 0);
+    const users = await pg.query<{ n: number }>('select count(*)::int as n from "user"');
+    assert.equal(Number(users.rows[0]?.n), 1);
+    const sessions = await pg.query<{ n: number }>('select count(*)::int as n from "session"');
+    assert.equal(Number(sessions.rows[0]?.n), 1);
+    const other = await pg.query<{ n: number }>(
+      "select count(*)::int as n from parent_logins where email = 'other@example.com'",
+    );
+    assert.equal(Number(other.rows[0]?.n), 1);
     await pg.close();
   });
 });

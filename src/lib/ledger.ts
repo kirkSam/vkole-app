@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSql, type Sql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { publishedOrigin } from "@/lib/published-origin";
+import { isSchoolAccountId } from "@/lib/school-account";
 
 const OWNER_EMAIL = "kirk.sam.alpha@gmail.com";
 
@@ -126,6 +127,21 @@ async function emailFor(sql: Sql, userId: string): Promise<string> {
   return email;
 }
 
+/** A fresh website account wins over leftover local climbs and login rows. */
+async function trustFreshWebsite(sql: Sql, userId: string): Promise<void> {
+  if (!isSchoolAccountId(userId)) return;
+  try {
+    const { isFreshSchoolProfile } = await import("@/lib/school-account");
+    const { readSchoolAccount } = await import("@/lib/school-account.server");
+    const profile = await readSchoolAccount(userId);
+    if (!isFreshSchoolProfile(profile)) return;
+    const { clearFreshLocalRows } = await import("@/lib/account-purge.server");
+    await clearFreshLocalRows(sql, userId);
+  } catch {
+    /* The student check reports a failed read. The login count stays local until then. */
+  }
+}
+
 async function summary(sql: Sql, userId: string, email: string) {
   const logins = await sql<{ n: number | string }>`
     select count(*) as n from parent_logins where user_id = ${userId}
@@ -154,6 +170,7 @@ export const noteAccount = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const sql = await getSql();
+    await trustFreshWebsite(sql, context.userId);
     const email = await emailFor(sql, context.userId);
     await rememberEmail(sql, email);
     const existing = await sql<{ id: string }>`
@@ -177,6 +194,7 @@ export const recordLogin = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
+    await trustFreshWebsite(sql, context.userId);
     const email = await emailFor(sql, context.userId);
     await rememberEmail(sql, email);
     await sql`

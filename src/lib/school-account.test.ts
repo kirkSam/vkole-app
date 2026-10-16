@@ -4,8 +4,11 @@ import {
   CLOCK_LIMIT_SECONDS,
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_WAIT_MESSAGE,
+  WEBSITE_ERRORS_NOT_EXTRA,
   clockToWrite,
+  decideStudent,
   failureKind,
+  isFreshSchoolProfile,
   parseSchoolProfile,
   resetCode,
   schoolWriteBody,
@@ -16,6 +19,7 @@ import {
   registerSchoolAccount,
   requestSchoolReset,
   signInSchoolAccount,
+  studentCheck,
   writeSchoolAccount,
 } from "./school-account.server.ts";
 
@@ -80,6 +84,12 @@ describe("clock and seen writes", () => {
     ]);
     assert.equal(body.clockSeconds, 100);
     assert.deepEqual(body.seen, [{ key: "m:1:0:0", text: "stem" }]);
+    assert.equal(body.student, undefined);
+  });
+
+  it("sends the first child's name so the website can enroll that student", () => {
+    const body = schoolWriteBody("a@b.co", { m: { grade: 2, step: 0 } }, 0, 0, [], "Ada");
+    assert.deepEqual(body.student, { name: "Ada" });
   });
 });
 
@@ -102,6 +112,106 @@ describe("website errors", () => {
     assert.equal(coded?.expiresAt, "2026-10-15T18:00:00.000Z");
     assert.equal(resetCode({ ok: true, code: "12345" }), null);
     assert.equal(resetCode({ ok: false, code: "123456" }), null);
+  });
+});
+
+const freshProfile = {
+  access: "open" as const,
+  studentName: "",
+  level: {},
+  freeWeekStart: null,
+  clockSeconds: 0,
+  seen: [],
+  plan: null,
+};
+
+describe("student check", () => {
+  it("treats a blank website student as new, including a name that matches the parent", () => {
+    const parsed = parseSchoolProfile({
+      ok: true,
+      id: "Parent@Example.com",
+      profile: {
+        parentName: "Ada",
+        email: "parent@example.com",
+        student: { name: "" },
+        level: null,
+      },
+    });
+    assert.equal(parsed?.profile.studentName, "");
+    assert.equal(isFreshSchoolProfile(parsed!.profile), true);
+    assert.equal(decideStudent(parsed?.profile.studentName, "Ada"), "new");
+    assert.equal(decideStudent(undefined, "Ada"), "new");
+    assert.equal(decideStudent(null, "Ada"), "new");
+    assert.equal(decideStudent("  ", "Ada"), "new");
+  });
+
+  it("returns extra only when the saved first name is different, ignoring case", () => {
+    assert.equal(decideStudent("Ada", "ada"), "same");
+    assert.equal(decideStudent("Ada", " ADA "), "same");
+    assert.equal(decideStudent("Ada", "Bea"), "extra");
+    const enrolled = parseSchoolProfile({
+      ok: true,
+      id: "parent@example.com",
+      profile: { student: { name: "Ada" }, level: null, parentName: "Bea" },
+    });
+    assert.equal(isFreshSchoolProfile(enrolled!.profile), false);
+    assert.equal(decideStudent(enrolled?.profile.studentName, "Bea"), "extra");
+    assert.equal(decideStudent(enrolled?.profile.studentName, "ada"), "same");
+  });
+
+  it("returns new for an empty website student even when a reader could still see local rows", async () => {
+    assert.equal(await studentCheck("parent@example.com", "Bea", async () => freshProfile), "new");
+    assert.equal(
+      await studentCheck("parent@example.com", "ada", async () => ({
+        ...freshProfile,
+        studentName: "Ada",
+        level: { m: { grade: 3, step: 0 } },
+      })),
+      "same",
+    );
+    assert.equal(
+      await studentCheck("parent@example.com", "Bea", async () => ({
+        ...freshProfile,
+        studentName: "Ada",
+        level: { m: { grade: 3, step: 0 } },
+      })),
+      "extra",
+    );
+  });
+
+  it("shows a failed read instead of status extra, including the save and duplicate-email sentences", async () => {
+    for (const message of WEBSITE_ERRORS_NOT_EXTRA) {
+      await assert.rejects(
+        () =>
+          studentCheck("parent@example.com", "Ada", async () => {
+            throw new SchoolCallError("exists", message);
+          }),
+        (err: unknown) => err instanceof Error && err.message === message,
+      );
+    }
+    await assert.rejects(
+      () =>
+        readSchoolAccount("parent@example.com", {
+          secret: SECRET,
+          fetch: async (input, init) => {
+            assert.equal(input, "https://www.dotheimpossible.ai/api/vkole/read");
+            assert.equal(JSON.parse(String(init?.body)).email, "parent@example.com");
+            return jsonResponse(400, { ok: false, error: "That level could not be saved." });
+          },
+        }),
+      (err: unknown) =>
+        err instanceof SchoolCallError && err.message === "That level could not be saved." && err.reason !== "offline",
+    );
+    await assert.rejects(
+      () =>
+        studentCheck("parent@example.com", "Ada", (id) =>
+          readSchoolAccount(id, {
+            secret: SECRET,
+            fetch: async () => jsonResponse(409, { message: "An account already exists for that email. Sign in with it." }),
+          }),
+        ),
+      (err: unknown) => err instanceof Error && err.message === "An account already exists for that email. Sign in with it.",
+    );
   });
 });
 
