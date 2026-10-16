@@ -1,6 +1,6 @@
 import type { Sql } from "@/lib/db";
 import type { EngineId, EngineLevel, SchoolProfile } from "@/lib/school-account";
-import { ENGINE_IDS } from "@/lib/school-account";
+import { ENGINE_IDS, normalizeEngineLevel } from "@/lib/school-account";
 
 export type SchoolMirror = {
   access: "open" | "closed";
@@ -44,9 +44,8 @@ function parseLevels(raw: string | null): Partial<Record<EngineId, EngineLevel>>
     const parsed = JSON.parse(raw) as Partial<Record<EngineId, EngineLevel>>;
     const level: Partial<Record<EngineId, EngineLevel>> = {};
     for (const id of ENGINE_IDS) {
-      const item = parsed[id];
-      if (!item || item.grade < 1 || item.grade > 12) continue;
-      level[id] = { grade: item.grade, step: Math.min(2, Math.max(0, item.step || 0)) };
+      const item = normalizeEngineLevel(parsed[id], id);
+      if (item) level[id] = item;
     }
     return level;
   } catch {

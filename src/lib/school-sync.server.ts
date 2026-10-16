@@ -5,6 +5,7 @@ import {
   SCHOOL_LEGACY_MESSAGE,
   SCHOOL_SEPARATE_MESSAGE,
   schoolWriteBody,
+  sgAccountLevel,
   type EngineId,
   type EngineLevel,
   type SchoolProfile,
@@ -13,6 +14,7 @@ import {
 import { readSchoolAccount, writeSchoolAccount } from "@/lib/school-account.server";
 import { readSchoolMirror, saveSchoolMirror } from "@/lib/school-mirror.server";
 import { separateSignIn } from "@/lib/school-session.server";
+import { masteryFromDetails, richerMastery } from "@/lib/vkole-singapore-report";
 
 const LOGIN_CLOCK = "login";
 
@@ -49,6 +51,21 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
     const local = localLevels.find((row) => row.subject === engine);
     const localAt = local ? new Date(String(rowTime(local.updated_at))).getTime() : 0;
     if (pushedAt != null && local && localAt > pushedAt) continue;
+    if (engine === "sg" && typeof level.streak === "number") {
+      await sql`
+        update climbs
+        set level = ${level.grade},
+            standard_step = ${level.step},
+            performance_level = ${level.earnedGrade ?? level.grade},
+            correct_at_level = ${level.streak},
+            incorrect_streak = ${level.missStreak ?? 0},
+            right_count = ${level.reached ?? 0},
+            asked = ${(level.reached ?? 0) + (level.missed ?? 0)},
+            updated_at = now()
+        where user_id = ${userId} and subject = ${engine}
+      `;
+      continue;
+    }
     await sql`
       update climbs
       set level = ${level.grade},
@@ -83,8 +100,20 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
 }
 
 async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<EngineId, EngineLevel>>) {
-  const rows = await sql<{ subject: string; level: number | string; standard_step: number | string | null }>`
-    select subject, level, standard_step
+  const rows = await sql<{
+    subject: string;
+    level: number | string;
+    standard_step: number | string | null;
+    child_name: string;
+    performance_level: number | string | null;
+    correct_at_level: number | string | null;
+    incorrect_streak: number | string | null;
+    asked: number | string | null;
+    right_count: number | string | null;
+    start_grade: number | string | null;
+  }>`
+    select subject, level, standard_step, child_name, performance_level, correct_at_level,
+      incorrect_streak, asked, right_count, start_grade
     from climbs
     where user_id = ${userId}
     order by updated_at desc
@@ -96,6 +125,36 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Eng
     seen.add(row.subject);
     const grade = Math.min(12, Math.max(1, Math.round(Number(row.level) || 1)));
     const step = Math.min(2, Math.max(0, Math.round(Number(row.standard_step) || 0)));
+    if (row.subject === "sg") {
+      const events = await sql<{ detail: string; correct: boolean | number | string | null }>`
+        select detail, correct from climb_events
+        where user_id = ${userId} and subject = 'sg'
+      `;
+      const local = masteryFromDetails(
+        events.map((event) => ({
+          detail: event.detail,
+          correct: event.correct === true || event.correct === 1 || event.correct === "1" || event.correct === "t",
+        })),
+      );
+      const mastery = richerMastery(local, remote.sg?.mastery);
+      const reached = Math.max(0, Math.round(Number(row.right_count) || 0));
+      const asked = Math.max(reached, Math.round(Number(row.asked) || 0));
+      const starting = Number(row.start_grade);
+      level.sg = sgAccountLevel(remote.sg, {
+        name: row.child_name?.trim() || remote.sg?.name || "",
+        grade,
+        step,
+        earnedGrade: Math.min(12, Math.max(1, Math.round(Number(row.performance_level) || grade))),
+        streak: Math.max(0, Math.round(Number(row.correct_at_level) || 0)),
+        missStreak: Math.max(0, Math.round(Number(row.incorrect_streak) || 0)),
+        reached,
+        missed: asked - reached,
+        ...(Number.isInteger(starting) && starting >= 1 && starting <= 12 ? { startingGrade: starting } : {}),
+        ...(mastery ? { mastery } : {}),
+        updatedAt: Date.now(),
+      });
+      continue;
+    }
     level[row.subject as EngineId] = { grade, step };
   }
   return level;

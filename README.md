@@ -1,6 +1,6 @@
 # VKOLE/ZPD - Space x.AI Integrated Learning Engine
 
-The learning app for one student. Four engines share one registration: VKOLE/M, VKOLE/ELA, VKOLE/SS, and VKOLE/gen.
+The learning app for one student. Five engines share one registration: VKOLE/M, VKOLE Singapore, VKOLE/ELA, VKOLE/SS, and VKOLE/gen.
 
 This repository is the application source. It does not contain secret keys or passwords. Set those by name in the environment. See `.env.example`.
 

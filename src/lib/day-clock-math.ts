@@ -7,7 +7,7 @@ export const PACIFIC = "America/Los_Angeles";
 
 export const VKOLE_RULES = [
   `${APP_NAME} uses one short call to grade the answer and write the next question. Price stays: one week free, then $9.00 USD plus tax a month, or $79.00 USD plus tax a year. It auto-renews until cancelled by email at ${SCHOOL_EMAIL}.`,
-  "Access: all four engines share one clock of 2.5 hours for the login each day. Another child does not add another 2.5 hours. Used time never goes past 2.5 hours. It resets at midnight Pacific time.",
+  "Access: the engines share one clock of 2.5 hours for the login each day. Another child does not add another 2.5 hours. Used time never goes past 2.5 hours. It resets at midnight Pacific time.",
   "Five minutes with no pointer press or key press stops the clock. Those later minutes are not added. The student password starts the clock again. Time already used stays. Leaving one engine does not stop the clock. The other engines stay open. After 2.5 hours the engines stay closed until midnight Pacific time.",
 ].join("\n\n");
 

@@ -1,5 +1,6 @@
 import type { SubjectId } from "@/lib/climb-rules";
 import { moveVkoleRung } from "@/lib/vkole-cap";
+import { singaporePlace } from "@/lib/vkole-singapore";
 
 export const STEPS_IN_GRADE = 3;
 
@@ -63,11 +64,27 @@ const GEN: Record<number, readonly string[]> = {
   12: ["natural selection", "number patterns", "checks and balances"],
 };
 
+const SG: Record<number, readonly string[]> = {
+  1: ["concrete", "pictorial", "abstract"],
+  2: ["concrete", "pictorial", "abstract"],
+  3: ["concrete", "pictorial", "abstract"],
+  4: ["concrete", "pictorial", "abstract"],
+  5: ["concrete", "pictorial", "abstract"],
+  6: ["concrete", "pictorial", "abstract"],
+  7: ["concrete", "pictorial", "abstract"],
+  8: ["concrete", "pictorial", "abstract"],
+  9: ["concrete", "pictorial", "abstract"],
+  10: ["concrete", "pictorial", "abstract"],
+  11: ["concrete", "pictorial", "abstract"],
+  12: ["concrete", "pictorial", "abstract"],
+};
+
 const LADDERS: Record<SubjectId, Record<number, readonly string[]>> = {
   m: MATH,
   ela: ELA,
   ss: SS,
   gen: GEN,
+  sg: SG,
 };
 
 export function clampGrade(level: number): number {
@@ -104,7 +121,10 @@ export function stepSentence(
 ): string {
   const before = stepName(subject, beforeGrade, beforeStep);
   const after = stepName(subject, moved.grade, moved.step);
-  if (moved.capped) return `Two correct answers in a row. Grade 12, standard 3 stays. The next question rotates through the grade 12 questions.`;
+  if (moved.capped) return "Two correct answers in a row. Grade 12 is the top. The next questions stay on grade 12 and rotate.";
+  if (subject === "sg" && moved.grade > beforeGrade) {
+    return `Two correct answers on the abstract step. The level moves up to ${singaporePlace(moved.grade).short}.`;
+  }
   if (moved.reached && moved.grade === 12 && moved.step === 2 && moved.correctAtLevel === 1) {
     return `Correct. One more on ${before}, then grade 12 stays and the questions rotate.`;
   }

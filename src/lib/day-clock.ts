@@ -175,7 +175,7 @@ export async function disarmStudentClock(sql: Sql, userId: string, climbId: stri
 }
 
 const enterSchema = z.object({
-  subject: z.enum(["m", "ela", "ss", "gen"]),
+  subject: z.enum(["m", "ela", "ss", "gen", "sg"]),
   firstName: z.string().trim().min(1).max(40),
   age: z.number().int().min(4).max(18).optional(),
   grade: z.number().int().min(1).max(12).optional(),

@@ -6,9 +6,9 @@ import { SCHOOL_ENGINE_URL } from "@/lib/school-account";
 export const Route = createFileRoute("/enroll")({ component: EnrollPage });
 
 const RECEIVES = [
-  "All four engines: mathematics, English language arts, history and social studies, and general study.",
+  "All five engines: mathematics, Singapore mathematics, English language arts, history and social studies, and general study.",
   "One registration is one student. Another student downloads the app to their own device and registers there.",
-  "A record of each child’s work, emailed to the address given at registration when the child presses Finished or Log out on one engine, or after 5 minutes with no activity. The other engines stay open.",
+  "A record of each child’s work, emailed to the address given at registration when the child presses Finished or Log out on one engine, or after 5 minutes with no activity. The other engines stay open. Singapore mathematics adds a mastery report by strand.",
   "You may raise or lower the level a student is working on. The level that student has earned stays on the record.",
   "An eight-question assignment in each engine, answered online or printed.",
   "Continued tracking, and the child’s access to VKOLE/ZPD - Space x.AI Integrated Learning Engine.",

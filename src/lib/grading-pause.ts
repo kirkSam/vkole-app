@@ -3,6 +3,8 @@ export const GRADING_FAILURE_CAP = 3;
 
 export const GRADING_PAUSE_MESSAGE = "Take a break and come back later. Your level stays the same.";
 
+export const NO_REPLY_MESSAGE = "The answer could not be checked just now. Please try again.";
+
 export type SettledGrade =
   | { action: "again"; failures: number }
   | { action: "rest"; failures: number }
