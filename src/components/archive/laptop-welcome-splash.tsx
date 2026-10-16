@@ -41,13 +41,13 @@ export function ArchivedLaptopWelcomeSplash({
         <button
           type="button"
           className="splash-enter"
-          aria-label="WELCOME Adaptive Diagnostic Online Learning with VKOLE/ZPD - Space x.AI Supported Learning Engine."
+          aria-label="WELCOME Adaptive Diagnostic Online Learning with VKOLE/ZPD - Space XSI Supported Learning Engine."
           onClick={onEnter}
         >
           <span className="splash-enter-label">
             <span className="splash-enter-welcome">WELCOME</span>
             <span className="splash-enter-offer">
-              Adaptive Diagnostic Online Learning with VKOLE/ZPD - Space x.AI Supported Learning
+              Adaptive Diagnostic Online Learning with VKOLE/ZPD - Space XSI Supported Learning
               Engine.
             </span>
           </span>
