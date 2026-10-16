@@ -5,7 +5,7 @@ export function ArchivedAppSplash({ onEnter }: { onEnter: () => void }) {
   return (
     <div className="archive-splash-page">
       <main className="archive-splash">
-        <h1 className="sr-only">VKOLE/ZPD - Space x.AI Supported Learning Engine</h1>
+        <h1 className="sr-only">VKOLE/ZPD - Space XSI Supported Learning Engine</h1>
         <div className="archive-splash-stage">
           <img className="archive-splash-art archive-splash-art-wide" src="/archive/splash-wide.jpg" alt="" width={1792} height={1008} />
           <img className="archive-splash-art archive-splash-art-phone" src="/archive/splash-tall.jpg" alt="" width={1008} height={1792} />
@@ -24,7 +24,7 @@ export function ArchivedAppSplash({ onEnter }: { onEnter: () => void }) {
           </p>
           <footer className="mt-2 text-sm text-[#cfc6b8]">Lev Vygotsky, Mind in Society, 1978</footer>
         </blockquote>
-        <p className="mt-6 font-display text-lg">VKOLE/ZPD - Space x.AI Supported Learning Engine</p>
+        <p className="mt-6 font-display text-lg">VKOLE/ZPD - Space XSI Supported Learning Engine</p>
         <p className="mt-1 max-w-xl text-sm leading-relaxed text-[#cfc6b8]">
           Four climbs for a parent. Mathematics, English language arts, history and social studies, and general study. The same first name returns to the saved Common Core level.
         </p>

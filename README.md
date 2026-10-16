@@ -1,4 +1,4 @@
-# VKOLE/ZPD - Space x.AI Integrated Learning Engine
+# VKOLE/ZPD - Space XSI Integrated Learning Engine
 
 The learning app for one student. Five engines share one registration: VKOLE/M, VKOLE Singapore, VKOLE/ELA, VKOLE/SS, and VKOLE/gen.
 

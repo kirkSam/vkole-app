@@ -21,6 +21,7 @@ import {
 } from "@/lib/climbs";
 import { beatStudentClock, readStudentClock, resumeStudentClock } from "@/lib/day-clock";
 import { GRADING_PAUSE_MESSAGE, NO_REPLY_MESSAGE } from "@/lib/grading-pause";
+import { showAsSpaceXsi } from "@/lib/space-xsi";
 import { VKOLE_MOVEMENT } from "@/lib/vkole-cap";
 import { SG_STAGE_NOTE, sgCodeLabel, singaporePlace } from "@/lib/vkole-singapore";
 import { SgFigure, splitFigures } from "@/components/sg-figure";
@@ -45,8 +46,9 @@ type Closure = {
 let pendingLeave: { id: string; cancel: () => void } | null = null;
 
 function Feedback({ text }: { text: string }) {
-  const matched = text.match(/^Answer:\s*([\s\S]+?)\n+\s*Explanation:\s*([\s\S]+)$/i) ?? text.match(/^Answer:\s*(.+?)\s+Explanation:\s*(.+)$/i);
-  if (!matched) return <p className="mt-4 whitespace-pre-wrap text-ink">{text}</p>;
+  const shown = showAsSpaceXsi(text);
+  const matched = shown.match(/^Answer:\s*([\s\S]+?)\n+\s*Explanation:\s*([\s\S]+)$/i) ?? shown.match(/^Answer:\s*(.+?)\s+Explanation:\s*(.+)$/i);
+  if (!matched) return <p className="mt-4 whitespace-pre-wrap text-ink">{shown}</p>;
   return (
     <div className="mt-4">
       <p className="text-xs tracking-wide text-muted uppercase">Answer</p>
@@ -58,7 +60,8 @@ function Feedback({ text }: { text: string }) {
 }
 
 function Reading({ prompt }: { prompt: string }) {
-  const matched = prompt.match(/^Read:\s*([\s\S]+?)\n+\s*Question:\s*([\s\S]+)$/i);
+  const shown = showAsSpaceXsi(prompt);
+  const matched = shown.match(/^Read:\s*([\s\S]+?)\n+\s*Question:\s*([\s\S]+)$/i);
   if (matched) {
     return (
       <>
@@ -68,13 +71,13 @@ function Reading({ prompt }: { prompt: string }) {
       </>
     );
   }
-  const drawn = splitFigures(prompt);
+  const drawn = splitFigures(shown);
   return (
     <>
       {drawn.figures.map((line) => (
         <SgFigure key={line} line={line} />
       ))}
-      <h2 className="mt-2 whitespace-pre-wrap font-display text-2xl leading-snug text-ink">{drawn.text || prompt}</h2>
+      <h2 className="mt-2 whitespace-pre-wrap font-display text-2xl leading-snug text-ink">{drawn.text || shown}</h2>
     </>
   );
 }
