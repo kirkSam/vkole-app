@@ -24,6 +24,9 @@ export const SCHOOL_SEPARATE_MESSAGE =
 export const SCHOOL_WAIT_MESSAGE =
   "Too many sign-in tries. Wait 15 minutes, then try again.";
 
+export const SCHOOL_ACCOUNT_GONE_MESSAGE =
+  "This account is no longer on the school website. Sign in again after it is opened there.";
+
 export const CLOCK_LIMIT_SECONDS = 9000;
 
 export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg"] as const;
@@ -98,7 +101,7 @@ export type SchoolProfile = {
   plan: "month" | "year" | null;
 };
 
-export type SchoolFailure = "offline" | "wait" | "unknown" | "password" | "exists" | "rejected";
+export type SchoolFailure = "offline" | "wait" | "unknown" | "password" | "exists" | "rejected" | "gone";
 
 export function isSchoolAccountId(id: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id) && id === id.toLowerCase();
@@ -431,6 +434,15 @@ export function failureKind(status: number, body: unknown): SchoolFailure {
   const text = `${row?.error ?? ""} ${row?.message ?? ""} ${row?.code ?? ""}`.toLowerCase();
   if (row?.wait === true || text.includes("too many") || text.includes("rate")) return "wait";
   if (text.includes("already") || text.includes("exists")) return "exists";
+  if (
+    status === 410 ||
+    text.includes("account gone") ||
+    text.includes("account_gone") ||
+    text.includes("deleted") ||
+    text.includes("removed")
+  ) {
+    return "gone";
+  }
   if (text.includes("not found") || text.includes("unknown") || text.includes("no account")) return "unknown";
   if (text.includes("password") || text.includes("match") || text.includes("invalid")) return "password";
   if (status >= 500 || status === 0) return "offline";

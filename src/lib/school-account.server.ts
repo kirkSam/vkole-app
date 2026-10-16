@@ -3,6 +3,7 @@
  * Never import this from a client component. The secret stays here.
  */
 import {
+  SCHOOL_ACCOUNT_GONE_MESSAGE,
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_ORIGIN,
   SCHOOL_WAIT_MESSAGE,
@@ -85,6 +86,7 @@ async function postSchool(path: string, body: unknown, deps?: CallDeps): Promise
   if (!response.ok || (parsed && typeof parsed === "object" && (parsed as { ok?: boolean }).ok === false)) {
     if (reason === "offline") throw offline();
     if (reason === "wait") throw new SchoolCallError("wait", SCHOOL_WAIT_MESSAGE);
+    if (reason === "gone") throw new SchoolCallError("gone", SCHOOL_ACCOUNT_GONE_MESSAGE);
     const signing = path === PATHS.signIn || path === PATHS.register;
     const message =
       reason === "unknown"

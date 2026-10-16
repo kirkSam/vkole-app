@@ -88,6 +88,8 @@ describe("website errors", () => {
     assert.equal(failureKind(429, {}), "wait");
     assert.equal(failureKind(400, { message: "too many tries" }), "wait");
     assert.equal(failureKind(404, { error: "not found" }), "unknown");
+    assert.equal(failureKind(410, { error: "account gone" }), "gone");
+    assert.equal(failureKind(404, { code: "account_deleted" }), "gone");
     assert.equal(failureKind(401, { message: "password" }), "password");
     assert.equal(failureKind(409, { message: "already exists" }), "exists");
     assert.equal(failureKind(500, {}), "offline");

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { APP_NAME } from "@/lib/brand";
 import {
+  SCHOOL_ACCOUNT_GONE_MESSAGE,
   SCHOOL_LEGACY_MESSAGE,
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_WAIT_MESSAGE,
@@ -66,6 +67,16 @@ export const schoolSignIn = createServerFn({ method: "POST" })
       return { ok: true };
     } catch (err) {
       if (err instanceof SchoolCallError) {
+        if (err.reason === "gone") {
+          try {
+            const { forgetLocalAccount } = await import("./account-purge.server");
+            const { getSql } = await import("./db");
+            await forgetLocalAccount(await getSql(), data.email);
+          } catch {
+            return failed("offline", SCHOOL_OFFLINE_MESSAGE);
+          }
+          return failed("gone", SCHOOL_ACCOUNT_GONE_MESSAGE);
+        }
         if (err.reason === "unknown" && (await localEmailExists(data.email))) {
           return failed("legacy", SCHOOL_LEGACY_MESSAGE);
         }
