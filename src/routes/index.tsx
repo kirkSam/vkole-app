@@ -6,6 +6,7 @@ import { SchoolSplash } from "@/components/school-splash";
 import { TeletypeIntro } from "@/components/teletype-intro";
 import { TrialFinished, type EndedReason, type StoppedBecause } from "@/components/trial-finished";
 import { SchoolAccountScreen } from "@/components/school-account-screen";
+import { StudentOffice } from "@/components/student-office";
 import { schoolScreen, SCHOOL_ENGINE_URL } from "@/lib/school-account";
 import { PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
@@ -216,6 +217,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
   const [endedPlan, setEndedPlan] = useState<EndedReason>("trial");
   const [stopped, setStopped] = useState<StoppedBecause | undefined>(undefined);
   const [sub, setSub] = useState<{ subscribed: boolean; renews: boolean; endsAt: string; plan: "month" | "year" } | null>(null);
+  const [office, setOffice] = useState<{ purchased: boolean; slug: string | null } | null>(null);
   const [revision, setRevision] = useState(0);
   const [account, setAccount] = useState<{
     email: string;
@@ -295,6 +297,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
         } else {
           setSub(null);
         }
+        setOffice({ purchased: result.officePurchased === true, slug: result.officeSlug ?? null });
       })
       .catch((err: unknown) => {
         if (!live) return;
@@ -330,6 +333,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
         reason={endedPlan}
         stopped={endedPlan === "trial" ? undefined : stopped}
         onSplash={onTrialSplash}
+        office={office}
       />
     );
   }
@@ -358,6 +362,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
           This email is saved: {account.email}. Logins recorded: {account.loginCount}. Reports go only to this address.
         </p>
       ) : null}
+      {office ? <StudentOffice purchased={office.purchased} slug={office.slug} /> : null}
       {account?.notice?.sent ? (
         <p className="mt-3 text-sm text-ink">Registration notice sent to kirk.sam.alpha@gmail.com.</p>
       ) : account?.notice?.error ? (

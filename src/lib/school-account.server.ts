@@ -22,6 +22,7 @@ const PATHS = {
   read: "/api/vkole/read",
   write: "/api/vkole/write",
   passwordReset: "/api/vkole/password-reset",
+  passwordResetConfirm: "/api/vkole/password-reset/confirm",
 } as const;
 
 export class SchoolCallError extends Error {
@@ -179,6 +180,19 @@ export async function requestSchoolReset(
   const code = resetCode(body);
   if (!code) throw new SchoolCallError("unknown", "The school website has no password reset for that email.");
   return code;
+}
+
+/** Save a new password with the code from the website reset email. */
+export async function confirmSchoolReset(
+  input: { email: string; code: string; newPassword: string },
+  deps?: CallDeps,
+): Promise<void> {
+  const email = input.email.trim().toLowerCase();
+  await postSchool(
+    PATHS.passwordResetConfirm,
+    { email, code: input.code.trim(), newPassword: input.newPassword },
+    deps,
+  );
 }
 
 export function schoolHeaders(secret: string): Headers {

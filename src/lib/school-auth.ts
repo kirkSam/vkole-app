@@ -23,6 +23,12 @@ const emailOnly = z.object({
   email: z.string().trim().email().max(160),
 });
 
+const resetConfirm = z.object({
+  email: z.string().trim().email().max(160),
+  code: z.string().trim().min(1).max(32),
+  newPassword: z.string().min(8).max(80),
+});
+
 function parse<T>(schema: z.ZodType<T>, data: unknown): T {
   const parsed = schema.safeParse(data);
   if (!parsed.success) throw new Error("Check the email and password and try again.");
@@ -115,22 +121,31 @@ export const schoolPasswordReset = createServerFn({ method: "POST" })
       const sent = await sendAppMail(
         email,
         `${APP_NAME} password code`,
-        `Your password code for ${APP_NAME} is ${reset.code}. It expires at ${when} Pacific time (30 minutes). Set the new password on the school website, then sign in to the app with it. If you did not ask for this, ignore this email.`,
+        `Your password code for ${APP_NAME} is ${reset.code}. It expires at ${when} Pacific time (30 minutes). Enter that code and a new password in the app. If you did not ask for this, ignore this email.`,
       );
       if (sent !== "sent") {
         return failed("mail", "The code could not be emailed. Try again in a moment.");
       }
       return { ok: true };
     } catch (err) {
-      if (err instanceof SchoolCallError) {
-        if (err.reason === "unknown") {
-          return failed(
-            "unknown",
-            "The school website has no password for that email yet. Register that same email on the school engine page, then sign in here.",
-          );
-        }
-        return failed(err.reason, err.message);
-      }
+      if (err instanceof SchoolCallError) return failed(err.reason, err.message);
       return failed("mail", "The code could not be emailed. Try again in a moment.");
+    }
+  });
+
+export const schoolPasswordConfirm = createServerFn({ method: "POST" })
+  .validator((data: unknown) => parse(resetConfirm, data))
+  .handler(async ({ data }): Promise<SchoolAuthResult> => {
+    const { confirmSchoolReset, SchoolCallError } = await import("./school-account.server");
+    try {
+      await confirmSchoolReset({
+        email: data.email,
+        code: data.code,
+        newPassword: data.newPassword,
+      });
+      return { ok: true };
+    } catch (err) {
+      if (err instanceof SchoolCallError) return failed(err.reason, err.message);
+      return failed("offline", SCHOOL_OFFLINE_MESSAGE);
     }
   });
