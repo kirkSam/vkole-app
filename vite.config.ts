@@ -56,10 +56,9 @@ function pgliteBootstrapPlugin(): Plugin {
  * `/auth/popup` route (and cannot break it by scaffolding a React page that
  * paints the full app shell in the popup).
  *
- * `signIn` (client.ts) opens `/auth/popup?providerId=…` in a top-level window.
- * This middleware runs before TanStack Start, calls `handleAuthPopupRequest`,
- * and returns the 302 / completion HTML. Deployed apps do not use the popup
- * (full-page OAuth redirect), so `apply: "serve"` is enough.
+ * Google and X sign-in is not offered. This middleware still owns `/auth/popup`
+ * so a leftover request cannot fall through to the app shell. `apply: "serve"`
+ * is enough because deployed sign-in is the school email and password.
  */
 function authPopupPlugin(): Plugin {
   return {

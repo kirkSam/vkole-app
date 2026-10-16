@@ -5,6 +5,7 @@ import { subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { authClient, signOut } from "@/lib/auth/client";
 import { notifyParentSignedOut } from "@/lib/climbs";
 import { markChoosingAccount } from "@/lib/account-choice";
+import { StudentOffice } from "@/components/student-office";
 
 export type EndedReason = "trial" | "month" | "year";
 export type StoppedBecause = "cancelled" | "unpaid";
@@ -46,12 +47,14 @@ export function TrialFinished({
   wholeApp = false,
   reason = "trial",
   stopped,
+  office = null,
 }: {
   subject: SubjectId;
   onSplash?: () => void;
   wholeApp?: boolean;
   reason?: EndedReason;
   stopped?: StoppedBecause;
+  office?: { purchased: boolean; slug: string | null } | null;
 }) {
   const meta = subjectMeta(subject);
   const copy = COPY[reason];
@@ -66,6 +69,7 @@ export function TrialFinished({
           with VKOLE/ZPD - Space XSI Integrated Learning Engine.
         </p>
         <p className="mt-4 text-sm leading-relaxed text-[#cfc6b8]">{detailFor(reason, stopped)}</p>
+        {office ? <StudentOffice purchased={office.purchased} slug={office.slug} tone="night" /> : null}
         <Link
           to="/enroll"
           className="mt-8 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 text-base font-semibold text-[#1c1408]"

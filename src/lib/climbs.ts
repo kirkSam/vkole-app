@@ -102,6 +102,10 @@ async function accountState(sql: Sql, userId: string) {
     const startedAt = mirror?.freeWeekStart ?? new Date(0).toISOString();
     const trial = trialState(startedAt);
     const open = mirror?.access === "open";
+    const office = {
+      officePurchased: mirror?.officePurchased === true,
+      officeSlug: mirror?.officeSlug ?? null,
+    };
     if (!open) {
       return {
         ...trial,
@@ -111,6 +115,7 @@ async function accountState(sql: Sql, userId: string) {
         subscriptionEndsAt: null,
         plan: null,
         renews: false,
+        ...office,
       };
     }
     return {
@@ -119,6 +124,7 @@ async function accountState(sql: Sql, userId: string) {
       subscriptionEndsAt: null,
       plan: mirror?.plan ?? null,
       renews: false,
+      ...office,
     };
   }
   const trials = await sql<{ started_at: unknown }>`
@@ -140,6 +146,8 @@ async function accountState(sql: Sql, userId: string) {
     subscriptionEndsAt: sub ? asIso(sub.expires_at) : null,
     plan,
     renews: sub ? flag(sub.renews) : false,
+    officePurchased: false,
+    officeSlug: null as string | null,
   };
 }
 
@@ -232,6 +240,8 @@ export const listClimbs = createServerFn({ method: "GET" })
       plan: account.plan,
       renews: account.renews,
       blocked: account.expired && !account.subscribed,
+      officePurchased: account.officePurchased,
+      officeSlug: account.officeSlug,
     };
   });
 

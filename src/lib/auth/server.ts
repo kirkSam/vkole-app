@@ -5,11 +5,8 @@
  * local email/password, flip the flag in `./email-password` only (see auth skill).
  *
  * The app runs its own Better Auth at `/api/auth/*`, so the session cookie stays
- * on this app's own origin. Sign-in federates to the shared **Grok auth broker**
- * (`GROK_AUTH_ISSUER`) via the `genericOAuth` plugin — the broker brokers the
- * upstream sign-in methods (Google, X, …) and holds their shared secrets; this
- * app only holds its own client id/secret and names the upstream it wants via
- * each provider's `idp` hint.
+ * on this app's own origin. Parents sign in and register with the school website
+ * email and password. Google and X are not offered.
  *
  * Tri-mode:
  *   - Deployed: the deployer injects a per-app `GROK_AUTH_*` + `BETTER_AUTH_URL`
@@ -20,7 +17,7 @@
  *     and identities persist in the embedded PGLite DB (same DB as app data);
  *     the process restart wipes both. Live-preview iframe clients use a bearer
  *     token (partitioned cookies) — see `client.ts`.
- *   - Off (`VITE_AUTH_ENABLED=false`, the shipped default): no providers;
+ *   - Off (`VITE_AUTH_ENABLED=false`, the shipped default): auth is off;
  *     `requireUserId` resolves a dev user with no database configured, and
  *     throws fail-closed once `DATABASE_URL` is set (see `verify.server.ts`).
  *
@@ -30,7 +27,7 @@
  * a verified id via `@/lib/auth/middleware`.
  */
 import { betterAuth } from "better-auth";
-import { bearer, genericOAuth } from "better-auth/plugins";
+import { bearer } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { randomBytes } from "node:crypto";
@@ -38,14 +35,8 @@ import { Pool } from "pg";
 import { ensureDbReady, getPglite } from "../db";
 import { emailAndPasswordEnabled } from "./email-password";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server";
-import { GROK_PROVIDERS } from "./providers";
 import { pgliteDialect } from "./pglite-dialect";
-import {
-  GROK_ISSUER_DEFAULT,
-  PREVIEW_ALLOWED_HOSTS,
-  PREVIEW_CLIENT_ID,
-  PREVIEW_CLIENT_SECRET,
-} from "./preview";
+import { PREVIEW_ALLOWED_HOSTS, PREVIEW_CLIENT_ID, PREVIEW_CLIENT_SECRET } from "./preview";
 
 // Kick (and share) PGLite bootstrap as soon as the auth server module loads.
 void ensureDbReady();
@@ -74,14 +65,12 @@ const env = (key: string): string | undefined => {
 // provisions auth; set it to "false" to force auth off everywhere (dev user).
 const authDisabled = env("VITE_AUTH_ENABLED") === "false";
 
-// Broker federation creds: the deployer injects a per-app client when deployed;
-// otherwise fall back to the shared live-preview client, which the broker accepts
-// for any `*.grok-sandbox.com` callback (see `./preview`).
-const grokIssuer = env("GROK_AUTH_ISSUER") ?? GROK_ISSUER_DEFAULT;
+// The deployer still injects these to mark auth on. They no longer start a
+// Google or X sign-in. Preview falls back to the shared client id (see `./preview`).
 const grokClientId = env("GROK_AUTH_CLIENT_ID") ?? PREVIEW_CLIENT_ID;
 const grokClientSecret = env("GROK_AUTH_CLIENT_SECRET") ?? PREVIEW_CLIENT_SECRET;
 
-/** True when federated sign-in is active (real auth is enforced). */
+/** True when a real session is required. */
 export const authConfigured =
   !authDisabled && Boolean(grokClientId && grokClientSecret);
 
@@ -89,8 +78,7 @@ export const authConfigured =
 // public URL. In the sandbox live preview there's no fixed URL (each preview gets
 // a dynamic `*.grok-sandbox.com` host), so we hand Better Auth a dynamic baseURL:
 // it derives the origin per-request from the (proxied) host, validated against the
-// preview allowlist, which makes the OAuth `redirect_uri` the concrete preview URL
-// the broker's preview client accepts.
+// preview allowlist.
 const explicitBaseURL = env("BETTER_AUTH_URL");
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
@@ -127,15 +115,6 @@ const trustedOrigins: string[] = explicitBaseURL
 
 const databaseUrl = env("DATABASE_URL");
 
-// Static broker OAuth endpoints (skip OIDC discovery on every sign-in / callback).
-// Discovery would cost an extra network hop to the broker before the popup can
-// even redirect to Google/X — the live-preview popup felt stuck on the app for
-// that whole round-trip. These paths match the broker's discovery document.
-const issuerBase = grokIssuer.replace(/\/+$/, "");
-const grokAuthorizationUrl = `${issuerBase}/api/auth/oauth2/authorize`;
-const grokTokenUrl = `${issuerBase}/api/auth/oauth2/token`;
-const grokUserInfoUrl = `${issuerBase}/api/auth/oauth2/userinfo`;
-
 // Real Postgres when `DATABASE_URL` is set (deployed apps), else the app's
 // embedded PGLite (preview) via a Kysely dialect — so Better Auth persists to the
 // SAME DB as app data, including email/password users. Both use the Better Auth
@@ -147,30 +126,6 @@ const database = databaseUrl
 
 /** Session token cookie name — also read by the live-preview popup completion page. */
 export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
-
-// Built separately so the `betterAuth({...})` call stays easy to edit without
-// breaking brackets (models often trip on the conditional plugin spread).
-const grokOAuthPlugin = authConfigured
-  ? genericOAuth({
-      config: GROK_PROVIDERS.map(({ providerId, idp }) => ({
-        providerId,
-        clientId: grokClientId as string,
-        clientSecret: grokClientSecret as string,
-        // Prefer static endpoints over `discoveryUrl` so initiating (and
-        // completing) OAuth does not wait on a broker discovery fetch.
-        authorizationUrl: grokAuthorizationUrl,
-        tokenUrl: grokTokenUrl,
-        userInfoUrl: grokUserInfoUrl,
-        scopes: ["openid", "profile", "email"],
-        // `prompt: "login"` forces the broker to re-authenticate against the
-        // upstream on every sign-in instead of silently reusing an existing
-        // broker session. Combined with the broker sending Google
-        // `prompt=select_account`, the user always gets the account chooser
-        // and can pick (or switch) which account to sign in with.
-        authorizationUrlParams: { idp, prompt: "login" },
-      })),
-    })
-  : null;
 
 export const auth = betterAuth({
   baseURL,
@@ -184,22 +139,13 @@ export const auth = betterAuth({
   // local loopback variants, or clients get "Invalid origin".
   trustedOrigins,
 
-  // Encrypt broker-issued OAuth tokens at rest, and treat the broker's upstreams
-  // as trusted first-party identities. The broker owns identity and X emails are
-  // synthetic/unverified, so WITHOUT this a login can fail with
-  // `account_not_linked` (Better Auth refuses to attach an untrusted, unverified
-  // identity to an existing user). Google and X carry DISTINCT emails, so this
-  // never merges them into one user — they stay separate identities.
+  // Gate sessions are a trusted first-party identity. Google and X are not
+  // sign-in methods on this app.
   account: {
     encryptOAuthTokens: true,
     accountLinking: {
       enabled: true,
-      trustedProviders: [
-        ...GROK_PROVIDERS.map((p) => p.providerId),
-        GATE_PROVIDER_ID,
-      ],
-      // X's synthetic email is never "verified", so don't gate linking on the
-      // local user's email-verified state.
+      trustedProviders: [GATE_PROVIDER_ID],
       requireLocalEmailVerified: false,
     },
   },
@@ -234,10 +180,6 @@ export const auth = betterAuth({
   plugins: [
     gateIdentitySessions(),
 
-    // One genericOAuth provider per upstream (when auth is on), all federating
-    // to the broker with the SAME client and differing only by the `idp` hint.
-    ...(grokOAuthPlugin ? [grokOAuthPlugin] : []),
-
     // Accept `Authorization: Bearer <session-token>` as an alternative to the
     // cookie. Needed for the LIVE PREVIEW: the app runs in an embedded iframe
     // where cookies are partitioned, so after popup sign-in it authenticates with
@@ -255,7 +197,3 @@ export const auth = betterAuth({
 export function readSessionToken(): string | null {
   return getCookie(SESSION_TOKEN_COOKIE) ?? null;
 }
-
-// Re-exported for convenience; the array lives in the dependency-free
-// `providers.ts` so the client can import it too.
-export { GROK_PROVIDERS } from "./providers";

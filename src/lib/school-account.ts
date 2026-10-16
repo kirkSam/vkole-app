@@ -19,7 +19,10 @@ export const SCHOOL_LEGACY_MESSAGE =
   "This email is already on the app. Set the password through the school reset. A code will be emailed only to that address. Then sign in here with the new password.";
 
 export const SCHOOL_SEPARATE_MESSAGE =
-  "Google and X are separate from the school account. Sign in with the parent email and password.";
+  "Sign in with the parent email and password.";
+
+/** Website checkout for the first-month package, which includes a student office. */
+export const SCHOOL_FIRST_MONTH_URL = `${SCHOOL_ORIGIN}/pay/checkout?item=first-month`;
 
 export const SCHOOL_WAIT_MESSAGE =
   "Too many sign-in tries. Wait 15 minutes, then try again.";
@@ -99,6 +102,10 @@ export type SchoolProfile = {
   clockSeconds: number;
   seen: SeenQuestion[];
   plan: "month" | "year" | null;
+  /** Missing or non-boolean website values stay false. */
+  officePurchased: boolean;
+  /** A single path segment, or null when the website sent nothing usable. */
+  officeSlug: string | null;
 };
 
 export type SchoolFailure = "offline" | "wait" | "unknown" | "password" | "exists" | "rejected" | "gone";
@@ -350,6 +357,28 @@ function asSeen(value: unknown): SeenQuestion[] {
   return seen.slice(0, 400);
 }
 
+const OFFICE_SLUG = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,78}[A-Za-z0-9])?$/;
+
+/** A website office slug is one path segment. Anything else is treated as missing. */
+export function officeSlugOf(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const slug = value.trim();
+  return OFFICE_SLUG.test(slug) ? slug : null;
+}
+
+/**
+ * The student office link when the website says it was purchased and names a slug.
+ * Otherwise the first-month checkout. Missing fields are not purchased.
+ */
+export function officeOffer(
+  purchased: boolean,
+  slug: string | null,
+): { kind: "office" | "package"; href: string } {
+  const safe = officeSlugOf(slug);
+  if (purchased === true && safe) return { kind: "office", href: `${SCHOOL_ORIGIN}/s/${safe}/` };
+  return { kind: "package", href: SCHOOL_FIRST_MONTH_URL };
+}
+
 function asPlan(value: unknown): "month" | "year" | null {
   const row = asRecord(value);
   const raw = typeof value === "string" ? value : String(row?.plan ?? row?.detail ?? row?.status ?? "");
@@ -399,6 +428,8 @@ export function parseSchoolProfile(body: unknown): { id: string; profile: School
       clockSeconds,
       seen: asSeen(profile.seen ?? profile.seenQuestions),
       plan,
+      officePurchased: profile.officePurchased === true,
+      officeSlug: officeSlugOf(profile.officeSlug),
     },
   };
 }

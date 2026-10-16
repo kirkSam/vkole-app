@@ -209,6 +209,8 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
     clockSeconds: body.clockSeconds,
     seen,
     plan: mirror?.plan ?? null,
+    officePurchased: mirror?.officePurchased === true,
+    officeSlug: mirror?.officeSlug ?? null,
   };
   await saveSchoolMirror(sql, userId, next, true);
 }

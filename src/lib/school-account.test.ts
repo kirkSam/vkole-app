@@ -9,12 +9,14 @@ import {
   decideStudent,
   failureKind,
   isFreshSchoolProfile,
+  officeOffer,
   parseSchoolProfile,
   resetCode,
   schoolWriteBody,
 } from "./school-account.ts";
 import {
   SchoolCallError,
+  confirmSchoolReset,
   readSchoolAccount,
   registerSchoolAccount,
   requestSchoolReset,
@@ -57,6 +59,44 @@ describe("school profile", () => {
     assert.equal(parsed?.profile.clockSeconds, 120);
     assert.equal(parsed?.profile.plan, "year");
     assert.equal(parsed?.profile.seen[1]?.key, "m:1:0:0");
+    assert.equal(parsed?.profile.officePurchased, false);
+    assert.equal(parsed?.profile.officeSlug, null);
+  });
+
+  it("reads a purchased office and treats missing or unsafe fields as not purchased", () => {
+    const open = parseSchoolProfile({
+      ok: true,
+      id: "ada@school.test",
+      profile: { officePurchased: true, officeSlug: "ada-l" },
+    });
+    assert.equal(open?.profile.officePurchased, true);
+    assert.equal(open?.profile.officeSlug, "ada-l");
+    assert.deepEqual(officeOffer(true, "ada-l"), {
+      kind: "office",
+      href: "https://www.dotheimpossible.ai/s/ada-l/",
+    });
+    const missing = parseSchoolProfile({ ok: true, id: "a@b.co", profile: {} });
+    assert.equal(missing?.profile.officePurchased, false);
+    assert.equal(missing?.profile.officeSlug, null);
+    assert.deepEqual(officeOffer(false, null), {
+      kind: "package",
+      href: "https://www.dotheimpossible.ai/pay/checkout?item=first-month",
+    });
+    const unsafe = parseSchoolProfile({
+      ok: true,
+      id: "a@b.co",
+      profile: { officePurchased: true, officeSlug: "../admin" },
+    });
+    assert.equal(unsafe?.profile.officePurchased, true);
+    assert.equal(unsafe?.profile.officeSlug, null);
+    assert.equal(officeOffer(true, unsafe?.profile.officeSlug ?? null).kind, "package");
+    assert.equal(officeOffer(false, "ada-l").kind, "package");
+    const word = parseSchoolProfile({
+      ok: true,
+      id: "a@b.co",
+      profile: { officePurchased: "true", officeSlug: null },
+    });
+    assert.equal(word?.profile.officePurchased, false);
   });
 
   it("stays closed when access is missing and there is no paid plan", () => {
@@ -123,6 +163,8 @@ const freshProfile = {
   clockSeconds: 0,
   seen: [],
   plan: null,
+  officePurchased: false,
+  officeSlug: null,
 };
 
 describe("student check", () => {
@@ -316,5 +358,35 @@ describe("server calls", () => {
     });
     assert.equal(reset.code, "654321");
     assert.equal(JSON.stringify(reset).includes(SECRET), false);
+  });
+
+  it("confirms a password reset with the website sentence when the code is refused", async () => {
+    let body: unknown = null;
+    await confirmSchoolReset(
+      { email: "Ada@School.test", code: " 123456 ", newPassword: "long-enough" },
+      {
+        secret: SECRET,
+        fetch: async (input, init) => {
+          assert.equal(input, "https://www.dotheimpossible.ai/api/vkole/password-reset/confirm");
+          const headers = new Headers(init?.headers);
+          assert.equal(headers.get("x-vkole-secret"), SECRET);
+          assert.equal(headers.get("origin"), null);
+          body = JSON.parse(String(init?.body));
+          return jsonResponse(200, { ok: true });
+        },
+      },
+    );
+    assert.deepEqual(body, { email: "ada@school.test", code: "123456", newPassword: "long-enough" });
+    await assert.rejects(
+      () =>
+        confirmSchoolReset(
+          { email: "a@b.co", code: "000000", newPassword: "long-enough" },
+          {
+            secret: SECRET,
+            fetch: async () => jsonResponse(400, { ok: false, error: "That code has expired." }),
+          },
+        ),
+      (err: unknown) => err instanceof SchoolCallError && err.message === "That code has expired.",
+    );
   });
 });

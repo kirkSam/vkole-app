@@ -10,6 +10,8 @@ export type SchoolMirror = {
   plan: "month" | "year" | null;
   level: Partial<Record<EngineId, EngineLevel>>;
   lastPushAt: string | null;
+  officePurchased: boolean;
+  officeSlug: string | null;
 };
 
 type MirrorRow = {
@@ -20,6 +22,8 @@ type MirrorRow = {
   plan: string | null;
   levels: string | null;
   last_push_at: unknown;
+  office_purchased: boolean | number | string | null;
+  office_slug: string | null;
 };
 
 export async function ensureSchoolMirror(sql: Sql): Promise<void> {
@@ -36,6 +40,8 @@ export async function ensureSchoolMirror(sql: Sql): Promise<void> {
       updated_at timestamptz not null default now()
     )
   `;
+  await sql`alter table school_mirror add column if not exists office_purchased boolean not null default false`;
+  await sql`alter table school_mirror add column if not exists office_slug text`;
 }
 
 function parseLevels(raw: string | null): Partial<Record<EngineId, EngineLevel>> {
@@ -56,7 +62,8 @@ function parseLevels(raw: string | null): Partial<Record<EngineId, EngineLevel>>
 export async function readSchoolMirror(sql: Sql, userId: string): Promise<SchoolMirror | null> {
   await ensureSchoolMirror(sql);
   const rows = await sql<MirrorRow>`
-    select access, free_week_start, clock_seconds, student_name, plan, levels, last_push_at
+    select access, free_week_start, clock_seconds, student_name, plan, levels, last_push_at,
+      office_purchased, office_slug
     from school_mirror
     where user_id = ${userId}
   `;
@@ -71,6 +78,8 @@ export async function readSchoolMirror(sql: Sql, userId: string): Promise<School
     plan,
     level: parseLevels(row.levels),
     lastPushAt: row.last_push_at ? new Date(String(row.last_push_at)).toISOString() : null,
+    officePurchased: row.office_purchased === true || row.office_purchased === 1 || row.office_purchased === "1" || row.office_purchased === "t",
+    officeSlug: typeof row.office_slug === "string" && row.office_slug.trim() ? row.office_slug.trim() : null,
   };
 }
 
@@ -78,7 +87,8 @@ export async function saveSchoolMirror(sql: Sql, userId: string, profile: School
   await ensureSchoolMirror(sql);
   await sql`
     insert into school_mirror (
-      user_id, access, free_week_start, clock_seconds, student_name, plan, levels, last_push_at, updated_at
+      user_id, access, free_week_start, clock_seconds, student_name, plan, levels, last_push_at,
+      office_purchased, office_slug, updated_at
     )
     values (
       ${userId},
@@ -89,6 +99,8 @@ export async function saveSchoolMirror(sql: Sql, userId: string, profile: School
       ${profile.plan},
       ${JSON.stringify(profile.level)},
       ${pushed ? new Date().toISOString() : null},
+      ${profile.officePurchased === true},
+      ${profile.officeSlug},
       now()
     )
     on conflict (user_id) do update
@@ -99,6 +111,8 @@ export async function saveSchoolMirror(sql: Sql, userId: string, profile: School
         plan = excluded.plan,
         levels = excluded.levels,
         last_push_at = case when ${pushed} then now() else school_mirror.last_push_at end,
+        office_purchased = excluded.office_purchased,
+        office_slug = excluded.office_slug,
         updated_at = now()
   `;
 }
