@@ -6,6 +6,7 @@ import {
   SCHOOL_LEGACY_MESSAGE,
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_WAIT_MESSAGE,
+  isFreshSchoolProfile,
   type SchoolFailure,
 } from "@/lib/school-account";
 
@@ -43,6 +44,11 @@ export const schoolSignUp = createServerFn({ method: "POST" })
     const { openSchoolSession } = await import("./school-session.server");
     try {
       const account = await registerSchoolAccount(data);
+      if (isFreshSchoolProfile(account.profile)) {
+        const { forgetLocalAccount } = await import("./account-purge.server");
+        const { getSql } = await import("./db");
+        await forgetLocalAccount(await getSql(), account.id);
+      }
       await openSchoolSession(account.id, data.name);
       return { ok: true };
     } catch (err) {
@@ -63,6 +69,11 @@ export const schoolSignIn = createServerFn({ method: "POST" })
     const { localEmailExists, openSchoolSession } = await import("./school-session.server");
     try {
       const account = await signInSchoolAccount({ email: data.email, password: data.password });
+      if (isFreshSchoolProfile(account.profile)) {
+        const { forgetLocalAccount } = await import("./account-purge.server");
+        const { getSql } = await import("./db");
+        await forgetLocalAccount(await getSql(), account.id);
+      }
       await openSchoolSession(account.id, account.profile.studentName || "Parent");
       return { ok: true };
     } catch (err) {

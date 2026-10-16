@@ -403,13 +403,58 @@ export function parseSchoolProfile(body: unknown): { id: string; profile: School
   };
 }
 
+/**
+ * A brand-new website account has an empty student name and no engines.
+ * Local climbs and login rows are not part of that check.
+ */
+export function isFreshSchoolProfile(profile: Pick<SchoolProfile, "studentName" | "level">): boolean {
+  return profile.studentName.trim().length === 0 && Object.keys(profile.level).length === 0;
+}
+
+/**
+ * Website sentences that belong on the screen as themselves.
+ * None of them means a second student.
+ */
+export const WEBSITE_ERRORS_NOT_EXTRA = [
+  "Add the student before saving a level.",
+  "That level could not be saved.",
+  "An account already exists for that email. Sign in with it.",
+] as const;
+
+/** The text the website sent, when it sent one. */
+export function websiteErrorText(body: unknown): string {
+  const row = asRecord(body);
+  if (!row) return "";
+  const raw = typeof row.error === "string" ? row.error : typeof row.message === "string" ? row.message : "";
+  return raw.trim();
+}
+
+/**
+ * `new` when the website has no student yet. `extra` only when that student
+ * is a different first name. `same` when the typed name is that student.
+ * The parent name, the email, and any local child are not inputs.
+ */
+export function decideStudent(studentName: string | null | undefined, typedFirstName: string): "new" | "extra" | "same" {
+  const enrolled = (studentName ?? "").trim();
+  if (!enrolled) return "new";
+  if (enrolled.toLowerCase() === typedFirstName.trim().toLowerCase()) return "same";
+  return "extra";
+}
+
 export function schoolWriteBody(
   id: string,
   level: Partial<Record<EngineId, EngineLevel>>,
   localClock: number,
   remoteClock: number,
   seen: SeenQuestion[],
-): { id: string; level: Partial<Record<EngineId, EngineLevel>>; clockSeconds: number; seen: SeenQuestion[] } {
+  studentName = "",
+): {
+  id: string;
+  level: Partial<Record<EngineId, EngineLevel>>;
+  clockSeconds: number;
+  seen: SeenQuestion[];
+  student?: { name: string };
+} {
   const unique: SeenQuestion[] = [];
   const keys = new Set<string>();
   for (const item of seen) {
@@ -420,11 +465,13 @@ export function schoolWriteBody(
     unique.push({ key, text: text || key });
     if (unique.length >= 400) break;
   }
+  const name = studentName.trim();
   return {
     id,
     level,
     clockSeconds: clockToWrite(localClock, remoteClock),
     seen: unique,
+    ...(name ? { student: { name } } : {}),
   };
 }
 

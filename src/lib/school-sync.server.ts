@@ -6,6 +6,7 @@ import {
   SCHOOL_LEGACY_MESSAGE,
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_SEPARATE_MESSAGE,
+  isFreshSchoolProfile,
   schoolWriteBody,
   sgAccountLevel,
   type EngineId,
@@ -23,16 +24,9 @@ function rowTime(value: unknown): string {
   return String(value ?? "");
 }
 
-async function childName(sql: Sql, userId: string, fallback: string): Promise<string> {
-  const rows = await sql<{ child_name: string }>`
-    select child_name from climbs where user_id = ${userId} order by created_at asc limit 1
-  `;
-  return rows[0]?.child_name?.trim() || fallback.trim() || "student";
-}
-
 async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): Promise<void> {
   const mirror = await readSchoolMirror(sql, userId);
-  const name = await childName(sql, userId, profile.studentName || mirror?.studentName || "");
+  const name = profile.studentName.trim() || "student";
   const key = name.toLowerCase();
   if (profile.freeWeekStart) {
     await sql`
@@ -184,6 +178,10 @@ async function collectSeen(sql: Sql, userId: string): Promise<Array<{ key: strin
 
 export async function pullSchoolAccount(sql: Sql, userId: string): Promise<SchoolProfile> {
   const profile = await readSchoolAccount(userId);
+  if (isFreshSchoolProfile(profile)) {
+    const { clearFreshLocalRows } = await import("./account-purge.server");
+    await clearFreshLocalRows(sql, userId);
+  }
   await applyProfile(sql, userId, profile);
   return profile;
 }
@@ -194,11 +192,18 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
   const level = await collectLevel(sql, userId, remoteLevel);
   const localClock = await collectClock(sql, userId);
   const seen = await collectSeen(sql, userId);
-  const body = schoolWriteBody(userId, level, localClock, mirror?.clockSeconds ?? 0, seen);
+  const named = await sql<{ child_name: string }>`
+    select child_name from climbs
+    where user_id = ${userId} and child_name is not null and trim(child_name) <> ''
+    order by created_at asc
+    limit 1
+  `;
+  const studentName = (mirror?.studentName || named[0]?.child_name || "").trim();
+  const body = schoolWriteBody(userId, level, localClock, mirror?.clockSeconds ?? 0, seen, studentName);
   await writeSchoolAccount(body);
   const next: SchoolProfile = {
     access: mirror?.access ?? "closed",
-    studentName: mirror?.studentName ?? "",
+    studentName: studentName || mirror?.studentName || "",
     level,
     freeWeekStart: mirror?.freeWeekStart ?? null,
     clockSeconds: body.clockSeconds,
