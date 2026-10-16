@@ -4,7 +4,7 @@ import { beginSharedTrial } from "@/lib/climbs";
 import { SCHOOL_ENGINE_URL } from "@/lib/school-account";
 
 const LEAD =
-  "What if you and your child could access a \"State of the Art\" learning engine, VKOLE/ZPD - the Space x.AI Integrated Learning Engine? It is developed in conjunction with Space x.AI and a team of educators dedicated to bringing applied Superintelligence to parents at an affordable cost. Additionally, what if your educational agent stored your child's levels, and gave you control of your child's levels to send you a private email report of your child's progress and achievements?";
+  "What if you and your child could access a \"State of the Art\" learning engine, VKOLE/ZPD - the Space XSI Integrated Learning Engine? It is developed in conjunction with Space XSI and a team of educators dedicated to bringing applied Superintelligence to parents at an affordable cost. Additionally, what if your educational agent stored your child's levels, and gave you control of your child's levels to send you a private email report of your child's progress and achievements?";
 const CAN = "YOU CAN.";
 const PRICE = "FREE for a week, $79.00 USD + tax per YEAR or $9.00 USD + tax per month.";
 const SPOKEN = `${LEAD} ${CAN} ${PRICE}`;

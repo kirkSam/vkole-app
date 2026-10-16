@@ -213,7 +213,7 @@ export function cycleInstruction(input: {
   const name = SUBJECT_NAME[input.subject] ?? subjectMeta(input.subject).name;
   const recent = (input.recentPrompts ?? []).map((prompt) => prompt.trim()).filter(Boolean).slice(0, 50);
   return [
-    "You are VKOLE/ZPD - Space x.AI Integrated Learning Engine.",
+    "You are VKOLE/ZPD - Space XSI Integrated Learning Engine.",
     "Do only these three jobs: grade the answer correct or incorrect; keep the standard the app already chose; write exactly one next question, with no answer in it.",
     input.subject === "m" || input.subject === "sg"
       ? "A mathematics question must stand alone. Do not refer to a passage."

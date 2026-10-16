@@ -57,10 +57,10 @@ export const requestPasswordReset = createServerFn({ method: "POST" })
       values (${crypto.randomUUID()}, ${ident}, ${code}, ${expires}, now(), now())
     `;
     const body = accounts[0]
-      ? `Your VKOLE/ZPD - Space x.AI Integrated Learning Engine password code is ${code}. It expires in 30 minutes. If you did not ask for this, ignore this email.`
-      : "This VKOLE/ZPD - Space x.AI Integrated Learning Engine account signs in with Google or X, not a password. Use those buttons on the sign-in page.";
+      ? `Your VKOLE/ZPD - Space XSI Integrated Learning Engine password code is ${code}. It expires in 30 minutes. If you did not ask for this, ignore this email.`
+      : "This VKOLE/ZPD - Space XSI Integrated Learning Engine account signs in with Google or X, not a password. Use those buttons on the sign-in page.";
     try {
-      await sendMail(user.email, "VKOLE/ZPD - Space x.AI Integrated Learning Engine password code", body);
+      await sendMail(user.email, "VKOLE/ZPD - Space XSI Integrated Learning Engine password code", body);
       return { ok: true as const, delivered: true, code: "" };
     } catch {
       return { ok: true as const, delivered: false, code: accounts[0] ? code : "" };
@@ -114,8 +114,8 @@ export const requestUsernameReminder = createServerFn({ method: "POST" })
       try {
         await sendMail(
           user.email,
-          "VKOLE/ZPD - Space x.AI Integrated Learning Engine sign-in email",
-          `Your sign-in email for VKOLE/ZPD - Space x.AI Integrated Learning Engine is ${user.email}. The username is that email address.`,
+          "VKOLE/ZPD - Space XSI Integrated Learning Engine sign-in email",
+          `Your sign-in email for VKOLE/ZPD - Space XSI Integrated Learning Engine is ${user.email}. The username is that email address.`,
         );
         sent.push(user.email);
       } catch {
