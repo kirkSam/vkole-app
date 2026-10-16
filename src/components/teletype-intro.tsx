@@ -9,6 +9,11 @@ const CAN = "YOU CAN.";
 const PRICE = "FREE for a week, $79.00 USD + tax per YEAR or $9.00 USD + tax per month.";
 const SPOKEN = `${LEAD} ${CAN} ${PRICE}`;
 
+/** Same milliseconds as the school site discover ticker: 1.5× its previous 39, 480, and 340. */
+const CHAR_MS = 58.5;
+const AFTER_LEAD_MS = 720;
+const AFTER_CAN_MS = 510;
+
 type Phase = "lead" | "can" | "price" | "done";
 
 export function TeletypeIntro({
@@ -53,13 +58,17 @@ export function TeletypeIntro({
       for (let i = 1; i <= text.length; i += 1) {
         if (cancelled) return;
         write(text.slice(0, i));
-        await wait(39);
+        await wait(CHAR_MS);
       }
     };
     void (async () => {
       await type(LEAD, setLead, "lead");
       if (cancelled) return;
+      await wait(AFTER_LEAD_MS);
+      if (cancelled) return;
       await type(CAN, setCan, "can");
+      if (cancelled) return;
+      await wait(AFTER_CAN_MS);
       if (cancelled) return;
       await type(PRICE, setPrice, "price");
       if (!cancelled) setPhase("done");
