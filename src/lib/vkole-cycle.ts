@@ -1,6 +1,7 @@
 import { subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { capVkoleGrade, moveVkoleRung } from "@/lib/vkole-cap";
 import { poolCount, poolQuestion } from "@/lib/question-pool";
+import { studentFacingReply } from "@/lib/space-xsi";
 
 const SUBJECT_NAME: Record<SubjectId, string> = {
   m: "Mathematics",
@@ -79,14 +80,7 @@ export function childFeedback(text: string): string {
 }
 
 export function childText(text: string, keepBreaks: boolean): string {
-  const cleaned = text
-    .replace(/grok[-.\w]*/gi, "")
-    .replace(/\bchatbots?\b/gi, "")
-    .replace(/\bmodels?\b/gi, "");
-  if (!keepBreaks) {
-    return cleaned.replace(/\s{2,}/g, " ").replace(/\s+([.?!])/g, "$1").trim();
-  }
-  return cleaned.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  return studentFacingReply(text, keepBreaks);
 }
 
 function parseJsonObject(text: string): unknown {
