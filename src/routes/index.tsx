@@ -8,7 +8,7 @@ import { TrialFinished, type EndedReason, type StoppedBecause } from "@/componen
 import { SchoolAccountScreen } from "@/components/school-account-screen";
 import { StudentOffice } from "@/components/student-office";
 import { schoolScreen, SCHOOL_ENGINE_URL } from "@/lib/school-account";
-import { PageSkeleton, Shell } from "@/components/shell";
+import { EnginePicks, PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
 import { SUBJECTS, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { singaporePlace } from "@/lib/vkole-singapore";
@@ -53,6 +53,8 @@ function Home() {
     } catch {
       /* storage may be unavailable */
     }
+    const engineId = window.location.hash.replace(/^#engine-/, "");
+    if (SUBJECTS.some((subject) => subject.id === engineId)) setStage("app");
     const params = new URLSearchParams(window.location.search);
     if (params.get("open") === "1") {
       params.delete("open");
@@ -75,6 +77,13 @@ function Home() {
     touring.current = true;
     setStage("app");
   }, []);
+
+  useEffect(() => {
+    if (stage !== "app") return;
+    const engineId = window.location.hash.replace(/^#engine-/, "");
+    if (!SUBJECTS.some((subject) => subject.id === engineId)) return;
+    document.getElementById(`engine-${engineId}`)?.scrollIntoView({ block: "start" });
+  }, [stage, user]);
 
   useEffect(() => {
     if (isPending || !user || accountGone) return;
@@ -441,6 +450,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       {mailNote ? <p className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-ink">{mailNote}</p> : null}
       {loadError ? <p className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-miss">{loadError}</p> : null}
       <SchoolPath className="mt-6" />
+      <EnginePicks />
       <div className="mt-3 grid gap-4">
         {SUBJECTS.map((subject) => (
           <AppGate
@@ -550,7 +560,7 @@ function AppGate({
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-line bg-surface p-5">
+    <form id={`engine-${subject}`} onSubmit={submit} className="scroll-mt-6 rounded-2xl border border-line bg-surface p-5">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="font-display text-2xl text-ink">VKOLE/{meta.code}</h2>
         <span className="text-sm text-muted">

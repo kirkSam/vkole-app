@@ -3,7 +3,7 @@ import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-ro
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { APP_NAME } from "@/lib/brand";
 import { TrialFinished } from "@/components/trial-finished";
-import { PageSkeleton, Shell } from "@/components/shell";
+import { EngineRail, PageSkeleton, Shell } from "@/components/shell";
 import { endReasonSentence, formatOnline, IDLE_MS, type EndReason } from "@/lib/academic-email";
 import { GRADES, levelLabel, subjectMeta } from "@/lib/climb-rules";
 import { stepName } from "@/lib/cc-steps";
@@ -403,6 +403,7 @@ function SessionPage() {
           </Link>
         </div>
       </div>
+      <EngineRail current={climb.subject} />
       <div className="mt-4 flex gap-1" aria-hidden="true">
         {GRADES.map((grade, index) => (
           <span key={grade} className={index <= Math.min(climb.level, 12) ? "h-2 flex-1 rounded-full bg-accent" : "h-2 flex-1 rounded-full bg-line"} />

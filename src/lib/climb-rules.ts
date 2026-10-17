@@ -64,6 +64,34 @@ export function subjectMeta(id: SubjectId) {
   return found;
 }
 
+/** Website nav button. Singapore and Sight Words have no slash. */
+const ENGINE_NAV_LABEL: Record<SubjectId, string> = {
+  m: "VKOLE/M ZPD",
+  ela: "VKOLE/ELA ZPD",
+  ss: "VKOLE/SS ZPD",
+  gen: "VKOLE/gen ZPD",
+  sg: "VKOLE Singapore ZPD",
+  sw: "VKOLE Sight Words ZPD",
+};
+
+/** Website engine-rail and office engine picks. Headings stay VKOLE/{code}. */
+const ENGINE_PICK_LABEL: Record<SubjectId, string> = {
+  m: "Mathematics ZPD",
+  ela: "English Language Arts ZPD",
+  ss: "Social Studies ZPD",
+  gen: "General ZPD",
+  sg: "Singapore ZPD",
+  sw: "Sight Words ZPD",
+};
+
+export function engineNavLabel(id: SubjectId): string {
+  return ENGINE_NAV_LABEL[id];
+}
+
+export function enginePickLabel(id: SubjectId): string {
+  return ENGINE_PICK_LABEL[id];
+}
+
 export function levelLabel(level: number): string {
   if (level <= 0) return "Grade K";
   return `Grade ${Math.min(12, level)}`;
