@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { APP_NAME, SCHOOL_EMAIL, SCHOOL_SITE } from "@/lib/brand";
-import { SUBJECTS, engineNavLabel } from "@/lib/climb-rules";
+import { SUBJECTS, engineNavLabel, enginePickLabel, type SubjectId } from "@/lib/climb-rules";
 import { authClient, authEnabled, signOut } from "@/lib/auth/client";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { notifyParentSignedOut } from "@/lib/climbs";
@@ -100,7 +100,7 @@ function EngineNav() {
           href={`/#engine-${subject.id}`}
           className="vkole-nav text-left font-display text-base leading-tight tracking-wide text-ink"
         >
-          {engineNavLabel(subject.code)}
+          {engineNavLabel(subject.id)}
         </a>
       ))}
       <a
@@ -112,6 +112,35 @@ function EngineNav() {
         <span>Vygotsky ZPD</span>
         <small>Zone of Proximal Development</small>
       </a>
+    </nav>
+  );
+}
+
+export function EnginePicks() {
+  return (
+    <div className="office-engine-picks" role="group" aria-label="Engine picks">
+      {SUBJECTS.map((subject) => (
+        <a key={subject.id} href={`/#engine-${subject.id}`} className="office-engine-pick">
+          {enginePickLabel(subject.id)}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+export function EngineRail({ current }: { current: SubjectId }) {
+  return (
+    <nav className="engine-rail" aria-label="Engines">
+      {SUBJECTS.map((subject) => (
+        <a
+          key={subject.id}
+          href={`/#engine-${subject.id}`}
+          className={subject.id === current ? "is-current" : undefined}
+          aria-current={subject.id === current ? "true" : undefined}
+        >
+          {enginePickLabel(subject.id)}
+        </a>
+      ))}
     </nav>
   );
 }

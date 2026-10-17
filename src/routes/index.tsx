@@ -8,9 +8,9 @@ import { TrialFinished, type EndedReason, type StoppedBecause } from "@/componen
 import { SchoolAccountScreen } from "@/components/school-account-screen";
 import { StudentOffice } from "@/components/student-office";
 import { schoolScreen, SCHOOL_ENGINE_URL } from "@/lib/school-account";
-import { PageSkeleton, Shell } from "@/components/shell";
+import { EnginePicks, PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
-import { SUBJECTS, engineNavLabel, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
+import { SUBJECTS, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { singaporePlace } from "@/lib/vkole-singapore";
 import { stepName } from "@/lib/cc-steps";
 import { beginSharedTrial, listClimbs, setClimbLevel, type Climb } from "@/lib/climbs";
@@ -450,6 +450,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       {mailNote ? <p className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-ink">{mailNote}</p> : null}
       {loadError ? <p className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-miss">{loadError}</p> : null}
       <SchoolPath className="mt-6" />
+      <EnginePicks />
       <div className="mt-3 grid gap-4">
         {SUBJECTS.map((subject) => (
           <AppGate
@@ -561,7 +562,7 @@ function AppGate({
   return (
     <form id={`engine-${subject}`} onSubmit={submit} className="scroll-mt-6 rounded-2xl border border-line bg-surface p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="font-display text-2xl text-ink">{engineNavLabel(meta.code)}</h2>
+        <h2 className="font-display text-2xl text-ink">VKOLE/{meta.code}</h2>
         <span className="text-sm text-muted">
           {trialOver ? "7 day trial finished" : daysLeft == null ? "7 days free" : daysLeft === 0 ? "7 day trial finished" : `${daysLeft} days left`}
         </span>

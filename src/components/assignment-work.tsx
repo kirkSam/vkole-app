@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { engineNavLabel, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
+import { levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { assignmentFileName, buildAssignmentPdf } from "@/lib/assignment-pdf";
 import type { Question } from "@/lib/questions";
 
@@ -46,7 +46,7 @@ export function AssignmentWork({
 
   return (
     <section className="mt-5 rounded-2xl border border-line bg-surface p-5">
-      <p className="text-xs tracking-wide text-muted">{engineNavLabel(meta.code)}</p>
+      <p className="text-xs tracking-wide text-muted uppercase">VKOLE/{meta.code}</p>
       <h2 className="mt-1 font-display text-2xl text-ink">8-question assignment</h2>
       <p className="mt-2 text-sm text-muted">
         {childName}, {levelLabel(level)}. Work these eight items here, or download the same set as a PDF to print.
