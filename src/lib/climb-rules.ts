@@ -39,6 +39,12 @@ export const SUBJECTS = [
     name: "Sight words",
     lede: "A large word is shown. The microphone listens only while that word is on the screen, and it does not record or save the sound. A correct word gets a sparkle, then the next word. A miss is spoken aloud, then the next word.",
   },
+  {
+    id: "pa",
+    code: "PA",
+    name: "Phonemic awareness",
+    lede: "The computer speaks a prompt. The child answers out loud. The microphone listens only while that prompt is waiting for an answer, and it does not record or save the sound. Two correct answers move up one band. Two misses move down one band.",
+  },
 ] as const;
 
 export type SubjectId = (typeof SUBJECTS)[number]["id"];
@@ -64,7 +70,7 @@ export function subjectMeta(id: SubjectId) {
   return found;
 }
 
-/** Website nav button. Singapore and Sight Words have no slash. */
+/** Website nav button. Singapore and Sight Words have no slash. Phonemic awareness uses VKOLE/PA. */
 const ENGINE_NAV_LABEL: Record<SubjectId, string> = {
   m: "VKOLE/M ZPD",
   ela: "VKOLE/ELA ZPD",
@@ -72,6 +78,7 @@ const ENGINE_NAV_LABEL: Record<SubjectId, string> = {
   gen: "VKOLE/gen ZPD",
   sg: "VKOLE Singapore ZPD",
   sw: "VKOLE Sight Words ZPD",
+  pa: "VKOLE/PA ZPD",
 };
 
 /** Website engine-rail and office engine picks. Headings stay VKOLE/{code}. */
@@ -82,6 +89,7 @@ const ENGINE_PICK_LABEL: Record<SubjectId, string> = {
   gen: "General ZPD",
   sg: "Singapore ZPD",
   sw: "Sight Words ZPD",
+  pa: "Phonemic Awareness ZPD",
 };
 
 export function engineNavLabel(id: SubjectId): string {

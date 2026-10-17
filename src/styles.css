@@ -178,6 +178,14 @@
   }
 }
 
+.pa-box {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 2px solid var(--color-ink);
+  border-radius: 0.35rem;
+  background: var(--color-paper);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

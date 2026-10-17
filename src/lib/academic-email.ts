@@ -1,5 +1,5 @@
-import { APP_NAME, SCHOOL_EMAIL, SCHOOL_NAME } from "@/lib/brand";
-import { levelLabel, SUBJECTS, subjectMeta, type SubjectId } from "@/lib/climb-rules";
+import { APP_NAME, SCHOOL_EMAIL, SCHOOL_NAME } from "./brand.ts";
+import { levelLabel, SUBJECTS, subjectMeta, type SubjectId } from "./climb-rules.ts";
 
 export const TRIAL_DAYS = 7;
 export const TRIAL_MS = TRIAL_DAYS * 24 * 60 * 60 * 1000;
@@ -142,9 +142,12 @@ export function academicLetter(input: {
   const code = clean(input.standardCode ?? "");
   const label = clean(input.standardLabel ?? "");
   const gradeWord = input.level <= 0 ? "Grade K" : `Grade ${input.level}`;
-  const current = code
-    ? `${gradeWord}, Common Core ${code}${label ? `, ${label}` : ""}`
-    : gradeWord;
+  const current =
+    input.subject === "pa"
+      ? `${gradeWord}${label ? `, ${label}` : code ? `, ${code}` : ""}`
+      : code
+        ? `${gradeWord}, Common Core ${code}${label ? `, ${label}` : ""}`
+        : gradeWord;
   const work = input.events.slice(0, 40).map((event) => readWork(event, engine));
   const reached = work.some((item) => item.correct != null)
     ? work.filter((item) => item.correct).length
@@ -280,12 +283,17 @@ function readWork(event: ReportEvent, engine: string): WorkItem {
   };
 }
 
+function standardLine(item: WorkItem): string {
+  if (!item.code) return "";
+  return item.engine === "VKOLE/PA" ? `Band: ${item.code}` : `Common Core: ${item.code}`;
+}
+
 function workText(index: number, item: WorkItem): string {
   const title = item.correct === false ? "Not yet" : item.correct ? "Correct" : "Recorded";
   return [
     `${index}. ${title}`,
     `Engine: ${item.engine}`,
-    item.code ? `Common Core: ${item.code}` : "",
+    standardLine(item),
     item.label ? `Level: ${item.label}` : "",
     `Grade: ${item.grade}`,
     item.question ? `Question: ${item.question}` : "",
@@ -332,7 +340,9 @@ function reportHtml(input: {
           const color = missed ? "#8f2d2d" : "#2c5e4a";
           const lines = [
             item.engine ? `<div><strong>Engine:</strong> ${esc(item.engine)}</div>` : "",
-            item.code ? `<div><strong>Common Core:</strong> ${esc(item.code)}</div>` : "",
+            item.code
+              ? `<div><strong>${item.engine === "VKOLE/PA" ? "Band" : "Common Core"}:</strong> ${esc(item.code)}</div>`
+              : "",
             item.label ? `<div><strong>Level:</strong> ${esc(item.label)}</div>` : "",
             `<div><strong>Grade:</strong> ${esc(item.grade)}</div>`,
             item.question ? `<div style="margin-top:8px;"><strong>Question:</strong> ${esc(item.question)}</div>` : "",
