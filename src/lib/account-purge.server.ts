@@ -15,7 +15,8 @@ export { SCHOOL_ACCOUNT_GONE_MESSAGE };
 
 /**
  * Parent and student rows. `app_mail` is not here: it stores the operator
- * mail credential, not a parent account. `_migrations` is not here either.
+ * mail credential, not a parent account. `app_settings` holds the wipe
+ * version, not an account. `_migrations` is not here either.
  * Names are a fixed allowlist. Request input never chooses a table.
  */
 const ACCOUNT_TABLES: {

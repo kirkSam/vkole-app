@@ -39,7 +39,9 @@ export function matchingStaleKeys(keys: Iterable<string>): string[] {
 }
 
 export function expiredCookie(name: string): string {
-  return `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+  // `__Host-` cookies are only cleared by a Secure cookie with Path=/.
+  const secure = name.startsWith("__Host-") ? "; Secure" : "";
+  return `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
 }
 
 type KeyStore = {
