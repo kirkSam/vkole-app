@@ -7,6 +7,7 @@ import { isSchoolAccountId } from "@/lib/school-account";
 import { TRIAL_MS } from "@/lib/academic-email";
 import { dealQuestion } from "@/lib/question-history";
 import { isSubject, type SubjectId } from "@/lib/climb-rules";
+import { cardFromAccount as paCardFromAccount, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
 import { cardFromAccount, sightPrompt } from "@/lib/vkole/sight-words/words";
 import { localDayKey, PACIFIC, projectClock, type ClockProjection } from "@/lib/day-clock-math";
 import type { ClockFace } from "@/components/vkole-rules";
@@ -149,25 +150,36 @@ async function ensureTrial(sql: Sql, userId: string) {
 }
 
 async function seedPrompt(sql: Sql, userId: string, id: string, subject: SubjectId, grade: number, childName: string) {
-  const rows = await sql<{ current_prompt: string | null; standard_code: string | null; standard_step: number | string | null; level: number | string | null }>`
-    select current_prompt, standard_code, standard_step, level from climbs where id = ${id} and user_id = ${userId}
+  const rows = await sql<{ current_prompt: string | null; standard_code: string | null; standard_step: number | string | null; level: number | string | null; age: number | string | null }>`
+    select current_prompt, standard_code, standard_step, level, age from climbs where id = ${id} and user_id = ${userId}
   `;
   if (rows[0]?.current_prompt) return;
   const stored = rows[0];
-  const card =
-    subject === "sw"
-      ? cardFromAccount(
-          { grade: Number(stored?.level) || grade, band: stored?.standard_code, index: Number(stored?.standard_step) || 0 },
-          grade,
-        )
-      : null;
-  const item = card ? sightPrompt(card.band, card.index) : await dealQuestion(sql, userId, childName, subject, grade, 0);
+  const storedGrade = Number(stored?.level) || grade;
+  const storedAge = stored?.age == null ? null : Number(stored.age);
+  const storedIndex = Number(stored?.standard_step) || 0;
+  let stepIndex: number | null = null;
+  let item: { id: string; stem: string; answer: string; aliases: string[]; standard: string; note: string };
+  if (subject === "sw") {
+    const card = cardFromAccount({ grade: storedGrade, band: stored?.standard_code, index: storedIndex }, grade);
+    stepIndex = card.index;
+    item = sightPrompt(card.band, card.index);
+  } else if (subject === "pa") {
+    const card = paCardFromAccount(
+      { grade: storedGrade, age: storedAge, band: stored?.standard_code, index: storedIndex },
+      grade,
+    );
+    stepIndex = card.index;
+    item = paPrompt(card.band, card.index, storedGrade);
+  } else {
+    item = await dealQuestion(sql, userId, childName, subject, grade, 0);
+  }
   await sql`
     update climbs
     set start_grade = coalesce(start_grade, ${grade}),
         standard_code = ${item.standard},
         standard_label = ${item.note},
-        standard_step = coalesce(${card ? card.index : null}, standard_step),
+        standard_step = coalesce(${stepIndex}, standard_step),
         current_prompt = ${item.stem},
         answer_key = ${item.answer},
         answer_aliases = ${JSON.stringify(item.aliases)},
@@ -185,7 +197,7 @@ export async function disarmStudentClock(sql: Sql, userId: string, climbId: stri
 }
 
 const enterSchema = z.object({
-  subject: z.enum(["m", "ela", "ss", "gen", "sg", "sw"]),
+  subject: z.enum(["m", "ela", "ss", "gen", "sg", "sw", "pa"]),
   firstName: z.string().trim().min(1).max(40),
   age: z.number().int().min(4).max(18).optional(),
   grade: z.number().int().min(1).max(12).optional(),
@@ -248,13 +260,23 @@ export const enterEngine = createServerFn({ method: "POST" })
       }
       id = crypto.randomUUID();
       const sight = data.subject === "sw" ? cardFromAccount(siteLevel ?? { grade }, grade) : null;
+      const phonemic =
+        data.subject === "pa"
+          ? paCardFromAccount({ ...(siteLevel ?? {}), grade, age: data.age }, grade)
+          : null;
       if (sight) {
         grade = sight.grade;
         step = sight.index;
       }
+      if (phonemic) {
+        grade = Math.min(12, Math.max(1, Math.round(phonemic.grade) || grade));
+        step = phonemic.index;
+      }
       const item = sight
         ? sightPrompt(sight.band, sight.index)
-        : await dealQuestion(sql, context.userId, data.firstName.trim(), data.subject, grade, step);
+        : phonemic
+          ? paPrompt(phonemic.band, phonemic.index, grade)
+          : await dealQuestion(sql, context.userId, data.firstName.trim(), data.subject, grade, step);
       level = grade;
       await sql`alter table climbs add column if not exists registration_email text`;
       const prior = await sql<{ email: string | null }>`

@@ -103,6 +103,10 @@ export async function dealQuestion(
     const { sightPrompt } = await import("./vkole/sight-words/words.ts");
     return sightPrompt(startBandForGrade(grade), Math.max(0, Math.round(step) || 0));
   }
+  if (subject === "pa") {
+    const { paPrompt, startBand } = await import("./vkole/phonemic-awareness/items.ts");
+    return paPrompt(startBand({ grade }), Math.max(0, Math.round(step) || 0), grade);
+  }
   await ensureQuestionMemory(sql);
   const level = Math.min(12, Math.max(1, Math.round(grade)));
   const rung = Math.min(2, Math.max(0, Math.round(step)));

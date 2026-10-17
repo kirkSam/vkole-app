@@ -10,6 +10,7 @@
 import { normalizeAccountEmail } from "./account-scope.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, startBandForGrade, type SightBand } from "./vkole/constants.ts";
+import { cardFromAccount as paCardFromAccount, isPaBand, paCard, type PaBand } from "./vkole/phonemic-awareness/items.ts";
 import { sightCard } from "./vkole/sight-words/words.ts";
 
 /**
@@ -134,7 +135,7 @@ export const SCHOOL_ACCOUNT_GONE_MESSAGE =
 
 export const CLOCK_LIMIT_SECONDS = 9000;
 
-export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg", "sw"] as const;
+export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg", "sw", "pa"] as const;
 export type EngineId = (typeof ENGINE_IDS)[number];
 
 /** Website tally. `asked` is stored first. `correct` is never above `asked`. Asked 0 is omitted. */
@@ -192,7 +193,7 @@ export type EngineLevel = {
   levelLabel?: string;
   pending?: SgPending;
   mastery?: LevelMastery;
-  /** Sight words. `index` is the word in `band`. `step` stays 0. */
+  /** Sight words and phonemic awareness. `index` is the item in `band`. `step` stays 0. */
   band?: string;
   index?: number;
   word?: string;
@@ -401,7 +402,69 @@ function copyText(row: Record<string, unknown>, key: string): string | undefined
   return typeof row[key] === "string" && row[key] !== "" ? String(row[key]) : undefined;
 }
 
+function savedPaBand(row: Record<string, unknown>): PaBand | undefined {
+  const nested = asRecord(row.pa);
+  const candidates = [row.band, nested?.band, row.levelCode, nested?.levelCode];
+  for (const value of candidates) {
+    if (typeof value === "string" && isPaBand(value)) return value;
+  }
+  return undefined;
+}
+
+function asPaLevel(row: Record<string, unknown>, level: EngineLevel): EngineLevel {
+  const rounded = Math.round(level.grade);
+  level.grade = Number.isFinite(rounded) ? rounded : 0;
+  const nested = asRecord(row.pa);
+  const saved = savedPaBand(row);
+  const age = wholeNumber(row.age) ?? (nested ? wholeNumber(nested.age) : null);
+  const band = saved ?? paCardFromAccount({ grade: Number.isFinite(rounded) ? rounded : Number.NaN, age }, level.grade).band;
+  let index = saved ? (asIndex(row.index) ?? (nested ? asIndex(nested.index) : undefined) ?? 0) : 0;
+  const storedWord = copyText(row, "word") ?? (nested ? copyText(nested, "word") : undefined);
+  if (saved && asIndex(row.index) == null && !(nested && asIndex(nested.index) != null) && storedWord) {
+    const found = paCardFromAccount({ grade: level.grade, band, word: storedWord }, level.grade);
+    if (found.id === storedWord) index = found.index;
+  }
+  const card = paCard(band, index, level.grade);
+  level.step = 0;
+  level.band = card.band;
+  level.index = card.index;
+  level.word = storedWord || card.id;
+  const id = copyText(row, "id");
+  const name = copyText(row, "name");
+  const enteredBy = copyText(row, "enteredBy");
+  const levelCode = copyText(row, "levelCode") ?? (nested ? copyText(nested, "levelCode") : undefined);
+  const levelLabel = copyText(row, "levelLabel") ?? (nested ? copyText(nested, "levelLabel") : undefined);
+  if (id) level.id = id;
+  if (name) level.name = name;
+  if (enteredBy) level.enteredBy = enteredBy;
+  const earnedGrade = wholeNumber(row.earnedGrade);
+  const reached = wholeNumber(row.reached);
+  const missed = wholeNumber(row.missed);
+  const updatedAt = wholeNumber(row.updatedAt);
+  const startingGrade = wholeNumber(row.startingGrade);
+  const streak = wholeNumber(row.streak);
+  const missStreak = wholeNumber(row.missStreak);
+  if (earnedGrade != null) level.earnedGrade = earnedGrade;
+  if (reached != null) level.reached = reached;
+  if (missed != null) level.missed = missed;
+  if (updatedAt != null) level.updatedAt = updatedAt;
+  if (startingGrade != null) level.startingGrade = startingGrade;
+  if (streak != null) level.streak = streak;
+  if (missStreak != null) level.missStreak = missStreak;
+  level.levelCode = levelCode || card.band;
+  level.levelLabel = levelLabel || card.label;
+  return level;
+}
+
 function asLevel(value: unknown, engine: EngineId): EngineLevel | null {
+  if (engine === "pa") {
+    if (typeof value === "number") return asPaLevel({}, { grade: value, step: 0 });
+    const row = asRecord(value);
+    if (!row) return null;
+    const raw = row.grade ?? row.level;
+    const grade = raw == null || raw === "" ? Number.NaN : Number(raw);
+    return asPaLevel(row, { grade, step: 0 });
+  }
   if (engine === "sw") {
     if (typeof value === "number") return asSightLevel({}, { grade: value, step: 0 });
     const row = asRecord(value);

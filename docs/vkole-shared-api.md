@@ -25,7 +25,7 @@ A write replaces each engine object that is sent. Engines that are omitted are n
 
 ## Engine keys
 
-`m`, `ela`, `ss`, `gen`, `sg`, `sw`.
+`m`, `ela`, `ss`, `gen`, `sg`, `sw`, `pa`.
 
 `m`, `ela`, `ss`, and `gen` store `{ "grade": 1-12, "step": 0|1|2 }`.
 
@@ -106,3 +106,62 @@ The last band repeats from its first word.
 A correct spoken word and a miss both move to the next word. There is no retry. No answer for 20 seconds is a miss. The next word waits 2 seconds, or 2 seconds after the device finishes speaking the missed word.
 
 The microphone listens only while a word is on the screen. Audio is not recorded and is not saved.
+
+## level.pa
+
+Phonemic awareness. The key is `pa`. The prompts, answers, `also` lists, phoneme sounds, and Elkonin box counts are in `src/lib/vkole/phonemic-awareness/data.json`, copied byte for byte from `docs/phonemic-awareness-website-canonical.json`.
+
+```json
+{
+  "id": "pa-ada",
+  "name": "Ada",
+  "enteredBy": "parent",
+  "grade": 1,
+  "step": 0,
+  "band": "WA",
+  "index": 0,
+  "word": "wa-cat-sat",
+  "streak": 0,
+  "missStreak": 0,
+  "earnedGrade": 1,
+  "reached": 0,
+  "missed": 0,
+  "updatedAt": 0,
+  "startingGrade": 1,
+  "levelCode": "WA",
+  "levelLabel": "Pre-K"
+}
+```
+
+`band` is the list. `index` is the item in that list. `step` stays 0. `word` is the item id. `streak` and `missStreak` are the running counts toward a band change. The grade number stays when the band changes.
+
+### Bands
+
+`WA`, `RH`, `SY`, `OR`, `IS`, `BL`, `PS`, `PD`. Each band has 8 items.
+
+| Band | Name | Grade label |
+|---|---|---|
+| WA | Word awareness | Pre-K |
+| RH | Rhyme recognition and production | K |
+| SY | Syllable counting and blending | K |
+| OR | Onset-rime | K |
+| IS | First and final sound isolation | 1st |
+| BL | Phoneme blending | 1st |
+| PS | Phoneme segmentation | 1st |
+| PD | Phoneme deletion and substitution | 2nd |
+
+### Where a student starts
+
+Age 4 and age 5 win over the grade. A saved `band`, or a `levelCode` that is a band id, wins over both.
+
+| Placement | Starts on |
+|---|---|
+| age 4 | WA |
+| age 5 | RH |
+| grade 1 | IS |
+| grade 2 and above | PD |
+
+Two correct answers in a row move up one band. Two misses in a row move down one band. The first band does not move down. The last band does not move up. A miss or 20 seconds of silence speaks the `model` line, waits 2 seconds, and moves on. A correct answer is silent, then the next item after 2 seconds.
+
+The microphone listens only while a prompt is waiting for an answer. Audio is not recorded and is not saved. The adult buttons are “They said it right” and “Not yet”.
+

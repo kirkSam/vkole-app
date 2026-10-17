@@ -12,6 +12,7 @@ import {
   beginSitting,
   endChildSession,
   getClimb,
+  markPhonemic,
   markSightWord,
   recordAnswer,
   revealNextQuestion,
@@ -25,6 +26,8 @@ import { GRADING_PAUSE_MESSAGE, NO_REPLY_MESSAGE } from "@/lib/grading-pause";
 import { showAsSpaceXsi } from "@/lib/space-xsi";
 import { VKOLE_MOVEMENT } from "@/lib/vkole-cap";
 import { SIGHT_WORD_NOTE } from "@/lib/vkole/constants";
+import { PA_NOTE } from "@/lib/vkole/phonemic-awareness/items";
+import { PhonemicStage } from "@/components/phonemic-stage";
 import { SightWordStage } from "@/components/sight-word-stage";
 import { SG_STAGE_NOTE, sgCodeLabel, singaporePlace } from "@/lib/vkole-singapore";
 import { SgFigure, splitFigures } from "@/components/sg-figure";
@@ -104,6 +107,7 @@ function SessionPage() {
   const [levelPassword, setLevelPassword] = useState("");
   const [studentPassword, setStudentPassword] = useState("");
   const [sightRound, setSightRound] = useState(0);
+  const [paRound, setPaRound] = useState(0);
   const finishRef = useRef<(reason: EndReason) => void>(() => {});
 
   const userId = user?.id;
@@ -411,7 +415,7 @@ function SessionPage() {
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted">
         <span className="rounded-full border border-line bg-surface px-3 py-1">
-          Level <strong className="font-semibold text-ink">{climb.subject === "sw" ? `${levelLabel(climb.level)} · ${climb.standardLabel || climb.standardCode}` : climb.subject === "sg" ? `${singaporePlace(climb.level).short} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3` : `${levelLabel(climb.level)} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3`}</strong>
+          Level <strong className="font-semibold text-ink">{climb.subject === "sw" || climb.subject === "pa" ? `${levelLabel(climb.level)} · ${climb.standardLabel || climb.standardCode}` : climb.subject === "sg" ? `${singaporePlace(climb.level).short} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3` : `${levelLabel(climb.level)} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3`}</strong>
         </span>
         {climb.subject === "sw" ? null : (
           <span className="rounded-full border border-line bg-surface px-3 py-1">
@@ -440,7 +444,7 @@ function SessionPage() {
           </span>
         ) : null}
       </div>
-      <p className="mt-3 text-sm text-muted">{climb.subject === "sw" ? SIGHT_WORD_NOTE : VKOLE_MOVEMENT}</p>
+      <p className="mt-3 text-sm text-muted">{climb.subject === "sw" ? SIGHT_WORD_NOTE : climb.subject === "pa" ? PA_NOTE : VKOLE_MOVEMENT}</p>
       {climb.subject === "sg" ? <p className="mt-2 text-sm text-muted">{SG_STAGE_NOTE}</p> : null}
       <SchoolPath />
       {!closure && clock?.closed ? (
@@ -544,6 +548,24 @@ function SessionPage() {
                 .finally(() => setPendingAnswer(false));
             }}
           />
+        ) : climb.subject === "pa" ? (
+          <PhonemicStage
+            key={`${climb.standardCode}:${climb.standardStep}:${paRound}`}
+            band={climb.standardCode}
+            index={climb.standardStep}
+            onDone={(outcome) => {
+              if (pendingAnswer) return;
+              setPendingAnswer(true);
+              setError("");
+              void markPhonemic({ data: { id: climb.id, outcome } })
+                .then((row) => setClimb(row))
+                .catch((err: unknown) => {
+                  setError(err instanceof Error ? err.message : "Could not save that prompt.");
+                  setPaRound((round) => round + 1);
+                })
+                .finally(() => setPendingAnswer(false));
+            }}
+          />
         ) : (
         <>
         <p className="text-xs tracking-wide text-muted uppercase">{climb.subject === "sg" ? sgCodeLabel(climb.standardCode) : climb.standardCode}</p>
@@ -583,7 +605,7 @@ function SessionPage() {
         {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
         </>
         )}
-        {climb.subject === "sw" && error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
+        {(climb.subject === "sw" || climb.subject === "pa") && error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
