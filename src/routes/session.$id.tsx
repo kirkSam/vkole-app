@@ -5,7 +5,7 @@ import { APP_NAME } from "@/lib/brand";
 import { TrialFinished } from "@/components/trial-finished";
 import { PageSkeleton, Shell } from "@/components/shell";
 import { endReasonSentence, formatOnline, IDLE_MS, type EndReason } from "@/lib/academic-email";
-import { GRADES, levelLabel, subjectMeta } from "@/lib/climb-rules";
+import { GRADES, engineNavLabel, levelLabel, subjectMeta } from "@/lib/climb-rules";
 import { stepName } from "@/lib/cc-steps";
 import {
   academicReport,
@@ -384,7 +384,7 @@ function SessionPage() {
     <Shell>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold tracking-wide text-accent uppercase">VKOLE/{meta.code}</p>
+          <p className="text-sm font-semibold tracking-wide text-accent">{engineNavLabel(meta.code)}</p>
           <h1 className="font-display text-3xl text-ink">{climb.childName}</h1>
           <p className="text-sm text-muted">{APP_NAME}</p>
         </div>

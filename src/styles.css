@@ -53,6 +53,26 @@
   outline: 2px solid #e6c65c;
   outline-offset: 4px;
 }
+.vkole-nav-zpd {
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+.vkole-nav-zpd small {
+  font-size: 0.72em;
+  font-weight: 560;
+  line-height: 1.2;
+}
+@media (min-width: 640px) {
+  .vkole-nav-zpd {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.35em;
+  }
+  .vkole-nav-zpd small {
+    font-size: 0.85em;
+  }
+}
 
 .sight-word {
   font-size: clamp(3.5rem, 12vw, 7rem);

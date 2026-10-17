@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { APP_NAME, SCHOOL_EMAIL, SCHOOL_SITE } from "@/lib/brand";
+import { SUBJECTS, engineNavLabel } from "@/lib/climb-rules";
 import { authClient, authEnabled, signOut } from "@/lib/auth/client";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { notifyParentSignedOut } from "@/lib/climbs";
@@ -83,9 +84,35 @@ export function Shell({ children, onSplash }: { children: ReactNode; onSplash?: 
         )}
         <ParentAccount />
       </header>
+      <EngineNav />
       <div className="flex-1">{children}</div>
       <SchoolFooter />
     </div>
+  );
+}
+
+function EngineNav() {
+  return (
+    <nav className="mb-5 flex flex-wrap gap-2" aria-label="VKOLE engines">
+      {SUBJECTS.map((subject) => (
+        <a
+          key={subject.id}
+          href={`/#engine-${subject.id}`}
+          className="vkole-nav text-left font-display text-base leading-tight tracking-wide text-ink"
+        >
+          {engineNavLabel(subject.code)}
+        </a>
+      ))}
+      <a
+        href={`${SCHOOL_SITE}/zpd`}
+        target="_blank"
+        rel="noreferrer"
+        className="vkole-nav vkole-nav-zpd text-left font-display text-base tracking-wide text-ink"
+      >
+        <span>Vygotsky ZPD</span>
+        <small>Zone of Proximal Development</small>
+      </a>
+    </nav>
   );
 }
 

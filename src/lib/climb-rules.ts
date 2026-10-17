@@ -64,6 +64,11 @@ export function subjectMeta(id: SubjectId) {
   return found;
 }
 
+/** Label on each engine nav button and on the engine picker. */
+export function engineNavLabel(code: string): string {
+  return `VKOLE/${code} ZPD`;
+}
+
 export function levelLabel(level: number): string {
   if (level <= 0) return "Grade K";
   return `Grade ${Math.min(12, level)}`;

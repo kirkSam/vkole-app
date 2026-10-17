@@ -10,7 +10,7 @@ import { StudentOffice } from "@/components/student-office";
 import { schoolScreen, SCHOOL_ENGINE_URL } from "@/lib/school-account";
 import { PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
-import { SUBJECTS, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
+import { SUBJECTS, engineNavLabel, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { singaporePlace } from "@/lib/vkole-singapore";
 import { stepName } from "@/lib/cc-steps";
 import { beginSharedTrial, listClimbs, setClimbLevel, type Climb } from "@/lib/climbs";
@@ -53,6 +53,8 @@ function Home() {
     } catch {
       /* storage may be unavailable */
     }
+    const engineId = window.location.hash.replace(/^#engine-/, "");
+    if (SUBJECTS.some((subject) => subject.id === engineId)) setStage("app");
     const params = new URLSearchParams(window.location.search);
     if (params.get("open") === "1") {
       params.delete("open");
@@ -75,6 +77,13 @@ function Home() {
     touring.current = true;
     setStage("app");
   }, []);
+
+  useEffect(() => {
+    if (stage !== "app") return;
+    const engineId = window.location.hash.replace(/^#engine-/, "");
+    if (!SUBJECTS.some((subject) => subject.id === engineId)) return;
+    document.getElementById(`engine-${engineId}`)?.scrollIntoView({ block: "start" });
+  }, [stage, user]);
 
   useEffect(() => {
     if (isPending || !user || accountGone) return;
@@ -550,9 +559,9 @@ function AppGate({
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-line bg-surface p-5">
+    <form id={`engine-${subject}`} onSubmit={submit} className="scroll-mt-6 rounded-2xl border border-line bg-surface p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="font-display text-2xl text-ink">VKOLE/{meta.code}</h2>
+        <h2 className="font-display text-2xl text-ink">{engineNavLabel(meta.code)}</h2>
         <span className="text-sm text-muted">
           {trialOver ? "7 day trial finished" : daysLeft == null ? "7 days free" : daysLeft === 0 ? "7 day trial finished" : `${daysLeft} days left`}
         </span>

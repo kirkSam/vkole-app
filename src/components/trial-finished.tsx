@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
-import { subjectMeta, type SubjectId } from "@/lib/climb-rules";
+import { engineNavLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { authClient, signOut } from "@/lib/auth/client";
 import { notifyParentSignedOut } from "@/lib/climbs";
 import { markChoosingAccount } from "@/lib/account-choice";
@@ -62,7 +62,7 @@ export function TrialFinished({
   return (
     <main className="grid min-h-svh place-items-center bg-[#1c1915] px-6 py-16 text-center text-[#f4f1ea]">
       <div className="w-full max-w-md">
-        <p className="text-sm font-semibold tracking-wide text-[#e6c65c]">{wholeApp ? APP_NAME : `VKOLE/${meta.code}`}</p>
+        <p className="text-sm font-semibold tracking-wide text-[#e6c65c]">{wholeApp ? APP_NAME : engineNavLabel(meta.code)}</p>
         <h1 className="mt-4 font-display text-5xl leading-tight">{copy.title}</h1>
         <p className="mt-5 text-xl leading-snug">
           Continue tracking your child's progress and give your child direct access to Space XSI Superintelligence
