@@ -61,7 +61,14 @@ export async function buildAssignmentPdf(input: {
   drawLines(wrap(`VKOLE/${meta.code}  ·  ${meta.name}`, bold, 11, max), bold, 11, muted, 3);
   drawLines(wrap(`${input.childName}  ·  earned ${levelLabel(input.level)}  ·  8-question assignment`, bold, 18, max), bold, 18, ink, 6);
   drawLines(
-    wrap("Circle one answer for each item. A parent may keep the answer key on the last page.", font, 11, max),
+    wrap(
+      input.subject === "sw"
+        ? "Read each word aloud. A parent may keep the answer key on the last page."
+        : "Circle one answer for each item. A parent may keep the answer key on the last page.",
+      font,
+      11,
+      max,
+    ),
     font,
     11,
     muted,

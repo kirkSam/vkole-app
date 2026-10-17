@@ -6,6 +6,8 @@ import { mathCell } from "./pool-math.ts";
 import { type Cell } from "./pool-shared.ts";
 import { sgCell } from "./vkole-singapore-pool.ts";
 import { ssCell } from "./pool-ss.ts";
+import { BAND_LABELS, GRADE_START_BAND, type SightBand } from "./vkole/constants.ts";
+import { bandWords } from "./vkole/sight-words/words.ts";
 
 export type PoolQuestion = {
   id: string;
@@ -47,10 +49,27 @@ function withRoom(cell: Cell): Cell {
   };
 }
 
+function swCell(grade: number): Cell {
+  const band: SightBand = GRADE_START_BAND[clampGrade(grade)] ?? "D-PP";
+  const words = bandWords(band);
+  return {
+    count: Math.max(1, words.length),
+    build(index) {
+      const word = words[index % words.length] ?? "";
+      return { stem: word, answer: word, standard: band, note: BAND_LABELS[band] };
+    },
+  };
+}
+
 function cellFor(subject: SubjectId, grade: number, step: number): Cell {
   const key = `${subject}:${grade}:${step}`;
   const saved = cache.get(key);
   if (saved) return saved;
+  if (subject === "sw") {
+    const cell = swCell(grade);
+    cache.set(key, cell);
+    return cell;
+  }
   const raw =
     subject === "m"
       ? mathCell(grade, step)
@@ -101,6 +120,7 @@ export function poolCensus(): PoolCensus {
       ss: { total: 0, grades: {} },
       gen: { total: 0, grades: {} },
       sg: { total: 0, grades: {} },
+      sw: { total: 0, grades: {} },
     },
     total: 0,
   } as PoolCensus;

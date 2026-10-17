@@ -9,6 +9,7 @@ const SUBJECT_NAME: Record<SubjectId, string> = {
   ss: "Social Studies",
   gen: "General",
   sg: "Singapore mathematics",
+  sw: "Sight words",
 };
 
 export type CycleReply = {

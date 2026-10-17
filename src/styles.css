@@ -54,6 +54,39 @@
   outline-offset: 4px;
 }
 
+.sight-word {
+  font-size: clamp(3.5rem, 12vw, 7rem);
+  line-height: 1.05;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.sight-sparkle::before,
+.sight-sparkle::after {
+  content: "✦";
+  position: absolute;
+  top: 0.2rem;
+  color: #e6c65c;
+  font-size: 1.5rem;
+  animation: sight-twinkle 0.9s ease-in-out infinite;
+}
+
+.sight-sparkle::before {
+  left: 12%;
+}
+
+.sight-sparkle::after {
+  right: 12%;
+  animation-delay: 0.25s;
+}
+
+@keyframes sight-twinkle {
+  50% {
+    opacity: 0.35;
+    transform: scale(1.25);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

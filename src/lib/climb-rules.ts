@@ -33,6 +33,12 @@ export const SUBJECTS = [
     name: "Singapore mathematics",
     lede: "US grades 1–12 are P1–P6, S1–S4, AM (Additional Mathematics), and H2 (H1 and H2 Mathematics). Each topic goes concrete, then pictorial, then abstract. Two correct answers move up one step. The grade changes only after the abstract step.",
   },
+  {
+    id: "sw",
+    code: "SW",
+    name: "Sight words",
+    lede: "A large word is shown. The microphone listens only while that word is on the screen, and it does not record or save the sound. A correct word gets a sparkle, then the next word. A miss is spoken aloud, then the next word.",
+  },
 ] as const;
 
 export type SubjectId = (typeof SUBJECTS)[number]["id"];

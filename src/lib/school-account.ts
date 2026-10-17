@@ -8,6 +8,7 @@
  */
 
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
+import { BAND_LABELS, GRADE_START_BAND, gradeForBand, isSightBand } from "./vkole/constants.ts";
 
 export const SCHOOL_ORIGIN = "https://www.dotheimpossible.ai";
 export const SCHOOL_ENGINE_URL = `${SCHOOL_ORIGIN}/engine`;
@@ -32,7 +33,7 @@ export const SCHOOL_ACCOUNT_GONE_MESSAGE =
 
 export const CLOCK_LIMIT_SECONDS = 9000;
 
-export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg"] as const;
+export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg", "sw"] as const;
 export type EngineId = (typeof ENGINE_IDS)[number];
 
 /** Website tally. `asked` is stored first. `correct` is never above `asked`. Asked 0 is omitted. */
@@ -90,6 +91,10 @@ export type EngineLevel = {
   levelLabel?: string;
   pending?: SgPending;
   mastery?: LevelMastery;
+  /** Sight words. `index` is the word in `band`. `step` stays 0. */
+  band?: string;
+  index?: number;
+  word?: string;
 };
 
 export type SeenQuestion = { key: string; text: string };
@@ -231,13 +236,54 @@ export function normalizeEngineLevel(value: unknown, engine: EngineId = "m"): En
   return asLevel(value, engine);
 }
 
+function asIndex(value: unknown): number | undefined {
+  const index = Number(value);
+  if (!Number.isInteger(index) || index < 0 || index > 100000) return undefined;
+  return index;
+}
+
+function asSightLevel(row: Record<string, unknown>, level: EngineLevel): EngineLevel {
+  const band = typeof row.band === "string" && isSightBand(row.band) ? row.band : GRADE_START_BAND[level.grade];
+  const index = asIndex(row.index) ?? 0;
+  level.step = 0;
+  level.grade = band ? gradeForBand(band) : level.grade;
+  if (band) level.band = band;
+  level.index = index;
+  if (typeof row.word === "string" && row.word.trim()) level.word = row.word.trim();
+  const id = copyText(row, "id");
+  const name = copyText(row, "name");
+  const enteredBy = copyText(row, "enteredBy");
+  const levelCode = copyText(row, "levelCode");
+  const levelLabel = copyText(row, "levelLabel");
+  if (id) level.id = id;
+  if (name) level.name = name;
+  if (enteredBy) level.enteredBy = enteredBy;
+  const earnedGrade = wholeNumber(row.earnedGrade);
+  const reached = wholeNumber(row.reached);
+  const missed = wholeNumber(row.missed);
+  const updatedAt = wholeNumber(row.updatedAt);
+  const startingGrade = wholeNumber(row.startingGrade);
+  if (earnedGrade != null) level.earnedGrade = earnedGrade;
+  if (reached != null) level.reached = reached;
+  if (missed != null) level.missed = missed;
+  if (updatedAt != null) level.updatedAt = updatedAt;
+  if (startingGrade != null) level.startingGrade = startingGrade;
+  if (levelCode) level.levelCode = levelCode;
+  else if (band) level.levelCode = band;
+  if (levelLabel) level.levelLabel = levelLabel;
+  else if (band) level.levelLabel = BAND_LABELS[band];
+  return level;
+}
+
 function copyText(row: Record<string, unknown>, key: string): string | undefined {
   return typeof row[key] === "string" && row[key] !== "" ? String(row[key]) : undefined;
 }
 
 function asLevel(value: unknown, engine: EngineId): EngineLevel | null {
   if (typeof value === "number" && value >= 1 && value <= 12) {
-    return { grade: Math.round(value), step: 0 };
+    const grade = Math.round(value);
+    if (engine === "sw") return asSightLevel({ grade }, { grade, step: 0 });
+    return { grade, step: 0 };
   }
   const row = asRecord(value);
   if (!row) return null;
@@ -247,6 +293,7 @@ function asLevel(value: unknown, engine: EngineId): EngineLevel | null {
     grade,
     step: asStep(row.step ?? row.stage ?? row.standardStep ?? 0),
   };
+  if (engine === "sw") return asSightLevel(row, level);
   if (engine !== "sg") return level;
   const id = copyText(row, "id");
   const name = copyText(row, "name");

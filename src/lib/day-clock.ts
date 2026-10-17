@@ -7,6 +7,7 @@ import { isSchoolAccountId } from "@/lib/school-account";
 import { TRIAL_MS } from "@/lib/academic-email";
 import { dealQuestion } from "@/lib/question-history";
 import { isSubject, type SubjectId } from "@/lib/climb-rules";
+import { cardFromAccount, sightPrompt } from "@/lib/vkole/sight-words/words";
 import { localDayKey, PACIFIC, projectClock, type ClockProjection } from "@/lib/day-clock-math";
 import type { ClockFace } from "@/components/vkole-rules";
 
@@ -148,16 +149,25 @@ async function ensureTrial(sql: Sql, userId: string) {
 }
 
 async function seedPrompt(sql: Sql, userId: string, id: string, subject: SubjectId, grade: number, childName: string) {
-  const rows = await sql<{ current_prompt: string | null }>`
-    select current_prompt from climbs where id = ${id} and user_id = ${userId}
+  const rows = await sql<{ current_prompt: string | null; standard_code: string | null; standard_step: number | string | null; level: number | string | null }>`
+    select current_prompt, standard_code, standard_step, level from climbs where id = ${id} and user_id = ${userId}
   `;
   if (rows[0]?.current_prompt) return;
-  const item = await dealQuestion(sql, userId, childName, subject, grade, 0);
+  const stored = rows[0];
+  const card =
+    subject === "sw"
+      ? cardFromAccount(
+          { grade: Number(stored?.level) || grade, band: stored?.standard_code, index: Number(stored?.standard_step) || 0 },
+          grade,
+        )
+      : null;
+  const item = card ? sightPrompt(card.band, card.index) : await dealQuestion(sql, userId, childName, subject, grade, 0);
   await sql`
     update climbs
     set start_grade = coalesce(start_grade, ${grade}),
         standard_code = ${item.standard},
         standard_label = ${item.note},
+        standard_step = coalesce(${card ? card.index : null}, standard_step),
         current_prompt = ${item.stem},
         answer_key = ${item.answer},
         answer_aliases = ${JSON.stringify(item.aliases)},
@@ -175,7 +185,7 @@ export async function disarmStudentClock(sql: Sql, userId: string, climbId: stri
 }
 
 const enterSchema = z.object({
-  subject: z.enum(["m", "ela", "ss", "gen", "sg"]),
+  subject: z.enum(["m", "ela", "ss", "gen", "sg", "sw"]),
   firstName: z.string().trim().min(1).max(40),
   age: z.number().int().min(4).max(18).optional(),
   grade: z.number().int().min(1).max(12).optional(),
@@ -225,6 +235,7 @@ export const enterEngine = createServerFn({ method: "POST" })
       if (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12) return { status: "new" as const };
       let grade = data.grade;
       let step = 0;
+      let siteLevel: { grade?: number; band?: string | null; index?: number | null; step?: number } | undefined;
       if (isSchoolAccountId(context.userId)) {
         const { readSchoolMirror } = await import("@/lib/school-mirror.server");
         const mirror = await readSchoolMirror(sql, context.userId);
@@ -232,10 +243,18 @@ export const enterEngine = createServerFn({ method: "POST" })
         if (site) {
           grade = site.grade;
           step = site.step;
+          siteLevel = site;
         }
       }
       id = crypto.randomUUID();
-      const item = await dealQuestion(sql, context.userId, data.firstName.trim(), data.subject, grade, step);
+      const sight = data.subject === "sw" ? cardFromAccount(siteLevel ?? { grade }, grade) : null;
+      if (sight) {
+        grade = sight.grade;
+        step = sight.index;
+      }
+      const item = sight
+        ? sightPrompt(sight.band, sight.index)
+        : await dealQuestion(sql, context.userId, data.firstName.trim(), data.subject, grade, step);
       level = grade;
       await sql`alter table climbs add column if not exists registration_email text`;
       const prior = await sql<{ email: string | null }>`

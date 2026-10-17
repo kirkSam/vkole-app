@@ -1,4 +1,6 @@
 import type { SubjectId } from "./climb-rules";
+import { BAND_LABELS, GRADE_START_BAND, clampSightGrade } from "./vkole/constants.ts";
+import { bandWords } from "./vkole/sight-words/words.ts";
 
 export type Question = {
   stem: string;
@@ -720,10 +722,26 @@ function genQuestion(level: number, step?: number): Question {
   return genWord(L);
 }
 
+function sightWordQuestion(level: number, step?: number): Question {
+  const grade = clampSightGrade(level);
+  const band = GRADE_START_BAND[grade] ?? "D-PP";
+  const words = bandWords(band);
+  const index = words.length === 0 ? 0 : Math.abs(step ?? rand(0, words.length - 1)) % words.length;
+  const answer = words[index] ?? "";
+  return {
+    stem: answer,
+    options: [],
+    answer,
+    standard: band,
+    note: `${BAND_LABELS[band]}. Read the word aloud.`,
+  };
+}
+
 export function makeQuestion(subject: SubjectId, level: number, step?: number): Question {
   if (subject === "m") return mathQuestion(level, step);
   if (subject === "ela") return elaQuestion(level, step);
   if (subject === "ss") return ssQuestion(level, step);
+  if (subject === "sw") return sightWordQuestion(level, step);
   return genQuestion(level, step);
 }
 
