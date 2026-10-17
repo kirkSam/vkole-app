@@ -125,7 +125,7 @@ Spelling. The key is `sp`. The letters, timings, question bands, and spoken name
 }
 ```
 
-`band` is the list. `index` is the item in that list. `step` stays 0. `word` is the item id. The grade number stays when the item changes.
+`band` is the list. During the letter phase, `index` is the letter: 0 is A and 25 is Z. `step` stays 0. `word` is the prompt id. `streak` is how many times the current letter has been met with silence. `missStreak` is the wrong-answer step: 0 is the letter question, 1 is the 3-letter cue, and 2 is the 5-letter cue. The grade number stays when the letter changes.
 
 ### Bands
 
@@ -145,4 +145,6 @@ A new student starts at the first letter question. A saved `band`, or a `levelCo
 
 Opening the engine plays the alphabet from A to Z, one letter every 1.5 seconds (26 letters, 39 seconds). Each letter is a different bright color on a changing background. The picture changes once every 1.5 seconds, which is slower than 3 changes per second. At the end, when the student is still on the first question, the engine says and shows: `Your turn! What is the first letter of the alphabet?`
 
-A correct spoken answer shows a Happy Face for 2 seconds, then the next item. A miss, or 5 seconds with no answer, speaks the correct letter, waits 2 seconds, and then shows the next item. Both a correct answer and a miss move forward. There is no retry. The microphone listens only while a question is waiting for an answer. Audio is not recorded and is not saved. Adult override buttons are Correct and Miss.
+A correct spoken answer shows a Happy Face for 2 seconds, then the next letter. The 5 second window is a maximum: a spoken answer is taken as soon as it is heard. The first 5 seconds of silence shows the same letter again. A second silence goes back 3 letters and continues from there. A wrong answer shows the 3 prior letters and speaks them, then waits up to 5 seconds. Another wrong answer or silence shows and speaks the 5 prior letters. One more wrong answer or silence starts again at A. A count that would pass A stops at A. The microphone listens only while a question is waiting for an answer. Audio is not recorded and is not saved. Adult override buttons are Correct and Miss.
+
+At the end of a spelling sitting, the server writes a short parent report of 3 to 5 sentences. The section is labeled `Report written by Space XSI (Grok)`. The call uses `XAI_API_KEY` on the server, one call for that sitting, and sends only that student's letter stats. It does not send another family's name or any audio. If the key is missing or the call fails, the same section uses a local template. The report is shown to that parent and is included only in that account's progress email.

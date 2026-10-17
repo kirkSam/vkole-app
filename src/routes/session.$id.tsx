@@ -27,6 +27,7 @@ import { showAsSpaceXsi } from "@/lib/space-xsi";
 import { VKOLE_MOVEMENT } from "@/lib/vkole-cap";
 import { SIGHT_WORD_NOTE } from "@/lib/vkole/constants";
 import { SPELLING_NOTE } from "@/lib/vkole/spelling/items";
+import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
 import { SightWordStage } from "@/components/sight-word-stage";
 import { SpellingStage } from "@/components/spelling-stage";
 import { SG_STAGE_NOTE, sgCodeLabel, singaporePlace } from "@/lib/vkole-singapore";
@@ -47,6 +48,7 @@ type Closure = {
   sittingSeconds: number;
   totalSeconds: number;
   sheetNote: string;
+  spellingReport: string;
 };
 
 let pendingLeave: { id: string; cancel: () => void } | null = null;
@@ -209,7 +211,7 @@ function SessionPage() {
         .then(() => endChildSession({ data: { id: climbId, reason } }))
         .then((result) => {
           const leaveThisEngine = reason !== "inactivity";
-          if (!result || (result.alreadyClosed && !result.body)) {
+          if (!result || (result.alreadyClosed && !result.body && !result.spellingReport)) {
             if (!stopped && leaveThisEngine) void navigate({ to: "/" });
             return;
           }
@@ -223,6 +225,7 @@ function SessionPage() {
             sittingSeconds: result.sittingSeconds,
             totalSeconds: result.totalSeconds,
             sheetNote: result.sheetNote,
+            spellingReport: result.spellingReport,
           };
           try {
             if (leaveThisEngine || stopped) sessionStorage.setItem("vkole-last-mail", JSON.stringify(note));
@@ -500,6 +503,12 @@ function SessionPage() {
               : closure.error || "The academic email was not sent."}
           </p>
           {closure.sheetNote ? <p className="mt-2 text-sm text-miss">{closure.sheetNote}</p> : null}
+          {closure.spellingReport ? (
+            <div className="mt-4 rounded-xl border border-line bg-paper p-4">
+              <h3 className="font-display text-xl text-ink">{SPELLING_REPORT_LABEL}</h3>
+              <p className="mt-2 text-ink">{closure.spellingReport}</p>
+            </div>
+          ) : null}
           {closure.body ? (
             <pre className="mt-4 whitespace-pre-wrap font-sans text-sm leading-relaxed text-ink">{`${closure.subject}\n\n${closure.body}`}</pre>
           ) : null}
@@ -551,9 +560,10 @@ function SessionPage() {
           />
         ) : climb.subject === "sp" ? (
           <SpellingStage
-            key={`${climb.id}:${spellingRound}`}
-            band={climb.standardCode}
+            key={`${climb.id}:${climb.standardStep}:${climb.correctAtLevel}:${climb.incorrectStreak}:${spellingRound}`}
             index={climb.standardStep}
+            silence={climb.correctAtLevel}
+            wrong={climb.incorrectStreak}
             skipSong={songDone}
             onSongDone={() => setSongDone(true)}
             onDone={(outcome) => {

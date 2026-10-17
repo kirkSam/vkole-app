@@ -6,7 +6,6 @@ import { engineNavLabel, enginePickLabel } from "../../climb-rules.ts";
 import { parseSchoolProfile, schoolWriteBody } from "../../school-account.ts";
 import { spAccountLevel } from "./level.ts";
 import {
-  SPELLING_ADVANCE_MS,
   SPELLING_BANDS,
   SPELLING_ENGINE,
   SPELLING_HAPPY_FACE_MS,
@@ -15,14 +14,15 @@ import {
   SPELLING_RESPONSE_MS,
   SPELLING_SONG_MS,
   alphabet,
+  applyLetterAnswer,
   bandMeta,
   cardFromAccount,
   filledBands,
   itemAt,
   letterAtSongTime,
   letterColors,
+  letterView,
   micListensDuring,
-  nextAfterAnswer,
   openingPrompt,
   reviewChangesPerSecond,
   startCard,
@@ -40,7 +40,10 @@ describe("spelling timing", () => {
     assert.equal(SPELLING_SONG_MS, alphabet().length * SPELLING_LETTER_MS);
     assert.equal(SPELLING_HAPPY_FACE_MS, 2000);
     assert.equal(SPELLING_RESPONSE_MS, 5000);
-    assert.equal(SPELLING_ADVANCE_MS, 2000);
+    assert.equal(lists.answerFlow.happyFaceMs, 2000);
+    assert.equal(lists.answerFlow.responseMs, 5000);
+    assert.equal(lists.happyFaceMs, SPELLING_HAPPY_FACE_MS);
+    assert.equal(lists.responseMs, SPELLING_RESPONSE_MS);
     assert.equal(lists.letterMs, 1500);
     assert.equal(lists.songMs, 39000);
     assert.equal(lists.happyFaceMs, 2000);
@@ -76,6 +79,9 @@ describe("spelling timing", () => {
     assert.equal(stage.includes("SPELLING_LETTER_MS"), true);
     assert.equal(stage.includes("SPELLING_HAPPY_FACE_MS"), true);
     assert.equal(stage.includes("SPELLING_RESPONSE_MS"), true);
+    assert.equal(stage.includes("SPELLING_ADVANCE_MS"), false);
+    assert.equal(stage.includes(".model"), false);
+    assert.match(stage, /if \(outcome === "correct"\) \{[\s\S]*SPELLING_HAPPY_FACE_MS[\s\S]*return;\s*\}\s*onDoneRef\.current\(outcome\);/);
     assert.equal(stage.includes("micListensDuring"), true);
     assert.equal(stage.includes('aria-label="Happy Face"'), true);
   });
@@ -122,23 +128,21 @@ describe("letter knowledge sequence", () => {
     assert.equal(nameM?.letter, "M");
     assert.equal(nameM?.answer, "M");
     assert.equal(startCard(1).id, "lk-first");
-    assert.equal(lists.movement, "next");
     assert.equal(lists.micRecords, false);
+    assert.equal(lists.answerFlow.correct.action, "next");
+    assert.equal(lists.answerFlow.silence[0]?.action, "repeat");
+    assert.equal(lists.answerFlow.silence[1]?.action, "back");
+    assert.equal(lists.answerFlow.silence[1]?.letters, 3);
+    assert.equal(lists.answerFlow.wrong[0]?.action, "cue");
+    assert.equal(lists.answerFlow.wrong[0]?.letters, 3);
+    assert.equal(lists.answerFlow.wrong[1]?.action, "cue");
+    assert.equal(lists.answerFlow.wrong[1]?.letters, 5);
+    assert.equal(lists.answerFlow.wrong[2]?.action, "restart");
+    assert.equal(lists.answerFlow.wrong[2]?.letter, "A");
+    assert.equal(lists.answerFlow.clamp, "A");
   });
 
-  it("moves to the next item on a correct answer, a miss, and no answer", () => {
-    const correct = nextAfterAnswer({ band: "LK", index: 0, grade: 3 }, true);
-    assert.equal(correct.band, "LK");
-    assert.equal(correct.index, 1);
-    assert.equal(correct.grade, 3);
-    assert.equal(itemAt(correct.band, correct.index).answer, "B");
-    const miss = nextAfterAnswer({ band: "LK", index: 4, grade: 3 }, false);
-    assert.equal(miss.index, 5);
-    assert.equal(miss.grade, 3);
-    const timeout = nextAfterAnswer({ band: "LK", index: 76, grade: 2 }, false);
-    assert.equal(timeout.band, "LK");
-    assert.equal(timeout.index, 0);
-    assert.equal(timeout.grade, 2);
+  it("keeps a saved letter and skips an empty later band", () => {
     const saved = cardFromAccount({ grade: 4, band: "LK", index: 12 }, 1);
     assert.equal(saved.band, "LK");
     assert.equal(saved.index, 12);
@@ -146,6 +150,98 @@ describe("letter knowledge sequence", () => {
     const emptyLater = cardFromAccount({ grade: 2, band: "CVC", index: 0 }, 2);
     assert.equal(emptyLater.band, "LK");
     assert.equal(emptyLater.id, "lk-first");
+  });
+});
+
+describe("letter answer flow", () => {
+  const g = { index: alphabet().indexOf("G"), silence: 0, wrong: 0 };
+
+  it("moves to the next letter as soon as a correct answer is recorded", () => {
+    const next = applyLetterAnswer(g, "correct");
+    assert.deepEqual(next, { index: g.index + 1, silence: 0, wrong: 0 });
+    const view = letterView(next);
+    assert.equal(view.kind, "ask");
+    assert.equal(view.answer, "H");
+    assert.equal(view.shown, "G");
+    const fromCue = applyLetterAnswer({ ...g, wrong: 1 }, "correct");
+    assert.deepEqual(fromCue, { index: g.index + 1, silence: 0, wrong: 0 });
+    const wrapped = applyLetterAnswer({ index: 25, silence: 0, wrong: 0 }, "correct");
+    assert.equal(wrapped.index, 0);
+    assert.equal(letterView(wrapped).answer, "A");
+  });
+
+  it("shows the same letter again after one silence", () => {
+    const once = applyLetterAnswer(g, "timeout");
+    assert.deepEqual(once, { index: g.index, silence: 1, wrong: 0 });
+    const view = letterView(once);
+    assert.equal(view.kind, "ask");
+    assert.equal(view.answer, "G");
+    assert.equal(view.shown, "F");
+    assert.equal(view.say, "What letter comes next?");
+  });
+
+  it("goes back 3 letters after a second silence, and clamps at A", () => {
+    const once = applyLetterAnswer(g, "timeout");
+    const back = applyLetterAnswer(once, "timeout");
+    assert.equal(back.index, g.index - 3);
+    assert.equal(back.silence, 0);
+    assert.equal(back.wrong, 0);
+    const view = letterView(back);
+    assert.equal(view.kind, "ask");
+    assert.equal(view.answer, "D");
+    const fromB = applyLetterAnswer({ index: alphabet().indexOf("B"), silence: 1, wrong: 0 }, "timeout");
+    assert.equal(fromB.index, 0);
+    assert.equal(letterView(fromB).answer, "A");
+    const fromC = applyLetterAnswer({ index: alphabet().indexOf("C"), silence: 1, wrong: 0 }, "timeout");
+    assert.equal(fromC.index, 0);
+  });
+
+  it("shows and speaks the 3 prior letters after a wrong answer", () => {
+    const cue = applyLetterAnswer(g, "miss");
+    assert.deepEqual(cue, { index: g.index, silence: 0, wrong: 1 });
+    const view = letterView(cue);
+    assert.equal(view.kind, "cue");
+    assert.deepEqual(view.cue, ["D", "E", "F"]);
+    assert.equal(view.show, "D E F");
+    assert.equal(view.say, "D, E, F");
+    assert.equal(view.answer, "G");
+    const nearStart = letterView(applyLetterAnswer({ index: alphabet().indexOf("C"), silence: 0, wrong: 0 }, "miss"));
+    assert.deepEqual(nearStart.cue, ["A", "B"]);
+    assert.equal(nearStart.answer, "C");
+    const atA = letterView(applyLetterAnswer({ index: 0, silence: 0, wrong: 0 }, "miss"));
+    assert.equal(atA.kind, "ask");
+    assert.deepEqual(atA.cue, []);
+    assert.equal(atA.shown, "");
+    assert.equal(atA.answer, "A");
+  });
+
+  it("shows and speaks the 5 prior letters after another wrong answer or silence", () => {
+    const cue3 = applyLetterAnswer(g, "miss");
+    const cue5 = applyLetterAnswer(cue3, "miss");
+    assert.equal(cue5.wrong, 2);
+    assert.equal(cue5.index, g.index);
+    const view = letterView(cue5);
+    assert.equal(view.kind, "cue");
+    assert.deepEqual(view.cue, ["B", "C", "D", "E", "F"]);
+    assert.equal(view.show, "B C D E F");
+    assert.equal(view.say, "B, C, D, E, F");
+    assert.equal(view.answer, "G");
+    const fromSilence = letterView(applyLetterAnswer(cue3, "timeout"));
+    assert.deepEqual(fromSilence.cue, ["B", "C", "D", "E", "F"]);
+    assert.equal(fromSilence.answer, "G");
+  });
+
+  it("starts again at A after the 5-letter prompt is still wrong", () => {
+    const cue3 = applyLetterAnswer(g, "miss");
+    const cue5 = applyLetterAnswer(cue3, "miss");
+    const restart = applyLetterAnswer(cue5, "miss");
+    assert.deepEqual(restart, { index: 0, silence: 0, wrong: 0 });
+    const view = letterView(restart);
+    assert.equal(view.kind, "ask");
+    assert.equal(view.answer, "A");
+    assert.equal(view.say, openingPrompt());
+    const fromSilence = applyLetterAnswer(cue5, "timeout");
+    assert.deepEqual(fromSilence, { index: 0, silence: 0, wrong: 0 });
   });
 });
 
@@ -219,22 +315,30 @@ describe("level.sp", () => {
       band: "LK",
       index: 2,
       word: "lk-next-c",
+      silence: 1,
+      wrong: 2,
       earnedGrade: 1,
       reached: 3,
       missed: 1,
       startingGrade: 1,
       updatedAt: 10,
     });
+    const cue = letterView({ index: 2, silence: 1, wrong: 2 });
     assert.equal(written.band, "LK");
     assert.equal(written.index, 2);
-    assert.equal(written.word, "lk-next-c");
+    assert.equal(written.streak, 1);
+    assert.equal(written.missStreak, 2);
+    assert.equal(written.word, cue.id);
+    assert.equal(cue.kind, "cue");
     assert.equal(written.levelCode, "LK");
     assert.equal(written.levelLabel, "Letter knowledge");
     assert.equal(written.step, 0);
     const body = schoolWriteBody("ada@family.test", { sp: written }, 0, 0, []);
     assert.equal(body.id, "ada@family.test");
     assert.equal(body.level.sp?.band, "LK");
-    assert.equal(body.level.sp?.word, "lk-next-c");
+    assert.equal(body.level.sp?.word, cue.id);
+    assert.equal(body.level.sp?.streak, 1);
+    assert.equal(body.level.sp?.missStreak, 2);
     assert.equal("sw" in body.level, false);
     assert.equal(JSON.stringify(body).includes("bea@other.test"), false);
     assert.equal(JSON.stringify(body).includes("after"), false);
@@ -255,7 +359,14 @@ describe("level.sp", () => {
       profile: { level: { sp: { grade: 5, levelCode: "LK", index: 51 } } },
     });
     assert.equal(kept?.profile.level.sp?.band, "LK");
-    assert.equal(kept?.profile.level.sp?.index, 51);
-    assert.equal(kept?.profile.level.sp?.word, "lk-name-a");
+    assert.equal(kept?.profile.level.sp?.index, 25);
+    assert.equal(kept?.profile.level.sp?.word, letterView({ index: 25, silence: 0, wrong: 0 }).id);
+    const mid = parseSchoolProfile({
+      ok: true,
+      id: "ada@family.test",
+      profile: { level: { sp: { grade: 2, band: "LK", index: 12 } } },
+    });
+    assert.equal(mid?.profile.level.sp?.index, 12);
+    assert.equal(mid?.profile.level.sp?.word, "lk-next-m");
   });
 });

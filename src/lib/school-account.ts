@@ -9,7 +9,7 @@
 
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, startBandForGrade, type SightBand } from "./vkole/constants.ts";
-import { cardFromAccount as spCardFromAccount, isSpBand, spCard, type SpBand } from "./vkole/spelling/items.ts";
+import { cardFromAccount as spCardFromAccount, isSpBand, letterView, spCard, type SpBand } from "./vkole/spelling/items.ts";
 import { sightCard } from "./vkole/sight-words/words.ts";
 
 export const SCHOOL_ORIGIN = "https://www.dotheimpossible.ai";
@@ -276,10 +276,15 @@ function asSpLevel(row: Record<string, unknown>, level: EngineLevel): EngineLeve
     if (found.id === storedWord) index = found.index;
   }
   const card = spCard(band, index, level.grade);
+  const silence = wholeNumber(row.streak) ?? (nested ? wholeNumber(nested.streak) : null) ?? 0;
+  const wrong = wholeNumber(row.missStreak) ?? (nested ? wholeNumber(nested.missStreak) : null) ?? 0;
+  const view = card.band === "LK" ? letterView({ index: card.index, silence, wrong }) : null;
   level.step = 0;
   level.band = card.band;
-  level.index = card.index;
-  level.word = storedWord || card.id;
+  level.index = view?.index ?? card.index;
+  level.word = view?.id ?? (storedWord || card.id);
+  level.streak = view?.silence ?? Math.max(0, silence);
+  level.missStreak = view?.wrong ?? Math.max(0, wrong);
   const id = copyText(row, "id");
   const name = copyText(row, "name");
   const enteredBy = copyText(row, "enteredBy");

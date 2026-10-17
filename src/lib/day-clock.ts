@@ -7,7 +7,7 @@ import { isSchoolAccountId } from "@/lib/school-account";
 import { TRIAL_MS } from "@/lib/academic-email";
 import { dealQuestion } from "@/lib/question-history";
 import { isSubject, type SubjectId } from "@/lib/climb-rules";
-import { cardFromAccount as spCardFromAccount, spellingPrompt } from "@/lib/vkole/spelling/items";
+import { cardFromAccount as spCardFromAccount, letterView } from "@/lib/vkole/spelling/items";
 import { cardFromAccount, sightPrompt } from "@/lib/vkole/sight-words/words";
 import { localDayKey, PACIFIC, projectClock, type ClockProjection } from "@/lib/day-clock-math";
 import type { ClockFace } from "@/components/vkole-rules";
@@ -165,8 +165,16 @@ async function seedPrompt(sql: Sql, userId: string, id: string, subject: Subject
     item = sightPrompt(card.band, card.index);
   } else if (subject === "sp") {
     const card = spCardFromAccount({ grade: storedGrade, band: stored?.standard_code, index: storedIndex }, grade);
-    stepIndex = card.index;
-    item = spellingPrompt(card.band, card.index, storedGrade);
+    const view = letterView({ index: storedIndex, silence: 0, wrong: 0 });
+    stepIndex = view.index;
+    item = {
+      id: `sp:${view.band}:${view.id}:s${view.silence}:w${view.wrong}`,
+      stem: view.show,
+      answer: view.answer,
+      aliases: view.also,
+      standard: card.band,
+      note: view.name,
+    };
   } else {
     item = await dealQuestion(sql, userId, childName, subject, grade, 0);
   }
@@ -243,7 +251,7 @@ export const enterEngine = createServerFn({ method: "POST" })
       if (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12) return { status: "new" as const };
       let grade = data.grade;
       let step = 0;
-      let siteLevel: { grade?: number; band?: string | null; index?: number | null; step?: number } | undefined;
+      let siteLevel: { grade?: number; band?: string | null; index?: number | null; step?: number; streak?: number; missStreak?: number } | undefined;
       if (isSchoolAccountId(context.userId)) {
         const { readSchoolMirror } = await import("@/lib/school-mirror.server");
         const mirror = await readSchoolMirror(sql, context.userId);
@@ -256,19 +264,30 @@ export const enterEngine = createServerFn({ method: "POST" })
       }
       id = crypto.randomUUID();
       const sight = data.subject === "sw" ? cardFromAccount(siteLevel ?? { grade }, grade) : null;
-      const spelling = data.subject === "sp" ? spCardFromAccount(siteLevel ?? { grade }, grade) : null;
+      const spellingCard = data.subject === "sp" ? spCardFromAccount(siteLevel ?? { grade }, grade) : null;
+      const spellingView =
+        data.subject === "sp"
+          ? letterView({ index: siteLevel?.index ?? 0, silence: siteLevel?.streak ?? 0, wrong: siteLevel?.missStreak ?? 0 })
+          : null;
       if (sight) {
         grade = sight.grade;
         step = sight.index;
       }
-      if (spelling) {
-        grade = Math.min(12, Math.max(1, Math.round(spelling.grade) || grade));
-        step = spelling.index;
+      if (spellingCard && spellingView) {
+        grade = Math.min(12, Math.max(1, Math.round(spellingCard.grade) || grade));
+        step = spellingView.index;
       }
       const item = sight
         ? sightPrompt(sight.band, sight.index)
-        : spelling
-          ? spellingPrompt(spelling.band, spelling.index, grade)
+        : spellingView
+          ? {
+              id: `sp:${spellingView.band}:${spellingView.id}:s${spellingView.silence}:w${spellingView.wrong}`,
+              stem: spellingView.show,
+              answer: spellingView.answer,
+              aliases: spellingView.also,
+              standard: spellingView.band,
+              note: spellingView.name,
+            }
           : await dealQuestion(sql, context.userId, data.firstName.trim(), data.subject, grade, step);
       level = grade;
       await sql`alter table climbs add column if not exists registration_email text`;
@@ -291,12 +310,13 @@ export const enterEngine = createServerFn({ method: "POST" })
         insert into climbs (
           id, user_id, child_name, subject, level, performance_level, age,
           start_grade, standard_code, standard_label, current_prompt, registration_email,
-          answer_key, answer_aliases, answer_note, question_id
+          answer_key, answer_aliases, answer_note, question_id, correct_at_level, incorrect_streak
         )
         values (
           ${id}, ${context.userId}, ${data.firstName.trim()}, ${data.subject}, ${grade}, ${grade}, ${data.age},
           ${grade}, ${item.standard}, ${item.note}, ${item.stem}, ${registrationEmail || null},
-          ${item.answer}, ${JSON.stringify(item.aliases)}, ${item.note}, ${item.id}
+          ${item.answer}, ${JSON.stringify(item.aliases)}, ${item.note}, ${item.id},
+          ${spellingView?.silence ?? 0}, ${spellingView?.wrong ?? 0}
         )
       `;
       await sql`

@@ -43,7 +43,7 @@ export const SUBJECTS = [
     id: "sp",
     code: "Spelling",
     name: "Spelling",
-    lede: "The alphabet plays one letter at a time. Then a question is spoken and shown. The microphone listens only while that question is waiting for an answer, and it does not record or save the sound. A correct answer shows a Happy Face, then the next question. A miss speaks the correct letter, then the next question.",
+    lede: "The alphabet plays one letter at a time. Then a question is spoken and shown. The microphone listens only while that question is waiting for an answer, and it does not record or save the sound. A correct answer shows a Happy Face, then the next letter. Silence tries the same letter once, then steps back. A miss shows the earlier letters, and three misses start again at A.",
   },
 ] as const;
 

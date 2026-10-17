@@ -7,10 +7,26 @@
   "songMs": 39000,
   "happyFaceMs": 2000,
   "responseMs": 5000,
-  "advanceMs": 2000,
   "maxChangesPerSecond": 3,
-  "movement": "next",
   "micRecords": false,
+  "answerFlow": {
+    "happyFaceMs": 2000,
+    "responseMs": 5000,
+    "afterLast": "A",
+    "clamp": "A",
+    "cueShowJoin": " ",
+    "cueSayJoin": ", ",
+    "correct": { "action": "next" },
+    "silence": [
+      { "times": 1, "action": "repeat" },
+      { "times": 2, "action": "back", "letters": 3 }
+    ],
+    "wrong": [
+      { "times": 1, "action": "cue", "letters": 3 },
+      { "times": 2, "action": "cue", "letters": 5 },
+      { "times": 3, "action": "restart", "letter": "A" }
+    ]
+  },
   "openingSay": "Your turn! What is the first letter of the alphabet?",
   "letters": [
     "A",

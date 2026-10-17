@@ -208,6 +208,19 @@
   color: var(--color-ink);
 }
 
+.sp-cue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem 0.6rem;
+  max-width: 100%;
+}
+
+.sp-cue .sp-letter {
+  font-size: clamp(2.8rem, 14vw, 7rem);
+}
+
 .sp-happy {
   width: min(46vw, 12rem);
   height: auto;

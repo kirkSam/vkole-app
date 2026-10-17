@@ -14,7 +14,8 @@ import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-histo
 import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
 import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
 import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
-import { cardFromAccount as spCardFromAccount, isSpBand, nextAfterAnswer, spellingPrompt } from "@/lib/vkole/spelling/items";
+import { applyLetterAnswer, letterMoveNote, letterView, normalizeLetterProgress } from "@/lib/vkole/spelling/items";
+import { savedSpellingReport, spellingStatsFromEvents, writeSpellingReport } from "@/lib/vkole/spelling/report";
 import { cardFromAccount, nextCard, startCard } from "@/lib/vkole/sight-words/words";
 import { isSightBand } from "@/lib/vkole/constants";
 
@@ -276,23 +277,21 @@ export const setClimbLevel = createServerFn({ method: "POST" })
     const held = capVkoleGrade(current.level);
     const level = capVkoleGrade(current.level + (data.direction === "up" ? 1 : -1));
     if (current.subject === "sp") {
-      const place =
-        level === held && data.direction === "up"
-          ? spCardFromAccount({ grade: held, band: current.standardCode, index: current.standardStep }, held)
-          : spCardFromAccount({ grade: level }, level);
+      const kept = level === held && data.direction === "up";
+      const view = letterView({ index: kept ? current.standardStep : 0, silence: 0, wrong: 0 });
       await sql`
         update climbs
         set level = ${level},
-            standard_step = ${place.index},
+            standard_step = ${view.index},
             correct_at_level = 0,
             incorrect_streak = 0,
-            standard_code = ${place.band},
-            standard_label = ${place.name},
-            current_prompt = ${place.show},
-            answer_key = ${place.answer},
-            answer_aliases = ${JSON.stringify(place.also)},
-            answer_note = ${place.name},
-            question_id = ${`sp:${place.band}:${place.index}`},
+            standard_code = ${view.band},
+            standard_label = ${view.name},
+            current_prompt = ${view.show},
+            answer_key = ${view.answer},
+            answer_aliases = ${JSON.stringify(view.also)},
+            answer_note = ${view.name},
+            question_id = ${`sp:${view.band}:${view.id}:s0:w0`},
             next_prompt = '',
             awaiting_next = 0,
             updated_at = now()
@@ -570,31 +569,23 @@ export const markSpelling = createServerFn({ method: "POST" })
     const current = await selectOwned(sql, context.userId, data.id);
     if (current.subject !== "sp") throw new Error("This session is not spelling.");
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
-    const place = spCardFromAccount(
-      {
-        grade: current.level,
-        band: isSpBand(current.standardCode) ? current.standardCode : undefined,
-        index: current.standardStep,
-      },
-      current.level,
-    );
+    const before = normalizeLetterProgress({
+      index: current.standardStep,
+      silence: current.correctAtLevel,
+      wrong: current.incorrectStreak,
+    });
+    const asked = letterView(before);
     const correct = data.outcome === "correct";
-    const moved = nextAfterAnswer({ band: place.band, index: place.index, grade: current.level }, correct);
-    const next = spCardFromAccount({ grade: current.level, band: moved.band, index: moved.index }, current.level);
-    const prompt = spellingPrompt(next.band, next.index, current.level);
+    const after = applyLetterAnswer(before, data.outcome);
+    const next = letterView(after);
     const earned = capVkoleGrade(Math.max(current.performanceLevel, current.level));
-    const note =
-      data.outcome === "correct"
-        ? "Heard."
-        : data.outcome === "timeout"
-          ? "No answer within 5 seconds."
-          : "Not yet.";
+    const note = letterMoveNote(before, data.outcome, after);
     await sql`
       update climbs
       set level = ${current.level},
           performance_level = ${earned},
-          correct_at_level = 0,
-          incorrect_streak = 0,
+          correct_at_level = ${next.silence},
+          incorrect_streak = ${next.wrong},
           grading_failures = 0,
           standard_step = ${next.index},
           asked = ${current.asked + 1},
@@ -605,7 +596,7 @@ export const markSpelling = createServerFn({ method: "POST" })
           answer_key = ${next.answer},
           answer_aliases = ${JSON.stringify(next.also)},
           answer_note = ${next.name},
-          question_id = ${prompt.id},
+          question_id = ${`sp:${next.band}:${next.id}:s${next.silence}:w${next.wrong}`},
           next_prompt = '',
           last_feedback = ${note},
           awaiting_next = 0,
@@ -620,12 +611,14 @@ export const markSpelling = createServerFn({ method: "POST" })
         ${JSON.stringify({
           correct,
           engine: "VKOLE/Spelling",
-          code: place.band,
-          label: place.name,
+          code: asked.band,
+          label: asked.name,
           grade: String(current.level),
-          question: place.say,
+          question: asked.kind === "cue" ? asked.show : asked.say,
           answer: data.outcome === "correct" ? "heard" : data.outcome === "timeout" ? "no answer" : "not yet",
           note,
+          letter: asked.answer,
+          outcome: data.outcome,
         })}
       )
     `;
@@ -817,9 +810,30 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     error: "",
     sheetNote: "",
     sheetKeys: [] as string[],
+    spellingReport: "",
   };
+  let spellingReport = "";
+  if (climb.subject === "sp") {
+    await sql`alter table climb_sittings add column if not exists spelling_report text`;
+    const savedRows = await sql<{ spelling_report: string | null }>`
+      select spelling_report from climb_sittings
+      where climb_id = ${climbId} and user_id = ${userId} and ended_at is null
+      order by started_at desc limit 1
+    `;
+    const saved = savedSpellingReport(savedRows[0]?.spelling_report);
+    if (saved) {
+      spellingReport = saved;
+    } else {
+      const written = await writeSpellingReport(spellingStatsFromEvents(reportEvents));
+      spellingReport = written.text;
+      await sql`
+        update climb_sittings set spelling_report = ${spellingReport}
+        where climb_id = ${climbId} and user_id = ${userId} and ended_at is null
+      `;
+    }
+  }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(facts.email)) {
-    return { ...empty, error: "The registration email is not a working address." };
+    return { ...empty, error: "The registration email is not a working address.", spellingReport };
   }
   const letter = academicLetter({
     firstName: climb.childName,
@@ -835,11 +849,12 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     rightCount: reportEvents.filter((event) => event.correct).length,
     parentEmail: facts.email,
     registeredAt: facts.registeredAt,
-    moved,
+    moved: climb.subject === "sp" ? null : moved,
     sheet: built?.prompts,
     trial: { startedAt: climb.startedAt, endsAt: climb.endsAt, daysLeft: climb.daysLeft, expired: climb.expired },
     events: reportEvents,
     session: { reason, sittingSeconds: sittingSecondsValue, totalSeconds: climb.onlineSeconds },
+    spellingReport,
   });
   let sent = false;
   let error = "";
@@ -871,6 +886,7 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     error,
     sheetNote: built ? "" : "The level stays. The assignment should be tried again.",
     sheetKeys: built?.prompts ?? [],
+    spellingReport,
   };
 }
 
@@ -912,7 +928,7 @@ export const endChildSession = createServerFn({ method: "POST" })
     if (data.reason === "inactivity") await disarmStudentClock(sql, context.userId, data.id);
     const open = await openSitting(sql, context.userId, data.id);
     if (!open) {
-      return { sent: false, recipient: "", reason: data.reason, sittingSeconds: 0, totalSeconds: 0, subject: "", body: "", error: "", sheetNote: "", alreadyClosed: true as const };
+      return { sent: false, recipient: "", reason: data.reason, sittingSeconds: 0, totalSeconds: 0, subject: "", body: "", error: "", sheetNote: "", spellingReport: "", alreadyClosed: true as const };
     }
     const checked = await sql<{ n: number | string }>`
       select count(*) as n from climb_events
@@ -920,7 +936,7 @@ export const endChildSession = createServerFn({ method: "POST" })
     `;
     if (Number(checked[0]?.n ?? 0) < 1) {
       const closed = await closeSitting(sql, context.userId, data.id, data.reason);
-      return { sent: false, recipient: "", reason: data.reason, sittingSeconds: closed?.seconds ?? 0, totalSeconds: climb.onlineSeconds + (closed?.seconds ?? 0), subject: "", body: "", error: "", sheetNote: "", alreadyClosed: false as const };
+      return { sent: false, recipient: "", reason: data.reason, sittingSeconds: closed?.seconds ?? 0, totalSeconds: climb.onlineSeconds + (closed?.seconds ?? 0), subject: "", body: "", error: "", sheetNote: "", spellingReport: "", alreadyClosed: false as const };
     }
     const claim = await sql<{ id: string }>`
       update climb_sittings set letter_sent = 1
@@ -928,7 +944,7 @@ export const endChildSession = createServerFn({ method: "POST" })
       returning id
     `;
     if (!claim[0]) {
-      return { sent: false, recipient: "", reason: data.reason, sittingSeconds: 0, totalSeconds: 0, subject: "", body: "", error: "", sheetNote: "", alreadyClosed: true as const };
+      return { sent: false, recipient: "", reason: data.reason, sittingSeconds: 0, totalSeconds: 0, subject: "", body: "", error: "", sheetNote: "", spellingReport: "", alreadyClosed: true as const };
     }
     const mail = await deliverLetter(sql, context.userId, data.id, data.reason, sittingSeconds(open, data.reason), asIso(open.started_at));
     if (!mail.sent) {

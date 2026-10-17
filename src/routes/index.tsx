@@ -19,6 +19,7 @@ import { deviceTimeZone } from "@/lib/day-clock-math";
 import { allowGmail, noteAccount } from "@/lib/ledger";
 import { useRefetchWhenConnectorReady } from "@/lib/app-data/use-connector-readiness";
 import { endReasonSentence, type EndReason } from "@/lib/academic-email";
+import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
 import { ACCOUNT_GONE_FLAG } from "@/lib/account-purge";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -237,6 +238,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
     mailDesk?: boolean;
   } | null>(null);
   const [mailNote, setMailNote] = useState("");
+  const [spellingReport, setSpellingReport] = useState("");
   const [appPassword, setAppPassword] = useState("");
   const [allowNote, setAllowNote] = useState("");
   const [allowing, setAllowing] = useState(false);
@@ -261,12 +263,14 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
           recipient?: string;
           error?: string;
           body?: string;
+          spellingReport?: string;
         };
-        if (note.pending || !note.body) return false;
+        if (note.pending || (!note.body && !note.spellingReport)) return false;
         sessionStorage.removeItem("vkole-last-mail");
         if (!live) return true;
         const reason: EndReason = note.reason === "inactivity" || note.reason === "finished" ? note.reason : "logout";
         const how = endReasonSentence(reason);
+        setSpellingReport(typeof note.spellingReport === "string" ? note.spellingReport.trim() : "");
         setMailNote(
           note.sent
             ? `${how} Academic email sent to ${note.recipient}.`
@@ -431,6 +435,12 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
         </div>
       ) : null}
       {mailNote ? <p className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-ink">{mailNote}</p> : null}
+      {spellingReport ? (
+        <section className="mt-4 rounded-2xl border border-line bg-surface p-4">
+          <h2 className="font-display text-xl text-ink">{SPELLING_REPORT_LABEL}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-ink">{spellingReport}</p>
+        </section>
+      ) : null}
       {loadError ? <p className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-miss">{loadError}</p> : null}
       <SchoolPath className="mt-6" />
       <EnginePicks />

@@ -86,7 +86,7 @@ npm run db:migrate
 | Service | What it is for | Name to set |
 |---|---|---|
 | Postgres | Accounts, students, levels, mail record | `DATABASE_URL` |
-| xAI API | Grade one answer and write the next question | `XAI_API_KEY` |
+| xAI API | Grade one answer, write the next question, and write the spelling parent report | `XAI_API_KEY` |
 | Gmail SMTP | Parent progress reports, password codes, registration notices | `GMAIL_APP_PASSWORD` or `VKOLE_MAIL_SECRET` |
 | Better Auth | This app's session cookie after the school website accepts the password | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` |
 | School website | Parent account, password, level, free week, clock, seen questions, and access | `VKOLE_SHARED_SECRET` |

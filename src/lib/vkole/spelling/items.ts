@@ -4,13 +4,12 @@ export const SPELLING_ENGINE = "sp" as const;
 
 export const SPELLING_LETTER_MS = lists.letterMs;
 export const SPELLING_SONG_MS = lists.songMs;
-export const SPELLING_HAPPY_FACE_MS = lists.happyFaceMs;
-export const SPELLING_RESPONSE_MS = lists.responseMs;
-export const SPELLING_ADVANCE_MS = lists.advanceMs;
+export const SPELLING_HAPPY_FACE_MS = lists.answerFlow.happyFaceMs;
+export const SPELLING_RESPONSE_MS = lists.answerFlow.responseMs;
 export const SPELLING_MAX_CHANGES_PER_SECOND = lists.maxChangesPerSecond;
 
 export const SPELLING_NOTE =
-  "The alphabet plays once when this engine opens, one letter every 1.5 seconds. Then a question is spoken and shown. The microphone listens only while that question is waiting for an answer, and it does not record or save the sound. A correct answer shows a Happy Face for 2 seconds, then the next question. A miss, or 5 seconds with no answer, speaks the correct letter, waits 2 seconds, and then the next question.";
+  "The alphabet plays once when this engine opens, one letter every 1.5 seconds. Then a question is spoken and shown. The microphone listens only while that question is waiting for an answer, and it does not record or save the sound. A correct answer shows a Happy Face for 2 seconds, then the next letter, and a fast answer moves on as soon as it is heard. Five seconds of silence shows the same letter again. A second silence goes back 3 letters. A miss shows and speaks the 3 earlier letters, then the 5 earlier letters, and then starts again at A.";
 
 export const SPELLING_BANDS = ["LK", "LS", "CVC", "DOLCH", "FRY"] as const;
 
@@ -181,24 +180,139 @@ export function cardFromAccount(
   return spCard(band, index, grade);
 }
 
+export type LetterProgress = {
+  index: number;
+  silence: number;
+  wrong: number;
+};
+
+export type LetterOutcome = "correct" | "miss" | "timeout";
+
+export type LetterView = {
+  id: string;
+  index: number;
+  letter: string;
+  silence: number;
+  wrong: number;
+  kind: "ask" | "cue";
+  cue: string[];
+  say: string;
+  show: string;
+  answer: string;
+  also: string[];
+  shown: string;
+  band: SpBand;
+  name: string;
+};
+
+type FlowSilence = { times?: number; action?: string; letters?: number };
+type FlowWrong = { times?: number; action?: string; letters?: number; letter?: string };
+
+/** The letter the student should say. 0 is A. Counts that pass A stop at A. */
+export function clampLetterIndex(index: number): number {
+  const letters = alphabet();
+  const floor = Math.max(0, letters.indexOf(lists.answerFlow.clamp));
+  const at = Number.isInteger(index) ? index : floor;
+  return Math.min(letters.length - 1, Math.max(floor, at));
+}
+
+export function normalizeLetterProgress(input: Partial<LetterProgress> | null | undefined): LetterProgress {
+  return {
+    index: clampLetterIndex(input?.index ?? 0),
+    silence: Math.max(0, Math.trunc(Number(input?.silence) || 0)),
+    wrong: Math.max(0, Math.trunc(Number(input?.wrong) || 0)),
+  };
+}
+
+function cueLetters(index: number, count: number): string[] {
+  const letters = alphabet();
+  const start = Math.max(0, index - Math.max(0, Math.trunc(count) || 0));
+  return letters.slice(start, index);
+}
+
 /**
- * Correct, miss, and no answer all move to the next item.
- * The grade stays. Empty bands are skipped. The last filled band wraps to its start.
- * `movement` in the data file is `next` until the owner specifies another rule.
+ * Letter-phase answers. The rules, including 3 and 5, come from `answerFlow` in the data file.
+ * A spoken answer is applied at once. Silence uses the response window, then this same step.
  */
-export function nextAfterAnswer(
-  state: { band: SpBand; index: number; grade: number },
-  _correct: boolean,
-): { band: SpBand; index: number; grade: number } {
-  const order = filledBands();
-  const current = order.includes(state.band) ? state.band : (order[0] ?? "LK");
-  const count = Math.max(1, bandMeta(current).count);
-  const at = order.indexOf(current);
-  if (lists.movement !== "next") return { band: current, index: Math.min(state.index, count - 1), grade: state.grade };
-  if (state.index + 1 < count) return { band: current, index: state.index + 1, grade: state.grade };
-  const next = order[at + 1];
-  if (next) return { band: next, index: 0, grade: state.grade };
-  return { band: order[0] ?? "LK", index: 0, grade: state.grade };
+export function applyLetterAnswer(input: LetterProgress, outcome: LetterOutcome): LetterProgress {
+  const state = normalizeLetterProgress(input);
+  const letters = alphabet();
+  if (outcome === "correct") {
+    const next = state.index + 1;
+    const wrapped = next >= letters.length ? Math.max(0, letters.indexOf(lists.answerFlow.afterLast)) : next;
+    return { index: clampLetterIndex(wrapped), silence: 0, wrong: 0 };
+  }
+  const silenceRules = lists.answerFlow.silence as FlowSilence[];
+  const wrongRules = lists.answerFlow.wrong as FlowWrong[];
+  if (outcome === "miss" || state.wrong > 0) {
+    const step = state.wrong + 1;
+    const rule = wrongRules.find((row) => row.times === step) ?? wrongRules[wrongRules.length - 1];
+    if (!rule || rule.action === "restart") {
+      return { index: clampLetterIndex(letters.indexOf(rule?.letter ?? lists.answerFlow.clamp)), silence: 0, wrong: 0 };
+    }
+    return { index: state.index, silence: 0, wrong: step };
+  }
+  const times = state.silence + 1;
+  const rule = silenceRules.find((row) => row.times === times) ?? silenceRules[silenceRules.length - 1];
+  if (!rule || rule.action === "repeat") return { index: state.index, silence: times, wrong: 0 };
+  return { index: clampLetterIndex(state.index - (rule.letters ?? 3)), silence: 0, wrong: 0 };
+}
+
+/** What the student sees and says for the current letter, including a 3-letter or 5-letter cue. */
+export function letterView(input: LetterProgress): LetterView {
+  const progress = normalizeLetterProgress(input);
+  const letters = alphabet();
+  const letter = letters[progress.index] ?? "A";
+  const meta = bandMeta("LK");
+  const item = itemAt("LK", progress.index);
+  if (progress.wrong > 0) {
+    const rule = (lists.answerFlow.wrong as FlowWrong[]).find((row) => row.times === progress.wrong && row.action === "cue");
+    const cue = cueLetters(progress.index, rule?.letters ?? 0);
+    if (cue.length > 0) {
+      return {
+        id: `lk-cue-${cue.length}-${letter.toLowerCase()}`,
+        index: progress.index,
+        letter,
+        silence: progress.silence,
+        wrong: progress.wrong,
+        kind: "cue",
+        cue,
+        say: cue.join(lists.answerFlow.cueSayJoin),
+        show: cue.join(lists.answerFlow.cueShowJoin),
+        answer: item.answer || letter,
+        also: item.also,
+        shown: "",
+        band: "LK",
+        name: meta.name,
+      };
+    }
+  }
+  return {
+    id: item.id || `lk-${letter.toLowerCase()}`,
+    index: progress.index,
+    letter,
+    silence: progress.silence,
+    wrong: progress.wrong,
+    kind: "ask",
+    cue: [],
+    say: item.say,
+    show: item.show,
+    answer: item.answer || letter,
+    also: item.also,
+    shown: item.letter,
+    band: "LK",
+    name: meta.name,
+  };
+}
+
+export function letterMoveNote(before: LetterProgress, outcome: LetterOutcome, after: LetterProgress): string {
+  if (outcome === "correct") return "Heard.";
+  if (outcome === "timeout" && after.silence > before.silence) return "No answer. The same letter stays.";
+  if (outcome === "timeout" && before.wrong === 0 && after.index < before.index) return "No answer. The sequence goes back.";
+  if (before.wrong > 0 && after.wrong === 0 && after.index === 0) return "Not yet. The alphabet starts again at A.";
+  if (after.wrong > before.wrong) return "Not yet. The earlier letters are the prompt.";
+  if (outcome === "timeout") return "No answer.";
+  return "Not yet.";
 }
 
 export function spellingPrompt(band: SpBand, index: number, grade = 1): {

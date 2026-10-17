@@ -1,15 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  SPELLING_ADVANCE_MS,
   SPELLING_HAPPY_FACE_MS,
   SPELLING_LETTER_MS,
   SPELLING_RESPONSE_MS,
   alphabet,
-  isSpBand,
   letterAtSongTime,
   letterColors,
+  letterView,
   micListensDuring,
-  spCard,
 } from "@/lib/vkole/spelling/items";
 import { judgeSpellingSpoken } from "@/lib/vkole/spelling/match";
 
@@ -30,7 +28,7 @@ type SpeechListener = {
 };
 
 type Outcome = "correct" | "miss" | "timeout";
-type Phase = "song" | "prompt" | "listen" | "happy" | "model";
+type Phase = "song" | "prompt" | "listen" | "happy";
 
 function recognitionCtor(): (new () => SpeechListener) | null {
   if (typeof window === "undefined") return null;
@@ -46,7 +44,7 @@ function canSpeak(): boolean {
 }
 
 function speakLine(line: string, done: () => void) {
-  if (!canSpeak()) {
+  if (!canSpeak() || !line.trim()) {
     done();
     return;
   }
@@ -79,19 +77,22 @@ function HappyFace() {
 }
 
 export function SpellingStage({
-  band,
   index = 0,
+  silence = 0,
+  wrong = 0,
   skipSong = false,
   onSongDone,
   onDone,
 }: {
-  band?: string;
   index?: number;
+  silence?: number;
+  wrong?: number;
   skipSong?: boolean;
   onSongDone?: () => void;
   onDone: (outcome: Outcome) => void;
 }) {
-  const item = spCard(isSpBand(band) ? band : "LK", index, 1);
+  const view = letterView({ index, silence, wrong });
+  const token = `${view.id}:${view.silence}:${view.wrong}`;
   const letters = alphabet();
   const colors = letterColors();
   const [ready, setReady] = useState(false);
@@ -102,13 +103,13 @@ export function SpellingStage({
   const [secondsLeft, setSecondsLeft] = useState(SPELLING_RESPONSE_MS / 1000);
   const onDoneRef = useRef(onDone);
   const onSongDoneRef = useRef(onSongDone);
-  const itemRef = useRef(item);
+  const viewRef = useRef(view);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
   const advanceRef = useRef(0);
-  const seenItem = useRef(item.id);
+  const seen = useRef(token);
   onDoneRef.current = onDone;
   onSongDoneRef.current = onSongDone;
-  itemRef.current = item;
+  viewRef.current = view;
 
   useEffect(() => {
     const supported = recognitionCtor() != null;
@@ -122,10 +123,10 @@ export function SpellingStage({
   }, []);
 
   useEffect(() => {
-    if (seenItem.current === item.id) return;
-    seenItem.current = item.id;
+    if (seen.current === token) return;
+    seen.current = token;
     setPhase((current) => (current === "song" ? current : "prompt"));
-  }, [item.id]);
+  }, [token]);
 
   useEffect(() => {
     if (phase !== "song") return;
@@ -160,14 +161,14 @@ export function SpellingStage({
   useEffect(() => {
     if (!ready || phase !== "prompt") return;
     let live = true;
-    speakLine(item.say, () => {
+    speakLine(view.say, () => {
       if (live) setPhase("listen");
     });
     return () => {
       live = false;
       window.speechSynthesis?.cancel();
     };
-  }, [item.id, item.say, phase, ready]);
+  }, [token, view.say, phase, ready]);
 
   useEffect(() => {
     if (!canScore) return;
@@ -192,16 +193,12 @@ export function SpellingStage({
       }
       rec = null;
       window.clearTimeout(advanceRef.current);
-      const current = itemRef.current;
       if (outcome === "correct") {
         setPhase("happy");
         advanceRef.current = window.setTimeout(() => onDoneRef.current("correct"), SPELLING_HAPPY_FACE_MS);
         return;
       }
-      setPhase("model");
-      speakLine(current.model, () => {
-        advanceRef.current = window.setTimeout(() => onDoneRef.current(outcome), SPELLING_ADVANCE_MS);
-      });
+      onDoneRef.current(outcome);
     };
 
     if (listening) {
@@ -213,7 +210,7 @@ export function SpellingStage({
         rec.interimResults = true;
         rec.onresult = (event) => {
           const start = event.resultIndex ?? 0;
-          const current = itemRef.current;
+          const current = viewRef.current;
           for (let i = start; i < event.results.length; i += 1) {
             const result = event.results[i];
             if (!result) continue;
@@ -256,14 +253,14 @@ export function SpellingStage({
         /* already stopped */
       }
     };
-  }, [canScore, item.id, listening]);
+  }, [canScore, token, listening]);
 
   useEffect(() => {
     return () => {
       window.clearTimeout(advanceRef.current);
       if (typeof window !== "undefined") window.speechSynthesis?.cancel();
     };
-  }, [item.id]);
+  }, [token]);
 
   function allowMic() {
     try {
@@ -288,33 +285,39 @@ export function SpellingStage({
     );
   }
 
-  const showLetter = item.letter && phase !== "happy";
-  const glyph = phase === "model" ? item.model : item.letter;
-  const swatch = glyph ? colors[letters.indexOf(glyph)] : undefined;
+  const shownSwatch = view.shown ? colors[letters.indexOf(view.shown)] : undefined;
   const needsMic = phase === "listen" && !unsupported && !allowed;
+  const background = view.kind === "ask" && shownSwatch ? shownSwatch.background : undefined;
 
   return (
-    <section className="sp-review" style={swatch ? { background: swatch.background } : undefined} aria-live="polite">
+    <section className="sp-review" style={background ? { background } : undefined} aria-live="polite">
       <p className="text-center text-xs tracking-wide text-muted uppercase">
-        {phase === "prompt" ? "Speaking" : phase === "listen" ? "Listening" : phase === "happy" ? "Happy Face" : "Answer"}
+        {phase === "prompt" ? "Speaking" : phase === "listen" ? "Listening" : "Happy Face"}
       </p>
       {phase === "happy" ? (
         <HappyFace />
-      ) : phase === "model" ? (
-        <p className="sp-letter font-display" style={{ color: swatch?.letter ?? "#1d2420" }}>
-          {glyph}
-        </p>
+      ) : view.kind === "cue" ? (
+        <div className="sp-cue" aria-label={view.show}>
+          {view.cue.map((glyph) => {
+            const swatch = colors[letters.indexOf(glyph)];
+            return (
+              <p key={glyph} className="sp-letter font-display" style={{ color: swatch?.letter ?? "#1d2420" }}>
+                {glyph}
+              </p>
+            );
+          })}
+        </div>
       ) : (
         <>
-          {showLetter ? (
-            <p className="sp-letter font-display" style={{ color: swatch?.letter }}>
-              {item.letter}
+          {view.shown ? (
+            <p className="sp-letter font-display" style={{ color: shownSwatch?.letter }}>
+              {view.shown}
             </p>
           ) : null}
-          <p className="sp-prompt">{item.show}</p>
-          {phase === "listen" && !needsMic ? <p className="mt-3 text-center text-sm text-muted">{secondsLeft} seconds</p> : null}
+          <p className="sp-prompt">{view.show}</p>
         </>
       )}
+      {phase === "listen" && !needsMic ? <p className="mt-3 text-center text-sm text-muted">{secondsLeft} seconds</p> : null}
       {needsMic ? (
         <div className="mt-6 max-w-md text-center">
           <h2 className="font-display text-2xl text-ink">Microphone</h2>
