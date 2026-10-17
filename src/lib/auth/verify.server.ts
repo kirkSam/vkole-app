@@ -60,6 +60,13 @@ export async function getSessionUser(
   if (!authConfigured && !gateIdentityEnabled()) return null;
   const request = getRequest();
   if (!request) return null;
+  // The website wipe left this app's session cookie behind. Until this browser
+  // has loaded the wipe version, ignore that cookie and any preview bearer.
+  const { ensureStoredAccountsWiped, requestNeedsAccountSignOut } = await import(
+    "../account-wipe.server.ts"
+  );
+  await ensureStoredAccountsWiped();
+  if (await requestNeedsAccountSignOut()) return null;
   let headers = request.headers;
   if (bearerToken) {
     headers = new Headers(request.headers);

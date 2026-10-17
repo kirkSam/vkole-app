@@ -1,11 +1,17 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { applyBrowserAccountWipe } from "@/lib/account-wipe";
+import { applyLoadAccountWipe } from "@/lib/account-wipe-load";
 import appCss from "../styles.css?url";
 
 import { SCHOOL_NAME } from "@/lib/brand";
 
+// Before React reads the preview bearer. Each tab and this browser run it once.
+applyBrowserAccountWipe();
+
 export const Route = createRootRoute({
+  loader: () => applyLoadAccountWipe(),
   head: () => ({
     meta: [
       { charSet: "utf-8" },

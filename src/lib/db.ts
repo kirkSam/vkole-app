@@ -190,10 +190,21 @@ async function createSql(): Promise<Sql> {
  * both backends — define tables there, never inline in server functions.
  */
 export function getSql(): Promise<Sql> {
-  sqlPromise ??= createSql().catch((err) => {
-    sqlPromise = null; // don't memoize failures — let the next call retry
-    throw err;
-  });
+  sqlPromise ??= createSql()
+    .then(async (sql) => {
+      // One-time account wipe, before any caller can read the old rows.
+      // The import stays inside this server path so the browser bundle does
+      // not pull in the database purge.
+      if (typeof window === "undefined") {
+        const { wipeStoredAccountsOnce } = await import("./account-wipe.server.ts");
+        await wipeStoredAccountsOnce(sql);
+      }
+      return sql;
+    })
+    .catch((err) => {
+      sqlPromise = null; // don't memoize failures — let the next call retry
+      throw err;
+    });
   return sqlPromise;
 }
 
