@@ -13,6 +13,12 @@ Base: `https://www.dotheimpossible.ai`
 | `POST /api/vkole/password-reset` | email |
 | `POST /api/vkole/password-reset/confirm` | email, code, password |
 
+The account id is the email after trimming and lowercasing. Dots in the address stay. Register and sign-in both send that lowercase id. Sign-in tries the typed spelling only when the lowercase id is unknown.
+
+The password is the typed password with trailing newlines removed. It is not trimmed and it is not lowercased. Register, sign-in, and password-reset confirm all send that same value. The website's `src/lib/vkole` handlers must store and check that same value, in the same account row the engine sign-in reads.
+
+`VKOLE_MASTER_EMAIL`, or `kirksamalpha@dotheimpossible.ai` when that variable is empty, is never on a free week and never has to pay. Register, sign-in, and read for that email return `access: "open"` and do not send a finished free week. The website's client already skips the free week for that address. The API handlers in `src/lib/vkole` have to do the same.
+
 A write replaces each engine object that is sent. Engines that are omitted are not part of this app's write. The app sends every engine it has on the device.
 
 `seen` is the last 400 questions, `{ "key", "text" }`. `clockSeconds` is the shared day clock, capped at 2.5 hours.

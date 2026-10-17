@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { IDLE_MS, academicLetter, parentLogoutLetter, trialState, type AppTime, type EndReason, type ReportEvent } from "@/lib/academic-email";
 import { schoolMiddleware } from "@/lib/school-middleware";
-import { isSchoolAccountId } from "@/lib/school-account";
+import { isSchoolAccountId, schoolAccessDecision } from "@/lib/school-account";
 import { isSubject, SUBJECTS, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { moveRung, stepName, stepSentence } from "@/lib/cc-steps";
 import { fillSheet, rememberPrompt, seenKeys } from "@/lib/next-sheet";
@@ -46,6 +46,8 @@ export type Climb = {
   plan: "month" | "year" | null;
   renews: boolean;
   blocked: boolean;
+  /** The website master email. No trial countdown and no payment gate. */
+  fullAccess: boolean;
   onlineSeconds: number;
 };
 
@@ -102,31 +104,30 @@ async function accountState(sql: Sql, userId: string) {
   if (isSchoolAccountId(userId)) {
     const { readSchoolMirror } = await import("@/lib/school-mirror.server");
     const mirror = await readSchoolMirror(sql, userId);
-    const startedAt = mirror?.freeWeekStart ?? new Date(0).toISOString();
+    const decision = schoolAccessDecision({
+      email: userId,
+      access: mirror?.access ?? null,
+      freeWeekStart: mirror?.freeWeekStart ?? null,
+      masterRaw: process.env.VKOLE_MASTER_EMAIL,
+    });
+    const startedAt = decision.fullAccess
+      ? new Date().toISOString()
+      : (mirror?.freeWeekStart ?? new Date(0).toISOString());
     const trial = trialState(startedAt);
-    const open = mirror?.access === "open";
     const office = {
       officePurchased: mirror?.officePurchased === true,
       officeSlug: mirror?.officeSlug ?? null,
     };
-    if (!open) {
-      return {
-        ...trial,
-        expired: true,
-        daysLeft: 0,
-        subscribed: false,
-        subscriptionEndsAt: null,
-        plan: null,
-        renews: false,
-        ...office,
-      };
-    }
     return {
       ...trial,
-      subscribed: trial.expired,
+      expired: decision.expired,
+      daysLeft: decision.daysLeft ?? trial.daysLeft,
+      endsAt: decision.endsAt ?? trial.endsAt,
+      subscribed: decision.subscribed,
       subscriptionEndsAt: null,
-      plan: mirror?.plan ?? null,
+      plan: decision.fullAccess || mirror?.access === "open" ? (mirror?.plan ?? null) : null,
       renews: false,
+      fullAccess: decision.fullAccess,
       ...office,
     };
   }
@@ -151,6 +152,7 @@ async function accountState(sql: Sql, userId: string) {
     renews: sub ? flag(sub.renews) : false,
     officePurchased: false,
     officeSlug: null as string | null,
+    fullAccess: false,
   };
 }
 
@@ -237,12 +239,13 @@ export const listClimbs = createServerFn({ method: "GET" })
     }
     return {
       climbs,
-      endsAt: account.endsAt,
-      daysLeft: account.daysLeft,
+      endsAt: account.fullAccess ? null : account.endsAt,
+      daysLeft: account.fullAccess ? null : account.daysLeft,
       subscribed: account.subscribed,
       plan: account.plan,
       renews: account.renews,
-      blocked: account.expired && !account.subscribed,
+      blocked: account.fullAccess ? false : account.expired && !account.subscribed,
+      fullAccess: account.fullAccess,
       officePurchased: account.officePurchased,
       officeSlug: account.officeSlug,
     };
