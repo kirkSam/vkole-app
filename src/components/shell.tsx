@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { APP_NAME, SCHOOL_EMAIL, SCHOOL_SITE } from "@/lib/brand";
+import { markZpdReturn } from "@/lib/zpd-info";
 import { SUBJECTS, engineNavLabel, enginePickLabel, type SubjectId } from "@/lib/climb-rules";
 import { authClient, authEnabled, signOut } from "@/lib/auth/client";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
@@ -103,15 +104,29 @@ function EngineNav() {
           {engineNavLabel(subject.id)}
         </a>
       ))}
-      <a
-        href={`${SCHOOL_SITE}/zpd`}
-        target="_blank"
-        rel="noreferrer"
+      <Link
+        to="/zpd"
+        onClick={(event) => {
+          if (
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey ||
+            event.button !== 0
+          ) {
+            return;
+          }
+          try {
+            markZpdReturn(window.location.pathname, sessionStorage);
+          } catch {
+            /* storage may be unavailable */
+          }
+        }}
         className="vkole-nav vkole-nav-zpd text-left font-display text-base tracking-wide text-ink"
       >
         <span>Vygotsky ZPD</span>
         <small>Zone of Proximal Development</small>
-      </a>
+      </Link>
     </nav>
   );
 }
