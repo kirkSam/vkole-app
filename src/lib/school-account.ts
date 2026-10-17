@@ -116,6 +116,16 @@ export type SchoolProfile = {
 
 export type SchoolFailure = "offline" | "wait" | "unknown" | "password" | "exists" | "rejected" | "gone";
 
+/**
+ * A leftover local user row does not make a website account unrecognized.
+ * The website's own reason is what sign-in shows. Reset is a separate step
+ * the parent chooses, not a block inserted because this app already stored the email.
+ */
+export function websiteSignInRefusal(reason: SchoolFailure, localRow: boolean): SchoolFailure {
+  void localRow;
+  return reason;
+}
+
 export function isSchoolAccountId(id: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id) && id === id.toLowerCase();
 }
@@ -585,6 +595,13 @@ export function failureKind(status: number, body: unknown): SchoolFailure {
     text.includes("removed")
   ) {
     return "gone";
+  }
+  if (
+    (status === 401 || status === 403) &&
+    !text.includes("password") &&
+    (text.includes("secret") || text.includes("unauthorized") || text.includes("forbidden"))
+  ) {
+    return "offline";
   }
   if (text.includes("not found") || text.includes("unknown") || text.includes("no account")) return "unknown";
   if (text.includes("password") || text.includes("match") || text.includes("invalid")) return "password";

@@ -389,4 +389,29 @@ describe("server calls", () => {
       (err: unknown) => err instanceof SchoolCallError && err.message === "That code has expired.",
     );
   });
+
+  it("signs in a website account after trimming spaces, and retries the typed spelling when lowercase is unknown", async () => {
+    const calls: string[] = [];
+    const account = await signInSchoolAccount(
+      { email: "  Sam@Family.test ", password: "long-enough" },
+      {
+        secret: SECRET,
+        fetch: async (input, init) => {
+          assert.equal(input, "https://www.dotheimpossible.ai/api/vkole/sign-in");
+          const email = JSON.parse(String(init?.body)).email as string;
+          calls.push(email);
+          if (email === "sam@family.test") return jsonResponse(404, { ok: false, error: "No account for that email." });
+          return jsonResponse(200, { ok: true, profile: { access: "open", studentName: "Sam" } });
+        },
+      },
+    );
+    assert.deepEqual(calls, ["sam@family.test", "Sam@Family.test"]);
+    assert.equal(account.id, "sam@family.test");
+    assert.equal(account.profile.studentName, "Sam");
+  });
+
+  it("treats a secret rejection as offline, not as an unrecognized password", () => {
+    assert.equal(failureKind(401, { error: "Unauthorized" }), "offline");
+    assert.equal(failureKind(403, { error: "Forbidden secret" }), "offline");
+  });
 });

@@ -2,6 +2,7 @@
  * Server-only calls to the school website account API.
  * Never import this from a client component. The secret stays here.
  */
+import { accountEmailForms, normalizeAccountEmail, sameAccount } from "./account-scope.ts";
 import {
   SCHOOL_ACCOUNT_GONE_MESSAGE,
   SCHOOL_OFFLINE_MESSAGE,
@@ -105,11 +106,17 @@ async function postSchool(path: string, body: unknown, deps?: CallDeps): Promise
   return parsed;
 }
 
+function accountId(raw: string): string {
+  const email = normalizeAccountEmail(raw);
+  if (!email.includes("@")) throw new SchoolCallError("rejected", "Check the email and password and try again.");
+  return email;
+}
+
 export async function registerSchoolAccount(
   input: { email: string; password: string; name: string },
   deps?: CallDeps,
 ): Promise<{ id: string; profile: SchoolProfile }> {
-  const email = input.email.trim().toLowerCase();
+  const email = accountId(input.email);
   const name = input.name.trim() || "Parent";
   const body = await postSchool(
     PATHS.register,
@@ -128,11 +135,32 @@ export async function signInSchoolAccount(
   input: { email: string; password: string },
   deps?: CallDeps,
 ): Promise<{ id: string; profile: SchoolProfile }> {
-  const email = input.email.trim().toLowerCase();
-  const body = await postSchool(PATHS.signIn, { email, password: input.password }, deps);
-  const parsed = parseSchoolProfile(body);
-  if (!parsed) throw new SchoolCallError("rejected", "Email or password did not match.");
-  return parsed;
+  const forms = accountEmailForms(input.email);
+  const id = forms[0];
+  if (!id) throw new SchoolCallError("rejected", "Check the email and password and try again.");
+  let last: unknown = new SchoolCallError("rejected", "Email or password did not match.");
+  for (const email of forms) {
+    try {
+      const body = await postSchool(PATHS.signIn, { email, password: input.password }, deps);
+      const parsed = parseSchoolProfile(body);
+      if (parsed && !sameAccount(parsed.id, id)) {
+        throw new SchoolCallError("rejected", "Email or password did not match.");
+      }
+      const account = parsed ?? parseSchoolProfile({ ...(asRecord(body) ?? {}), id, email: id, ok: true });
+      if (!account || !sameAccount(account.id, id)) {
+        throw new SchoolCallError("rejected", "Email or password did not match.");
+      }
+      return { id, profile: account.profile };
+    } catch (err) {
+      last = err;
+      if (!(err instanceof SchoolCallError) || err.reason !== "unknown") throw err;
+    }
+  }
+  throw last;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 }
 
 /**
@@ -156,7 +184,7 @@ export async function studentCheck(
 }
 
 export async function readSchoolAccount(id: string, deps?: CallDeps): Promise<SchoolProfile> {
-  const email = id.trim().toLowerCase();
+  const email = accountId(id);
   const body = await postSchool(PATHS.read, { id: email, email }, deps);
   const payload = body && typeof body === "object" ? { ...(body as object), id: email, ok: true } : { id: email, ok: true };
   const parsed = parseSchoolProfile(payload);
@@ -175,7 +203,7 @@ export async function requestSchoolReset(
   email: string,
   deps?: CallDeps,
 ): Promise<{ code: string; expiresAt: string }> {
-  const id = email.trim().toLowerCase();
+  const id = accountId(email);
   const body = await postSchool(PATHS.passwordReset, { id, email: id }, deps);
   const code = resetCode(body);
   if (!code) throw new SchoolCallError("unknown", "The school website has no password reset for that email.");
@@ -187,7 +215,7 @@ export async function confirmSchoolReset(
   input: { email: string; code: string; newPassword: string },
   deps?: CallDeps,
 ): Promise<void> {
-  const email = input.email.trim().toLowerCase();
+  const email = accountId(input.email);
   await postSchool(
     PATHS.passwordResetConfirm,
     { email, code: input.code.trim(), newPassword: input.newPassword },
