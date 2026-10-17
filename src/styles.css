@@ -56,9 +56,25 @@
 
 .sight-word {
   font-size: clamp(3.5rem, 12vw, 7rem);
-  line-height: 1.05;
+  line-height: 1.15;
+  padding-top: 0.35em;
   text-align: center;
   overflow-wrap: anywhere;
+}
+
+.sight-heart {
+  position: relative;
+}
+
+.sight-heart::before {
+  content: "♥";
+  position: absolute;
+  top: -0.32em;
+  left: 50%;
+  color: #9a3d62;
+  font-size: 0.28em;
+  line-height: 1;
+  transform: translateX(-50%);
 }
 
 .sight-sparkle::before,

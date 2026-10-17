@@ -40,57 +40,62 @@ Sight words. The key is `sw`.
   "enteredBy": "parent",
   "grade": 1,
   "step": 0,
-  "band": "D-PP",
+  "band": "D-1",
   "index": 0,
-  "word": "a",
+  "word": "after",
   "earnedGrade": 1,
   "reached": 0,
   "missed": 0,
   "updatedAt": 0,
   "startingGrade": 1,
-  "levelCode": "D-PP",
-  "levelLabel": "Dolch pre-primer"
+  "levelCode": "D-1",
+  "levelLabel": "1st"
 }
 ```
 
-`band` is the list. `index` is the word in that list. `step` stays 0. The position is `index`, not `step`. `word` is the word now showing.
+`band` is the list. `index` is the word in that list. `step` stays 0. The position is `index`, not `step`. `word` is the word now showing. The word lists, heart indexes, and `also` homophones are in `src/lib/vkole/sight-words/data.json`, copied from `docs/sight-words-website-canonical.md`. Fry bands omit words already taught in Dolch, so F-1 has 10 words.
 
 ### Bands
 
 `D-PP`, `D-P`, `D-1`, `D-2`, `D-3`, `D-N`, `F-1`, `F-2`, `F-3`, `F-4`, `F-5`, `F-6`, `F-7`, `F-8`, `F-9`, `F-10`.
 
-| Band | Label | Words |
+| Band | Grade label | Words |
 |---|---|---|
-| D-PP | Dolch pre-primer | 40 |
-| D-P | Dolch primer | 52 |
-| D-1 | Dolch grade 1 | 41 |
-| D-2 | Dolch grade 2 | 46 |
-| D-3 | Dolch grade 3 | 41 |
-| D-N | Dolch nouns | 95 |
-| F-1 … F-10 | Fry 1-100 through Fry 901-1000 | 100 each |
+| D-PP | Pre-K | 40 |
+| D-P | K | 52 |
+| D-1 | 1st | 41 |
+| D-2 | 2nd | 46 |
+| D-3 | 3rd | 41 |
+| D-N | K-3 | 95 |
+| F-1 | K-1 | 10 |
+| F-2 | 1st-2nd | 38 |
+| F-3 | 1st-2nd | 60 |
+| F-4 | 2nd-3rd | 73 |
+| F-5 | 2nd-3rd | 81 |
+| F-6 | 3rd-4th | 93 |
+| F-7 | 3rd-4th | 89 |
+| F-8 | 4th-5th | 93 |
+| F-9 | 4th-5th | 96 |
+| F-10 | 4th-5th | 95 |
 
 ### Grade labels
 
-`Grade 1` through `Grade 12`.
+`Pre-K`, `K`, `1st`, `2nd`, `3rd`, `K-3`, `K-1`, `1st-2nd`, `2nd-3rd`, `3rd-4th`, `4th-5th`.
 
 ### Grade start bands
 
+Round the grade to the nearest integer. Below 1, or not a number, starts at D-PP. A saved `band`, including `sight.band`, or a `levelCode` that is a band id, wins over this map.
+
 | Grade | Starts on |
 |---|---|
-| 1 | D-PP |
-| 2 | D-1 |
-| 3 | D-2 |
-| 4 | D-3 |
-| 5 | D-N |
-| 6 | F-1 |
-| 7 | F-2 |
-| 8 | F-3 |
-| 9 | F-4 |
-| 10 | F-5 |
-| 11 | F-6 |
-| 12 | F-7 |
+| below 1, or not a number | D-PP |
+| 1 | D-1 |
+| 2 | D-2 |
+| 3 | D-3 |
+| 4 | F-6 |
+| 5 and above | F-8 |
 
-A student who starts lower climbs through the bands in between. F-8, F-9, and F-10 stay on grade 12. The last band repeats from its first word.
+The last band repeats from its first word.
 
 A correct spoken word and a miss both move to the next word. There is no retry. No answer for 20 seconds is a miss. The next word waits 2 seconds, or 2 seconds after the device finishes speaking the missed word.
 

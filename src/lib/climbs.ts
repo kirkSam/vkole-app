@@ -281,7 +281,7 @@ export const setClimbLevel = createServerFn({ method: "POST" })
           : startCard(level);
       await sql`
         update climbs
-        set level = ${card.grade},
+        set level = ${level},
             standard_step = ${card.index},
             correct_at_level = 0,
             incorrect_streak = 0,
@@ -289,7 +289,7 @@ export const setClimbLevel = createServerFn({ method: "POST" })
             standard_label = ${card.label},
             current_prompt = ${card.word},
             answer_key = ${card.word},
-            answer_aliases = ${"[]"},
+            answer_aliases = ${JSON.stringify(card.also)},
             answer_note = ${card.label},
             question_id = ${`sw:${card.band}:${card.index}`},
             next_prompt = '',
@@ -479,9 +479,9 @@ export const markSightWord = createServerFn({ method: "POST" })
       current.level,
     );
     const word = current.currentPrompt.trim() || place.word;
-    const next = nextCard(place.band, place.index);
+    const next = nextCard(place.band, place.index, current.level);
     const correct = data.outcome === "correct";
-    const earned = capVkoleGrade(Math.max(current.performanceLevel, next.grade));
+    const earned = capVkoleGrade(Math.max(current.performanceLevel, current.level));
     const note =
       data.outcome === "correct"
         ? "Read."
@@ -490,7 +490,7 @@ export const markSightWord = createServerFn({ method: "POST" })
           : "Miss.";
     await sql`
       update climbs
-      set level = ${next.grade},
+      set level = ${current.level},
           performance_level = ${earned},
           correct_at_level = 0,
           incorrect_streak = 0,
@@ -502,7 +502,7 @@ export const markSightWord = createServerFn({ method: "POST" })
           standard_label = ${next.label},
           current_prompt = ${next.word},
           answer_key = ${next.word},
-          answer_aliases = ${"[]"},
+          answer_aliases = ${JSON.stringify(next.also)},
           answer_note = ${next.label},
           question_id = ${`sw:${next.band}:${next.index}`},
           next_prompt = '',
@@ -515,7 +515,7 @@ export const markSightWord = createServerFn({ method: "POST" })
       insert into climb_events (id, climb_id, user_id, subject, child_name, age, correct, level_before, level_after, detail)
       values (
         ${crypto.randomUUID()}, ${data.id}, ${context.userId}, ${current.subject}, ${current.childName},
-        ${current.age}, ${correct}, ${current.level}, ${next.grade},
+        ${current.age}, ${correct}, ${current.level}, ${current.level},
         ${JSON.stringify({
           correct,
           engine: "VKOLE/SW",

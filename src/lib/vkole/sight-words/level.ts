@@ -1,18 +1,12 @@
 import type { EngineLevel } from "@/lib/school-account";
-import {
-  BAND_LABELS,
-  GRADE_START_BAND,
-  clampSightGrade,
-  gradeForBand,
-  isSightBand,
-  type SightBand,
-} from "../constants.ts";
+import { BAND_LABELS, clampSightGrade, isSightBand, startBandForGrade, type SightBand } from "../constants.ts";
 import { sightCard } from "./words.ts";
 
 export function swAccountLevel(
   remote: EngineLevel | undefined,
   local: {
     name: string;
+    grade: number;
     band: string;
     index: number;
     word: string;
@@ -29,13 +23,15 @@ export function swAccountLevel(
     ? local.band
     : isSightBand(remote?.band)
       ? remote.band
-      : (GRADE_START_BAND[1] ?? "D-PP");
-  const card = sightCard(band, local.index);
+      : isSightBand(remote?.levelCode)
+        ? remote.levelCode
+        : startBandForGrade(local.grade);
+  const card = sightCard(band, local.index, local.grade);
   const level: EngineLevel = {
     id: remote?.id ?? `sw-${slug}`,
     name,
     enteredBy: remote?.enteredBy ?? "parent",
-    grade: gradeForBand(card.band),
+    grade: local.grade,
     step: 0,
     band: card.band,
     index: card.index,

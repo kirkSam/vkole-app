@@ -6,7 +6,7 @@ import { mathCell } from "./pool-math.ts";
 import { type Cell } from "./pool-shared.ts";
 import { sgCell } from "./vkole-singapore-pool.ts";
 import { ssCell } from "./pool-ss.ts";
-import { BAND_LABELS, GRADE_START_BAND, type SightBand } from "./vkole/constants.ts";
+import { BAND_LABELS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
 import { bandWords } from "./vkole/sight-words/words.ts";
 
 export type PoolQuestion = {
@@ -50,7 +50,7 @@ function withRoom(cell: Cell): Cell {
 }
 
 function swCell(grade: number): Cell {
-  const band: SightBand = GRADE_START_BAND[clampGrade(grade)] ?? "D-PP";
+  const band: SightBand = startBandForGrade(grade);
   const words = bandWords(band);
   return {
     count: Math.max(1, words.length),

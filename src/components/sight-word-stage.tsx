@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SIGHT_WORD_ADVANCE_MS, SIGHT_WORD_MAX_SHOW_MS } from "@/lib/vkole/constants";
-import { judgeSpoken } from "@/lib/vkole/sight-words/match";
+import { judgeSpoken, speechTokens } from "@/lib/vkole/sight-words/match";
+import { entryFor } from "@/lib/vkole/sight-words/words";
 
 const MIC_KEY = "vkole-sw-mic";
 const WORD_COLORS = ["#2c5e4a", "#7a2e1f", "#1d4e89", "#8a5a12", "#5c3d8f", "#0e6b6b", "#9a3d62", "#3d6b1f"];
@@ -58,7 +59,17 @@ function speakWord(word: string, done: () => void) {
   window.speechSynthesis.speak(utter);
 }
 
-export function SightWordStage({ word, onDone }: { word: string; onDone: (outcome: Outcome) => void }) {
+export function SightWordStage({
+  word,
+  band,
+  index = 0,
+  onDone,
+}: {
+  word: string;
+  band?: string;
+  index?: number;
+  onDone: (outcome: Outcome) => void;
+}) {
   const [ready, setReady] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
   const [allowed, setAllowed] = useState(false);
@@ -83,6 +94,7 @@ export function SightWordStage({ word, onDone }: { word: string; onDone: (outcom
     setPhase("show");
   }, [word]);
 
+  const entry = entryFor(band, index, word);
   const listening = ready && !unsupported && allowed && phase === "show";
 
   useEffect(() => {
@@ -127,7 +139,9 @@ export function SightWordStage({ word, onDone }: { word: string; onDone: (outcom
             const result = event.results[i];
             if (!result) continue;
             for (let j = 0; j < result.length; j += 1) {
-              const judged = judgeSpoken(word, result[j]?.transcript ?? "", Boolean(result.isFinal));
+              const transcript = result[j]?.transcript ?? "";
+              if (speechTokens(transcript).length === 0) continue;
+              const judged = judgeSpoken(word, transcript, Boolean(result.isFinal), entry.also);
               if (judged === "wait") continue;
               finishRef.current(judged);
               return;
@@ -162,7 +176,7 @@ export function SightWordStage({ word, onDone }: { word: string; onDone: (outcom
         /* already stopped */
       }
     };
-  }, [listening, phase, ready, unsupported, word]);
+  }, [entry.also, listening, phase, ready, unsupported, word]);
 
   useEffect(() => {
     return () => {
@@ -204,7 +218,11 @@ export function SightWordStage({ word, onDone }: { word: string; onDone: (outcom
       <div className={phase === "sparkle" ? "sight-sparkle relative mt-4" : "relative mt-4"}>
         {shown ? (
           <p className="sight-word font-display font-semibold" style={{ color: colorFor(word) }}>
-            {word}
+            {Array.from(word).map((letter, at) => (
+              <span key={`${letter}-${at}`} className={entry.word === word && entry.heart.includes(at) ? "sight-heart" : undefined}>
+                {letter === " " ? "\u00a0" : letter}
+              </span>
+            ))}
           </p>
         ) : (
           <p className="sight-word font-display text-muted"> </p>

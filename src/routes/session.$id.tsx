@@ -528,6 +528,8 @@ function SessionPage() {
           <SightWordStage
             key={`${climb.currentPrompt}:${sightRound}`}
             word={climb.currentPrompt}
+            band={climb.standardCode}
+            index={climb.standardStep}
             onDone={(outcome) => {
               if (pendingAnswer) return;
               setPendingAnswer(true);

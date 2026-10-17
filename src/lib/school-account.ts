@@ -8,7 +8,8 @@
  */
 
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
-import { BAND_LABELS, GRADE_START_BAND, gradeForBand, isSightBand } from "./vkole/constants.ts";
+import { BAND_LABELS, isSightBand, startBandForGrade, type SightBand } from "./vkole/constants.ts";
+import { sightCard } from "./vkole/sight-words/words.ts";
 
 export const SCHOOL_ORIGIN = "https://www.dotheimpossible.ai";
 export const SCHOOL_ENGINE_URL = `${SCHOOL_ORIGIN}/engine`;
@@ -242,19 +243,32 @@ function asIndex(value: unknown): number | undefined {
   return index;
 }
 
+function savedSightBand(row: Record<string, unknown>): SightBand | undefined {
+  const sight = asRecord(row.sight);
+  const candidates = [row.band, sight?.band, row.levelCode, sight?.levelCode];
+  for (const value of candidates) {
+    if (typeof value === "string" && isSightBand(value)) return value;
+  }
+  return undefined;
+}
+
 function asSightLevel(row: Record<string, unknown>, level: EngineLevel): EngineLevel {
-  const band = typeof row.band === "string" && isSightBand(row.band) ? row.band : GRADE_START_BAND[level.grade];
-  const index = asIndex(row.index) ?? 0;
+  const rounded = Math.round(level.grade);
+  level.grade = Number.isFinite(rounded) ? rounded : 0;
+  const sight = asRecord(row.sight);
+  const saved = savedSightBand(row);
+  const band = saved ?? startBandForGrade(Number.isFinite(rounded) ? rounded : Number.NaN);
+  const index = saved ? (asIndex(row.index) ?? asIndex(sight?.index) ?? 0) : 0;
+  const card = sightCard(band, index, level.grade);
   level.step = 0;
-  level.grade = band ? gradeForBand(band) : level.grade;
-  if (band) level.band = band;
-  level.index = index;
-  if (typeof row.word === "string" && row.word.trim()) level.word = row.word.trim();
+  level.band = card.band;
+  level.index = card.index;
+  level.word = copyText(row, "word") ?? (sight ? copyText(sight, "word") : undefined) ?? card.word;
   const id = copyText(row, "id");
   const name = copyText(row, "name");
   const enteredBy = copyText(row, "enteredBy");
-  const levelCode = copyText(row, "levelCode");
-  const levelLabel = copyText(row, "levelLabel");
+  const levelCode = copyText(row, "levelCode") ?? (sight ? copyText(sight, "levelCode") : undefined);
+  const levelLabel = copyText(row, "levelLabel") ?? (sight ? copyText(sight, "levelLabel") : undefined);
   if (id) level.id = id;
   if (name) level.name = name;
   if (enteredBy) level.enteredBy = enteredBy;
@@ -268,10 +282,8 @@ function asSightLevel(row: Record<string, unknown>, level: EngineLevel): EngineL
   if (missed != null) level.missed = missed;
   if (updatedAt != null) level.updatedAt = updatedAt;
   if (startingGrade != null) level.startingGrade = startingGrade;
-  if (levelCode) level.levelCode = levelCode;
-  else if (band) level.levelCode = band;
-  if (levelLabel) level.levelLabel = levelLabel;
-  else if (band) level.levelLabel = BAND_LABELS[band];
+  level.levelCode = levelCode || card.band;
+  level.levelLabel = levelLabel || BAND_LABELS[card.band];
   return level;
 }
 
@@ -280,9 +292,16 @@ function copyText(row: Record<string, unknown>, key: string): string | undefined
 }
 
 function asLevel(value: unknown, engine: EngineId): EngineLevel | null {
+  if (engine === "sw") {
+    if (typeof value === "number") return asSightLevel({}, { grade: value, step: 0 });
+    const row = asRecord(value);
+    if (!row) return null;
+    const raw = row.grade ?? row.level;
+    const grade = raw == null || raw === "" ? Number.NaN : Number(raw);
+    return asSightLevel(row, { grade, step: 0 });
+  }
   if (typeof value === "number" && value >= 1 && value <= 12) {
     const grade = Math.round(value);
-    if (engine === "sw") return asSightLevel({ grade }, { grade, step: 0 });
     return { grade, step: 0 };
   }
   const row = asRecord(value);
@@ -293,7 +312,6 @@ function asLevel(value: unknown, engine: EngineId): EngineLevel | null {
     grade,
     step: asStep(row.step ?? row.stage ?? row.standardStep ?? 0),
   };
-  if (engine === "sw") return asSightLevel(row, level);
   if (engine !== "sg") return level;
   const id = copyText(row, "id");
   const name = copyText(row, "name");

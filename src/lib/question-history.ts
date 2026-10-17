@@ -99,11 +99,9 @@ export async function dealQuestion(
   step: number,
 ): Promise<PoolQuestion> {
   if (subject === "sw") {
-    const { GRADE_START_BAND } = await import("./vkole/constants.ts");
+    const { startBandForGrade } = await import("./vkole/constants.ts");
     const { sightPrompt } = await import("./vkole/sight-words/words.ts");
-    const level = Math.min(12, Math.max(1, Math.round(grade) || 1));
-    const band = GRADE_START_BAND[level] ?? "D-PP";
-    return sightPrompt(band, Math.max(0, Math.round(step) || 0));
+    return sightPrompt(startBandForGrade(grade), Math.max(0, Math.round(step) || 0));
   }
   await ensureQuestionMemory(sql);
   const level = Math.min(12, Math.max(1, Math.round(grade)));

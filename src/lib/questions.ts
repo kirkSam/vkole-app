@@ -1,5 +1,5 @@
 import type { SubjectId } from "./climb-rules";
-import { BAND_LABELS, GRADE_START_BAND, clampSightGrade } from "./vkole/constants.ts";
+import { BAND_LABELS, startBandForGrade } from "./vkole/constants.ts";
 import { bandWords } from "./vkole/sight-words/words.ts";
 
 export type Question = {
@@ -723,8 +723,7 @@ function genQuestion(level: number, step?: number): Question {
 }
 
 function sightWordQuestion(level: number, step?: number): Question {
-  const grade = clampSightGrade(level);
-  const band = GRADE_START_BAND[grade] ?? "D-PP";
+  const band = startBandForGrade(level);
   const words = bandWords(band);
   const index = words.length === 0 ? 0 : Math.abs(step ?? rand(0, words.length - 1)) % words.length;
   const answer = words[index] ?? "";

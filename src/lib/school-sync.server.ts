@@ -55,7 +55,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
       const missed = level.missed ?? 0;
       await sql`
         update climbs
-        set level = ${card.grade},
+        set level = ${Math.min(12, Math.max(1, Math.round(card.grade) || 1))},
             standard_step = ${card.index},
             standard_code = ${card.band},
             standard_label = ${card.label},
@@ -158,6 +158,7 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Eng
       const starting = Number(row.start_grade);
       level.sw = swAccountLevel(remote.sw, {
         name: row.child_name?.trim() || remote.sw?.name || "",
+        grade,
         band: card.band,
         index: card.index,
         word: row.current_prompt?.trim() || card.word,
