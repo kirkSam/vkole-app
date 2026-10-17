@@ -19,7 +19,7 @@ A write replaces each engine object that is sent. Engines that are omitted are n
 
 ## Engine keys
 
-`m`, `ela`, `ss`, `gen`, `sg`, `sw`.
+`m`, `ela`, `ss`, `gen`, `sg`, `sw`, `sp`.
 
 `m`, `ela`, `ss`, and `gen` store `{ "grade": 1-12, "step": 0|1|2 }`.
 
@@ -100,3 +100,49 @@ The last band repeats from its first word.
 A correct spoken word and a miss both move to the next word. There is no retry. No answer for 20 seconds is a miss. The next word waits 2 seconds, or 2 seconds after the device finishes speaking the missed word.
 
 The microphone listens only while a word is on the screen. Audio is not recorded and is not saved.
+
+## level.sp
+
+Spelling. The key is `sp`. The letters, timings, question bands, and spoken names are in `src/lib/vkole/spelling/data.json`. That file is the canonical copy. The website copies it byte for byte.
+
+```json
+{
+  "id": "sp-ada",
+  "name": "Ada",
+  "enteredBy": "parent",
+  "grade": 1,
+  "step": 0,
+  "band": "LK",
+  "index": 0,
+  "word": "lk-first",
+  "earnedGrade": 1,
+  "reached": 0,
+  "missed": 0,
+  "updatedAt": 0,
+  "startingGrade": 1,
+  "levelCode": "LK",
+  "levelLabel": "Letter knowledge"
+}
+```
+
+`band` is the list. `index` is the item in that list. `step` stays 0. `word` is the item id. The grade number stays when the item changes.
+
+### Bands
+
+`LK`, `LS`, `CVC`, `DOLCH`, `FRY`. Phase 1 fills letter knowledge. The later bands are in the file with no items until the owner specifies them. Empty bands are skipped.
+
+| Band | Name | Grade label | Items now |
+|---|---|---|---|
+| LK | Letter knowledge | K | 77 |
+| LS | Letter sounds | K | 0 |
+| CVC | CVC words | K-1 | 0 |
+| DOLCH | Dolch words | K-3 | 0 |
+| FRY | Fry words | 1-5 | 0 |
+
+Letter knowledge, in order: the first letter of the alphabet, the next letter through Z, what letter comes after each letter from A through Y (including X), then the name of each letter A through Z.
+
+A new student starts at the first letter question. A saved `band`, or a `levelCode` that is a band id, wins. A saved band with no items yet falls back to letter knowledge.
+
+Opening the engine plays the alphabet from A to Z, one letter every 1.5 seconds (26 letters, 39 seconds). Each letter is a different bright color on a changing background. The picture changes once every 1.5 seconds, which is slower than 3 changes per second. At the end, when the student is still on the first question, the engine says and shows: `Your turn! What is the first letter of the alphabet?`
+
+A correct spoken answer shows a Happy Face for 2 seconds, then the next item. A miss, or 5 seconds with no answer, speaks the correct letter, waits 2 seconds, and then shows the next item. Both a correct answer and a miss move forward. There is no retry. The microphone listens only while a question is waiting for an answer. Audio is not recorded and is not saved. Adult override buttons are Correct and Miss.

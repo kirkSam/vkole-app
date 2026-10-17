@@ -1,5 +1,6 @@
 import type { SubjectId } from "./climb-rules";
 import { BAND_LABELS, startBandForGrade } from "./vkole/constants.ts";
+import { bandMeta, spellingPrompt, startBand } from "./vkole/spelling/items.ts";
 import { bandWords } from "./vkole/sight-words/words.ts";
 
 export type Question = {
@@ -736,11 +737,26 @@ function sightWordQuestion(level: number, step?: number): Question {
   };
 }
 
+function spellingQuestion(level: number, step?: number): Question {
+  const band = startBand();
+  const count = Math.max(1, bandMeta(band).count);
+  const index = step == null ? rand(0, count - 1) : Math.max(0, Math.round(step));
+  const prompt = spellingPrompt(band, index, level);
+  return {
+    stem: prompt.stem,
+    options: [],
+    answer: prompt.answer,
+    standard: prompt.standard,
+    note: prompt.note,
+  };
+}
+
 export function makeQuestion(subject: SubjectId, level: number, step?: number): Question {
   if (subject === "m") return mathQuestion(level, step);
   if (subject === "ela") return elaQuestion(level, step);
   if (subject === "ss") return ssQuestion(level, step);
   if (subject === "sw") return sightWordQuestion(level, step);
+  if (subject === "sp") return spellingQuestion(level, step);
   return genQuestion(level, step);
 }
 

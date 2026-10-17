@@ -39,6 +39,12 @@ export const SUBJECTS = [
     name: "Sight words",
     lede: "A large word is shown. The microphone listens only while that word is on the screen, and it does not record or save the sound. A correct word gets a sparkle, then the next word. A miss is spoken aloud, then the next word.",
   },
+  {
+    id: "sp",
+    code: "Spelling",
+    name: "Spelling",
+    lede: "The alphabet plays one letter at a time. Then a question is spoken and shown. The microphone listens only while that question is waiting for an answer, and it does not record or save the sound. A correct answer shows a Happy Face, then the next question. A miss speaks the correct letter, then the next question.",
+  },
 ] as const;
 
 export type SubjectId = (typeof SUBJECTS)[number]["id"];
@@ -64,7 +70,7 @@ export function subjectMeta(id: SubjectId) {
   return found;
 }
 
-/** Website nav button. Singapore and Sight Words have no slash. */
+/** Website nav button. Singapore and Sight Words have no slash. Spelling uses VKOLE/Spelling ZPD. */
 const ENGINE_NAV_LABEL: Record<SubjectId, string> = {
   m: "VKOLE/M ZPD",
   ela: "VKOLE/ELA ZPD",
@@ -72,6 +78,7 @@ const ENGINE_NAV_LABEL: Record<SubjectId, string> = {
   gen: "VKOLE/gen ZPD",
   sg: "VKOLE Singapore ZPD",
   sw: "VKOLE Sight Words ZPD",
+  sp: "VKOLE/Spelling ZPD",
 };
 
 /** Website engine-rail and office engine picks. Headings stay VKOLE/{code}. */
@@ -82,6 +89,7 @@ const ENGINE_PICK_LABEL: Record<SubjectId, string> = {
   gen: "General ZPD",
   sg: "Singapore ZPD",
   sw: "Sight Words ZPD",
+  sp: "Spelling ZPD",
 };
 
 export function engineNavLabel(id: SubjectId): string {

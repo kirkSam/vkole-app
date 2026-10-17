@@ -18,6 +18,8 @@ import { readSchoolMirror, saveSchoolMirror } from "@/lib/school-mirror.server";
 import { separateSignIn } from "@/lib/school-session.server";
 import { masteryFromDetails, richerMastery } from "@/lib/vkole-singapore-report";
 import { isSightBand } from "@/lib/vkole/constants";
+import { spAccountLevel } from "@/lib/vkole/spelling/level";
+import { cardFromAccount as spCardFromAccount, isSpBand } from "@/lib/vkole/spelling/items";
 import { swAccountLevel } from "@/lib/vkole/sight-words/level";
 import { cardFromAccount } from "@/lib/vkole/sight-words/words";
 
@@ -49,6 +51,29 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
     const local = localLevels.find((row) => row.subject === engine);
     const localAt = local ? new Date(String(rowTime(local.updated_at))).getTime() : 0;
     if (pushedAt != null && local && localAt > pushedAt) continue;
+    if (engine === "sp" && level.band) {
+      const card = spCardFromAccount(level, level.grade);
+      const reached = level.reached ?? 0;
+      const missed = level.missed ?? 0;
+      await sql`
+        update climbs
+        set level = ${Math.min(12, Math.max(1, Math.round(card.grade) || 1))},
+            standard_step = ${card.index},
+            standard_code = ${card.band},
+            standard_label = ${card.name},
+            current_prompt = ${card.show},
+            answer_key = ${card.answer},
+            answer_aliases = ${JSON.stringify(card.also)},
+            answer_note = ${card.name},
+            question_id = ${`sp:${card.band}:${card.index}`},
+            performance_level = ${level.earnedGrade ?? card.grade},
+            right_count = ${reached},
+            asked = ${reached + missed},
+            updated_at = now()
+        where user_id = ${userId} and subject = ${engine}
+      `;
+      continue;
+    }
     if (engine === "sw" && level.band) {
       const card = cardFromAccount(level, level.grade);
       const reached = level.reached ?? 0;
@@ -144,6 +169,32 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Eng
     if (!ENGINE_IDS.includes(row.subject as EngineId) || seen.has(row.subject)) continue;
     seen.add(row.subject);
     const grade = Math.min(12, Math.max(1, Math.round(Number(row.level) || 1)));
+    if (row.subject === "sp") {
+      const card = spCardFromAccount(
+        {
+          grade,
+          band: isSpBand(row.standard_code) ? row.standard_code : undefined,
+          index: Math.max(0, Math.round(Number(row.standard_step) || 0)),
+        },
+        grade,
+      );
+      const reached = Math.max(0, Math.round(Number(row.right_count) || 0));
+      const asked = Math.max(reached, Math.round(Number(row.asked) || 0));
+      const starting = Number(row.start_grade);
+      level.sp = spAccountLevel(remote.sp, {
+        name: row.child_name?.trim() || remote.sp?.name || "",
+        grade,
+        band: card.band,
+        index: card.index,
+        word: card.id,
+        earnedGrade: Math.min(12, Math.max(1, Math.round(Number(row.performance_level) || card.grade))),
+        reached,
+        missed: asked - reached,
+        ...(Number.isInteger(starting) && starting >= 1 && starting <= 12 ? { startingGrade: starting } : {}),
+        updatedAt: Date.now(),
+      });
+      continue;
+    }
     if (row.subject === "sw") {
       const card = cardFromAccount(
         {

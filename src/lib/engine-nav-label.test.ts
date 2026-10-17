@@ -13,6 +13,7 @@ describe("engine labels", () => {
         "VKOLE/gen ZPD",
         "VKOLE Singapore ZPD",
         "VKOLE Sight Words ZPD",
+        "VKOLE/Spelling ZPD",
       ],
     );
   });
@@ -27,6 +28,7 @@ describe("engine labels", () => {
         "General ZPD",
         "Singapore ZPD",
         "Sight Words ZPD",
+        "Spelling ZPD",
       ],
     );
   });

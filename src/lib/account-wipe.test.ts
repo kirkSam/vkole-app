@@ -45,6 +45,7 @@ describe("device account wipe", () => {
         "vkole-parent-logout",
         "vkole-unpaid",
         "vkole-sw-mic",
+        "vkole-sp-mic",
         "theme",
         ACCOUNT_WIPE_STORAGE_KEY,
       ]),
@@ -56,11 +57,13 @@ describe("device account wipe", () => {
     const session = memoryStore({
       "grok-auth.bearer-token": "preview-token",
       "vkole-sw-mic": "1",
+      "vkole-sp-mic": "1",
       "vkole-unpaid": "1",
     });
     assert.equal(wipeFlagPending(session), true);
     assert.deepEqual(wipeAccountKeys(session), ["grok-auth.bearer-token", "vkole-unpaid"]);
     assert.equal(session.values["vkole-sw-mic"], "1");
+    assert.equal(session.values["vkole-sp-mic"], "1");
     assert.equal(session.getItem("grok-auth.bearer-token"), null);
     markWipeFlag(session);
     assert.equal(wipeFlagPending(session), false);
@@ -70,6 +73,7 @@ describe("device account wipe", () => {
     assert.equal(wipeFlagPending(session), false);
     assert.equal(session.getItem("grok-auth.bearer-token"), "new-sign-in");
     assert.equal(session.values["vkole-sw-mic"], "1");
+    assert.equal(session.values["vkole-sp-mic"], "1");
   });
 
   it("signs a browser out once", async () => {

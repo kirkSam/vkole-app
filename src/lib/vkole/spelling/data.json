@@ -1,0 +1,1276 @@
+{
+  "engine": "sp",
+  "name": "VKOLE/Spelling ZPD",
+  "navLabel": "VKOLE/Spelling ZPD",
+  "pickLabel": "Spelling ZPD",
+  "letterMs": 1500,
+  "songMs": 39000,
+  "happyFaceMs": 2000,
+  "responseMs": 5000,
+  "advanceMs": 2000,
+  "maxChangesPerSecond": 3,
+  "movement": "next",
+  "micRecords": false,
+  "openingSay": "Your turn! What is the first letter of the alphabet?",
+  "letters": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L",
+    "M",
+    "N",
+    "O",
+    "P",
+    "Q",
+    "R",
+    "S",
+    "T",
+    "U",
+    "V",
+    "W",
+    "X",
+    "Y",
+    "Z"
+  ],
+  "letterNames": {
+    "A": [
+      "ay"
+    ],
+    "B": [
+      "bee",
+      "be"
+    ],
+    "C": [
+      "see",
+      "sea",
+      "cee"
+    ],
+    "D": [
+      "dee"
+    ],
+    "E": [
+      "ee"
+    ],
+    "F": [
+      "ef",
+      "eff"
+    ],
+    "G": [
+      "gee"
+    ],
+    "H": [
+      "aitch",
+      "haitch"
+    ],
+    "I": [
+      "eye"
+    ],
+    "J": [
+      "jay"
+    ],
+    "K": [
+      "kay"
+    ],
+    "L": [
+      "el",
+      "ell"
+    ],
+    "M": [
+      "em"
+    ],
+    "N": [
+      "en"
+    ],
+    "O": [
+      "oh"
+    ],
+    "P": [
+      "pee"
+    ],
+    "Q": [
+      "cue",
+      "queue",
+      "kew"
+    ],
+    "R": [
+      "ar",
+      "are"
+    ],
+    "S": [
+      "ess"
+    ],
+    "T": [
+      "tee",
+      "tea"
+    ],
+    "U": [
+      "you",
+      "yoo"
+    ],
+    "V": [
+      "vee"
+    ],
+    "W": [
+      "doubleyou",
+      "double you",
+      "double u"
+    ],
+    "X": [
+      "ex"
+    ],
+    "Y": [
+      "why",
+      "wye"
+    ],
+    "Z": [
+      "zee",
+      "zed"
+    ]
+  },
+  "colors": [
+    {
+      "letter": "#791515",
+      "background": "linear-gradient(140deg, #f6b6b6 0%, #e2c583 100%)"
+    },
+    {
+      "letter": "#792d15",
+      "background": "linear-gradient(148deg, #f6c5b6 0%, #e2dc83 100%)"
+    },
+    {
+      "letter": "#794415",
+      "background": "linear-gradient(156deg, #f6d4b6 0%, #d2e283 100%)"
+    },
+    {
+      "letter": "#795b15",
+      "background": "linear-gradient(164deg, #f6e3b6 0%, #bce283 100%)"
+    },
+    {
+      "letter": "#797115",
+      "background": "linear-gradient(172deg, #f6f1b6 0%, #a7e283 100%)"
+    },
+    {
+      "letter": "#6a7915",
+      "background": "linear-gradient(140deg, #ecf6b6 0%, #91e283 100%)"
+    },
+    {
+      "letter": "#537915",
+      "background": "linear-gradient(148deg, #def6b6 0%, #83e28b 100%)"
+    },
+    {
+      "letter": "#3c7915",
+      "background": "linear-gradient(156deg, #cff6b6 0%, #83e2a1 100%)"
+    },
+    {
+      "letter": "#247915",
+      "background": "linear-gradient(164deg, #c0f6b6 0%, #83e2b7 100%)"
+    },
+    {
+      "letter": "#15791e",
+      "background": "linear-gradient(172deg, #b6f6bc 0%, #83e2cd 100%)"
+    },
+    {
+      "letter": "#157933",
+      "background": "linear-gradient(140deg, #b6f6c9 0%, #83e2e2 100%)"
+    },
+    {
+      "letter": "#15794b",
+      "background": "linear-gradient(148deg, #b6f6d8 0%, #83cce2 100%)"
+    },
+    {
+      "letter": "#157962",
+      "background": "linear-gradient(156deg, #b6f6e7 0%, #83b6e2 100%)"
+    },
+    {
+      "letter": "#157979",
+      "background": "linear-gradient(164deg, #b6f6f6 0%, #83a0e2 100%)"
+    },
+    {
+      "letter": "#156279",
+      "background": "linear-gradient(172deg, #b6e7f6 0%, #8389e2 100%)"
+    },
+    {
+      "letter": "#154b79",
+      "background": "linear-gradient(140deg, #b6d8f6 0%, #9383e2 100%)"
+    },
+    {
+      "letter": "#153379",
+      "background": "linear-gradient(148deg, #b6c9f6 0%, #a983e2 100%)"
+    },
+    {
+      "letter": "#151e79",
+      "background": "linear-gradient(156deg, #b6bcf6 0%, #be83e2 100%)"
+    },
+    {
+      "letter": "#241579",
+      "background": "linear-gradient(164deg, #c0b6f6 0%, #d483e2 100%)"
+    },
+    {
+      "letter": "#3c1579",
+      "background": "linear-gradient(172deg, #cfb6f6 0%, #e283da 100%)"
+    },
+    {
+      "letter": "#531579",
+      "background": "linear-gradient(140deg, #deb6f6 0%, #e283c4 100%)"
+    },
+    {
+      "letter": "#6a1579",
+      "background": "linear-gradient(148deg, #ecb6f6 0%, #e283ae 100%)"
+    },
+    {
+      "letter": "#791571",
+      "background": "linear-gradient(156deg, #f6b6f1 0%, #e28398 100%)"
+    },
+    {
+      "letter": "#79155b",
+      "background": "linear-gradient(164deg, #f6b6e3 0%, #e28383 100%)"
+    },
+    {
+      "letter": "#791544",
+      "background": "linear-gradient(172deg, #f6b6d4 0%, #e29983 100%)"
+    },
+    {
+      "letter": "#79152d",
+      "background": "linear-gradient(140deg, #f6b6c5 0%, #e2af83 100%)"
+    }
+  ],
+  "review": {
+    "kind": "alphabet-song",
+    "from": "A",
+    "to": "Z",
+    "msPerLetter": 1500,
+    "durationMs": 39000,
+    "then": "Your turn! What is the first letter of the alphabet?"
+  },
+  "bands": [
+    {
+      "id": "LK",
+      "name": "Letter knowledge",
+      "grade": "K",
+      "kinds": [
+        "first-letter",
+        "next-letter",
+        "letter-after",
+        "letter-name"
+      ],
+      "items": [
+        {
+          "id": "lk-first",
+          "kind": "first-letter",
+          "say": "Your turn! What is the first letter of the alphabet?",
+          "show": "Your turn! What is the first letter of the alphabet?",
+          "answer": "A",
+          "also": [
+            "ay"
+          ],
+          "letter": "",
+          "model": "A"
+        },
+        {
+          "id": "lk-next-b",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "B",
+          "also": [
+            "bee",
+            "be"
+          ],
+          "letter": "A",
+          "model": "B"
+        },
+        {
+          "id": "lk-next-c",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "C",
+          "also": [
+            "see",
+            "sea",
+            "cee"
+          ],
+          "letter": "B",
+          "model": "C"
+        },
+        {
+          "id": "lk-next-d",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "D",
+          "also": [
+            "dee"
+          ],
+          "letter": "C",
+          "model": "D"
+        },
+        {
+          "id": "lk-next-e",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "E",
+          "also": [
+            "ee"
+          ],
+          "letter": "D",
+          "model": "E"
+        },
+        {
+          "id": "lk-next-f",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "F",
+          "also": [
+            "ef",
+            "eff"
+          ],
+          "letter": "E",
+          "model": "F"
+        },
+        {
+          "id": "lk-next-g",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "G",
+          "also": [
+            "gee"
+          ],
+          "letter": "F",
+          "model": "G"
+        },
+        {
+          "id": "lk-next-h",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "H",
+          "also": [
+            "aitch",
+            "haitch"
+          ],
+          "letter": "G",
+          "model": "H"
+        },
+        {
+          "id": "lk-next-i",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "I",
+          "also": [
+            "eye"
+          ],
+          "letter": "H",
+          "model": "I"
+        },
+        {
+          "id": "lk-next-j",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "J",
+          "also": [
+            "jay"
+          ],
+          "letter": "I",
+          "model": "J"
+        },
+        {
+          "id": "lk-next-k",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "K",
+          "also": [
+            "kay"
+          ],
+          "letter": "J",
+          "model": "K"
+        },
+        {
+          "id": "lk-next-l",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "L",
+          "also": [
+            "el",
+            "ell"
+          ],
+          "letter": "K",
+          "model": "L"
+        },
+        {
+          "id": "lk-next-m",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "M",
+          "also": [
+            "em"
+          ],
+          "letter": "L",
+          "model": "M"
+        },
+        {
+          "id": "lk-next-n",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "N",
+          "also": [
+            "en"
+          ],
+          "letter": "M",
+          "model": "N"
+        },
+        {
+          "id": "lk-next-o",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "O",
+          "also": [
+            "oh"
+          ],
+          "letter": "N",
+          "model": "O"
+        },
+        {
+          "id": "lk-next-p",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "P",
+          "also": [
+            "pee"
+          ],
+          "letter": "O",
+          "model": "P"
+        },
+        {
+          "id": "lk-next-q",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "Q",
+          "also": [
+            "cue",
+            "queue",
+            "kew"
+          ],
+          "letter": "P",
+          "model": "Q"
+        },
+        {
+          "id": "lk-next-r",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "R",
+          "also": [
+            "ar",
+            "are"
+          ],
+          "letter": "Q",
+          "model": "R"
+        },
+        {
+          "id": "lk-next-s",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "S",
+          "also": [
+            "ess"
+          ],
+          "letter": "R",
+          "model": "S"
+        },
+        {
+          "id": "lk-next-t",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "T",
+          "also": [
+            "tee",
+            "tea"
+          ],
+          "letter": "S",
+          "model": "T"
+        },
+        {
+          "id": "lk-next-u",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "U",
+          "also": [
+            "you",
+            "yoo"
+          ],
+          "letter": "T",
+          "model": "U"
+        },
+        {
+          "id": "lk-next-v",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "V",
+          "also": [
+            "vee"
+          ],
+          "letter": "U",
+          "model": "V"
+        },
+        {
+          "id": "lk-next-w",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "W",
+          "also": [
+            "doubleyou",
+            "double you",
+            "double u"
+          ],
+          "letter": "V",
+          "model": "W"
+        },
+        {
+          "id": "lk-next-x",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "X",
+          "also": [
+            "ex"
+          ],
+          "letter": "W",
+          "model": "X"
+        },
+        {
+          "id": "lk-next-y",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "Y",
+          "also": [
+            "why",
+            "wye"
+          ],
+          "letter": "X",
+          "model": "Y"
+        },
+        {
+          "id": "lk-next-z",
+          "kind": "next-letter",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "Z",
+          "also": [
+            "zee",
+            "zed"
+          ],
+          "letter": "Y",
+          "model": "Z"
+        },
+        {
+          "id": "lk-after-a",
+          "kind": "letter-after",
+          "say": "What letter comes after A?",
+          "show": "What letter comes after A?",
+          "answer": "B",
+          "also": [
+            "bee",
+            "be"
+          ],
+          "letter": "A",
+          "model": "B"
+        },
+        {
+          "id": "lk-after-b",
+          "kind": "letter-after",
+          "say": "What letter comes after B?",
+          "show": "What letter comes after B?",
+          "answer": "C",
+          "also": [
+            "see",
+            "sea",
+            "cee"
+          ],
+          "letter": "B",
+          "model": "C"
+        },
+        {
+          "id": "lk-after-c",
+          "kind": "letter-after",
+          "say": "What letter comes after C?",
+          "show": "What letter comes after C?",
+          "answer": "D",
+          "also": [
+            "dee"
+          ],
+          "letter": "C",
+          "model": "D"
+        },
+        {
+          "id": "lk-after-d",
+          "kind": "letter-after",
+          "say": "What letter comes after D?",
+          "show": "What letter comes after D?",
+          "answer": "E",
+          "also": [
+            "ee"
+          ],
+          "letter": "D",
+          "model": "E"
+        },
+        {
+          "id": "lk-after-e",
+          "kind": "letter-after",
+          "say": "What letter comes after E?",
+          "show": "What letter comes after E?",
+          "answer": "F",
+          "also": [
+            "ef",
+            "eff"
+          ],
+          "letter": "E",
+          "model": "F"
+        },
+        {
+          "id": "lk-after-f",
+          "kind": "letter-after",
+          "say": "What letter comes after F?",
+          "show": "What letter comes after F?",
+          "answer": "G",
+          "also": [
+            "gee"
+          ],
+          "letter": "F",
+          "model": "G"
+        },
+        {
+          "id": "lk-after-g",
+          "kind": "letter-after",
+          "say": "What letter comes after G?",
+          "show": "What letter comes after G?",
+          "answer": "H",
+          "also": [
+            "aitch",
+            "haitch"
+          ],
+          "letter": "G",
+          "model": "H"
+        },
+        {
+          "id": "lk-after-h",
+          "kind": "letter-after",
+          "say": "What letter comes after H?",
+          "show": "What letter comes after H?",
+          "answer": "I",
+          "also": [
+            "eye"
+          ],
+          "letter": "H",
+          "model": "I"
+        },
+        {
+          "id": "lk-after-i",
+          "kind": "letter-after",
+          "say": "What letter comes after I?",
+          "show": "What letter comes after I?",
+          "answer": "J",
+          "also": [
+            "jay"
+          ],
+          "letter": "I",
+          "model": "J"
+        },
+        {
+          "id": "lk-after-j",
+          "kind": "letter-after",
+          "say": "What letter comes after J?",
+          "show": "What letter comes after J?",
+          "answer": "K",
+          "also": [
+            "kay"
+          ],
+          "letter": "J",
+          "model": "K"
+        },
+        {
+          "id": "lk-after-k",
+          "kind": "letter-after",
+          "say": "What letter comes after K?",
+          "show": "What letter comes after K?",
+          "answer": "L",
+          "also": [
+            "el",
+            "ell"
+          ],
+          "letter": "K",
+          "model": "L"
+        },
+        {
+          "id": "lk-after-l",
+          "kind": "letter-after",
+          "say": "What letter comes after L?",
+          "show": "What letter comes after L?",
+          "answer": "M",
+          "also": [
+            "em"
+          ],
+          "letter": "L",
+          "model": "M"
+        },
+        {
+          "id": "lk-after-m",
+          "kind": "letter-after",
+          "say": "What letter comes after M?",
+          "show": "What letter comes after M?",
+          "answer": "N",
+          "also": [
+            "en"
+          ],
+          "letter": "M",
+          "model": "N"
+        },
+        {
+          "id": "lk-after-n",
+          "kind": "letter-after",
+          "say": "What letter comes after N?",
+          "show": "What letter comes after N?",
+          "answer": "O",
+          "also": [
+            "oh"
+          ],
+          "letter": "N",
+          "model": "O"
+        },
+        {
+          "id": "lk-after-o",
+          "kind": "letter-after",
+          "say": "What letter comes after O?",
+          "show": "What letter comes after O?",
+          "answer": "P",
+          "also": [
+            "pee"
+          ],
+          "letter": "O",
+          "model": "P"
+        },
+        {
+          "id": "lk-after-p",
+          "kind": "letter-after",
+          "say": "What letter comes after P?",
+          "show": "What letter comes after P?",
+          "answer": "Q",
+          "also": [
+            "cue",
+            "queue",
+            "kew"
+          ],
+          "letter": "P",
+          "model": "Q"
+        },
+        {
+          "id": "lk-after-q",
+          "kind": "letter-after",
+          "say": "What letter comes after Q?",
+          "show": "What letter comes after Q?",
+          "answer": "R",
+          "also": [
+            "ar",
+            "are"
+          ],
+          "letter": "Q",
+          "model": "R"
+        },
+        {
+          "id": "lk-after-r",
+          "kind": "letter-after",
+          "say": "What letter comes after R?",
+          "show": "What letter comes after R?",
+          "answer": "S",
+          "also": [
+            "ess"
+          ],
+          "letter": "R",
+          "model": "S"
+        },
+        {
+          "id": "lk-after-s",
+          "kind": "letter-after",
+          "say": "What letter comes after S?",
+          "show": "What letter comes after S?",
+          "answer": "T",
+          "also": [
+            "tee",
+            "tea"
+          ],
+          "letter": "S",
+          "model": "T"
+        },
+        {
+          "id": "lk-after-t",
+          "kind": "letter-after",
+          "say": "What letter comes after T?",
+          "show": "What letter comes after T?",
+          "answer": "U",
+          "also": [
+            "you",
+            "yoo"
+          ],
+          "letter": "T",
+          "model": "U"
+        },
+        {
+          "id": "lk-after-u",
+          "kind": "letter-after",
+          "say": "What letter comes after U?",
+          "show": "What letter comes after U?",
+          "answer": "V",
+          "also": [
+            "vee"
+          ],
+          "letter": "U",
+          "model": "V"
+        },
+        {
+          "id": "lk-after-v",
+          "kind": "letter-after",
+          "say": "What letter comes after V?",
+          "show": "What letter comes after V?",
+          "answer": "W",
+          "also": [
+            "doubleyou",
+            "double you",
+            "double u"
+          ],
+          "letter": "V",
+          "model": "W"
+        },
+        {
+          "id": "lk-after-w",
+          "kind": "letter-after",
+          "say": "What letter comes after W?",
+          "show": "What letter comes after W?",
+          "answer": "X",
+          "also": [
+            "ex"
+          ],
+          "letter": "W",
+          "model": "X"
+        },
+        {
+          "id": "lk-after-x",
+          "kind": "letter-after",
+          "say": "What letter comes after X?",
+          "show": "What letter comes after X?",
+          "answer": "Y",
+          "also": [
+            "why",
+            "wye"
+          ],
+          "letter": "X",
+          "model": "Y"
+        },
+        {
+          "id": "lk-after-y",
+          "kind": "letter-after",
+          "say": "What letter comes after Y?",
+          "show": "What letter comes after Y?",
+          "answer": "Z",
+          "also": [
+            "zee",
+            "zed"
+          ],
+          "letter": "Y",
+          "model": "Z"
+        },
+        {
+          "id": "lk-name-a",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "A",
+          "also": [
+            "ay"
+          ],
+          "letter": "A",
+          "model": "A"
+        },
+        {
+          "id": "lk-name-b",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "B",
+          "also": [
+            "bee",
+            "be"
+          ],
+          "letter": "B",
+          "model": "B"
+        },
+        {
+          "id": "lk-name-c",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "C",
+          "also": [
+            "see",
+            "sea",
+            "cee"
+          ],
+          "letter": "C",
+          "model": "C"
+        },
+        {
+          "id": "lk-name-d",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "D",
+          "also": [
+            "dee"
+          ],
+          "letter": "D",
+          "model": "D"
+        },
+        {
+          "id": "lk-name-e",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "E",
+          "also": [
+            "ee"
+          ],
+          "letter": "E",
+          "model": "E"
+        },
+        {
+          "id": "lk-name-f",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "F",
+          "also": [
+            "ef",
+            "eff"
+          ],
+          "letter": "F",
+          "model": "F"
+        },
+        {
+          "id": "lk-name-g",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "G",
+          "also": [
+            "gee"
+          ],
+          "letter": "G",
+          "model": "G"
+        },
+        {
+          "id": "lk-name-h",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "H",
+          "also": [
+            "aitch",
+            "haitch"
+          ],
+          "letter": "H",
+          "model": "H"
+        },
+        {
+          "id": "lk-name-i",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "I",
+          "also": [
+            "eye"
+          ],
+          "letter": "I",
+          "model": "I"
+        },
+        {
+          "id": "lk-name-j",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "J",
+          "also": [
+            "jay"
+          ],
+          "letter": "J",
+          "model": "J"
+        },
+        {
+          "id": "lk-name-k",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "K",
+          "also": [
+            "kay"
+          ],
+          "letter": "K",
+          "model": "K"
+        },
+        {
+          "id": "lk-name-l",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "L",
+          "also": [
+            "el",
+            "ell"
+          ],
+          "letter": "L",
+          "model": "L"
+        },
+        {
+          "id": "lk-name-m",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "M",
+          "also": [
+            "em"
+          ],
+          "letter": "M",
+          "model": "M"
+        },
+        {
+          "id": "lk-name-n",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "N",
+          "also": [
+            "en"
+          ],
+          "letter": "N",
+          "model": "N"
+        },
+        {
+          "id": "lk-name-o",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "O",
+          "also": [
+            "oh"
+          ],
+          "letter": "O",
+          "model": "O"
+        },
+        {
+          "id": "lk-name-p",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "P",
+          "also": [
+            "pee"
+          ],
+          "letter": "P",
+          "model": "P"
+        },
+        {
+          "id": "lk-name-q",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "Q",
+          "also": [
+            "cue",
+            "queue",
+            "kew"
+          ],
+          "letter": "Q",
+          "model": "Q"
+        },
+        {
+          "id": "lk-name-r",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "R",
+          "also": [
+            "ar",
+            "are"
+          ],
+          "letter": "R",
+          "model": "R"
+        },
+        {
+          "id": "lk-name-s",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "S",
+          "also": [
+            "ess"
+          ],
+          "letter": "S",
+          "model": "S"
+        },
+        {
+          "id": "lk-name-t",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "T",
+          "also": [
+            "tee",
+            "tea"
+          ],
+          "letter": "T",
+          "model": "T"
+        },
+        {
+          "id": "lk-name-u",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "U",
+          "also": [
+            "you",
+            "yoo"
+          ],
+          "letter": "U",
+          "model": "U"
+        },
+        {
+          "id": "lk-name-v",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "V",
+          "also": [
+            "vee"
+          ],
+          "letter": "V",
+          "model": "V"
+        },
+        {
+          "id": "lk-name-w",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "W",
+          "also": [
+            "doubleyou",
+            "double you",
+            "double u"
+          ],
+          "letter": "W",
+          "model": "W"
+        },
+        {
+          "id": "lk-name-x",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "X",
+          "also": [
+            "ex"
+          ],
+          "letter": "X",
+          "model": "X"
+        },
+        {
+          "id": "lk-name-y",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "Y",
+          "also": [
+            "why",
+            "wye"
+          ],
+          "letter": "Y",
+          "model": "Y"
+        },
+        {
+          "id": "lk-name-z",
+          "kind": "letter-name",
+          "say": "What letter is this?",
+          "show": "What letter is this?",
+          "answer": "Z",
+          "also": [
+            "zee",
+            "zed"
+          ],
+          "letter": "Z",
+          "model": "Z"
+        }
+      ]
+    },
+    {
+      "id": "LS",
+      "name": "Letter sounds",
+      "grade": "K",
+      "kinds": [
+        "letter-sound"
+      ],
+      "note": "The owner will specify these items.",
+      "items": []
+    },
+    {
+      "id": "CVC",
+      "name": "CVC words",
+      "grade": "K-1",
+      "kinds": [
+        "spell-word"
+      ],
+      "note": "The owner will specify these items.",
+      "items": []
+    },
+    {
+      "id": "DOLCH",
+      "name": "Dolch words",
+      "grade": "K-3",
+      "kinds": [
+        "spell-word"
+      ],
+      "note": "The owner will specify these items.",
+      "items": []
+    },
+    {
+      "id": "FRY",
+      "name": "Fry words",
+      "grade": "1-5",
+      "kinds": [
+        "spell-word"
+      ],
+      "note": "The owner will specify these items.",
+      "items": []
+    }
+  ]
+}

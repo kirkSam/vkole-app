@@ -66,6 +66,23 @@ const GEN: Record<number, readonly string[]> = {
 
 const SW_STEP = ["sight words", "sight words", "sight words"] as const;
 
+const SP_STEP = ["spelling", "spelling", "spelling"] as const;
+
+const SP: Record<number, readonly string[]> = {
+  1: SP_STEP,
+  2: SP_STEP,
+  3: SP_STEP,
+  4: SP_STEP,
+  5: SP_STEP,
+  6: SP_STEP,
+  7: SP_STEP,
+  8: SP_STEP,
+  9: SP_STEP,
+  10: SP_STEP,
+  11: SP_STEP,
+  12: SP_STEP,
+};
+
 const SW: Record<number, readonly string[]> = {
   1: SW_STEP,
   2: SW_STEP,
@@ -103,6 +120,7 @@ const LADDERS: Record<SubjectId, Record<number, readonly string[]>> = {
   gen: GEN,
   sg: SG,
   sw: SW,
+  sp: SP,
 };
 
 export function clampGrade(level: number): number {

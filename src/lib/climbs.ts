@@ -14,6 +14,7 @@ import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-histo
 import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
 import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
 import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
+import { cardFromAccount as spCardFromAccount, isSpBand, nextAfterAnswer, spellingPrompt } from "@/lib/vkole/spelling/items";
 import { cardFromAccount, nextCard, startCard } from "@/lib/vkole/sight-words/words";
 import { isSightBand } from "@/lib/vkole/constants";
 
@@ -274,6 +275,31 @@ export const setClimbLevel = createServerFn({ method: "POST" })
     const current = await selectOwned(sql, context.userId, data.id);
     const held = capVkoleGrade(current.level);
     const level = capVkoleGrade(current.level + (data.direction === "up" ? 1 : -1));
+    if (current.subject === "sp") {
+      const place =
+        level === held && data.direction === "up"
+          ? spCardFromAccount({ grade: held, band: current.standardCode, index: current.standardStep }, held)
+          : spCardFromAccount({ grade: level }, level);
+      await sql`
+        update climbs
+        set level = ${level},
+            standard_step = ${place.index},
+            correct_at_level = 0,
+            incorrect_streak = 0,
+            standard_code = ${place.band},
+            standard_label = ${place.name},
+            current_prompt = ${place.show},
+            answer_key = ${place.answer},
+            answer_aliases = ${JSON.stringify(place.also)},
+            answer_note = ${place.name},
+            question_id = ${`sp:${place.band}:${place.index}`},
+            next_prompt = '',
+            awaiting_next = 0,
+            updated_at = now()
+        where id = ${data.id} and user_id = ${context.userId}
+      `;
+      return selectOwned(sql, context.userId, data.id);
+    }
     if (current.subject === "sw") {
       const card =
         level === held && data.direction === "up"
@@ -329,6 +355,7 @@ export const recordAnswer = createServerFn({ method: "POST" })
     const sql = await getSql();
     const current = await selectOwned(sql, context.userId, data.id);
     if (current.subject === "sw") throw new Error("Sight words are marked from the microphone.");
+    if (current.subject === "sp") throw new Error("Spelling is marked from the microphone.");
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
     if (current.awaitingNext) return { status: "saved" as const, climb: current };
     const keyed = await keyedAnswer(sql, context.userId, data.id);
@@ -533,13 +560,85 @@ export const markSightWord = createServerFn({ method: "POST" })
     return selectOwned(sql, context.userId, data.id);
   });
 
+const spellingSchema = idSchema.extend({ outcome: z.enum(["correct", "miss", "timeout"]) });
+
+export const markSpelling = createServerFn({ method: "POST" })
+  .validator((data: unknown) => parse(spellingSchema, data))
+  .middleware([schoolMiddleware])
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const current = await selectOwned(sql, context.userId, data.id);
+    if (current.subject !== "sp") throw new Error("This session is not spelling.");
+    if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
+    const place = spCardFromAccount(
+      {
+        grade: current.level,
+        band: isSpBand(current.standardCode) ? current.standardCode : undefined,
+        index: current.standardStep,
+      },
+      current.level,
+    );
+    const correct = data.outcome === "correct";
+    const moved = nextAfterAnswer({ band: place.band, index: place.index, grade: current.level }, correct);
+    const next = spCardFromAccount({ grade: current.level, band: moved.band, index: moved.index }, current.level);
+    const prompt = spellingPrompt(next.band, next.index, current.level);
+    const earned = capVkoleGrade(Math.max(current.performanceLevel, current.level));
+    const note =
+      data.outcome === "correct"
+        ? "Heard."
+        : data.outcome === "timeout"
+          ? "No answer within 5 seconds."
+          : "Not yet.";
+    await sql`
+      update climbs
+      set level = ${current.level},
+          performance_level = ${earned},
+          correct_at_level = 0,
+          incorrect_streak = 0,
+          grading_failures = 0,
+          standard_step = ${next.index},
+          asked = ${current.asked + 1},
+          right_count = ${current.rightCount + (correct ? 1 : 0)},
+          standard_code = ${next.band},
+          standard_label = ${next.name},
+          current_prompt = ${next.show},
+          answer_key = ${next.answer},
+          answer_aliases = ${JSON.stringify(next.also)},
+          answer_note = ${next.name},
+          question_id = ${prompt.id},
+          next_prompt = '',
+          last_feedback = ${note},
+          awaiting_next = 0,
+          updated_at = now()
+      where id = ${data.id} and user_id = ${context.userId}
+    `;
+    await sql`
+      insert into climb_events (id, climb_id, user_id, subject, child_name, age, correct, level_before, level_after, detail)
+      values (
+        ${crypto.randomUUID()}, ${data.id}, ${context.userId}, ${current.subject}, ${current.childName},
+        ${current.age}, ${correct}, ${current.level}, ${current.level},
+        ${JSON.stringify({
+          correct,
+          engine: "VKOLE/Spelling",
+          code: place.band,
+          label: place.name,
+          grade: String(current.level),
+          question: place.say,
+          answer: data.outcome === "correct" ? "heard" : data.outcome === "timeout" ? "no answer" : "not yet",
+          note,
+        })}
+      )
+    `;
+    return selectOwned(sql, context.userId, data.id);
+  });
+
 export const revealNextQuestion = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
   .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const current = await selectOwned(sql, context.userId, data.id);
-    if (current.subject === "sw") return selectOwned(sql, context.userId, data.id);
+    if (current.subject === "sw" || current.subject === "sp") return selectOwned(sql, context.userId, data.id);
     const prompt = current.awaitingNext ? "" : current.currentPrompt;
     const rows = await sql<{ next_prompt: string | null }>`select next_prompt from climbs where id = ${data.id} and user_id = ${context.userId}`;
     const saved = rows[0]?.next_prompt?.trim() || prompt;
@@ -731,7 +830,7 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     performanceLevel: climb.performanceLevel,
     startGrade: climb.startGrade,
     standardCode: climb.standardCode,
-    standardLabel: levelTitle(climb.subject, climb.level, climb.standardStep),
+    standardLabel: climb.subject === "sp" ? climb.standardLabel : levelTitle(climb.subject, climb.level, climb.standardStep),
     asked: reportEvents.length,
     rightCount: reportEvents.filter((event) => event.correct).length,
     parentEmail: facts.email,
@@ -862,7 +961,7 @@ export const academicReport = createServerFn({ method: "POST" })
       performanceLevel: climb.performanceLevel,
       startGrade: climb.startGrade,
       standardCode: climb.standardCode,
-      standardLabel: levelTitle(climb.subject, climb.level, climb.standardStep),
+      standardLabel: climb.subject === "sp" ? climb.standardLabel : levelTitle(climb.subject, climb.level, climb.standardStep),
       asked: climb.asked,
       rightCount: climb.rightCount,
       parentEmail: facts.email,
