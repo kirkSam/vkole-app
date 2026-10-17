@@ -414,4 +414,56 @@ describe("server calls", () => {
     assert.equal(failureKind(401, { error: "Unauthorized" }), "offline");
     assert.equal(failureKind(403, { error: "Forbidden secret" }), "offline");
   });
+
+  it("does not open the dotted operator session for an ordinary parent sign-in", async () => {
+    await assert.rejects(
+      () =>
+        signInSchoolAccount(
+          { email: "kirksamalpha@gmail.com", password: "long-enough" },
+          {
+            secret: SECRET,
+            fetch: async () =>
+              jsonResponse(200, {
+                ok: true,
+                id: "kirk.sam.alpha@gmail.com",
+                email: "kirk.sam.alpha@gmail.com",
+                profile: { access: "open", studentName: "Sam" },
+              }),
+          },
+        ),
+      (err: unknown) => err instanceof SchoolCallError && err.reason === "rejected",
+    );
+  });
+
+  it("keeps a new account on the email that was typed", async () => {
+    const account = await registerSchoolAccount(
+      { email: "kirksamalpha@gmail.com", password: "long-enough", name: "Kirk" },
+      {
+        secret: SECRET,
+        fetch: async () =>
+          jsonResponse(200, {
+            ok: true,
+            id: "kirksamalpha@gmail.com",
+            profile: { access: "open", studentName: "" },
+          }),
+      },
+    );
+    assert.equal(account.id, "kirksamalpha@gmail.com");
+    await assert.rejects(
+      () =>
+        registerSchoolAccount(
+          { email: "kirksamalpha@gmail.com", password: "long-enough", name: "Kirk" },
+          {
+            secret: SECRET,
+            fetch: async () =>
+              jsonResponse(200, {
+                ok: true,
+                id: "kirk.sam.alpha@gmail.com",
+                profile: { access: "open" },
+              }),
+          },
+        ),
+      (err: unknown) => err instanceof SchoolCallError && err.reason === "rejected",
+    );
+  });
 });

@@ -1,39 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { accountsVisibleTo, normalizeAccountEmail, teacherEmails } from "@/lib/account-scope";
+import { accountsVisibleTo, mayAllowAppMail, normalizeAccountEmail } from "@/lib/account-scope";
 import { getSql, type Sql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { isSchoolAccountId } from "@/lib/school-account";
 
-const MAIL_OPERATOR = "kirk.sam.alpha@gmail.com";
-
 /** The Gmail form is the mail operator. It is not a list of other families. */
 export function canAllowAppMail(email: string): boolean {
-  const id = normalizeAccountEmail(email);
-  if (id === MAIL_OPERATOR) return true;
-  return teacherEmails(process.env.VKOLE_MASTER_EMAIL, undefined).includes(id);
+  return mayAllowAppMail(email, process.env.VKOLE_MASTER_EMAIL);
 }
 
 async function mailer() {
   return import("@/lib/app-mail");
-}
-
-async function rememberEmail(sql: Sql, email: string, name = "") {
-  const address = normalizeAccountEmail(email);
-  if (!address) return;
-  const named = name.trim();
-  const stored = named
-    ? named
-    : (
-        await sql.query<{ name: string | null }>('select "name" from "user" where lower("email") = $1 limit 1', [
-          address,
-        ])
-      )[0]?.name ?? "";
-  await sql`
-    insert into registrations (email, name)
-    values (${address}, ${stored.trim()})
-    on conflict (email) do nothing
-  `;
 }
 
 async function emailFor(sql: Sql, userId: string): Promise<string> {
@@ -82,7 +60,6 @@ export const noteAccount = createServerFn({ method: "POST" })
     const sql = await getSql();
     await trustFreshWebsite(sql, context.userId);
     const email = await emailFor(sql, context.userId);
-    await rememberEmail(sql, email);
     const existing = await sql<{ id: string }>`
       select id from parent_logins where user_id = ${context.userId} limit 1
     `;
@@ -106,7 +83,6 @@ export const recordLogin = createServerFn({ method: "POST" })
     const sql = await getSql();
     await trustFreshWebsite(sql, context.userId);
     const email = await emailFor(sql, context.userId);
-    await rememberEmail(sql, email);
     await sql`
       insert into parent_logins (id, user_id, email, kind)
       values (${crypto.randomUUID()}, ${context.userId}, ${email}, ${data.kind})

@@ -6,10 +6,17 @@ import {
   mayListEveryRegistrant,
   normalizeAccountEmail,
   noticeNamesOnly,
+  mayAllowAppMail,
+  parentMailStaysOnAccount,
+  sameAccount,
   singleAccountNotice,
   teacherEmails,
 } from "./account-scope.ts";
 import { websiteSignInRefusal } from "./school-account.ts";
+
+const ordinaryParent = "kirksamalpha@gmail.com";
+const dottedOperator = "kirk.sam.alpha@gmail.com";
+const schoolDesk = "kirksam.alpha@dotheimpossible.ai";
 
 const ada = { email: "Ada@Family.test", name: "Ada" };
 const ben = { email: "ben@other.test", name: "Ben" };
@@ -51,10 +58,39 @@ describe("two accounts stay separate", () => {
   it("does not email or render every registrant from the parent home", () => {
     const ledger = readFileSync(new URL("./ledger.ts", import.meta.url), "utf8");
     const home = readFileSync(new URL("../routes/index.tsx", import.meta.url), "utf8");
+    const mail = readFileSync(new URL("./app-mail.ts", import.meta.url), "utf8");
     assert.equal(ledger.includes("All registrations"), false);
     assert.equal(ledger.includes('select lower("email"), "name", "createdAt" from "user"'), false);
+    assert.equal(ledger.includes("from registrations"), false);
     assert.equal(ledger.includes("formsubmit.co"), false);
     assert.equal(home.includes("Registration emails"), false);
     assert.equal(home.includes("account.registrations"), false);
+    assert.equal(mail.includes("parentMailStaysOnAccount"), true);
+  });
+
+  it("keeps an ordinary parent off every other family's registration", () => {
+    const roster = [
+      { email: ordinaryParent, name: "Kirk" },
+      { email: dottedOperator, name: "Operator" },
+      ada,
+      ben,
+    ];
+    assert.equal(sameAccount(ordinaryParent, dottedOperator), false);
+    assert.deepEqual(
+      accountsVisibleTo(ordinaryParent, roster).map((row) => row.email),
+      [ordinaryParent],
+    );
+    assert.equal(mayListEveryRegistrant(ordinaryParent, teacherEmails(undefined, undefined)), false);
+    assert.equal(mayListEveryRegistrant(dottedOperator, teacherEmails(undefined, undefined)), false);
+    assert.equal(mayAllowAppMail(ordinaryParent, undefined), false);
+    assert.equal(mayAllowAppMail(dottedOperator, undefined), true);
+    assert.equal(mayAllowAppMail(ordinaryParent, dottedOperator), false);
+    const own = singleAccountNotice({ email: ordinaryParent, name: "Kirk" });
+    assert.equal(parentMailStaysOnAccount(ordinaryParent, own.body, schoolDesk), true);
+    assert.equal(own.body.includes(ben.email), false);
+    const dumped = ["All registrations:", ordinaryParent, ada.email, ben.email, dottedOperator].join("\n");
+    assert.equal(parentMailStaysOnAccount(ordinaryParent, dumped, schoolDesk), false);
+    assert.equal(parentMailStaysOnAccount(dottedOperator, dumped, schoolDesk), false);
+    assert.equal(parentMailStaysOnAccount(dottedOperator, `New:\n${ben.email}`, schoolDesk), false);
   });
 });

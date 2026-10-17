@@ -124,11 +124,13 @@ export async function registerSchoolAccount(
     deps,
   );
   const parsed = parseSchoolProfile(body);
-  if (!parsed) throw new SchoolCallError("rejected", "The school website did not open the account.");
+  if (!parsed || !sameAccount(parsed.id, email)) {
+    throw new SchoolCallError("rejected", "The school website did not open the account.");
+  }
   if (parsed.profile.access !== "open" && parsed.profile.access !== "closed") {
     throw new SchoolCallError("rejected", "The school website did not open the account.");
   }
-  return parsed;
+  return { id: email, profile: parsed.profile };
 }
 
 export async function signInSchoolAccount(

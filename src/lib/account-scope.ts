@@ -53,6 +53,42 @@ export function noticeNamesOnly(body: string, email: string, others: readonly st
   });
 }
 
+const EMAIL_IN_TEXT = /[a-z0-9][a-z0-9._%+-]*@[a-z0-9.-]+\.[a-z]{2,}/gi;
+
+/** Addresses written in a message. Comparison stays exact after normalization. */
+export function emailsInText(text: string): string[] {
+  const found = text.normalize("NFKC").toLowerCase().match(EMAIL_IN_TEXT) ?? [];
+  return [...new Set(found.map((item) => normalizeAccountEmail(item)))];
+}
+
+/**
+ * A parent message may name only the account it is sent to, plus the school desk.
+ * "All registrations" is a roster and is never allowed.
+ * Gmail delivers kirk.sam.alpha@gmail.com and kirksamalpha@gmail.com to one inbox.
+ * Those spellings stay different accounts. A roster must not be sent to either one.
+ */
+export function parentMailStaysOnAccount(to: string, body: string, schoolEmail = ""): boolean {
+  const recipient = normalizeAccountEmail(to);
+  if (!recipient.includes("@")) return false;
+  if (body.toLowerCase().includes("all registrations")) return false;
+  const school = normalizeAccountEmail(schoolEmail);
+  const allowed = new Set([recipient, school].filter((item) => item.includes("@")));
+  return emailsInText(body).every((email) => allowed.has(email));
+}
+
+/** SMTP setup for the app. This is not permission to see other families. */
+export const APP_MAIL_OPERATOR = "kirk.sam.alpha@gmail.com";
+
+/**
+ * The Gmail form. The dotted operator spelling is not the ordinary parent
+ * kirksamalpha@gmail.com, and neither spelling receives a registrant list.
+ */
+export function mayAllowAppMail(email: string, masterRaw: string | undefined): boolean {
+  const id = normalizeAccountEmail(email);
+  if (id === APP_MAIL_OPERATOR) return true;
+  return teacherEmails(masterRaw, undefined).includes(id);
+}
+
 /** Comma-separated teacher addresses. Parents are not on this list. */
 export function teacherEmails(masterRaw: string | undefined, adminRaw: string | undefined): string[] {
   const parsed = `${masterRaw ?? ""},${adminRaw ?? ""}`

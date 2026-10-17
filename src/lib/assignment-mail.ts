@@ -1,5 +1,7 @@
 import { access, mkdir, writeFile } from "node:fs/promises";
+import { parentMailStaysOnAccount } from "@/lib/account-scope";
 import { assignmentFileName, buildAssignmentPdf } from "@/lib/assignment-pdf";
+import { SCHOOL_EMAIL } from "@/lib/brand";
 import { levelLabel, subjectMeta } from "@/lib/climb-rules";
 import { makeAssignment } from "@/lib/questions";
 import type { AppTime } from "@/lib/academic-email";
@@ -68,6 +70,10 @@ export async function sendAcademicMail(
   sheets: AssignmentFile[],
   html?: string,
 ): Promise<CallToolResult> {
+  const combined = `${subject}\n${body}\n${html ?? ""}`;
+  if (!parentMailStaysOnAccount(to, combined, SCHOOL_EMAIL)) {
+    return { ok: false, data: null, errorMessage: "The report was not sent." };
+  }
   const { callTool } = await import("@/lib/app-data/client.server");
   const gmail = { connectorType: ConnectorType.Gmail };
   const ready: AssignmentFile[] = [];
