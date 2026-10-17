@@ -389,4 +389,81 @@ describe("server calls", () => {
       (err: unknown) => err instanceof SchoolCallError && err.message === "That code has expired.",
     );
   });
+
+  it("signs in a website account after trimming spaces, and retries the typed spelling when lowercase is unknown", async () => {
+    const calls: string[] = [];
+    const account = await signInSchoolAccount(
+      { email: "  Sam@Family.test ", password: "long-enough" },
+      {
+        secret: SECRET,
+        fetch: async (input, init) => {
+          assert.equal(input, "https://www.dotheimpossible.ai/api/vkole/sign-in");
+          const email = JSON.parse(String(init?.body)).email as string;
+          calls.push(email);
+          if (email === "sam@family.test") return jsonResponse(404, { ok: false, error: "No account for that email." });
+          return jsonResponse(200, { ok: true, profile: { access: "open", studentName: "Sam" } });
+        },
+      },
+    );
+    assert.deepEqual(calls, ["sam@family.test", "Sam@Family.test"]);
+    assert.equal(account.id, "sam@family.test");
+    assert.equal(account.profile.studentName, "Sam");
+  });
+
+  it("treats a secret rejection as offline, not as an unrecognized password", () => {
+    assert.equal(failureKind(401, { error: "Unauthorized" }), "offline");
+    assert.equal(failureKind(403, { error: "Forbidden secret" }), "offline");
+  });
+
+  it("does not open the dotted operator session for an ordinary parent sign-in", async () => {
+    await assert.rejects(
+      () =>
+        signInSchoolAccount(
+          { email: "kirksamalpha@gmail.com", password: "long-enough" },
+          {
+            secret: SECRET,
+            fetch: async () =>
+              jsonResponse(200, {
+                ok: true,
+                id: "kirk.sam.alpha@gmail.com",
+                email: "kirk.sam.alpha@gmail.com",
+                profile: { access: "open", studentName: "Sam" },
+              }),
+          },
+        ),
+      (err: unknown) => err instanceof SchoolCallError && err.reason === "rejected",
+    );
+  });
+
+  it("keeps a new account on the email that was typed", async () => {
+    const account = await registerSchoolAccount(
+      { email: "kirksamalpha@gmail.com", password: "long-enough", name: "Kirk" },
+      {
+        secret: SECRET,
+        fetch: async () =>
+          jsonResponse(200, {
+            ok: true,
+            id: "kirksamalpha@gmail.com",
+            profile: { access: "open", studentName: "" },
+          }),
+      },
+    );
+    assert.equal(account.id, "kirksamalpha@gmail.com");
+    await assert.rejects(
+      () =>
+        registerSchoolAccount(
+          { email: "kirksamalpha@gmail.com", password: "long-enough", name: "Kirk" },
+          {
+            secret: SECRET,
+            fetch: async () =>
+              jsonResponse(200, {
+                ok: true,
+                id: "kirk.sam.alpha@gmail.com",
+                profile: { access: "open" },
+              }),
+          },
+        ),
+      (err: unknown) => err instanceof SchoolCallError && err.reason === "rejected",
+    );
+  });
 });

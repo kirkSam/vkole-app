@@ -3,7 +3,6 @@ import { z } from "zod";
 import { APP_NAME } from "@/lib/brand";
 import {
   SCHOOL_ACCOUNT_GONE_MESSAGE,
-  SCHOOL_LEGACY_MESSAGE,
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_WAIT_MESSAGE,
   isFreshSchoolProfile,
@@ -72,7 +71,8 @@ export const schoolSignIn = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(credentials, data))
   .handler(async ({ data }): Promise<SchoolAuthResult> => {
     const { signInSchoolAccount, SchoolCallError } = await import("./school-account.server");
-    const { localEmailExists, openSchoolSession } = await import("./school-session.server");
+    const { openSchoolSession } = await import("./school-session.server");
+    const { websiteSignInRefusal } = await import("./school-account");
     try {
       const account = await signInSchoolAccount({ email: data.email, password: data.password });
       if (isFreshSchoolProfile(account.profile)) {
@@ -94,9 +94,8 @@ export const schoolSignIn = createServerFn({ method: "POST" })
           }
           return failed("gone", SCHOOL_ACCOUNT_GONE_MESSAGE);
         }
-        if (err.reason === "unknown" && (await localEmailExists(data.email))) {
-          return failed("legacy", SCHOOL_LEGACY_MESSAGE);
-        }
+        const reason = websiteSignInRefusal(err.reason, false);
+        if (reason === "unknown") return failed("unknown", err.message);
         if (err.reason === "wait") return failed("wait", SCHOOL_WAIT_MESSAGE);
         if (err.reason === "offline") return failed("offline", SCHOOL_OFFLINE_MESSAGE);
         return failed(err.reason, err.message);
