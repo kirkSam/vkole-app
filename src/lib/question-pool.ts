@@ -7,7 +7,8 @@ import { type Cell } from "./pool-shared.ts";
 import { sgCell } from "./vkole-singapore-pool.ts";
 import { ssCell } from "./pool-ss.ts";
 import { BAND_LABELS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
-import { bandMeta, itemAt, startBand as startPhonemicBand } from "./vkole/phonemic-awareness/items.ts";
+import { bandMeta as spellingBandMeta, spellingPrompt, startBand as startSpellingBand } from "./vkole/spelling/items.ts";
+import { bandMeta as phonemicBandMeta, itemAt, startBand as startPhonemicBand } from "./vkole/phonemic-awareness/items.ts";
 import { bandWords } from "./vkole/sight-words/words.ts";
 
 export type PoolQuestion = {
@@ -62,9 +63,21 @@ function swCell(grade: number): Cell {
   };
 }
 
+function spCell(grade: number): Cell {
+  const band = startSpellingBand();
+  const meta = spellingBandMeta(band);
+  return {
+    count: Math.max(1, meta.count),
+    build(index) {
+      const item = spellingPrompt(band, index, grade);
+      return { stem: item.stem, answer: item.answer, aliases: item.aliases, standard: item.standard, note: item.note };
+    },
+  };
+}
+
 function paCell(grade: number): Cell {
   const band = startPhonemicBand({ grade });
-  const meta = bandMeta(band);
+  const meta = phonemicBandMeta(band);
   return {
     count: Math.max(1, meta.count),
     build(index) {
@@ -80,6 +93,11 @@ function cellFor(subject: SubjectId, grade: number, step: number): Cell {
   if (saved) return saved;
   if (subject === "sw") {
     const cell = swCell(grade);
+    cache.set(key, cell);
+    return cell;
+  }
+  if (subject === "sp") {
+    const cell = spCell(grade);
     cache.set(key, cell);
     return cell;
   }
@@ -139,6 +157,7 @@ export function poolCensus(): PoolCensus {
       gen: { total: 0, grades: {} },
       sg: { total: 0, grades: {} },
       sw: { total: 0, grades: {} },
+      sp: { total: 0, grades: {} },
       pa: { total: 0, grades: {} },
     },
     total: 0,

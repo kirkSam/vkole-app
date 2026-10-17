@@ -19,6 +19,7 @@ import { deviceTimeZone } from "@/lib/day-clock-math";
 import { allowGmail, noteAccount } from "@/lib/ledger";
 import { useRefetchWhenConnectorReady } from "@/lib/app-data/use-connector-readiness";
 import { endReasonSentence, type EndReason } from "@/lib/academic-email";
+import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
 import { ACCOUNT_GONE_FLAG } from "@/lib/account-purge";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -252,6 +253,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
     mailDesk?: boolean;
   } | null>(null);
   const [mailNote, setMailNote] = useState("");
+  const [spellingReport, setSpellingReport] = useState("");
   const [appPassword, setAppPassword] = useState("");
   const [allowNote, setAllowNote] = useState("");
   const [allowing, setAllowing] = useState(false);
@@ -276,12 +278,14 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
           recipient?: string;
           error?: string;
           body?: string;
+          spellingReport?: string;
         };
-        if (note.pending || !note.body) return false;
+        if (note.pending || (!note.body && !note.spellingReport)) return false;
         sessionStorage.removeItem("vkole-last-mail");
         if (!live) return true;
         const reason: EndReason = note.reason === "inactivity" || note.reason === "finished" ? note.reason : "logout";
         const how = endReasonSentence(reason);
+        setSpellingReport(typeof note.spellingReport === "string" ? note.spellingReport.trim() : "");
         setMailNote(
           note.sent
             ? `${how} Academic email sent to ${note.recipient}.`
@@ -378,11 +382,11 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
   return (
     <Shell onSplash={onSplash}>
       <p className="text-sm font-semibold tracking-wide text-accent uppercase">Parent</p>
-      <h1 className="mt-1 font-display text-4xl text-ink">Seven climbs</h1>
+      <h1 className="mt-1 font-display text-4xl text-ink">Eight climbs</h1>
       <p className="mt-3 text-muted">
         {fullAccess
-          ? "This account is open. It is not on a free week and it is not asked to pay. Each student uses all seven engines. The engines share one clock of 2.5 hours for this login. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock, and the student password continues it. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration, and the other engines stay open."
-          : "The first sign-in starts a 7 day free trial for this registration. No credit card is required for those seven days. Only the email registration. Each student downloads the app and registers on that student’s own device. One registration is one student, and that student may use all seven engines. The engines share one clock of 2.5 hours for this login. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock, and the student password continues it. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the trial, the payment covers that student for a full month or a full year from the day of payment. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration, and the other engines stay open."}
+          ? 'This account is open. It is not on a free week and it is not asked to pay. Each student uses all eight engines. The engines share one clock of 2.5 hours for this login. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock, and the student password continues it. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration, and the other engines stay open.'
+          : 'The first sign-in starts a 7 day free trial for this registration. No credit card is required for those seven days. Only the email registration. Each student downloads the app and registers on that student’s own device. One registration is one student, and that student may use all eight engines. The engines share one clock of 2.5 hours for this login. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock, and the student password continues it. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the trial, the payment covers that student for a full month or a full year from the day of payment. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration, and the other engines stay open.'}
       </p>
       {account ? (
         <p className="mt-3 text-sm text-ink">
@@ -451,6 +455,12 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
         </div>
       ) : null}
       {mailNote ? <p className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-ink">{mailNote}</p> : null}
+      {spellingReport ? (
+        <section className="mt-4 rounded-2xl border border-line bg-surface p-4">
+          <h2 className="font-display text-xl text-ink">{SPELLING_REPORT_LABEL}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-ink">{spellingReport}</p>
+        </section>
+      ) : null}
       {loadError ? <p className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-miss">{loadError}</p> : null}
       <SchoolPath className="mt-6" />
       <EnginePicks />
@@ -593,7 +603,7 @@ function AppGate({
         <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto text-sm text-muted">
           {roster.map((climb) => (
             <li key={climb.id}>
-              {climb.childName} · working {climb.subject === "sw" || climb.subject === "pa" ? `${levelLabel(climb.level)}, ${climb.standardLabel || climb.standardCode}` : climb.subject === "sg" ? `${singaporePlace(climb.level).short}, ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)}, standard ${(climb.standardStep ?? 0) + 1} of 3` : `${levelLabel(climb.level)}, ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)}, standard ${(climb.standardStep ?? 0) + 1} of 3`} · earned {levelLabel(climb.performanceLevel)}
+              {climb.childName} · working {climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa" ? `${levelLabel(climb.level)}, ${climb.standardLabel || climb.standardCode}` : climb.subject === "sg" ? `${singaporePlace(climb.level).short}, ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)}, standard ${(climb.standardStep ?? 0) + 1} of 3` : `${levelLabel(climb.level)}, ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)}, standard ${(climb.standardStep ?? 0) + 1} of 3`} · earned {levelLabel(climb.performanceLevel)}
             </li>
           ))}
         </ul>

@@ -14,6 +14,7 @@ import {
   getClimb,
   markPhonemic,
   markSightWord,
+  markSpelling,
   recordAnswer,
   revealNextQuestion,
   setChildAge,
@@ -26,9 +27,12 @@ import { GRADING_PAUSE_MESSAGE, NO_REPLY_MESSAGE } from "@/lib/grading-pause";
 import { showAsSpaceXsi } from "@/lib/space-xsi";
 import { VKOLE_MOVEMENT } from "@/lib/vkole-cap";
 import { SIGHT_WORD_NOTE } from "@/lib/vkole/constants";
+import { SPELLING_NOTE } from "@/lib/vkole/spelling/items";
+import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
 import { PA_NOTE } from "@/lib/vkole/phonemic-awareness/items";
 import { PhonemicStage } from "@/components/phonemic-stage";
 import { SightWordStage } from "@/components/sight-word-stage";
+import { SpellingStage } from "@/components/spelling-stage";
 import { SG_STAGE_NOTE, sgCodeLabel, singaporePlace } from "@/lib/vkole-singapore";
 import { SgFigure, splitFigures } from "@/components/sg-figure";
 import { deviceTimeZone } from "@/lib/day-clock-math";
@@ -47,6 +51,7 @@ type Closure = {
   sittingSeconds: number;
   totalSeconds: number;
   sheetNote: string;
+  spellingReport: string;
 };
 
 let pendingLeave: { id: string; cancel: () => void } | null = null;
@@ -107,6 +112,8 @@ function SessionPage() {
   const [levelPassword, setLevelPassword] = useState("");
   const [studentPassword, setStudentPassword] = useState("");
   const [sightRound, setSightRound] = useState(0);
+  const [spellingRound, setSpellingRound] = useState(0);
+  const [songDone, setSongDone] = useState(false);
   const [paRound, setPaRound] = useState(0);
   const finishRef = useRef<(reason: EndReason) => void>(() => {});
 
@@ -208,7 +215,7 @@ function SessionPage() {
         .then(() => endChildSession({ data: { id: climbId, reason } }))
         .then((result) => {
           const leaveThisEngine = reason !== "inactivity";
-          if (!result || (result.alreadyClosed && !result.body)) {
+          if (!result || (result.alreadyClosed && !result.body && !result.spellingReport)) {
             if (!stopped && leaveThisEngine) void navigate({ to: "/" });
             return;
           }
@@ -222,6 +229,7 @@ function SessionPage() {
             sittingSeconds: result.sittingSeconds,
             totalSeconds: result.totalSeconds,
             sheetNote: result.sheetNote,
+            spellingReport: result.spellingReport,
           };
           try {
             if (leaveThisEngine || stopped) sessionStorage.setItem("vkole-last-mail", JSON.stringify(note));
@@ -415,14 +423,14 @@ function SessionPage() {
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted">
         <span className="rounded-full border border-line bg-surface px-3 py-1">
-          Level <strong className="font-semibold text-ink">{climb.subject === "sw" || climb.subject === "pa" ? `${levelLabel(climb.level)} · ${climb.standardLabel || climb.standardCode}` : climb.subject === "sg" ? `${singaporePlace(climb.level).short} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3` : `${levelLabel(climb.level)} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3`}</strong>
+          Level <strong className="font-semibold text-ink">{climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa" ? `${levelLabel(climb.level)} · ${climb.standardLabel || climb.standardCode}` : climb.subject === "sg" ? `${singaporePlace(climb.level).short} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3` : `${levelLabel(climb.level)} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3`}</strong>
         </span>
-        {climb.subject === "sw" ? null : (
+        {climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa" ? null : (
           <span className="rounded-full border border-line bg-surface px-3 py-1">
             Correct <strong className="font-semibold text-ink">{climb.correctAtLevel}/2</strong>
           </span>
         )}
-        {climb.subject === "sw" ? null : (
+        {climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa" ? null : (
           <span className="rounded-full border border-line bg-surface px-3 py-1">
             Miss streak <strong className="font-semibold text-ink">{climb.incorrectStreak}/2</strong>
           </span>
@@ -444,7 +452,7 @@ function SessionPage() {
           </span>
         ) : null}
       </div>
-      <p className="mt-3 text-sm text-muted">{climb.subject === "sw" ? SIGHT_WORD_NOTE : climb.subject === "pa" ? PA_NOTE : VKOLE_MOVEMENT}</p>
+      <p className="mt-3 text-sm text-muted">{climb.subject === "sw" ? SIGHT_WORD_NOTE : climb.subject === "sp" ? SPELLING_NOTE : climb.subject === "pa" ? PA_NOTE : VKOLE_MOVEMENT}</p>
       {climb.subject === "sg" ? <p className="mt-2 text-sm text-muted">{SG_STAGE_NOTE}</p> : null}
       <SchoolPath />
       {!closure && clock?.closed ? (
@@ -499,6 +507,12 @@ function SessionPage() {
               : closure.error || "The academic email was not sent."}
           </p>
           {closure.sheetNote ? <p className="mt-2 text-sm text-miss">{closure.sheetNote}</p> : null}
+          {closure.spellingReport ? (
+            <div className="mt-4 rounded-xl border border-line bg-paper p-4">
+              <h3 className="font-display text-xl text-ink">{SPELLING_REPORT_LABEL}</h3>
+              <p className="mt-2 text-ink">{closure.spellingReport}</p>
+            </div>
+          ) : null}
           {closure.body ? (
             <pre className="mt-4 whitespace-pre-wrap font-sans text-sm leading-relaxed text-ink">{`${closure.subject}\n\n${closure.body}`}</pre>
           ) : null}
@@ -544,6 +558,27 @@ function SessionPage() {
                 .catch((err: unknown) => {
                   setError(err instanceof Error ? err.message : "Could not save that word.");
                   setSightRound((round) => round + 1);
+                })
+                .finally(() => setPendingAnswer(false));
+            }}
+          />
+        ) : climb.subject === "sp" ? (
+          <SpellingStage
+            key={`${climb.id}:${climb.standardStep}:${climb.correctAtLevel}:${climb.incorrectStreak}:${spellingRound}`}
+            index={climb.standardStep}
+            silence={climb.correctAtLevel}
+            wrong={climb.incorrectStreak}
+            skipSong={songDone}
+            onSongDone={() => setSongDone(true)}
+            onDone={(outcome) => {
+              if (pendingAnswer) return;
+              setPendingAnswer(true);
+              setError("");
+              void markSpelling({ data: { id: climb.id, outcome } })
+                .then((row) => setClimb(row))
+                .catch((err: unknown) => {
+                  setError(err instanceof Error ? err.message : "Could not save that answer.");
+                  setSpellingRound((round) => round + 1);
                 })
                 .finally(() => setPendingAnswer(false));
             }}
@@ -605,7 +640,7 @@ function SessionPage() {
         {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
         </>
         )}
-        {(climb.subject === "sw" || climb.subject === "pa") && error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
+        {(climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa") && error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <button
             type="button"

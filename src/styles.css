@@ -178,6 +178,54 @@
   }
 }
 
+/* Alphabet review changes one letter every 1.5s, under 3 changes per second. */
+.sp-review {
+  display: flex;
+  min-height: 18rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: -1.25rem -1.25rem 0;
+  border-radius: 1rem 1rem 0 0;
+  padding: 2rem 1.25rem 2.5rem;
+  background: var(--color-paper);
+  transition: background-color 400ms ease;
+}
+
+.sp-letter {
+  font-size: clamp(6.5rem, 24vw, 12rem);
+  line-height: 0.9;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sp-prompt {
+  margin-top: 1rem;
+  max-width: 36rem;
+  text-align: center;
+  font-size: clamp(1.35rem, 3vw, 1.85rem);
+  line-height: 1.35;
+  color: var(--color-ink);
+}
+
+.sp-cue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem 0.6rem;
+  max-width: 100%;
+}
+
+.sp-cue .sp-letter {
+  font-size: clamp(2.8rem, 14vw, 7rem);
+}
+
+.sp-happy {
+  width: min(46vw, 12rem);
+  height: auto;
+}
+
 .pa-box {
   width: 2.75rem;
   height: 2.75rem;

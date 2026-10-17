@@ -21,8 +21,9 @@ export const ACCOUNT_WIPE_COOKIE = "app-data-version";
 /**
  * Device preferences that are not an account, a child, progress, or a token.
  * `vkole-sw-mic` remembers that this tab may use the microphone for sight words.
+ * `vkole-sp-mic` remembers that this tab may use the microphone for spelling.
  */
-export const KEPT_DEVICE_KEYS = ["vkole-sw-mic"] as const;
+export const KEPT_DEVICE_KEYS = ["vkole-sw-mic", "vkole-sp-mic"] as const;
 
 export function versionIsCurrent(value: string | null | undefined): boolean {
   return value === ACCOUNT_WIPE_VERSION;

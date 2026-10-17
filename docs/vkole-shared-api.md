@@ -25,7 +25,7 @@ A write replaces each engine object that is sent. Engines that are omitted are n
 
 ## Engine keys
 
-`m`, `ela`, `ss`, `gen`, `sg`, `sw`, `pa`.
+`m`, `ela`, `ss`, `gen`, `sg`, `sw`, `sp`, `pa`.
 
 `m`, `ela`, `ss`, and `gen` store `{ "grade": 1-12, "step": 0|1|2 }`.
 
@@ -107,6 +107,54 @@ A correct spoken word and a miss both move to the next word. There is no retry. 
 
 The microphone listens only while a word is on the screen. Audio is not recorded and is not saved.
 
+## level.sp
+
+Spelling. The key is `sp`. The letters, timings, question bands, and spoken names are in `src/lib/vkole/spelling/data.json`. That file is the canonical copy. The website copies it byte for byte.
+
+```json
+{
+  "id": "sp-ada",
+  "name": "Ada",
+  "enteredBy": "parent",
+  "grade": 1,
+  "step": 0,
+  "band": "LK",
+  "index": 0,
+  "word": "lk-first",
+  "earnedGrade": 1,
+  "reached": 0,
+  "missed": 0,
+  "updatedAt": 0,
+  "startingGrade": 1,
+  "levelCode": "LK",
+  "levelLabel": "Letter knowledge"
+}
+```
+
+`band` is the list. During the letter phase, `index` is the letter: 0 is A and 25 is Z. `step` stays 0. `word` is the prompt id. `streak` is how many times the current letter has been met with silence. `missStreak` is the wrong-answer step: 0 is the letter question, 1 is the 3-letter cue, and 2 is the 5-letter cue. The grade number stays when the letter changes.
+
+### Bands
+
+`LK`, `LS`, `CVC`, `DOLCH`, `FRY`. Phase 1 fills letter knowledge. The later bands are in the file with no items until the owner specifies them. Empty bands are skipped.
+
+| Band | Name | Grade label | Items now |
+|---|---|---|---|
+| LK | Letter knowledge | K | 77 |
+| LS | Letter sounds | K | 0 |
+| CVC | CVC words | K-1 | 0 |
+| DOLCH | Dolch words | K-3 | 0 |
+| FRY | Fry words | 1-5 | 0 |
+
+Letter knowledge, in order: the first letter of the alphabet, the next letter through Z, what letter comes after each letter from A through Y (including X), then the name of each letter A through Z.
+
+A new student starts at the first letter question. A saved `band`, or a `levelCode` that is a band id, wins. A saved band with no items yet falls back to letter knowledge.
+
+Opening the engine plays the alphabet from A to Z, one letter every 1.5 seconds (26 letters, 39 seconds). Each letter is a different bright color on a changing background. The picture changes once every 1.5 seconds, which is slower than 3 changes per second. At the end, when the student is still on the first question, the engine says and shows: `Your turn! What is the first letter of the alphabet?`
+
+A correct spoken answer shows a Happy Face for 2 seconds, then the next letter. The 5 second window is a maximum: a spoken answer is taken as soon as it is heard. The first 5 seconds of silence shows the same letter again. A second silence goes back 3 letters and continues from there. A wrong answer shows the 3 prior letters and speaks them, then waits up to 5 seconds. Another wrong answer or silence shows and speaks the 5 prior letters. One more wrong answer or silence starts again at A. A count that would pass A stops at A. The microphone listens only while a question is waiting for an answer. Audio is not recorded and is not saved. Adult override buttons are Correct and Miss.
+
+At the end of a spelling sitting, the server writes a short parent report of 3 to 5 sentences. The section is labeled `Report written by Space XSI (Grok)`. The call uses `XAI_API_KEY` on the server, one call for that sitting, and sends only that student's letter stats. It does not send another family's name or any audio. If the key is missing or the call fails, the same section uses a local template. The report is shown to that parent and is included only in that account's progress email.
+
 ## level.pa
 
 Phonemic awareness. The key is `pa`. The prompts, answers, `also` lists, phoneme sounds, and Elkonin box counts are in `src/lib/vkole/phonemic-awareness/data.json`, copied byte for byte from `docs/phonemic-awareness-website-canonical.json`.
@@ -164,4 +212,3 @@ Age 4 and age 5 win over the grade. A saved `band`, or a `levelCode` that is a b
 Two correct answers in a row move up one band. Two misses in a row move down one band. The first band does not move down. The last band does not move up. A miss or 20 seconds of silence speaks the `model` line, waits 2 seconds, and moves on. A correct answer is silent, then the next item after 2 seconds.
 
 The microphone listens only while a prompt is waiting for an answer. Audio is not recorded and is not saved. The adult buttons are “They said it right” and “Not yet”.
-

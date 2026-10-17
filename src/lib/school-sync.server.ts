@@ -18,6 +18,8 @@ import { readSchoolMirror, saveSchoolMirror } from "@/lib/school-mirror.server";
 import { separateSignIn } from "@/lib/school-session.server";
 import { masteryFromDetails, richerMastery } from "@/lib/vkole-singapore-report";
 import { isSightBand } from "@/lib/vkole/constants";
+import { spAccountLevel } from "@/lib/vkole/spelling/level";
+import { isSpBand, letterView } from "@/lib/vkole/spelling/items";
 import { paAccountLevel } from "@/lib/vkole/phonemic-awareness/level";
 import { cardFromAccount as paCardFromAccount, isPaBand } from "@/lib/vkole/phonemic-awareness/items";
 import { swAccountLevel } from "@/lib/vkole/sight-words/level";
@@ -51,6 +53,32 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
     const local = localLevels.find((row) => row.subject === engine);
     const localAt = local ? new Date(String(rowTime(local.updated_at))).getTime() : 0;
     if (pushedAt != null && local && localAt > pushedAt) continue;
+    if (engine === "sp" && level.band) {
+      const view = letterView({ index: level.index ?? 0, silence: level.streak ?? 0, wrong: level.missStreak ?? 0 });
+      const reached = level.reached ?? 0;
+      const missed = level.missed ?? 0;
+      const grade = Math.min(12, Math.max(1, Math.round(level.grade) || 1));
+      await sql`
+        update climbs
+        set level = ${grade},
+            standard_step = ${view.index},
+            correct_at_level = ${view.silence},
+            incorrect_streak = ${view.wrong},
+            standard_code = ${view.band},
+            standard_label = ${view.name},
+            current_prompt = ${view.show},
+            answer_key = ${view.answer},
+            answer_aliases = ${JSON.stringify(view.also)},
+            answer_note = ${view.name},
+            question_id = ${`sp:${view.band}:${view.id}:s${view.silence}:w${view.wrong}`},
+            performance_level = ${level.earnedGrade ?? grade},
+            right_count = ${reached},
+            asked = ${reached + missed},
+            updated_at = now()
+        where user_id = ${userId} and subject = ${engine}
+      `;
+      continue;
+    }
     if (engine === "pa" && level.band) {
       const card = paCardFromAccount(level, level.grade);
       const reached = level.reached ?? 0;
@@ -171,6 +199,32 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Eng
     if (!ENGINE_IDS.includes(row.subject as EngineId) || seen.has(row.subject)) continue;
     seen.add(row.subject);
     const grade = Math.min(12, Math.max(1, Math.round(Number(row.level) || 1)));
+    if (row.subject === "sp") {
+      const view = letterView({
+        index: Math.max(0, Math.round(Number(row.standard_step) || 0)),
+        silence: Math.max(0, Math.round(Number(row.correct_at_level) || 0)),
+        wrong: Math.max(0, Math.round(Number(row.incorrect_streak) || 0)),
+      });
+      const band = isSpBand(row.standard_code) ? row.standard_code : view.band;
+      const reached = Math.max(0, Math.round(Number(row.right_count) || 0));
+      const asked = Math.max(reached, Math.round(Number(row.asked) || 0));
+      const starting = Number(row.start_grade);
+      level.sp = spAccountLevel(remote.sp, {
+        name: row.child_name?.trim() || remote.sp?.name || "",
+        grade,
+        band,
+        index: view.index,
+        word: view.id,
+        silence: view.silence,
+        wrong: view.wrong,
+        earnedGrade: Math.min(12, Math.max(1, Math.round(Number(row.performance_level) || grade))),
+        reached,
+        missed: asked - reached,
+        ...(Number.isInteger(starting) && starting >= 1 && starting <= 12 ? { startingGrade: starting } : {}),
+        updatedAt: Date.now(),
+      });
+      continue;
+    }
     if (row.subject === "pa") {
       const card = paCardFromAccount(
         {

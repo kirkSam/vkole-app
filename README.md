@@ -1,6 +1,6 @@
 # VKOLE/ZPD - Space XSI Integrated Learning Engine
 
-The learning app for one student. Seven engines share one registration: VKOLE/M, VKOLE Singapore, VKOLE Sight Words, VKOLE/PA, VKOLE/ELA, VKOLE/SS, and VKOLE/gen.
+The learning app for one student. Eight engines share one registration: VKOLE/M, VKOLE Singapore, VKOLE Sight Words, VKOLE/Spelling ZPD, VKOLE/PA ZPD, VKOLE/ELA, VKOLE/SS, and VKOLE/gen.
 
 This repository is the application source. It does not contain secret keys or passwords. Set those by name in the environment. See `.env.example`.
 
@@ -32,7 +32,7 @@ The school website is the only account book. Parent email and password, the stud
 
 This app still keeps a copy of that sign-in and of the student record: Better Auth `user`, `session`, `account`, and `verification` rows; `climbs`, `app_trials`, and the related student tables (`climb_events`, `climb_sittings`, `academic_mail`, `app_subscriptions`, `parent_logins`, `payments`, `student_passwords`, `day_clocks`, `assignment_sheets`, `seen_prompts`, `question_bags`, `school_mirror`, `registrations`). The device does not use `localStorage` for an account. It does keep the session cookie, and `sessionStorage` holds the preview bearer token plus a few screen flags. None of that is deleted by the website's own wipe.
 
-`POST /api/vkole/purge` deletes those rows and leaves the tables and the seven engines in place. The caller sends header `X-Vkole-Secret` (the same shared secret) or is signed in as an email listed in `VKOLE_ADMIN_EMAILS`, and the JSON body `{ "confirm": "delete-all-accounts" }`. The response is counts only. When a signed-in parent later opens the app and the website says that account is gone, this app deletes that parent's rows, expires the session cookie, and the browser drops the cached sign-in.
+`POST /api/vkole/purge` deletes those rows and leaves the tables and the eight engines in place. The caller sends header `X-Vkole-Secret` (the same shared secret) or is signed in as an email listed in `VKOLE_ADMIN_EMAILS`, and the JSON body `{ "confirm": "delete-all-accounts" }`. The response is counts only. When a signed-in parent later opens the app and the website says that account is gone, this app deletes that parent's rows, expires the session cookie, and the browser drops the cached sign-in.
 
 Pay buttons open https://www.dotheimpossible.ai/engine. This app does not record a payment and does not charge the card. The prices shown are $9.00 USD plus tax a month, or $79.00 USD plus tax a year, for one student. Google and X stay separate from the school account.
 
@@ -86,7 +86,7 @@ npm run db:migrate
 | Service | What it is for | Name to set |
 |---|---|---|
 | Postgres | Accounts, students, levels, mail record | `DATABASE_URL` |
-| xAI API | Grade one answer and write the next question | `XAI_API_KEY` |
+| xAI API | Grade one answer, write the next question, and write the spelling parent report | `XAI_API_KEY` |
 | Gmail SMTP | Parent progress reports, password codes, registration notices | `GMAIL_APP_PASSWORD` or `VKOLE_MAIL_SECRET` |
 | Better Auth | This app's session cookie after the school website accepts the password | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` |
 | School website | Parent account, password, level, free week, clock, seen questions, and access | `VKOLE_SHARED_SECRET` |
