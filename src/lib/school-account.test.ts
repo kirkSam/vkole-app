@@ -7,12 +7,18 @@ import {
   WEBSITE_ERRORS_NOT_EXTRA,
   clockToWrite,
   decideStudent,
+  DEFAULT_WEBSITE_MASTER_EMAIL,
   failureKind,
   isFreshSchoolProfile,
+  isWebsiteMasterEmail,
   officeOffer,
   parseSchoolProfile,
   resetCode,
+  schoolAccessDecision,
+  schoolFailureMessage,
+  schoolPassword,
   schoolWriteBody,
+  websiteMasterEmail,
 } from "./school-account.ts";
 import {
   SchoolCallError,
@@ -465,5 +471,137 @@ describe("server calls", () => {
         ),
       (err: unknown) => err instanceof SchoolCallError && err.reason === "rejected",
     );
+  });
+
+  it("registers on the website, then signs in with the same email and password", async () => {
+    const typedPassword = `unit-test-pass\r\n`;
+    const stored = new Map<string, string>();
+    const calls: { path: string; email: string; samePassword: boolean }[] = [];
+    const fetchImpl = async (input: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { email?: string; password?: string };
+      const path = String(input);
+      const email = String(body.email ?? "");
+      const password = String(body.password ?? "");
+      calls.push({
+        path,
+        email,
+        samePassword: password === schoolPassword(typedPassword) && !password.includes("\n"),
+      });
+      if (path.endsWith("/register")) {
+        stored.set(email, password);
+        return jsonResponse(200, {
+          ok: true,
+          id: email,
+          profile: { access: "closed", studentName: "", freeWeekStart: "1970-01-01T00:00:00.000Z" },
+        });
+      }
+      const saved = stored.get(email);
+      if (saved == null || saved !== password) {
+        return jsonResponse(401, { ok: false, error: "Email or password did not match." });
+      }
+      return jsonResponse(200, {
+        ok: true,
+        id: email,
+        profile: { access: "closed", studentName: "", freeWeekStart: "1970-01-01T00:00:00.000Z" },
+      });
+    };
+    const registered = await registerSchoolAccount(
+      { email: "  KirkSamAlpha@DotHeimpossible.ai ", password: typedPassword, name: "Parent" },
+      { secret: SECRET, fetch: fetchImpl },
+    );
+    const signedIn = await signInSchoolAccount(
+      { email: "KirkSamAlpha@DotHeimpossible.ai", password: typedPassword },
+      { secret: SECRET, fetch: fetchImpl },
+    );
+    assert.equal(registered.id, DEFAULT_WEBSITE_MASTER_EMAIL);
+    assert.equal(signedIn.id, registered.id);
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0]?.path.endsWith("/api/vkole/register"), true);
+    assert.equal(calls[1]?.path.endsWith("/api/vkole/sign-in"), true);
+    assert.equal(calls[0]?.email, DEFAULT_WEBSITE_MASTER_EMAIL);
+    assert.equal(calls[1]?.email, calls[0]?.email);
+    assert.equal(calls.every((call) => call.samePassword), true);
+    assert.equal(registered.profile.access, "open");
+    assert.equal(signedIn.profile.access, "open");
+    const decision = schoolAccessDecision({
+      email: signedIn.id,
+      access: "closed",
+      freeWeekStart: "1970-01-01T00:00:00.000Z",
+      now: Date.parse("2026-10-17T19:00:00.000Z"),
+    });
+    assert.equal(decision.fullAccess, true);
+    assert.equal(decision.showTrialPage, false);
+    assert.equal(decision.blocked, false);
+    assert.equal(decision.expired, false);
+    assert.equal(decision.endsAt, null);
+  });
+
+  it("keeps a website sentence instead of calling every sign-in failure a mismatch", async () => {
+    assert.equal(
+      schoolFailureMessage(true, "unknown", "No account for that email yet. Create one at /engine."),
+      "No account for that email yet. Create one at /engine.",
+    );
+    assert.equal(schoolFailureMessage(true, "password", ""), "Email or password did not match.");
+    assert.equal(
+      schoolFailureMessage(true, "rejected", "The password needs at least 8 characters."),
+      "The password needs at least 8 characters.",
+    );
+    const missing = "No account for that email yet. Create one at /engine.";
+    await assert.rejects(
+      () =>
+        signInSchoolAccount(
+          { email: "parent@example.com", password: "long-enough" },
+          { secret: SECRET, fetch: async () => jsonResponse(404, { ok: false, error: missing }) },
+        ),
+      (err: unknown) => err instanceof SchoolCallError && err.reason === "unknown" && err.message === missing,
+    );
+  });
+});
+
+describe("master access", () => {
+  it("never shows the trial page for the master email", () => {
+    assert.equal(websiteMasterEmail(""), DEFAULT_WEBSITE_MASTER_EMAIL);
+    assert.equal(websiteMasterEmail("  Owner@School.test "), "owner@school.test");
+    assert.equal(websiteMasterEmail("teacher@school.test, helper@school.test"), DEFAULT_WEBSITE_MASTER_EMAIL);
+    assert.equal(isWebsiteMasterEmail(" KirkSamAlpha@DotHeimpossible.ai "), true);
+    assert.equal(isWebsiteMasterEmail("kirksam.alpha@dotheimpossible.ai"), false);
+    assert.equal(isWebsiteMasterEmail("kirksamalpha@gmail.com"), false);
+    const now = Date.parse("2026-10-17T19:00:00.000Z");
+    for (const access of ["open", "closed", null] as const) {
+      const decision = schoolAccessDecision({
+        email: DEFAULT_WEBSITE_MASTER_EMAIL,
+        access,
+        freeWeekStart: null,
+        now,
+      });
+      assert.equal(decision.showTrialPage, false);
+      assert.equal(decision.blocked, false);
+      assert.equal(decision.fullAccess, true);
+    }
+    const finished = schoolAccessDecision({
+      email: "parent@example.com",
+      access: "closed",
+      freeWeekStart: "1970-01-01T00:00:00.000Z",
+      now,
+    });
+    assert.equal(finished.showTrialPage, true);
+    assert.equal(finished.fullAccess, false);
+    const named = schoolAccessDecision({
+      email: "owner@school.test",
+      access: "closed",
+      freeWeekStart: null,
+      masterRaw: "owner@school.test",
+      now,
+    });
+    assert.equal(named.showTrialPage, false);
+    const notMaster = schoolAccessDecision({
+      email: DEFAULT_WEBSITE_MASTER_EMAIL,
+      access: "closed",
+      freeWeekStart: null,
+      masterRaw: "owner@school.test",
+      now,
+    });
+    assert.equal(notMaster.fullAccess, false);
+    assert.equal(notMaster.showTrialPage, true);
   });
 });

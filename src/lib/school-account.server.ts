@@ -10,8 +10,11 @@ import {
   SCHOOL_WAIT_MESSAGE,
   decideStudent,
   failureKind,
+  isWebsiteMasterEmail,
   parseSchoolProfile,
   resetCode,
+  schoolFailureMessage,
+  schoolPassword,
   websiteErrorText,
   type SchoolFailure,
   type SchoolProfile,
@@ -92,18 +95,29 @@ async function postSchool(path: string, body: unknown, deps?: CallDeps): Promise
     if (reason === "wait") throw new SchoolCallError("wait", SCHOOL_WAIT_MESSAGE);
     if (reason === "gone") throw new SchoolCallError("gone", SCHOOL_ACCOUNT_GONE_MESSAGE);
     const signing = path === PATHS.signIn || path === PATHS.register;
-    const spoken = websiteErrorText(parsed);
-    const message =
-      !signing && spoken
-        ? spoken
-        : reason === "unknown"
-          ? "The school website has no password for that email."
-          : signing
-            ? "Email or password did not match."
-            : "The school website did not accept that request.";
-    throw new SchoolCallError(reason, message);
+    const spoken = redactPassword(websiteErrorText(parsed), passwordOf(body));
+    throw new SchoolCallError(reason, schoolFailureMessage(signing, reason, spoken));
   }
   return parsed;
+}
+
+function passwordOf(body: unknown): string {
+  if (!body || typeof body !== "object") return "";
+  const row = body as { password?: unknown; newPassword?: unknown };
+  if (typeof row.password === "string") return row.password;
+  if (typeof row.newPassword === "string") return row.newPassword;
+  return "";
+}
+
+/** A website sentence must not echo the password back onto the screen. */
+function redactPassword(spoken: string, password: string): string {
+  if (!spoken || password.length < 8 || !spoken.includes(password)) return spoken;
+  return spoken.split(password).join("").trim();
+}
+
+function masterProfile(email: string, profile: SchoolProfile): SchoolProfile {
+  if (!isWebsiteMasterEmail(email, process.env.VKOLE_MASTER_EMAIL)) return profile;
+  return { ...profile, access: "open" };
 }
 
 function accountId(raw: string): string {
@@ -118,19 +132,17 @@ export async function registerSchoolAccount(
 ): Promise<{ id: string; profile: SchoolProfile }> {
   const email = accountId(input.email);
   const name = input.name.trim() || "Parent";
-  const body = await postSchool(
-    PATHS.register,
-    { email, password: input.password, name, parentName: name },
-    deps,
-  );
+  const password = schoolPassword(input.password);
+  const body = await postSchool(PATHS.register, { email, password, name, parentName: name }, deps);
   const parsed = parseSchoolProfile(body);
   if (!parsed || !sameAccount(parsed.id, email)) {
     throw new SchoolCallError("rejected", "The school website did not open the account.");
   }
-  if (parsed.profile.access !== "open" && parsed.profile.access !== "closed") {
+  const profile = masterProfile(email, parsed.profile);
+  if (profile.access !== "open" && profile.access !== "closed") {
     throw new SchoolCallError("rejected", "The school website did not open the account.");
   }
-  return { id: email, profile: parsed.profile };
+  return { id: email, profile };
 }
 
 export async function signInSchoolAccount(
@@ -140,10 +152,11 @@ export async function signInSchoolAccount(
   const forms = accountEmailForms(input.email);
   const id = forms[0];
   if (!id) throw new SchoolCallError("rejected", "Check the email and password and try again.");
+  const password = schoolPassword(input.password);
   let last: unknown = new SchoolCallError("rejected", "Email or password did not match.");
   for (const email of forms) {
     try {
-      const body = await postSchool(PATHS.signIn, { email, password: input.password }, deps);
+      const body = await postSchool(PATHS.signIn, { email, password }, deps);
       const parsed = parseSchoolProfile(body);
       if (parsed && !sameAccount(parsed.id, id)) {
         throw new SchoolCallError("rejected", "Email or password did not match.");
@@ -152,7 +165,7 @@ export async function signInSchoolAccount(
       if (!account || !sameAccount(account.id, id)) {
         throw new SchoolCallError("rejected", "Email or password did not match.");
       }
-      return { id, profile: account.profile };
+      return { id, profile: masterProfile(id, account.profile) };
     } catch (err) {
       last = err;
       if (!(err instanceof SchoolCallError) || err.reason !== "unknown") throw err;
@@ -191,7 +204,7 @@ export async function readSchoolAccount(id: string, deps?: CallDeps): Promise<Sc
   const payload = body && typeof body === "object" ? { ...(body as object), id: email, ok: true } : { id: email, ok: true };
   const parsed = parseSchoolProfile(payload);
   if (!parsed) throw offline();
-  return parsed.profile;
+  return masterProfile(email, parsed.profile);
 }
 
 export async function writeSchoolAccount(
@@ -220,7 +233,7 @@ export async function confirmSchoolReset(
   const email = accountId(input.email);
   await postSchool(
     PATHS.passwordResetConfirm,
-    { email, code: input.code.trim(), newPassword: input.newPassword },
+    { email, code: input.code.trim(), newPassword: schoolPassword(input.newPassword) },
     deps,
   );
 }
