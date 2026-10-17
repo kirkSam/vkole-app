@@ -1,4 +1,5 @@
 import tls from "node:tls";
+import { parentMailStaysOnAccount } from "@/lib/account-scope";
 import { APP_NAME, SCHOOL_EMAIL } from "@/lib/brand";
 import { getSql, type Sql } from "@/lib/db";
 
@@ -73,6 +74,11 @@ export async function sendAppMail(
   body: string,
   html?: string,
 ): Promise<"sent" | "none" | "rejected"> {
+  const combined = `${subject}\n${body}\n${html ?? ""}`;
+  if (!parentMailStaysOnAccount(to, combined, SCHOOL_EMAIL)) {
+    console.error("[vkole] refused mail that names another account");
+    return "rejected";
+  }
   const sql = await getSql();
   await ensureMailTable(sql);
   const rows = await sql<{ address: string; secret: string }>`select address, secret from app_mail where id = 1`;

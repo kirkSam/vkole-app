@@ -1,125 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { accountsVisibleTo, mayAllowAppMail, normalizeAccountEmail } from "@/lib/account-scope";
 import { getSql, type Sql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { publishedOrigin } from "@/lib/published-origin";
 import { isSchoolAccountId } from "@/lib/school-account";
 
-const OWNER_EMAIL = "kirk.sam.alpha@gmail.com";
+/** The Gmail form is the mail operator. It is not a list of other families. */
+export function canAllowAppMail(email: string): boolean {
+  return mayAllowAppMail(email, process.env.VKOLE_MASTER_EMAIL);
+}
 
 async function mailer() {
   return import("@/lib/app-mail");
 }
 
-async function mailRegistrationNotice(subject: string, body: string): Promise<"sent" | "confirm" | "failed"> {
-  const origin = publishedOrigin() || "https://amber-clover-pixel-ember.grok.me";
-  try {
-    const response = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(OWNER_EMAIL)}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Origin: origin,
-        Referer: `${origin}/`,
-      },
-      body: JSON.stringify({
-        _subject: subject,
-        _captcha: "false",
-        _template: "box",
-        message: body,
-      }),
-    });
-    const text = (await response.text()).toLowerCase();
-    if (text.includes("activat") || text.includes("confirm your")) return "confirm";
-    if (!response.ok) return "failed";
-    return "sent";
-  } catch {
-    return "failed";
-  }
-}
-
-async function rememberEmail(sql: Sql, email: string, name = "") {
-  const address = email.trim().toLowerCase();
-  if (!address) return;
-  const named = name.trim();
-  const stored = named
-    ? named
-    : (
-        await sql.query<{ name: string | null }>('select "name" from "user" where lower("email") = $1 limit 1', [
-          address,
-        ])
-      )[0]?.name ?? "";
-  await sql`
-    insert into registrations (email, name)
-    values (${address}, ${stored.trim()})
-    on conflict (email) do nothing
-  `;
-}
-
-async function notifyOwner(sql: Sql): Promise<{ sent: boolean; error: string; pending: boolean }> {
-  try {
-    await sql`alter table registrations add column if not exists notified_at timestamptz`;
-    const pendingRows = await sql<{ email: string; name: string; created_at: unknown }>`
-      select email, name, created_at from registrations
-      where notified_at is null
-      order by created_at
-    `;
-    if (!pendingRows.length) return { sent: false, error: "", pending: false };
-    const all = await sql<{ email: string; name: string }>`
-      select email, name from registrations order by created_at
-    `;
-    const lines = (rows: { email: string; name: string }[]) =>
-      rows.map((row) => (row.name ? `${row.email} · ${row.name}` : row.email)).join("\n");
-    const body = [
-      pendingRows.length === 1 ? "A registration for VKOLE/ZPD - Space XSI Integrated Learning Engine was saved." : `${pendingRows.length} registrations for VKOLE/ZPD - Space XSI Integrated Learning Engine were saved.`,
-      "",
-      "New:",
-      lines(pendingRows),
-      "",
-      "All registrations:",
-      lines(all),
-      "",
-      "Academic reports are not sent to this address. They go only to the email the parent entered.",
-    ].join("\n");
-    const subject =
-      pendingRows.length === 1
-        ? `VKOLE/ZPD - Space XSI Integrated Learning Engine registration: ${pendingRows[0]?.email}`
-        : `VKOLE/ZPD - Space XSI Integrated Learning Engine registrations: ${pendingRows.length} new`;
-    const { sendAppMail } = await mailer();
-    const mailed = await sendAppMail(OWNER_EMAIL, subject, body);
-    if (mailed === "sent") {
-      await sql`
-        update registrations
-        set notified_at = now()
-        where notified_at is null
-      `;
-      return { sent: true, error: "", pending: false };
-    }
-    return {
-      sent: false,
-      error:
-        mailed === "rejected"
-          ? "The registration is saved. The notice could not be sent to kirk.sam.alpha@gmail.com."
-          : "The registration is saved. Gmail is not allowed yet, so the notice was not sent.",
-      pending: false,
-    };
-  } catch (err) {
-    const error = err instanceof Error ? err.message : "The registration email was not sent.";
-    console.error("[vkole] registration notice", error);
-    return { sent: false, error, pending: false };
-  }
-}
-
-async function capturedEmails(sql: Sql) {
-  await sql`
-    insert into registrations (email, name, created_at)
-    select lower("email"), "name", "createdAt" from "user"
-    on conflict (email) do nothing
-  `;
-  return sql<{ email: string; name: string; created_at: unknown }>`
-    select email, name, created_at from registrations order by created_at desc
-  `;
-}
 async function emailFor(sql: Sql, userId: string): Promise<string> {
   const rows = await sql.query<{ email: string }>('select "email" from "user" where "id" = $1', [userId]);
   const email = rows[0]?.email?.trim();
@@ -149,20 +43,14 @@ async function summary(sql: Sql, userId: string, email: string) {
   const payments = await sql<{ n: number | string }>`
     select count(*) as n from payments where user_id = ${userId}
   `;
-  const owner = email.trim().toLowerCase() === OWNER_EMAIL;
-  const rows = owner ? await capturedEmails(sql) : [];
-  const notice = await notifyOwner(sql);
+  const own = accountsVisibleTo(email, [{ email }]);
   return {
-    email,
+    email: own[0]?.email ?? normalizeAccountEmail(email),
     loginCount: Number(logins[0]?.n ?? 0),
     paymentCount: Number(payments[0]?.n ?? 0),
-    notice,
-    mailAllowed: owner ? await (await mailer()).appMailReady(sql) : false,
-    registrations: rows.map((row) => ({
-      email: row.email,
-      name: row.name,
-      at: new Date(String(row.created_at)).toISOString(),
-    })),
+    notice: { sent: false, error: "", pending: false },
+    mailAllowed: canAllowAppMail(email) ? await (await mailer()).appMailReady(sql) : false,
+    mailDesk: canAllowAppMail(email),
   };
 }
 
@@ -172,7 +60,6 @@ export const noteAccount = createServerFn({ method: "POST" })
     const sql = await getSql();
     await trustFreshWebsite(sql, context.userId);
     const email = await emailFor(sql, context.userId);
-    await rememberEmail(sql, email);
     const existing = await sql<{ id: string }>`
       select id from parent_logins where user_id = ${context.userId} limit 1
     `;
@@ -196,7 +83,6 @@ export const recordLogin = createServerFn({ method: "POST" })
     const sql = await getSql();
     await trustFreshWebsite(sql, context.userId);
     const email = await emailFor(sql, context.userId);
-    await rememberEmail(sql, email);
     await sql`
       insert into parent_logins (id, user_id, email, kind)
       values (${crypto.randomUUID()}, ${context.userId}, ${email}, ${data.kind})
@@ -219,12 +105,13 @@ export const allowGmail = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const email = await emailFor(sql, context.userId);
+    if (!canAllowAppMail(email)) throw new Error("This account cannot change the mail password.");
     const { saveAppMailPassword, sendAppMail } = await mailer();
     await saveAppMailPassword(sql, email, data.password);
     const sent = await sendAppMail(
-      OWNER_EMAIL,
+      email,
       "VKOLE/ZPD - Space XSI Integrated Learning Engine: Gmail is allowed",
-      "Gmail is allowed for this app. Registration notices and student reports can be sent from this account.",
+      "Gmail is allowed for this app. Student reports can be sent from this account. This note names only this account.",
     );
     if (sent !== "sent") throw new Error("That app password was not accepted. Create a new one and try again.");
     return summary(sql, context.userId, email);

@@ -234,7 +234,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
     paymentCount: number;
     notice?: { sent: boolean; error: string; pending?: boolean };
     mailAllowed?: boolean;
-    registrations?: { email: string; name: string; at: string }[];
+    mailDesk?: boolean;
   } | null>(null);
   const [mailNote, setMailNote] = useState("");
   const [appPassword, setAppPassword] = useState("");
@@ -372,12 +372,8 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
         </p>
       ) : null}
       {office ? <StudentOffice purchased={office.purchased} slug={office.slug} /> : null}
-      {account?.notice?.sent ? (
-        <p className="mt-3 text-sm text-ink">Registration notice sent to kirk.sam.alpha@gmail.com.</p>
-      ) : account?.notice?.error ? (
-        <p className="mt-3 text-sm text-miss">{account.notice.error}</p>
-      ) : null}
-      {account?.email === "kirk.sam.alpha@gmail.com" ? (
+      {account?.notice?.error ? <p className="mt-3 text-sm text-miss">{account.notice.error}</p> : null}
+      {account?.mailDesk ? (
         <form
           className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-ink"
           onSubmit={(event) => {
@@ -388,7 +384,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
               .then((result) => {
                 setAccount(result);
                 setAppPassword("");
-                setAllowNote("Gmail is allowed. A test message was sent to kirk.sam.alpha@gmail.com.");
+                setAllowNote("Gmail is allowed. A test message was sent to this account only.");
               })
               .catch((err: unknown) => {
                 setAllowNote(err instanceof Error ? err.message : "That app password was not accepted.");
@@ -398,7 +394,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
         >
           <p className="font-semibold">Allow Gmail</p>
           <p className="mt-2 text-muted">
-            A student logout cannot carry your Gmail permission. Allow it once for the app. On the Google account kirk.sam.alpha@gmail.com, turn on 2-Step Verification, then create an app password named VKOLE/ZPD at myaccount.google.com/apppasswords. Paste it here.
+            A student logout cannot carry your Gmail permission. Allow it once for the app. On this Google account, turn on 2-Step Verification, then create an app password named VKOLE/ZPD at myaccount.google.com/apppasswords. Paste it here. This form does not list other families.
           </p>
           {account.mailAllowed ? (
             <p className="mt-2">Gmail is already allowed for this app. Paste a new app password only if you need to replace it.</p>
@@ -416,19 +412,6 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
           </button>
           {allowNote ? <p className="mt-2">{allowNote}</p> : null}
         </form>
-      ) : null}
-      {account?.registrations && account.registrations.length > 0 ? (
-        <div className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-ink">
-          <p className="font-semibold">Registration emails</p>
-          <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto">
-            {account.registrations.map((row) => (
-              <li key={row.email}>
-                {row.email}
-                {row.name ? ` · ${row.name}` : ""}
-              </li>
-            ))}
-          </ul>
-        </div>
       ) : null}
       {sub ? (
         <div className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-ink">
