@@ -54,6 +54,55 @@
   outline-offset: 4px;
 }
 
+.sight-word {
+  font-size: clamp(3.5rem, 12vw, 7rem);
+  line-height: 1.15;
+  padding-top: 0.35em;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.sight-heart {
+  position: relative;
+}
+
+.sight-heart::before {
+  content: "♥";
+  position: absolute;
+  top: -0.32em;
+  left: 50%;
+  color: #9a3d62;
+  font-size: 0.28em;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+
+.sight-sparkle::before,
+.sight-sparkle::after {
+  content: "✦";
+  position: absolute;
+  top: 0.2rem;
+  color: #e6c65c;
+  font-size: 1.5rem;
+  animation: sight-twinkle 0.9s ease-in-out infinite;
+}
+
+.sight-sparkle::before {
+  left: 12%;
+}
+
+.sight-sparkle::after {
+  right: 12%;
+  animation-delay: 0.25s;
+}
+
+@keyframes sight-twinkle {
+  50% {
+    opacity: 0.35;
+    transform: scale(1.25);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

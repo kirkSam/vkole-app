@@ -14,6 +14,8 @@ import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-histo
 import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
 import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
 import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
+import { cardFromAccount, nextCard, startCard } from "@/lib/vkole/sight-words/words";
+import { isSightBand } from "@/lib/vkole/constants";
 
 export type Climb = {
   id: string;
@@ -272,6 +274,31 @@ export const setClimbLevel = createServerFn({ method: "POST" })
     const current = await selectOwned(sql, context.userId, data.id);
     const held = capVkoleGrade(current.level);
     const level = capVkoleGrade(current.level + (data.direction === "up" ? 1 : -1));
+    if (current.subject === "sw") {
+      const card =
+        level === held && data.direction === "up"
+          ? cardFromAccount({ grade: held, band: current.standardCode, index: current.standardStep }, held)
+          : startCard(level);
+      await sql`
+        update climbs
+        set level = ${level},
+            standard_step = ${card.index},
+            correct_at_level = 0,
+            incorrect_streak = 0,
+            standard_code = ${card.band},
+            standard_label = ${card.label},
+            current_prompt = ${card.word},
+            answer_key = ${card.word},
+            answer_aliases = ${JSON.stringify(card.also)},
+            answer_note = ${card.label},
+            question_id = ${`sw:${card.band}:${card.index}`},
+            next_prompt = '',
+            awaiting_next = 0,
+            updated_at = now()
+        where id = ${data.id} and user_id = ${context.userId}
+      `;
+      return selectOwned(sql, context.userId, data.id);
+    }
     const step = level === held && data.direction === "up" ? Math.min(2, Math.max(0, current.standardStep ?? 0)) : 0;
     const item = await dealQuestion(sql, context.userId, current.childName, current.subject, level, step);
     await sql`
@@ -301,6 +328,7 @@ export const recordAnswer = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const current = await selectOwned(sql, context.userId, data.id);
+    if (current.subject === "sw") throw new Error("Sight words are marked from the microphone.");
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
     if (current.awaitingNext) return { status: "saved" as const, climb: current };
     const keyed = await keyedAnswer(sql, context.userId, data.id);
@@ -432,12 +460,86 @@ export const recordAnswer = createServerFn({ method: "POST" })
     return { status: "saved" as const, climb: await selectOwned(sql, context.userId, data.id) };
   });
 
+const sightSchema = idSchema.extend({ outcome: z.enum(["correct", "miss", "timeout"]) });
+
+export const markSightWord = createServerFn({ method: "POST" })
+  .validator((data: unknown) => parse(sightSchema, data))
+  .middleware([schoolMiddleware])
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const current = await selectOwned(sql, context.userId, data.id);
+    if (current.subject !== "sw") throw new Error("This session is not sight words.");
+    if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
+    const place = cardFromAccount(
+      {
+        grade: current.level,
+        band: isSightBand(current.standardCode) ? current.standardCode : current.standardCode,
+        index: current.standardStep,
+      },
+      current.level,
+    );
+    const word = current.currentPrompt.trim() || place.word;
+    const next = nextCard(place.band, place.index, current.level);
+    const correct = data.outcome === "correct";
+    const earned = capVkoleGrade(Math.max(current.performanceLevel, current.level));
+    const note =
+      data.outcome === "correct"
+        ? "Read."
+        : data.outcome === "timeout"
+          ? "No answer within 20 seconds."
+          : "Miss.";
+    await sql`
+      update climbs
+      set level = ${current.level},
+          performance_level = ${earned},
+          correct_at_level = 0,
+          incorrect_streak = 0,
+          grading_failures = 0,
+          standard_step = ${next.index},
+          asked = ${current.asked + 1},
+          right_count = ${current.rightCount + (correct ? 1 : 0)},
+          standard_code = ${next.band},
+          standard_label = ${next.label},
+          current_prompt = ${next.word},
+          answer_key = ${next.word},
+          answer_aliases = ${JSON.stringify(next.also)},
+          answer_note = ${next.label},
+          question_id = ${`sw:${next.band}:${next.index}`},
+          next_prompt = '',
+          last_feedback = ${note},
+          awaiting_next = 0,
+          updated_at = now()
+      where id = ${data.id} and user_id = ${context.userId}
+    `;
+    await sql`
+      insert into climb_events (id, climb_id, user_id, subject, child_name, age, correct, level_before, level_after, detail)
+      values (
+        ${crypto.randomUUID()}, ${data.id}, ${context.userId}, ${current.subject}, ${current.childName},
+        ${current.age}, ${correct}, ${current.level}, ${current.level},
+        ${JSON.stringify({
+          correct,
+          engine: "VKOLE/SW",
+          code: place.band,
+          label: place.label,
+          grade: String(place.grade),
+          word,
+          outcome: data.outcome,
+          question: word,
+          answer: data.outcome === "correct" ? "read" : data.outcome === "timeout" ? "no answer" : "miss",
+          note,
+        })}
+      )
+    `;
+    return selectOwned(sql, context.userId, data.id);
+  });
+
 export const revealNextQuestion = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
   .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const current = await selectOwned(sql, context.userId, data.id);
+    if (current.subject === "sw") return selectOwned(sql, context.userId, data.id);
     const prompt = current.awaitingNext ? "" : current.currentPrompt;
     const rows = await sql<{ next_prompt: string | null }>`select next_prompt from climbs where id = ${data.id} and user_id = ${context.userId}`;
     const saved = rows[0]?.next_prompt?.trim() || prompt;

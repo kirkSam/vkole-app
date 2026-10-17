@@ -8,6 +8,8 @@
  */
 
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
+import { BAND_LABELS, isSightBand, startBandForGrade, type SightBand } from "./vkole/constants.ts";
+import { sightCard } from "./vkole/sight-words/words.ts";
 
 export const SCHOOL_ORIGIN = "https://www.dotheimpossible.ai";
 export const SCHOOL_ENGINE_URL = `${SCHOOL_ORIGIN}/engine`;
@@ -32,7 +34,7 @@ export const SCHOOL_ACCOUNT_GONE_MESSAGE =
 
 export const CLOCK_LIMIT_SECONDS = 9000;
 
-export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg"] as const;
+export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg", "sw"] as const;
 export type EngineId = (typeof ENGINE_IDS)[number];
 
 /** Website tally. `asked` is stored first. `correct` is never above `asked`. Asked 0 is omitted. */
@@ -90,6 +92,10 @@ export type EngineLevel = {
   levelLabel?: string;
   pending?: SgPending;
   mastery?: LevelMastery;
+  /** Sight words. `index` is the word in `band`. `step` stays 0. */
+  band?: string;
+  index?: number;
+  word?: string;
 };
 
 export type SeenQuestion = { key: string; text: string };
@@ -231,13 +237,72 @@ export function normalizeEngineLevel(value: unknown, engine: EngineId = "m"): En
   return asLevel(value, engine);
 }
 
+function asIndex(value: unknown): number | undefined {
+  const index = Number(value);
+  if (!Number.isInteger(index) || index < 0 || index > 100000) return undefined;
+  return index;
+}
+
+function savedSightBand(row: Record<string, unknown>): SightBand | undefined {
+  const sight = asRecord(row.sight);
+  const candidates = [row.band, sight?.band, row.levelCode, sight?.levelCode];
+  for (const value of candidates) {
+    if (typeof value === "string" && isSightBand(value)) return value;
+  }
+  return undefined;
+}
+
+function asSightLevel(row: Record<string, unknown>, level: EngineLevel): EngineLevel {
+  const rounded = Math.round(level.grade);
+  level.grade = Number.isFinite(rounded) ? rounded : 0;
+  const sight = asRecord(row.sight);
+  const saved = savedSightBand(row);
+  const band = saved ?? startBandForGrade(Number.isFinite(rounded) ? rounded : Number.NaN);
+  const index = saved ? (asIndex(row.index) ?? asIndex(sight?.index) ?? 0) : 0;
+  const card = sightCard(band, index, level.grade);
+  level.step = 0;
+  level.band = card.band;
+  level.index = card.index;
+  level.word = copyText(row, "word") ?? (sight ? copyText(sight, "word") : undefined) ?? card.word;
+  const id = copyText(row, "id");
+  const name = copyText(row, "name");
+  const enteredBy = copyText(row, "enteredBy");
+  const levelCode = copyText(row, "levelCode") ?? (sight ? copyText(sight, "levelCode") : undefined);
+  const levelLabel = copyText(row, "levelLabel") ?? (sight ? copyText(sight, "levelLabel") : undefined);
+  if (id) level.id = id;
+  if (name) level.name = name;
+  if (enteredBy) level.enteredBy = enteredBy;
+  const earnedGrade = wholeNumber(row.earnedGrade);
+  const reached = wholeNumber(row.reached);
+  const missed = wholeNumber(row.missed);
+  const updatedAt = wholeNumber(row.updatedAt);
+  const startingGrade = wholeNumber(row.startingGrade);
+  if (earnedGrade != null) level.earnedGrade = earnedGrade;
+  if (reached != null) level.reached = reached;
+  if (missed != null) level.missed = missed;
+  if (updatedAt != null) level.updatedAt = updatedAt;
+  if (startingGrade != null) level.startingGrade = startingGrade;
+  level.levelCode = levelCode || card.band;
+  level.levelLabel = levelLabel || BAND_LABELS[card.band];
+  return level;
+}
+
 function copyText(row: Record<string, unknown>, key: string): string | undefined {
   return typeof row[key] === "string" && row[key] !== "" ? String(row[key]) : undefined;
 }
 
 function asLevel(value: unknown, engine: EngineId): EngineLevel | null {
+  if (engine === "sw") {
+    if (typeof value === "number") return asSightLevel({}, { grade: value, step: 0 });
+    const row = asRecord(value);
+    if (!row) return null;
+    const raw = row.grade ?? row.level;
+    const grade = raw == null || raw === "" ? Number.NaN : Number(raw);
+    return asSightLevel(row, { grade, step: 0 });
+  }
   if (typeof value === "number" && value >= 1 && value <= 12) {
-    return { grade: Math.round(value), step: 0 };
+    const grade = Math.round(value);
+    return { grade, step: 0 };
   }
   const row = asRecord(value);
   if (!row) return null;

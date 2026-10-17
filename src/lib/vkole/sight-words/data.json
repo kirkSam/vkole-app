@@ -1,0 +1,4580 @@
+{
+  "D-PP": [
+    {
+      "word": "a",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "and"
+    },
+    {
+      "word": "away",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "big"
+    },
+    {
+      "word": "blue",
+      "also": [
+        "blew"
+      ]
+    },
+    {
+      "word": "can"
+    },
+    {
+      "word": "come",
+      "heart": [
+        1,
+        3
+      ]
+    },
+    {
+      "word": "down"
+    },
+    {
+      "word": "find",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "for",
+      "also": [
+        "four",
+        "fore"
+      ]
+    },
+    {
+      "word": "funny"
+    },
+    {
+      "word": "go"
+    },
+    {
+      "word": "help"
+    },
+    {
+      "word": "here",
+      "also": [
+        "hear"
+      ]
+    },
+    {
+      "word": "I",
+      "heart": [
+        0
+      ],
+      "also": [
+        "eye",
+        "aye"
+      ]
+    },
+    {
+      "word": "in",
+      "also": [
+        "inn"
+      ]
+    },
+    {
+      "word": "is",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "it"
+    },
+    {
+      "word": "jump"
+    },
+    {
+      "word": "little"
+    },
+    {
+      "word": "look",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "make"
+    },
+    {
+      "word": "me"
+    },
+    {
+      "word": "my"
+    },
+    {
+      "word": "not",
+      "also": [
+        "knot"
+      ]
+    },
+    {
+      "word": "one",
+      "heart": [
+        0,
+        1,
+        2
+      ],
+      "also": [
+        "won"
+      ]
+    },
+    {
+      "word": "play"
+    },
+    {
+      "word": "red",
+      "also": [
+        "read"
+      ]
+    },
+    {
+      "word": "run"
+    },
+    {
+      "word": "said",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "see",
+      "also": [
+        "sea"
+      ]
+    },
+    {
+      "word": "the",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "three"
+    },
+    {
+      "word": "to",
+      "heart": [
+        1
+      ],
+      "also": [
+        "too",
+        "two"
+      ]
+    },
+    {
+      "word": "two",
+      "heart": [
+        1,
+        2
+      ],
+      "also": [
+        "to",
+        "too"
+      ]
+    },
+    {
+      "word": "up"
+    },
+    {
+      "word": "we"
+    },
+    {
+      "word": "where",
+      "heart": [
+        2,
+        3,
+        4
+      ],
+      "also": [
+        "wear",
+        "ware"
+      ]
+    },
+    {
+      "word": "yellow"
+    },
+    {
+      "word": "you",
+      "heart": [
+        1,
+        2
+      ],
+      "also": [
+        "ewe"
+      ]
+    }
+  ],
+  "D-P": [
+    {
+      "word": "all"
+    },
+    {
+      "word": "am"
+    },
+    {
+      "word": "are",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "at"
+    },
+    {
+      "word": "ate",
+      "also": [
+        "eight"
+      ]
+    },
+    {
+      "word": "be",
+      "also": [
+        "bee"
+      ]
+    },
+    {
+      "word": "black"
+    },
+    {
+      "word": "brown"
+    },
+    {
+      "word": "but"
+    },
+    {
+      "word": "came"
+    },
+    {
+      "word": "did"
+    },
+    {
+      "word": "do",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "eat"
+    },
+    {
+      "word": "four",
+      "heart": [
+        1,
+        2,
+        3
+      ],
+      "also": [
+        "for",
+        "fore"
+      ]
+    },
+    {
+      "word": "get"
+    },
+    {
+      "word": "good",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "have",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "he"
+    },
+    {
+      "word": "into",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "like"
+    },
+    {
+      "word": "must"
+    },
+    {
+      "word": "new",
+      "also": [
+        "knew"
+      ]
+    },
+    {
+      "word": "no",
+      "also": [
+        "know"
+      ]
+    },
+    {
+      "word": "now"
+    },
+    {
+      "word": "on"
+    },
+    {
+      "word": "our",
+      "also": [
+        "hour"
+      ]
+    },
+    {
+      "word": "out"
+    },
+    {
+      "word": "please",
+      "also": [
+        "pleas"
+      ]
+    },
+    {
+      "word": "pretty",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "ran"
+    },
+    {
+      "word": "ride"
+    },
+    {
+      "word": "saw"
+    },
+    {
+      "word": "say"
+    },
+    {
+      "word": "she"
+    },
+    {
+      "word": "so",
+      "also": [
+        "sew",
+        "sow"
+      ]
+    },
+    {
+      "word": "soon"
+    },
+    {
+      "word": "that"
+    },
+    {
+      "word": "there",
+      "heart": [
+        2,
+        3,
+        4
+      ],
+      "also": [
+        "their",
+        "theyre"
+      ]
+    },
+    {
+      "word": "they",
+      "heart": [
+        2,
+        3
+      ]
+    },
+    {
+      "word": "this"
+    },
+    {
+      "word": "too",
+      "also": [
+        "to",
+        "two"
+      ]
+    },
+    {
+      "word": "under"
+    },
+    {
+      "word": "want",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "was",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "well"
+    },
+    {
+      "word": "went"
+    },
+    {
+      "word": "what",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "white"
+    },
+    {
+      "word": "who",
+      "heart": [
+        0,
+        2
+      ]
+    },
+    {
+      "word": "will"
+    },
+    {
+      "word": "with"
+    },
+    {
+      "word": "yes"
+    }
+  ],
+  "D-1": [
+    {
+      "word": "after"
+    },
+    {
+      "word": "again",
+      "heart": [
+        0,
+        2,
+        3
+      ]
+    },
+    {
+      "word": "an"
+    },
+    {
+      "word": "any",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "as",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "ask"
+    },
+    {
+      "word": "by",
+      "also": [
+        "buy",
+        "bye"
+      ]
+    },
+    {
+      "word": "could",
+      "heart": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "word": "every"
+    },
+    {
+      "word": "fly"
+    },
+    {
+      "word": "from",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "give",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "going"
+    },
+    {
+      "word": "had"
+    },
+    {
+      "word": "has",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "her"
+    },
+    {
+      "word": "him",
+      "also": [
+        "hymn"
+      ]
+    },
+    {
+      "word": "his",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "how"
+    },
+    {
+      "word": "just"
+    },
+    {
+      "word": "know",
+      "heart": [
+        0
+      ],
+      "also": [
+        "no"
+      ]
+    },
+    {
+      "word": "let"
+    },
+    {
+      "word": "live",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "may"
+    },
+    {
+      "word": "of",
+      "heart": [
+        0,
+        1
+      ]
+    },
+    {
+      "word": "old",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "once",
+      "heart": [
+        0,
+        1,
+        3
+      ]
+    },
+    {
+      "word": "open"
+    },
+    {
+      "word": "over"
+    },
+    {
+      "word": "put",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "round"
+    },
+    {
+      "word": "some",
+      "heart": [
+        1,
+        3
+      ],
+      "also": [
+        "sum"
+      ]
+    },
+    {
+      "word": "stop"
+    },
+    {
+      "word": "take"
+    },
+    {
+      "word": "thank"
+    },
+    {
+      "word": "them"
+    },
+    {
+      "word": "then"
+    },
+    {
+      "word": "think"
+    },
+    {
+      "word": "walk",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "were",
+      "heart": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "word": "when"
+    }
+  ],
+  "D-2": [
+    {
+      "word": "always",
+      "heart": [
+        5
+      ]
+    },
+    {
+      "word": "around",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "because",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "been",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "before",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "best"
+    },
+    {
+      "word": "both",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "buy",
+      "heart": [
+        1,
+        2
+      ],
+      "also": [
+        "by",
+        "bye"
+      ]
+    },
+    {
+      "word": "call"
+    },
+    {
+      "word": "cold",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "does",
+      "heart": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "word": "don't",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "fast"
+    },
+    {
+      "word": "first"
+    },
+    {
+      "word": "five"
+    },
+    {
+      "word": "found"
+    },
+    {
+      "word": "gave"
+    },
+    {
+      "word": "goes"
+    },
+    {
+      "word": "green"
+    },
+    {
+      "word": "its"
+    },
+    {
+      "word": "made",
+      "also": [
+        "maid"
+      ]
+    },
+    {
+      "word": "many",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "off"
+    },
+    {
+      "word": "or",
+      "also": [
+        "oar",
+        "ore"
+      ]
+    },
+    {
+      "word": "pull",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "read",
+      "also": [
+        "red"
+      ]
+    },
+    {
+      "word": "right",
+      "also": [
+        "write",
+        "rite"
+      ]
+    },
+    {
+      "word": "sing"
+    },
+    {
+      "word": "sit"
+    },
+    {
+      "word": "sleep"
+    },
+    {
+      "word": "tell"
+    },
+    {
+      "word": "their",
+      "heart": [
+        2,
+        3,
+        4
+      ],
+      "also": [
+        "there",
+        "theyre"
+      ]
+    },
+    {
+      "word": "these"
+    },
+    {
+      "word": "those"
+    },
+    {
+      "word": "upon"
+    },
+    {
+      "word": "us"
+    },
+    {
+      "word": "use"
+    },
+    {
+      "word": "very"
+    },
+    {
+      "word": "wash",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "which",
+      "also": [
+        "witch"
+      ]
+    },
+    {
+      "word": "why"
+    },
+    {
+      "word": "wish"
+    },
+    {
+      "word": "work",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "would",
+      "heart": [
+        1,
+        2,
+        3
+      ],
+      "also": [
+        "wood"
+      ]
+    },
+    {
+      "word": "write",
+      "heart": [
+        0
+      ],
+      "also": [
+        "right",
+        "rite"
+      ]
+    },
+    {
+      "word": "your",
+      "heart": [
+        1,
+        2,
+        3
+      ],
+      "also": [
+        "youre"
+      ]
+    }
+  ],
+  "D-3": [
+    {
+      "word": "about",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "better"
+    },
+    {
+      "word": "bring"
+    },
+    {
+      "word": "carry"
+    },
+    {
+      "word": "clean"
+    },
+    {
+      "word": "cut"
+    },
+    {
+      "word": "done",
+      "heart": [
+        1,
+        3
+      ]
+    },
+    {
+      "word": "draw"
+    },
+    {
+      "word": "drink"
+    },
+    {
+      "word": "eight",
+      "heart": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "also": [
+        "ate"
+      ]
+    },
+    {
+      "word": "fall"
+    },
+    {
+      "word": "far"
+    },
+    {
+      "word": "full",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "got"
+    },
+    {
+      "word": "grow"
+    },
+    {
+      "word": "hold",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "hot"
+    },
+    {
+      "word": "hurt"
+    },
+    {
+      "word": "if"
+    },
+    {
+      "word": "keep"
+    },
+    {
+      "word": "kind",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "laugh",
+      "heart": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "word": "light"
+    },
+    {
+      "word": "long"
+    },
+    {
+      "word": "much"
+    },
+    {
+      "word": "myself"
+    },
+    {
+      "word": "never"
+    },
+    {
+      "word": "only"
+    },
+    {
+      "word": "own"
+    },
+    {
+      "word": "pick"
+    },
+    {
+      "word": "seven",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "shall"
+    },
+    {
+      "word": "show"
+    },
+    {
+      "word": "six"
+    },
+    {
+      "word": "small"
+    },
+    {
+      "word": "start"
+    },
+    {
+      "word": "ten"
+    },
+    {
+      "word": "today",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "together",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "try"
+    },
+    {
+      "word": "warm",
+      "heart": [
+        1,
+        2
+      ]
+    }
+  ],
+  "D-N": [
+    {
+      "word": "apple"
+    },
+    {
+      "word": "baby"
+    },
+    {
+      "word": "back"
+    },
+    {
+      "word": "ball",
+      "also": [
+        "bawl"
+      ]
+    },
+    {
+      "word": "bear",
+      "heart": [
+        1,
+        2
+      ],
+      "also": [
+        "bare"
+      ]
+    },
+    {
+      "word": "bed"
+    },
+    {
+      "word": "bell"
+    },
+    {
+      "word": "bird"
+    },
+    {
+      "word": "birthday"
+    },
+    {
+      "word": "boat"
+    },
+    {
+      "word": "box"
+    },
+    {
+      "word": "boy"
+    },
+    {
+      "word": "bread",
+      "heart": [
+        2,
+        3
+      ]
+    },
+    {
+      "word": "brother",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "cake"
+    },
+    {
+      "word": "car"
+    },
+    {
+      "word": "cat"
+    },
+    {
+      "word": "chair"
+    },
+    {
+      "word": "chicken",
+      "heart": [
+        5
+      ]
+    },
+    {
+      "word": "children",
+      "heart": [
+        6
+      ]
+    },
+    {
+      "word": "Christmas",
+      "heart": [
+        0,
+        1,
+        5
+      ]
+    },
+    {
+      "word": "coat"
+    },
+    {
+      "word": "corn"
+    },
+    {
+      "word": "cow"
+    },
+    {
+      "word": "day"
+    },
+    {
+      "word": "dog"
+    },
+    {
+      "word": "doll"
+    },
+    {
+      "word": "door",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "duck"
+    },
+    {
+      "word": "egg"
+    },
+    {
+      "word": "eye",
+      "heart": [
+        0,
+        1,
+        2
+      ],
+      "also": [
+        "i",
+        "aye"
+      ]
+    },
+    {
+      "word": "farm"
+    },
+    {
+      "word": "farmer"
+    },
+    {
+      "word": "father",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "feet",
+      "also": [
+        "feat"
+      ]
+    },
+    {
+      "word": "fire"
+    },
+    {
+      "word": "fish"
+    },
+    {
+      "word": "floor",
+      "heart": [
+        2,
+        3
+      ]
+    },
+    {
+      "word": "flower",
+      "also": [
+        "flour"
+      ]
+    },
+    {
+      "word": "game"
+    },
+    {
+      "word": "garden"
+    },
+    {
+      "word": "girl"
+    },
+    {
+      "word": "good-bye",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "grass"
+    },
+    {
+      "word": "ground"
+    },
+    {
+      "word": "hand"
+    },
+    {
+      "word": "head",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "hill"
+    },
+    {
+      "word": "home"
+    },
+    {
+      "word": "horse",
+      "heart": [
+        4
+      ],
+      "also": [
+        "hoarse"
+      ]
+    },
+    {
+      "word": "house",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "kitty"
+    },
+    {
+      "word": "leg"
+    },
+    {
+      "word": "letter"
+    },
+    {
+      "word": "man"
+    },
+    {
+      "word": "men"
+    },
+    {
+      "word": "milk"
+    },
+    {
+      "word": "money",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "morning",
+      "also": [
+        "mourning"
+      ]
+    },
+    {
+      "word": "mother",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "name"
+    },
+    {
+      "word": "nest"
+    },
+    {
+      "word": "night",
+      "also": [
+        "knight"
+      ]
+    },
+    {
+      "word": "paper"
+    },
+    {
+      "word": "party"
+    },
+    {
+      "word": "picture"
+    },
+    {
+      "word": "pig"
+    },
+    {
+      "word": "rabbit"
+    },
+    {
+      "word": "rain",
+      "also": [
+        "reign",
+        "rein"
+      ]
+    },
+    {
+      "word": "ring",
+      "also": [
+        "wring"
+      ]
+    },
+    {
+      "word": "robin"
+    },
+    {
+      "word": "Santa Claus"
+    },
+    {
+      "word": "school"
+    },
+    {
+      "word": "seed"
+    },
+    {
+      "word": "sheep"
+    },
+    {
+      "word": "shoe",
+      "heart": [
+        2,
+        3
+      ],
+      "also": [
+        "shoo"
+      ]
+    },
+    {
+      "word": "sister"
+    },
+    {
+      "word": "snow"
+    },
+    {
+      "word": "song"
+    },
+    {
+      "word": "squirrel",
+      "heart": [
+        6
+      ]
+    },
+    {
+      "word": "stick"
+    },
+    {
+      "word": "street"
+    },
+    {
+      "word": "sun",
+      "also": [
+        "son"
+      ]
+    },
+    {
+      "word": "table"
+    },
+    {
+      "word": "thing"
+    },
+    {
+      "word": "time"
+    },
+    {
+      "word": "top"
+    },
+    {
+      "word": "toy"
+    },
+    {
+      "word": "tree"
+    },
+    {
+      "word": "watch",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "water",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "way",
+      "also": [
+        "weigh",
+        "whey"
+      ]
+    },
+    {
+      "word": "wind"
+    },
+    {
+      "word": "window"
+    },
+    {
+      "word": "wood",
+      "heart": [
+        1,
+        2
+      ],
+      "also": [
+        "would"
+      ]
+    }
+  ],
+  "F-1": [
+    {
+      "word": "words",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "each"
+    },
+    {
+      "word": "other",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "more"
+    },
+    {
+      "word": "number"
+    },
+    {
+      "word": "people",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "than"
+    },
+    {
+      "word": "called"
+    },
+    {
+      "word": "oil"
+    },
+    {
+      "word": "part"
+    }
+  ],
+  "F-2": [
+    {
+      "word": "sound"
+    },
+    {
+      "word": "place"
+    },
+    {
+      "word": "years"
+    },
+    {
+      "word": "most",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "things"
+    },
+    {
+      "word": "sentence",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "great",
+      "heart": [
+        2,
+        3
+      ]
+    },
+    {
+      "word": "through",
+      "heart": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "also": [
+        "threw"
+      ]
+    },
+    {
+      "word": "line"
+    },
+    {
+      "word": "means"
+    },
+    {
+      "word": "same"
+    },
+    {
+      "word": "follow"
+    },
+    {
+      "word": "also"
+    },
+    {
+      "word": "form"
+    },
+    {
+      "word": "set"
+    },
+    {
+      "word": "end"
+    },
+    {
+      "word": "another",
+      "heart": [
+        0,
+        2
+      ]
+    },
+    {
+      "word": "large",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "even"
+    },
+    {
+      "word": "such"
+    },
+    {
+      "word": "turn"
+    },
+    {
+      "word": "need",
+      "also": [
+        "knead"
+      ]
+    },
+    {
+      "word": "land"
+    },
+    {
+      "word": "different",
+      "heart": [
+        2,
+        4
+      ]
+    },
+    {
+      "word": "move",
+      "heart": [
+        1,
+        3
+      ]
+    },
+    {
+      "word": "change"
+    },
+    {
+      "word": "spell"
+    },
+    {
+      "word": "air"
+    },
+    {
+      "word": "animal",
+      "heart": [
+        2,
+        4
+      ]
+    },
+    {
+      "word": "point"
+    },
+    {
+      "word": "page"
+    },
+    {
+      "word": "answer",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "study"
+    },
+    {
+      "word": "still"
+    },
+    {
+      "word": "learn",
+      "heart": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "word": "should",
+      "heart": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "word": "America",
+      "heart": [
+        0,
+        6
+      ]
+    },
+    {
+      "word": "world",
+      "heart": [
+        1,
+        2
+      ]
+    }
+  ],
+  "F-3": [
+    {
+      "word": "high",
+      "also": [
+        "hi"
+      ]
+    },
+    {
+      "word": "near"
+    },
+    {
+      "word": "add"
+    },
+    {
+      "word": "food"
+    },
+    {
+      "word": "between"
+    },
+    {
+      "word": "below"
+    },
+    {
+      "word": "country",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "plant"
+    },
+    {
+      "word": "last"
+    },
+    {
+      "word": "city"
+    },
+    {
+      "word": "earth",
+      "heart": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "word": "eyes",
+      "heart": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "word": "thought",
+      "heart": [
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "word": "story"
+    },
+    {
+      "word": "left"
+    },
+    {
+      "word": "few"
+    },
+    {
+      "word": "while",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "along"
+    },
+    {
+      "word": "might"
+    },
+    {
+      "word": "close"
+    },
+    {
+      "word": "something",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "seem",
+      "also": [
+        "seam"
+      ]
+    },
+    {
+      "word": "next"
+    },
+    {
+      "word": "hard"
+    },
+    {
+      "word": "example",
+      "heart": [
+        0,
+        1,
+        6
+      ]
+    },
+    {
+      "word": "begin"
+    },
+    {
+      "word": "life"
+    },
+    {
+      "word": "group",
+      "heart": [
+        2,
+        3
+      ]
+    },
+    {
+      "word": "often",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "important",
+      "heart": [
+        7
+      ]
+    },
+    {
+      "word": "until"
+    },
+    {
+      "word": "side",
+      "also": [
+        "sighed"
+      ]
+    },
+    {
+      "word": "mile",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "sea",
+      "also": [
+        "see"
+      ]
+    },
+    {
+      "word": "began"
+    },
+    {
+      "word": "took",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "river"
+    },
+    {
+      "word": "state"
+    },
+    {
+      "word": "book",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "hear",
+      "also": [
+        "here"
+      ]
+    },
+    {
+      "word": "without"
+    },
+    {
+      "word": "second"
+    },
+    {
+      "word": "late"
+    },
+    {
+      "word": "miss"
+    },
+    {
+      "word": "idea"
+    },
+    {
+      "word": "enough",
+      "heart": [
+        0,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "word": "face"
+    },
+    {
+      "word": "Indian",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "real",
+      "heart": [
+        2
+      ],
+      "also": [
+        "reel"
+      ]
+    },
+    {
+      "word": "almost"
+    },
+    {
+      "word": "above",
+      "heart": [
+        0,
+        2,
+        4
+      ]
+    },
+    {
+      "word": "sometimes",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "mountains"
+    },
+    {
+      "word": "young",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "talk",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "list"
+    },
+    {
+      "word": "being",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "leave"
+    },
+    {
+      "word": "family",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "it's"
+    }
+  ],
+  "F-4": [
+    {
+      "word": "body"
+    },
+    {
+      "word": "music"
+    },
+    {
+      "word": "color"
+    },
+    {
+      "word": "stand"
+    },
+    {
+      "word": "questions",
+      "heart": [
+        5,
+        6
+      ]
+    },
+    {
+      "word": "area"
+    },
+    {
+      "word": "mark"
+    },
+    {
+      "word": "birds"
+    },
+    {
+      "word": "problem"
+    },
+    {
+      "word": "complete",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "room"
+    },
+    {
+      "word": "knew",
+      "heart": [
+        0
+      ],
+      "also": [
+        "new"
+      ]
+    },
+    {
+      "word": "since",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "ever"
+    },
+    {
+      "word": "piece",
+      "heart": [
+        1,
+        2
+      ],
+      "also": [
+        "peace"
+      ]
+    },
+    {
+      "word": "told",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "usually",
+      "heart": [
+        1,
+        3,
+        4
+      ]
+    },
+    {
+      "word": "didn't"
+    },
+    {
+      "word": "friends",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "easy",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "heard",
+      "heart": [
+        1,
+        2,
+        3
+      ],
+      "also": [
+        "herd"
+      ]
+    },
+    {
+      "word": "order"
+    },
+    {
+      "word": "sure",
+      "heart": [
+        0,
+        1
+      ]
+    },
+    {
+      "word": "become"
+    },
+    {
+      "word": "ship"
+    },
+    {
+      "word": "across"
+    },
+    {
+      "word": "during"
+    },
+    {
+      "word": "short"
+    },
+    {
+      "word": "however"
+    },
+    {
+      "word": "low"
+    },
+    {
+      "word": "hours"
+    },
+    {
+      "word": "products"
+    },
+    {
+      "word": "happened",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "whole",
+      "heart": [
+        0
+      ],
+      "also": [
+        "hole"
+      ]
+    },
+    {
+      "word": "measure",
+      "heart": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "word": "remember"
+    },
+    {
+      "word": "early",
+      "heart": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "word": "waves"
+    },
+    {
+      "word": "reached"
+    },
+    {
+      "word": "listen",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "rock"
+    },
+    {
+      "word": "space"
+    },
+    {
+      "word": "covered"
+    },
+    {
+      "word": "several",
+      "heart": [
+        5
+      ]
+    },
+    {
+      "word": "himself"
+    },
+    {
+      "word": "toward"
+    },
+    {
+      "word": "step"
+    },
+    {
+      "word": "passed",
+      "also": [
+        "past"
+      ]
+    },
+    {
+      "word": "vowel"
+    },
+    {
+      "word": "true"
+    },
+    {
+      "word": "hundred"
+    },
+    {
+      "word": "against",
+      "heart": [
+        0,
+        2,
+        3
+      ]
+    },
+    {
+      "word": "pattern"
+    },
+    {
+      "word": "numeral"
+    },
+    {
+      "word": "north"
+    },
+    {
+      "word": "slowly"
+    },
+    {
+      "word": "map"
+    },
+    {
+      "word": "pulled"
+    },
+    {
+      "word": "voice",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "seen",
+      "also": [
+        "scene"
+      ]
+    },
+    {
+      "word": "cried"
+    },
+    {
+      "word": "plan"
+    },
+    {
+      "word": "notice",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "south"
+    },
+    {
+      "word": "war"
+    },
+    {
+      "word": "king"
+    },
+    {
+      "word": "town"
+    },
+    {
+      "word": "I'll",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "unit"
+    },
+    {
+      "word": "figure"
+    },
+    {
+      "word": "certain"
+    },
+    {
+      "word": "field",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "travel"
+    }
+  ],
+  "F-5": [
+    {
+      "word": "English",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "road",
+      "also": [
+        "rode",
+        "rowed"
+      ]
+    },
+    {
+      "word": "half"
+    },
+    {
+      "word": "finally",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "wait",
+      "also": [
+        "weight"
+      ]
+    },
+    {
+      "word": "correct",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "oh",
+      "also": [
+        "owe"
+      ]
+    },
+    {
+      "word": "quickly"
+    },
+    {
+      "word": "person"
+    },
+    {
+      "word": "became"
+    },
+    {
+      "word": "shown"
+    },
+    {
+      "word": "minutes",
+      "heart": [
+        3,
+        4
+      ]
+    },
+    {
+      "word": "strong"
+    },
+    {
+      "word": "verb"
+    },
+    {
+      "word": "stars"
+    },
+    {
+      "word": "front",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "feel"
+    },
+    {
+      "word": "fact"
+    },
+    {
+      "word": "inches"
+    },
+    {
+      "word": "decided"
+    },
+    {
+      "word": "contain"
+    },
+    {
+      "word": "course",
+      "heart": [
+        5
+      ],
+      "also": [
+        "coarse"
+      ]
+    },
+    {
+      "word": "surface",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "produce"
+    },
+    {
+      "word": "building"
+    },
+    {
+      "word": "ocean",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "class"
+    },
+    {
+      "word": "note"
+    },
+    {
+      "word": "nothing",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "rest"
+    },
+    {
+      "word": "carefully"
+    },
+    {
+      "word": "scientists",
+      "heart": [
+        2,
+        3
+      ]
+    },
+    {
+      "word": "inside"
+    },
+    {
+      "word": "wheels"
+    },
+    {
+      "word": "stay"
+    },
+    {
+      "word": "known",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "island",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "week",
+      "also": [
+        "weak"
+      ]
+    },
+    {
+      "word": "less"
+    },
+    {
+      "word": "machine",
+      "heart": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "word": "base",
+      "also": [
+        "bass"
+      ]
+    },
+    {
+      "word": "ago"
+    },
+    {
+      "word": "stood",
+      "heart": [
+        2,
+        4
+      ]
+    },
+    {
+      "word": "plane",
+      "also": [
+        "plain"
+      ]
+    },
+    {
+      "word": "system"
+    },
+    {
+      "word": "behind"
+    },
+    {
+      "word": "force",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "brought",
+      "heart": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "word": "understand"
+    },
+    {
+      "word": "common"
+    },
+    {
+      "word": "explain"
+    },
+    {
+      "word": "dry"
+    },
+    {
+      "word": "though",
+      "heart": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "word": "language"
+    },
+    {
+      "word": "shape"
+    },
+    {
+      "word": "deep"
+    },
+    {
+      "word": "thousands"
+    },
+    {
+      "word": "clear"
+    },
+    {
+      "word": "equation",
+      "heart": [
+        5,
+        6
+      ]
+    },
+    {
+      "word": "yet"
+    },
+    {
+      "word": "government"
+    },
+    {
+      "word": "filled"
+    },
+    {
+      "word": "heat"
+    },
+    {
+      "word": "check"
+    },
+    {
+      "word": "object"
+    },
+    {
+      "word": "rule",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "among"
+    },
+    {
+      "word": "noun"
+    },
+    {
+      "word": "power"
+    },
+    {
+      "word": "cannot",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "able"
+    },
+    {
+      "word": "size"
+    },
+    {
+      "word": "dark"
+    },
+    {
+      "word": "material",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "special",
+      "heart": [
+        3,
+        4
+      ]
+    },
+    {
+      "word": "heavy",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "fine"
+    },
+    {
+      "word": "pair",
+      "also": [
+        "pear",
+        "pare"
+      ]
+    },
+    {
+      "word": "circle"
+    },
+    {
+      "word": "include"
+    },
+    {
+      "word": "built",
+      "heart": [
+        1,
+        2
+      ]
+    }
+  ],
+  "F-6": [
+    {
+      "word": "can't",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "matter"
+    },
+    {
+      "word": "square"
+    },
+    {
+      "word": "syllables",
+      "heart": [
+        2,
+        3
+      ]
+    },
+    {
+      "word": "perhaps"
+    },
+    {
+      "word": "bill"
+    },
+    {
+      "word": "felt"
+    },
+    {
+      "word": "suddenly",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "test"
+    },
+    {
+      "word": "direction",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "center"
+    },
+    {
+      "word": "farmers"
+    },
+    {
+      "word": "ready",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "anything",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "divided",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "general",
+      "heart": [
+        5
+      ]
+    },
+    {
+      "word": "energy"
+    },
+    {
+      "word": "subject"
+    },
+    {
+      "word": "Europe",
+      "heart": [
+        0,
+        1
+      ]
+    },
+    {
+      "word": "moon"
+    },
+    {
+      "word": "region"
+    },
+    {
+      "word": "return"
+    },
+    {
+      "word": "believe",
+      "heart": [
+        3,
+        4
+      ]
+    },
+    {
+      "word": "dance",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "members"
+    },
+    {
+      "word": "picked"
+    },
+    {
+      "word": "simple"
+    },
+    {
+      "word": "cells"
+    },
+    {
+      "word": "paint"
+    },
+    {
+      "word": "mind",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "love",
+      "heart": [
+        1,
+        3
+      ]
+    },
+    {
+      "word": "cause",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "exercise"
+    },
+    {
+      "word": "eggs"
+    },
+    {
+      "word": "train"
+    },
+    {
+      "word": "drop"
+    },
+    {
+      "word": "developed"
+    },
+    {
+      "word": "difference",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "distance",
+      "heart": [
+        7
+      ]
+    },
+    {
+      "word": "heart",
+      "heart": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "word": "site",
+      "also": [
+        "sight",
+        "cite"
+      ]
+    },
+    {
+      "word": "sum",
+      "also": [
+        "some"
+      ]
+    },
+    {
+      "word": "summer"
+    },
+    {
+      "word": "wall"
+    },
+    {
+      "word": "forest"
+    },
+    {
+      "word": "probably"
+    },
+    {
+      "word": "legs"
+    },
+    {
+      "word": "sat"
+    },
+    {
+      "word": "main",
+      "also": [
+        "mane"
+      ]
+    },
+    {
+      "word": "winter"
+    },
+    {
+      "word": "wide"
+    },
+    {
+      "word": "written",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "length"
+    },
+    {
+      "word": "reason"
+    },
+    {
+      "word": "kept"
+    },
+    {
+      "word": "interest"
+    },
+    {
+      "word": "arms"
+    },
+    {
+      "word": "race"
+    },
+    {
+      "word": "present"
+    },
+    {
+      "word": "beautiful",
+      "heart": [
+        1,
+        2,
+        4
+      ]
+    },
+    {
+      "word": "store"
+    },
+    {
+      "word": "job"
+    },
+    {
+      "word": "edge"
+    },
+    {
+      "word": "past",
+      "also": [
+        "passed"
+      ]
+    },
+    {
+      "word": "sign",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "record"
+    },
+    {
+      "word": "finished"
+    },
+    {
+      "word": "discovered"
+    },
+    {
+      "word": "wild",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "happy"
+    },
+    {
+      "word": "beside"
+    },
+    {
+      "word": "gone",
+      "heart": [
+        1,
+        3
+      ]
+    },
+    {
+      "word": "sky"
+    },
+    {
+      "word": "million",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "west"
+    },
+    {
+      "word": "lay"
+    },
+    {
+      "word": "weather",
+      "heart": [
+        2,
+        3
+      ],
+      "also": [
+        "whether"
+      ]
+    },
+    {
+      "word": "root",
+      "also": [
+        "route"
+      ]
+    },
+    {
+      "word": "instruments"
+    },
+    {
+      "word": "meet",
+      "also": [
+        "meat"
+      ]
+    },
+    {
+      "word": "third"
+    },
+    {
+      "word": "months"
+    },
+    {
+      "word": "paragraph"
+    },
+    {
+      "word": "raised"
+    },
+    {
+      "word": "represent"
+    },
+    {
+      "word": "soft"
+    },
+    {
+      "word": "whether",
+      "heart": [
+        2,
+        3
+      ],
+      "also": [
+        "weather"
+      ]
+    },
+    {
+      "word": "clothes",
+      "heart": [
+        3,
+        4
+      ]
+    },
+    {
+      "word": "flowers"
+    },
+    {
+      "word": "teacher"
+    },
+    {
+      "word": "held"
+    },
+    {
+      "word": "describe"
+    },
+    {
+      "word": "drive"
+    }
+  ],
+  "F-7": [
+    {
+      "word": "cross"
+    },
+    {
+      "word": "speak"
+    },
+    {
+      "word": "solve",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "appear",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "metal"
+    },
+    {
+      "word": "son",
+      "heart": [
+        1
+      ],
+      "also": [
+        "sun"
+      ]
+    },
+    {
+      "word": "either",
+      "heart": [
+        0,
+        1
+      ]
+    },
+    {
+      "word": "ice"
+    },
+    {
+      "word": "village",
+      "heart": [
+        4,
+        5
+      ]
+    },
+    {
+      "word": "factors"
+    },
+    {
+      "word": "result"
+    },
+    {
+      "word": "jumped"
+    },
+    {
+      "word": "care"
+    },
+    {
+      "word": "pushed"
+    },
+    {
+      "word": "century",
+      "heart": [
+        3,
+        4
+      ]
+    },
+    {
+      "word": "outside"
+    },
+    {
+      "word": "everything"
+    },
+    {
+      "word": "tall"
+    },
+    {
+      "word": "already",
+      "heart": [
+        5,
+        6
+      ]
+    },
+    {
+      "word": "instead",
+      "heart": [
+        4,
+        5
+      ]
+    },
+    {
+      "word": "phrase"
+    },
+    {
+      "word": "soil"
+    },
+    {
+      "word": "copy"
+    },
+    {
+      "word": "free"
+    },
+    {
+      "word": "hope"
+    },
+    {
+      "word": "spring"
+    },
+    {
+      "word": "case"
+    },
+    {
+      "word": "laughed",
+      "heart": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "word": "nation"
+    },
+    {
+      "word": "quite"
+    },
+    {
+      "word": "type",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "themselves"
+    },
+    {
+      "word": "temperature"
+    },
+    {
+      "word": "bright"
+    },
+    {
+      "word": "lead",
+      "also": [
+        "led"
+      ]
+    },
+    {
+      "word": "everyone",
+      "heart": [
+        0,
+        5,
+        7
+      ]
+    },
+    {
+      "word": "method"
+    },
+    {
+      "word": "section"
+    },
+    {
+      "word": "lake"
+    },
+    {
+      "word": "iron"
+    },
+    {
+      "word": "within"
+    },
+    {
+      "word": "dictionary"
+    },
+    {
+      "word": "hair",
+      "also": [
+        "hare"
+      ]
+    },
+    {
+      "word": "age"
+    },
+    {
+      "word": "amount"
+    },
+    {
+      "word": "scale",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "pounds"
+    },
+    {
+      "word": "although",
+      "heart": [
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "word": "per"
+    },
+    {
+      "word": "broken"
+    },
+    {
+      "word": "moment"
+    },
+    {
+      "word": "tiny"
+    },
+    {
+      "word": "possible"
+    },
+    {
+      "word": "gold",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "quiet",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "natural"
+    },
+    {
+      "word": "lot"
+    },
+    {
+      "word": "stone"
+    },
+    {
+      "word": "act"
+    },
+    {
+      "word": "build",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "middle"
+    },
+    {
+      "word": "speed"
+    },
+    {
+      "word": "count"
+    },
+    {
+      "word": "consonant"
+    },
+    {
+      "word": "someone",
+      "heart": [
+        1,
+        3,
+        4,
+        6
+      ]
+    },
+    {
+      "word": "sail",
+      "also": [
+        "sale"
+      ]
+    },
+    {
+      "word": "rolled"
+    },
+    {
+      "word": "wonder"
+    },
+    {
+      "word": "smiled"
+    },
+    {
+      "word": "angle"
+    },
+    {
+      "word": "fraction"
+    },
+    {
+      "word": "Africa",
+      "heart": [
+        5
+      ]
+    },
+    {
+      "word": "killed"
+    },
+    {
+      "word": "melody"
+    },
+    {
+      "word": "bottom"
+    },
+    {
+      "word": "trip"
+    },
+    {
+      "word": "hole",
+      "heart": [
+        3
+      ],
+      "also": [
+        "whole"
+      ]
+    },
+    {
+      "word": "poor",
+      "heart": [
+        1,
+        2
+      ],
+      "also": [
+        "pour",
+        "pore"
+      ]
+    },
+    {
+      "word": "let's"
+    },
+    {
+      "word": "fight"
+    },
+    {
+      "word": "surprise"
+    },
+    {
+      "word": "French"
+    },
+    {
+      "word": "died"
+    },
+    {
+      "word": "beat",
+      "also": [
+        "beet"
+      ]
+    },
+    {
+      "word": "exactly"
+    },
+    {
+      "word": "remain"
+    },
+    {
+      "word": "dress"
+    },
+    {
+      "word": "couldn't",
+      "heart": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "word": "fingers"
+    }
+  ],
+  "F-8": [
+    {
+      "word": "row"
+    },
+    {
+      "word": "least",
+      "also": [
+        "leased"
+      ]
+    },
+    {
+      "word": "catch"
+    },
+    {
+      "word": "climbed",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "wrote",
+      "heart": [
+        0
+      ],
+      "also": [
+        "rote"
+      ]
+    },
+    {
+      "word": "shouted"
+    },
+    {
+      "word": "continued",
+      "heart": [
+        1,
+        8
+      ]
+    },
+    {
+      "word": "itself"
+    },
+    {
+      "word": "else",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "plains"
+    },
+    {
+      "word": "gas"
+    },
+    {
+      "word": "England",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "burning"
+    },
+    {
+      "word": "design",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "joined"
+    },
+    {
+      "word": "foot",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "law"
+    },
+    {
+      "word": "ears"
+    },
+    {
+      "word": "glass"
+    },
+    {
+      "word": "you're",
+      "heart": [
+        1,
+        2
+      ],
+      "also": [
+        "your"
+      ]
+    },
+    {
+      "word": "grew"
+    },
+    {
+      "word": "skin"
+    },
+    {
+      "word": "valley"
+    },
+    {
+      "word": "cents"
+    },
+    {
+      "word": "key"
+    },
+    {
+      "word": "president"
+    },
+    {
+      "word": "trouble",
+      "heart": [
+        2,
+        3
+      ]
+    },
+    {
+      "word": "cool"
+    },
+    {
+      "word": "cloud"
+    },
+    {
+      "word": "lost"
+    },
+    {
+      "word": "sent",
+      "also": [
+        "cent",
+        "scent"
+      ]
+    },
+    {
+      "word": "symbols"
+    },
+    {
+      "word": "wear",
+      "heart": [
+        1,
+        2
+      ],
+      "also": [
+        "where",
+        "ware"
+      ]
+    },
+    {
+      "word": "bad"
+    },
+    {
+      "word": "save"
+    },
+    {
+      "word": "experiment"
+    },
+    {
+      "word": "engine",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "alone"
+    },
+    {
+      "word": "drawing"
+    },
+    {
+      "word": "east"
+    },
+    {
+      "word": "choose",
+      "heart": [
+        5
+      ]
+    },
+    {
+      "word": "single"
+    },
+    {
+      "word": "touch",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "information"
+    },
+    {
+      "word": "express"
+    },
+    {
+      "word": "mouth"
+    },
+    {
+      "word": "yard"
+    },
+    {
+      "word": "equal"
+    },
+    {
+      "word": "decimal"
+    },
+    {
+      "word": "yourself"
+    },
+    {
+      "word": "control"
+    },
+    {
+      "word": "practice",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "report"
+    },
+    {
+      "word": "straight",
+      "heart": [
+        4,
+        5,
+        6
+      ],
+      "also": [
+        "strait"
+      ]
+    },
+    {
+      "word": "rise"
+    },
+    {
+      "word": "statement"
+    },
+    {
+      "word": "seeds"
+    },
+    {
+      "word": "suppose"
+    },
+    {
+      "word": "woman",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "coast"
+    },
+    {
+      "word": "bank"
+    },
+    {
+      "word": "period",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "wire"
+    },
+    {
+      "word": "pay"
+    },
+    {
+      "word": "visit"
+    },
+    {
+      "word": "bit"
+    },
+    {
+      "word": "whose",
+      "heart": [
+        0,
+        2,
+        3
+      ],
+      "also": [
+        "whos"
+      ]
+    },
+    {
+      "word": "received",
+      "heart": [
+        1,
+        4
+      ]
+    },
+    {
+      "word": "strange"
+    },
+    {
+      "word": "caught",
+      "heart": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "word": "fell"
+    },
+    {
+      "word": "team",
+      "also": [
+        "teem"
+      ]
+    },
+    {
+      "word": "God"
+    },
+    {
+      "word": "captain"
+    },
+    {
+      "word": "direct"
+    },
+    {
+      "word": "serve",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "child",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "desert"
+    },
+    {
+      "word": "increase",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "history"
+    },
+    {
+      "word": "cost"
+    },
+    {
+      "word": "maybe",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "business",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "separate",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "break",
+      "heart": [
+        2,
+        3
+      ],
+      "also": [
+        "brake"
+      ]
+    },
+    {
+      "word": "uncle"
+    },
+    {
+      "word": "hunting"
+    },
+    {
+      "word": "flow"
+    },
+    {
+      "word": "lady"
+    },
+    {
+      "word": "students"
+    },
+    {
+      "word": "human",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "art"
+    },
+    {
+      "word": "feeling"
+    }
+  ],
+  "F-9": [
+    {
+      "word": "supply"
+    },
+    {
+      "word": "corner"
+    },
+    {
+      "word": "electric"
+    },
+    {
+      "word": "insects"
+    },
+    {
+      "word": "crops"
+    },
+    {
+      "word": "tone"
+    },
+    {
+      "word": "hit"
+    },
+    {
+      "word": "sand"
+    },
+    {
+      "word": "doctor"
+    },
+    {
+      "word": "provide"
+    },
+    {
+      "word": "thus"
+    },
+    {
+      "word": "won't",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "cook",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "bones"
+    },
+    {
+      "word": "mall",
+      "also": [
+        "maul"
+      ]
+    },
+    {
+      "word": "board",
+      "also": [
+        "bored"
+      ]
+    },
+    {
+      "word": "modern"
+    },
+    {
+      "word": "compound"
+    },
+    {
+      "word": "mine"
+    },
+    {
+      "word": "wasn't",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "fit"
+    },
+    {
+      "word": "addition",
+      "heart": [
+        0
+      ]
+    },
+    {
+      "word": "belong"
+    },
+    {
+      "word": "safe"
+    },
+    {
+      "word": "soldiers",
+      "heart": [
+        1,
+        3,
+        4
+      ]
+    },
+    {
+      "word": "guess",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "silent"
+    },
+    {
+      "word": "trade"
+    },
+    {
+      "word": "rather"
+    },
+    {
+      "word": "compare"
+    },
+    {
+      "word": "crowd"
+    },
+    {
+      "word": "poem",
+      "heart": [
+        2
+      ]
+    },
+    {
+      "word": "enjoy"
+    },
+    {
+      "word": "elements"
+    },
+    {
+      "word": "indicate"
+    },
+    {
+      "word": "except"
+    },
+    {
+      "word": "expect"
+    },
+    {
+      "word": "flat"
+    },
+    {
+      "word": "interesting"
+    },
+    {
+      "word": "sense",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "string"
+    },
+    {
+      "word": "blow"
+    },
+    {
+      "word": "famous",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "value"
+    },
+    {
+      "word": "wings"
+    },
+    {
+      "word": "movement"
+    },
+    {
+      "word": "pole",
+      "heart": [
+        3
+      ],
+      "also": [
+        "poll"
+      ]
+    },
+    {
+      "word": "exciting"
+    },
+    {
+      "word": "branches"
+    },
+    {
+      "word": "thick"
+    },
+    {
+      "word": "blood",
+      "heart": [
+        2,
+        3
+      ]
+    },
+    {
+      "word": "lie"
+    },
+    {
+      "word": "spot"
+    },
+    {
+      "word": "fun"
+    },
+    {
+      "word": "loud"
+    },
+    {
+      "word": "consider"
+    },
+    {
+      "word": "suggested"
+    },
+    {
+      "word": "thin"
+    },
+    {
+      "word": "position"
+    },
+    {
+      "word": "entered"
+    },
+    {
+      "word": "fruit"
+    },
+    {
+      "word": "tied",
+      "also": [
+        "tide"
+      ]
+    },
+    {
+      "word": "rich"
+    },
+    {
+      "word": "dollars"
+    },
+    {
+      "word": "send"
+    },
+    {
+      "word": "sight",
+      "also": [
+        "site",
+        "cite"
+      ]
+    },
+    {
+      "word": "chief",
+      "heart": [
+        2,
+        3
+      ]
+    },
+    {
+      "word": "Japanese",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "stream"
+    },
+    {
+      "word": "planets"
+    },
+    {
+      "word": "rhythm",
+      "heart": [
+        0,
+        3
+      ]
+    },
+    {
+      "word": "science",
+      "heart": [
+        2,
+        3
+      ]
+    },
+    {
+      "word": "major"
+    },
+    {
+      "word": "observe",
+      "heart": [
+        3
+      ]
+    },
+    {
+      "word": "tube"
+    },
+    {
+      "word": "necessary"
+    },
+    {
+      "word": "weight",
+      "heart": [
+        2,
+        3,
+        4
+      ],
+      "also": [
+        "wait"
+      ]
+    },
+    {
+      "word": "meat",
+      "also": [
+        "meet"
+      ]
+    },
+    {
+      "word": "lifted"
+    },
+    {
+      "word": "process"
+    },
+    {
+      "word": "army"
+    },
+    {
+      "word": "hat"
+    },
+    {
+      "word": "property"
+    },
+    {
+      "word": "particular"
+    },
+    {
+      "word": "swim"
+    },
+    {
+      "word": "terms"
+    },
+    {
+      "word": "current"
+    },
+    {
+      "word": "park"
+    },
+    {
+      "word": "sell",
+      "also": [
+        "cell"
+      ]
+    },
+    {
+      "word": "shoulder"
+    },
+    {
+      "word": "industry"
+    },
+    {
+      "word": "block"
+    },
+    {
+      "word": "spread",
+      "heart": [
+        3,
+        4
+      ]
+    },
+    {
+      "word": "cattle"
+    },
+    {
+      "word": "wife"
+    },
+    {
+      "word": "sharp"
+    }
+  ],
+  "F-10": [
+    {
+      "word": "company",
+      "heart": [
+        1,
+        4
+      ]
+    },
+    {
+      "word": "radio"
+    },
+    {
+      "word": "we'll"
+    },
+    {
+      "word": "action"
+    },
+    {
+      "word": "capital"
+    },
+    {
+      "word": "factories"
+    },
+    {
+      "word": "settled",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "isn't",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "southern",
+      "heart": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "word": "truck"
+    },
+    {
+      "word": "fair",
+      "also": [
+        "fare"
+      ]
+    },
+    {
+      "word": "printed"
+    },
+    {
+      "word": "wouldn't",
+      "heart": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "word": "ahead"
+    },
+    {
+      "word": "chance",
+      "heart": [
+        5
+      ]
+    },
+    {
+      "word": "born"
+    },
+    {
+      "word": "level"
+    },
+    {
+      "word": "triangle"
+    },
+    {
+      "word": "molecules"
+    },
+    {
+      "word": "France"
+    },
+    {
+      "word": "repeated"
+    },
+    {
+      "word": "column"
+    },
+    {
+      "word": "western"
+    },
+    {
+      "word": "church"
+    },
+    {
+      "word": "oxygen"
+    },
+    {
+      "word": "plural"
+    },
+    {
+      "word": "various",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "agreed"
+    },
+    {
+      "word": "opposite",
+      "heart": [
+        1
+      ]
+    },
+    {
+      "word": "wrong",
+      "heart": [
+        0,
+        3
+      ]
+    },
+    {
+      "word": "chart"
+    },
+    {
+      "word": "prepared"
+    },
+    {
+      "word": "solution"
+    },
+    {
+      "word": "fresh"
+    },
+    {
+      "word": "shop"
+    },
+    {
+      "word": "suffix"
+    },
+    {
+      "word": "especially"
+    },
+    {
+      "word": "shoes"
+    },
+    {
+      "word": "actually"
+    },
+    {
+      "word": "nose"
+    },
+    {
+      "word": "afraid"
+    },
+    {
+      "word": "dead",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "sugar",
+      "heart": [
+        0,
+        1
+      ]
+    },
+    {
+      "word": "adjective"
+    },
+    {
+      "word": "fig"
+    },
+    {
+      "word": "office",
+      "heart": [
+        4
+      ]
+    },
+    {
+      "word": "huge"
+    },
+    {
+      "word": "gun"
+    },
+    {
+      "word": "similar"
+    },
+    {
+      "word": "death",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "score"
+    },
+    {
+      "word": "forward"
+    },
+    {
+      "word": "stretched"
+    },
+    {
+      "word": "experience",
+      "heart": [
+        8
+      ]
+    },
+    {
+      "word": "rose",
+      "also": [
+        "rows"
+      ]
+    },
+    {
+      "word": "allow"
+    },
+    {
+      "word": "fear"
+    },
+    {
+      "word": "workers"
+    },
+    {
+      "word": "Washington",
+      "heart": [
+        1,
+        8
+      ]
+    },
+    {
+      "word": "Greek"
+    },
+    {
+      "word": "women",
+      "heart": [
+        1,
+        3
+      ]
+    },
+    {
+      "word": "bought",
+      "heart": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "word": "led",
+      "also": [
+        "lead"
+      ]
+    },
+    {
+      "word": "march"
+    },
+    {
+      "word": "northern"
+    },
+    {
+      "word": "create"
+    },
+    {
+      "word": "British"
+    },
+    {
+      "word": "difficult"
+    },
+    {
+      "word": "match"
+    },
+    {
+      "word": "win"
+    },
+    {
+      "word": "doesn't",
+      "heart": [
+        1,
+        2
+      ]
+    },
+    {
+      "word": "steel",
+      "also": [
+        "steal"
+      ]
+    },
+    {
+      "word": "total"
+    },
+    {
+      "word": "deal"
+    },
+    {
+      "word": "determine"
+    },
+    {
+      "word": "evening"
+    },
+    {
+      "word": "hoe"
+    },
+    {
+      "word": "rope"
+    },
+    {
+      "word": "cotton"
+    },
+    {
+      "word": "details"
+    },
+    {
+      "word": "entire"
+    },
+    {
+      "word": "substances"
+    },
+    {
+      "word": "smell"
+    },
+    {
+      "word": "tools"
+    },
+    {
+      "word": "conditions"
+    },
+    {
+      "word": "cows"
+    },
+    {
+      "word": "track"
+    },
+    {
+      "word": "arrived"
+    },
+    {
+      "word": "located"
+    },
+    {
+      "word": "sir"
+    },
+    {
+      "word": "seat"
+    },
+    {
+      "word": "division"
+    },
+    {
+      "word": "effect"
+    },
+    {
+      "word": "underline"
+    },
+    {
+      "word": "view"
+    }
+  ]
+}
