@@ -1,6 +1,6 @@
-import { APP_NAME, SCHOOL_EMAIL, SCHOOL_NAME } from "@/lib/brand";
-import { levelLabel, SUBJECTS, subjectMeta, type SubjectId } from "@/lib/climb-rules";
-import { SPELLING_REPORT_LABEL, spellingReportLines } from "@/lib/vkole/spelling/report";
+import { APP_NAME, SCHOOL_EMAIL, SCHOOL_NAME } from "./brand.ts";
+import { levelLabel, SUBJECTS, subjectMeta, type SubjectId } from "./climb-rules.ts";
+import { SPELLING_REPORT_LABEL, spellingReportLines } from "./vkole/spelling/report.ts";
 
 export const TRIAL_DAYS = 7;
 export const TRIAL_MS = TRIAL_DAYS * 24 * 60 * 60 * 1000;
@@ -145,7 +145,7 @@ export function academicLetter(input: {
   const label = clean(input.standardLabel ?? "");
   const gradeWord = input.level <= 0 ? "Grade K" : `Grade ${input.level}`;
   const current =
-    input.subject === "sp"
+    input.subject === "sp" || input.subject === "pa"
       ? `${gradeWord}${label ? `, ${label}` : code ? `, ${code}` : ""}`
       : code
         ? `${gradeWord}, Common Core ${code}${label ? `, ${label}` : ""}`
@@ -291,7 +291,7 @@ function readWork(event: ReportEvent, engine: string): WorkItem {
 
 function standardLine(item: WorkItem): string {
   if (!item.code) return "";
-  return item.engine === "VKOLE/Spelling" ? `Band: ${item.code}` : `Common Core: ${item.code}`;
+  return item.engine === "VKOLE/Spelling" || item.engine === "VKOLE/PA" ? `Band: ${item.code}` : `Common Core: ${item.code}`;
 }
 
 function workText(index: number, item: WorkItem): string {
@@ -348,7 +348,7 @@ function reportHtml(input: {
           const lines = [
             item.engine ? `<div><strong>Engine:</strong> ${esc(item.engine)}</div>` : "",
             item.code
-              ? `<div><strong>${item.engine === "VKOLE/Spelling" ? "Band" : "Common Core"}:</strong> ${esc(item.code)}</div>`
+              ? `<div><strong>${item.engine === "VKOLE/Spelling" || item.engine === "VKOLE/PA" ? "Band" : "Common Core"}:</strong> ${esc(item.code)}</div>`
               : "",
             item.label ? `<div><strong>Level:</strong> ${esc(item.label)}</div>` : "",
             `<div><strong>Grade:</strong> ${esc(item.grade)}</div>`,

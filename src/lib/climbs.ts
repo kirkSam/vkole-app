@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { IDLE_MS, academicLetter, parentLogoutLetter, trialState, type AppTime, type EndReason, type ReportEvent } from "@/lib/academic-email";
 import { schoolMiddleware } from "@/lib/school-middleware";
-import { isSchoolAccountId } from "@/lib/school-account";
+import { isSchoolAccountId, schoolAccessDecision } from "@/lib/school-account";
 import { isSubject, SUBJECTS, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { moveRung, stepName, stepSentence } from "@/lib/cc-steps";
 import { fillSheet, rememberPrompt, seenKeys } from "@/lib/next-sheet";
@@ -16,6 +16,7 @@ import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycl
 import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
 import { applyLetterAnswer, letterMoveNote, letterView, normalizeLetterProgress } from "@/lib/vkole/spelling/items";
 import { savedSpellingReport, spellingStatsFromEvents, writeSpellingReport } from "@/lib/vkole/spelling/report";
+import { cardFromAccount as paCardFromAccount, isPaBand, nextAfterAnswer, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
 import { cardFromAccount, nextCard, startCard } from "@/lib/vkole/sight-words/words";
 import { isSightBand } from "@/lib/vkole/constants";
 
@@ -47,6 +48,8 @@ export type Climb = {
   plan: "month" | "year" | null;
   renews: boolean;
   blocked: boolean;
+  /** The website master email. No trial countdown and no payment gate. */
+  fullAccess: boolean;
   onlineSeconds: number;
 };
 
@@ -103,31 +106,30 @@ async function accountState(sql: Sql, userId: string) {
   if (isSchoolAccountId(userId)) {
     const { readSchoolMirror } = await import("@/lib/school-mirror.server");
     const mirror = await readSchoolMirror(sql, userId);
-    const startedAt = mirror?.freeWeekStart ?? new Date(0).toISOString();
+    const decision = schoolAccessDecision({
+      email: userId,
+      access: mirror?.access ?? null,
+      freeWeekStart: mirror?.freeWeekStart ?? null,
+      masterRaw: process.env.VKOLE_MASTER_EMAIL,
+    });
+    const startedAt = decision.fullAccess
+      ? new Date().toISOString()
+      : (mirror?.freeWeekStart ?? new Date(0).toISOString());
     const trial = trialState(startedAt);
-    const open = mirror?.access === "open";
     const office = {
       officePurchased: mirror?.officePurchased === true,
       officeSlug: mirror?.officeSlug ?? null,
     };
-    if (!open) {
-      return {
-        ...trial,
-        expired: true,
-        daysLeft: 0,
-        subscribed: false,
-        subscriptionEndsAt: null,
-        plan: null,
-        renews: false,
-        ...office,
-      };
-    }
     return {
       ...trial,
-      subscribed: trial.expired,
+      expired: decision.expired,
+      daysLeft: decision.daysLeft ?? trial.daysLeft,
+      endsAt: decision.endsAt ?? trial.endsAt,
+      subscribed: decision.subscribed,
       subscriptionEndsAt: null,
-      plan: mirror?.plan ?? null,
+      plan: decision.fullAccess || mirror?.access === "open" ? (mirror?.plan ?? null) : null,
       renews: false,
+      fullAccess: decision.fullAccess,
       ...office,
     };
   }
@@ -152,6 +154,7 @@ async function accountState(sql: Sql, userId: string) {
     renews: sub ? flag(sub.renews) : false,
     officePurchased: false,
     officeSlug: null as string | null,
+    fullAccess: false,
   };
 }
 
@@ -238,12 +241,13 @@ export const listClimbs = createServerFn({ method: "GET" })
     }
     return {
       climbs,
-      endsAt: account.endsAt,
-      daysLeft: account.daysLeft,
+      endsAt: account.fullAccess ? null : account.endsAt,
+      daysLeft: account.fullAccess ? null : account.daysLeft,
       subscribed: account.subscribed,
       plan: account.plan,
       renews: account.renews,
-      blocked: account.expired && !account.subscribed,
+      blocked: account.fullAccess ? false : account.expired && !account.subscribed,
+      fullAccess: account.fullAccess,
       officePurchased: account.officePurchased,
       officeSlug: account.officeSlug,
     };
@@ -292,6 +296,34 @@ export const setClimbLevel = createServerFn({ method: "POST" })
             answer_aliases = ${JSON.stringify(view.also)},
             answer_note = ${view.name},
             question_id = ${`sp:${view.band}:${view.id}:s0:w0`},
+            next_prompt = '',
+            awaiting_next = 0,
+            updated_at = now()
+        where id = ${data.id} and user_id = ${context.userId}
+      `;
+      return selectOwned(sql, context.userId, data.id);
+    }
+    if (current.subject === "pa") {
+      const heldCard =
+        level === held && data.direction === "up"
+          ? paCardFromAccount(
+              { grade: held, age: current.age, band: current.standardCode, index: current.standardStep },
+              held,
+            )
+          : paCardFromAccount({ grade: level, age: current.age }, level);
+      await sql`
+        update climbs
+        set level = ${level},
+            standard_step = ${heldCard.index},
+            correct_at_level = 0,
+            incorrect_streak = 0,
+            standard_code = ${heldCard.band},
+            standard_label = ${heldCard.name},
+            current_prompt = ${heldCard.say},
+            answer_key = ${heldCard.answer},
+            answer_aliases = ${JSON.stringify(heldCard.also)},
+            answer_note = ${heldCard.name},
+            question_id = ${`pa:${heldCard.band}:${heldCard.index}`},
             next_prompt = '',
             awaiting_next = 0,
             updated_at = now()
@@ -355,6 +387,7 @@ export const recordAnswer = createServerFn({ method: "POST" })
     const current = await selectOwned(sql, context.userId, data.id);
     if (current.subject === "sw") throw new Error("Sight words are marked from the microphone.");
     if (current.subject === "sp") throw new Error("Spelling is marked from the microphone.");
+    if (current.subject === "pa") throw new Error("Phonemic awareness is marked from the microphone.");
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
     if (current.awaitingNext) return { status: "saved" as const, climb: current };
     const keyed = await keyedAnswer(sql, context.userId, data.id);
@@ -625,13 +658,104 @@ export const markSpelling = createServerFn({ method: "POST" })
     return selectOwned(sql, context.userId, data.id);
   });
 
+const paSchema = idSchema.extend({ outcome: z.enum(["correct", "miss", "timeout"]) });
+
+export const markPhonemic = createServerFn({ method: "POST" })
+  .validator((data: unknown) => parse(paSchema, data))
+  .middleware([schoolMiddleware])
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const current = await selectOwned(sql, context.userId, data.id);
+    if (current.subject !== "pa") throw new Error("This session is not phonemic awareness.");
+    if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
+    const place = paCardFromAccount(
+      {
+        grade: current.level,
+        age: current.age,
+        band: isPaBand(current.standardCode) ? current.standardCode : undefined,
+        index: current.standardStep,
+      },
+      current.level,
+    );
+    const correct = data.outcome === "correct";
+    const moved = nextAfterAnswer(
+      {
+        band: place.band,
+        index: place.index,
+        grade: current.level,
+        correctStreak: current.correctAtLevel,
+        missStreak: current.incorrectStreak,
+      },
+      correct,
+    );
+    const next = paCardFromAccount(
+      { grade: current.level, band: moved.band, index: moved.index },
+      current.level,
+    );
+    const prompt = paPrompt(next.band, next.index, current.level);
+    const earned = capVkoleGrade(Math.max(current.performanceLevel, current.level));
+    const note =
+      data.outcome === "correct"
+        ? moved.move === "up"
+          ? "Heard. The next prompt is one band up."
+          : "Heard."
+        : data.outcome === "timeout"
+          ? moved.move === "down"
+            ? "No answer within 20 seconds. The next prompt is one band down."
+            : "No answer within 20 seconds."
+          : moved.move === "down"
+            ? "Not yet. The next prompt is one band down."
+            : "Not yet.";
+    await sql`
+      update climbs
+      set level = ${current.level},
+          performance_level = ${earned},
+          correct_at_level = ${moved.correctStreak},
+          incorrect_streak = ${moved.missStreak},
+          grading_failures = 0,
+          standard_step = ${next.index},
+          asked = ${current.asked + 1},
+          right_count = ${current.rightCount + (correct ? 1 : 0)},
+          standard_code = ${next.band},
+          standard_label = ${next.name},
+          current_prompt = ${prompt.stem},
+          answer_key = ${prompt.answer},
+          answer_aliases = ${JSON.stringify(prompt.aliases)},
+          answer_note = ${prompt.note},
+          question_id = ${prompt.id},
+          next_prompt = '',
+          last_feedback = ${note},
+          awaiting_next = 0,
+          updated_at = now()
+      where id = ${data.id} and user_id = ${context.userId}
+    `;
+    await sql`
+      insert into climb_events (id, climb_id, user_id, subject, child_name, age, correct, level_before, level_after, detail)
+      values (
+        ${crypto.randomUUID()}, ${data.id}, ${context.userId}, ${current.subject}, ${current.childName},
+        ${current.age}, ${correct}, ${current.level}, ${current.level},
+        ${JSON.stringify({
+          correct,
+          engine: "VKOLE/PA",
+          code: place.band,
+          label: place.name,
+          grade: String(current.level),
+          question: place.say,
+          answer: data.outcome === "correct" ? "heard" : data.outcome === "timeout" ? "no answer" : "not yet",
+          note,
+        })}
+      )
+    `;
+    return selectOwned(sql, context.userId, data.id);
+  });
+
 export const revealNextQuestion = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
   .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const current = await selectOwned(sql, context.userId, data.id);
-    if (current.subject === "sw" || current.subject === "sp") return selectOwned(sql, context.userId, data.id);
+    if (current.subject === "sw" || current.subject === "sp" || current.subject === "pa") return selectOwned(sql, context.userId, data.id);
     const prompt = current.awaitingNext ? "" : current.currentPrompt;
     const rows = await sql<{ next_prompt: string | null }>`select next_prompt from climbs where id = ${data.id} and user_id = ${context.userId}`;
     const saved = rows[0]?.next_prompt?.trim() || prompt;
@@ -844,12 +968,12 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     performanceLevel: climb.performanceLevel,
     startGrade: climb.startGrade,
     standardCode: climb.standardCode,
-    standardLabel: climb.subject === "sp" ? climb.standardLabel : levelTitle(climb.subject, climb.level, climb.standardStep),
+    standardLabel: climb.subject === "sp" || climb.subject === "pa" ? climb.standardLabel : levelTitle(climb.subject, climb.level, climb.standardStep),
     asked: reportEvents.length,
     rightCount: reportEvents.filter((event) => event.correct).length,
     parentEmail: facts.email,
     registeredAt: facts.registeredAt,
-    moved: climb.subject === "sp" ? null : moved,
+    moved: climb.subject === "sp" || climb.subject === "pa" ? null : moved,
     sheet: built?.prompts,
     trial: { startedAt: climb.startedAt, endsAt: climb.endsAt, daysLeft: climb.daysLeft, expired: climb.expired },
     events: reportEvents,
@@ -977,7 +1101,7 @@ export const academicReport = createServerFn({ method: "POST" })
       performanceLevel: climb.performanceLevel,
       startGrade: climb.startGrade,
       standardCode: climb.standardCode,
-      standardLabel: climb.subject === "sp" ? climb.standardLabel : levelTitle(climb.subject, climb.level, climb.standardStep),
+      standardLabel: climb.subject === "sp" || climb.subject === "pa" ? climb.standardLabel : levelTitle(climb.subject, climb.level, climb.standardStep),
       asked: climb.asked,
       rightCount: climb.rightCount,
       parentEmail: facts.email,

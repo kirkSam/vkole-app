@@ -107,6 +107,10 @@ export async function dealQuestion(
     const { spellingPrompt, startBand } = await import("./vkole/spelling/items.ts");
     return spellingPrompt(startBand(), Math.max(0, Math.round(step) || 0), grade);
   }
+  if (subject === "pa") {
+    const { paPrompt, startBand } = await import("./vkole/phonemic-awareness/items.ts");
+    return paPrompt(startBand({ grade }), Math.max(0, Math.round(step) || 0), grade);
+  }
   await ensureQuestionMemory(sql);
   const level = Math.min(12, Math.max(1, Math.round(grade)));
   const rung = Math.min(2, Math.max(0, Math.round(step)));

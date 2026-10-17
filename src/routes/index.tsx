@@ -33,6 +33,8 @@ function Home() {
   const [unpaid, setUnpaid] = useState(false);
   const [gate, setGate] = useState<"unknown" | "open" | "closed">("unknown");
   const [endsAt, setEndsAt] = useState<string | null>(null);
+  const [subscribed, setSubscribed] = useState(false);
+  const [fullAccess, setFullAccess] = useState(false);
   const [endedPlan, setEndedPlan] = useState<EndedReason>("trial");
   const [stopped, setStopped] = useState<StoppedBecause | undefined>(undefined);
   const touring = useRef(false);
@@ -92,10 +94,22 @@ function Home() {
     listClimbs()
       .then((result) => {
         if (!live) return;
-        setEndsAt(result.endsAt);
+        setEndsAt(result.fullAccess ? null : result.endsAt);
+        setSubscribed(result.subscribed);
+        setFullAccess(result.fullAccess);
         if (result.plan === "month" || result.plan === "year") {
           setEndedPlan(result.plan);
           setStopped(result.renews ? "unpaid" : "cancelled");
+        }
+        if (result.fullAccess) {
+          setGate("open");
+          setUnpaid(false);
+          try {
+            sessionStorage.removeItem("vkole-unpaid");
+          } catch {
+            /* storage may be unavailable */
+          }
+          return;
         }
         if (result.blocked) {
           setGate("closed");
@@ -123,7 +137,7 @@ function Home() {
   }, [user, isPending, accountGone]);
 
   useEffect(() => {
-    if (!endsAt || gate === "closed") return;
+    if (!endsAt || gate === "closed" || fullAccess || subscribed) return;
     const ms = new Date(endsAt).getTime() - Date.now();
     const close = () => {
       setGate("closed");
@@ -141,7 +155,7 @@ function Home() {
     }
     const id = window.setTimeout(close, ms);
     return () => window.clearTimeout(id);
-  }, [endsAt, gate]);
+  }, [endsAt, gate, fullAccess, subscribed]);
 
   const trialClosed = () => {
     if (gate === "closed") return true;
@@ -223,6 +237,7 @@ function Home() {
 function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTrialSplash: () => void }) {
   const [climbs, setClimbs] = useState<Climb[] | null>(null);
   const [daysLeft, setDaysLeft] = useState<number | null>(null);
+  const [fullAccess, setFullAccess] = useState(false);
   const [trialOver, setTrialOver] = useState(false);
   const [endedPlan, setEndedPlan] = useState<EndedReason>("trial");
   const [stopped, setStopped] = useState<StoppedBecause | undefined>(undefined);
@@ -299,14 +314,15 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       .then((result) => {
         if (!live) return;
         setClimbs(result.climbs);
-        setDaysLeft(result.daysLeft);
-        setTrialOver(result.blocked);
+        setDaysLeft(result.fullAccess ? null : result.daysLeft);
+        setFullAccess(result.fullAccess);
+        setTrialOver(result.fullAccess ? false : result.blocked);
         if (result.plan === "month" || result.plan === "year") {
           setEndedPlan(result.plan);
           setStopped(result.renews ? "unpaid" : "cancelled");
         }
         if (result.subscribed && (result.plan === "month" || result.plan === "year")) {
-          setSub({ subscribed: true, renews: result.renews, endsAt: result.endsAt, plan: result.plan });
+          setSub({ subscribed: true, renews: result.renews, endsAt: result.endsAt ?? "", plan: result.plan });
         } else {
           setSub(null);
         }
@@ -366,16 +382,20 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
   return (
     <Shell onSplash={onSplash}>
       <p className="text-sm font-semibold tracking-wide text-accent uppercase">Parent</p>
-      <h1 className="mt-1 font-display text-4xl text-ink">Seven climbs</h1>
+      <h1 className="mt-1 font-display text-4xl text-ink">Eight climbs</h1>
       <p className="mt-3 text-muted">
-        The first sign-in starts a 7 day free trial for this registration. No credit card is required for those seven days. Only the email registration. Each student downloads the app and registers on that student’s own device. One registration is one student, and that student may use all seven engines. The engines share one clock of 2.5 hours for this login. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock, and the student password continues it. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the trial, the payment covers that student for a full month or a full year from the day of payment. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration, and the other engines stay open.
+        {fullAccess
+          ? 'This account is open. It is not on a free week and it is not asked to pay. Each student uses all eight engines. The engines share one clock of 2.5 hours for this login. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock, and the student password continues it. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration, and the other engines stay open.'
+          : 'The first sign-in starts a 7 day free trial for this registration. No credit card is required for those seven days. Only the email registration. Each student downloads the app and registers on that student’s own device. One registration is one student, and that student may use all eight engines. The engines share one clock of 2.5 hours for this login. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock, and the student password continues it. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the trial, the payment covers that student for a full month or a full year from the day of payment. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration, and the other engines stay open.'}
       </p>
       {account ? (
         <p className="mt-3 text-sm text-ink">
           This email is saved: {account.email}. Logins recorded: {account.loginCount}. Reports go only to this address.
         </p>
       ) : null}
-      {office ? <StudentOffice purchased={office.purchased} slug={office.slug} /> : null}
+      {office && (office.purchased || !fullAccess) ? (
+        <StudentOffice purchased={office.purchased} slug={office.slug} />
+      ) : null}
       {account?.notice?.error ? <p className="mt-3 text-sm text-miss">{account.notice.error}</p> : null}
       {account?.mailDesk ? (
         <form
@@ -452,6 +472,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
             roster={(climbs ?? []).filter((climb) => climb.subject === subject.id)}
             daysLeft={daysLeft}
             trialOver={trialOver}
+            fullAccess={fullAccess}
             onTrialFinished={() => setClosedApp(subject.id)}
             onLevelsChanged={() => setRevision((n) => n + 1)}
             onClock={() => setRevision((n) => n + 1)}
@@ -467,6 +488,7 @@ function AppGate({
   roster,
   daysLeft,
   trialOver,
+  fullAccess = false,
   onTrialFinished,
   onLevelsChanged,
   onClock,
@@ -475,6 +497,7 @@ function AppGate({
   roster: Climb[];
   daysLeft: number | null;
   trialOver: boolean;
+  fullAccess?: boolean;
   onTrialFinished: () => void;
   onLevelsChanged: () => void;
   onClock: () => void;
@@ -557,7 +580,7 @@ function AppGate({
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="font-display text-2xl text-ink">VKOLE/{meta.code}</h2>
         <span className="text-sm text-muted">
-          {trialOver ? "7 day trial finished" : daysLeft == null ? "7 days free" : daysLeft === 0 ? "7 day trial finished" : `${daysLeft} days left`}
+          {fullAccess ? "Open" : trialOver ? "7 day trial finished" : daysLeft == null ? "7 days free" : daysLeft === 0 ? "7 day trial finished" : `${daysLeft} days left`}
         </span>
       </div>
       <p className="text-sm text-muted">{meta.name}</p>
@@ -580,7 +603,7 @@ function AppGate({
         <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto text-sm text-muted">
           {roster.map((climb) => (
             <li key={climb.id}>
-              {climb.childName} · working {climb.subject === "sw" || climb.subject === "sp" ? `${levelLabel(climb.level)}, ${climb.standardLabel || climb.standardCode}` : climb.subject === "sg" ? `${singaporePlace(climb.level).short}, ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)}, standard ${(climb.standardStep ?? 0) + 1} of 3` : `${levelLabel(climb.level)}, ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)}, standard ${(climb.standardStep ?? 0) + 1} of 3`} · earned {levelLabel(climb.performanceLevel)}
+              {climb.childName} · working {climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa" ? `${levelLabel(climb.level)}, ${climb.standardLabel || climb.standardCode}` : climb.subject === "sg" ? `${singaporePlace(climb.level).short}, ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)}, standard ${(climb.standardStep ?? 0) + 1} of 3` : `${levelLabel(climb.level)}, ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)}, standard ${(climb.standardStep ?? 0) + 1} of 3`} · earned {levelLabel(climb.performanceLevel)}
             </li>
           ))}
         </ul>

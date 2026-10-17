@@ -11,6 +11,7 @@ const SUBJECT_NAME: Record<SubjectId, string> = {
   sg: "Singapore mathematics",
   sw: "Sight words",
   sp: "Spelling",
+  pa: "Phonemic awareness",
 };
 
 export type CycleReply = {

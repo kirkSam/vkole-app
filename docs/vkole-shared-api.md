@@ -13,13 +13,19 @@ Base: `https://www.dotheimpossible.ai`
 | `POST /api/vkole/password-reset` | email |
 | `POST /api/vkole/password-reset/confirm` | email, code, password |
 
+The account id is the email after trimming and lowercasing. Dots in the address stay. Register and sign-in both send that lowercase id. Sign-in tries the typed spelling only when the lowercase id is unknown.
+
+The password is the typed password with trailing newlines removed. It is not trimmed and it is not lowercased. Register, sign-in, and password-reset confirm all send that same value. The website's `src/lib/vkole` handlers must store and check that same value, in the same account row the engine sign-in reads.
+
+`VKOLE_MASTER_EMAIL`, or `kirksamalpha@dotheimpossible.ai` when that variable is empty, is never on a free week and never has to pay. Register, sign-in, and read for that email return `access: "open"` and do not send a finished free week. The website's client already skips the free week for that address. The API handlers in `src/lib/vkole` have to do the same.
+
 A write replaces each engine object that is sent. Engines that are omitted are not part of this app's write. The app sends every engine it has on the device.
 
 `seen` is the last 400 questions, `{ "key", "text" }`. `clockSeconds` is the shared day clock, capped at 2.5 hours.
 
 ## Engine keys
 
-`m`, `ela`, `ss`, `gen`, `sg`, `sw`, `sp`.
+`m`, `ela`, `ss`, `gen`, `sg`, `sw`, `sp`, `pa`.
 
 `m`, `ela`, `ss`, and `gen` store `{ "grade": 1-12, "step": 0|1|2 }`.
 
@@ -148,3 +154,61 @@ Opening the engine plays the alphabet from A to Z, one letter every 1.5 seconds 
 A correct spoken answer shows a Happy Face for 2 seconds, then the next letter. The 5 second window is a maximum: a spoken answer is taken as soon as it is heard. The first 5 seconds of silence shows the same letter again. A second silence goes back 3 letters and continues from there. A wrong answer shows the 3 prior letters and speaks them, then waits up to 5 seconds. Another wrong answer or silence shows and speaks the 5 prior letters. One more wrong answer or silence starts again at A. A count that would pass A stops at A. The microphone listens only while a question is waiting for an answer. Audio is not recorded and is not saved. Adult override buttons are Correct and Miss.
 
 At the end of a spelling sitting, the server writes a short parent report of 3 to 5 sentences. The section is labeled `Report written by Space XSI (Grok)`. The call uses `XAI_API_KEY` on the server, one call for that sitting, and sends only that student's letter stats. It does not send another family's name or any audio. If the key is missing or the call fails, the same section uses a local template. The report is shown to that parent and is included only in that account's progress email.
+
+## level.pa
+
+Phonemic awareness. The key is `pa`. The prompts, answers, `also` lists, phoneme sounds, and Elkonin box counts are in `src/lib/vkole/phonemic-awareness/data.json`, copied byte for byte from `docs/phonemic-awareness-website-canonical.json`.
+
+```json
+{
+  "id": "pa-ada",
+  "name": "Ada",
+  "enteredBy": "parent",
+  "grade": 1,
+  "step": 0,
+  "band": "WA",
+  "index": 0,
+  "word": "wa-cat-sat",
+  "streak": 0,
+  "missStreak": 0,
+  "earnedGrade": 1,
+  "reached": 0,
+  "missed": 0,
+  "updatedAt": 0,
+  "startingGrade": 1,
+  "levelCode": "WA",
+  "levelLabel": "Pre-K"
+}
+```
+
+`band` is the list. `index` is the item in that list. `step` stays 0. `word` is the item id. `streak` and `missStreak` are the running counts toward a band change. The grade number stays when the band changes.
+
+### Bands
+
+`WA`, `RH`, `SY`, `OR`, `IS`, `BL`, `PS`, `PD`. Each band has 8 items.
+
+| Band | Name | Grade label |
+|---|---|---|
+| WA | Word awareness | Pre-K |
+| RH | Rhyme recognition and production | K |
+| SY | Syllable counting and blending | K |
+| OR | Onset-rime | K |
+| IS | First and final sound isolation | 1st |
+| BL | Phoneme blending | 1st |
+| PS | Phoneme segmentation | 1st |
+| PD | Phoneme deletion and substitution | 2nd |
+
+### Where a student starts
+
+Age 4 and age 5 win over the grade. A saved `band`, or a `levelCode` that is a band id, wins over both.
+
+| Placement | Starts on |
+|---|---|
+| age 4 | WA |
+| age 5 | RH |
+| grade 1 | IS |
+| grade 2 and above | PD |
+
+Two correct answers in a row move up one band. Two misses in a row move down one band. The first band does not move down. The last band does not move up. A miss or 20 seconds of silence speaks the `model` line, waits 2 seconds, and moves on. A correct answer is silent, then the next item after 2 seconds.
+
+The microphone listens only while a prompt is waiting for an answer. Audio is not recorded and is not saved. The adult buttons are “They said it right” and “Not yet”.

@@ -1,0 +1,785 @@
+{
+  "source": {
+    "sequence": "Phonemic awareness moves from larger spoken parts to smaller sounds, then to changing a sound. The order is the phonological awareness continuum used in beginning-reading research: word awareness, rhyme recognition and production, syllable counting and blending, onset-rime, first and final sound isolation, phoneme blending, phoneme segmentation with Elkonin boxes, then phoneme deletion and substitution. Marilyn Jager Adams, Beginning to Read (1990); National Reading Panel (2000); Liberman, Shankweiler, Fischer, and Carter (1974); D. B. Elkonin (1973); Ehri and others in the National Reading Panel phonemic awareness report (2001); David A. Kilpatrick, Equipped for Reading Success (2015). Older struggling readers are included. Kilpatrick treats phoneme deletion and substitution as the skill that still needs work for many of them.",
+    "audio": "The computer speaks the say field. The child answers out loud. Nothing on the screen has to be read. A correct answer is silent, then the next item after advanceMs. A wrong answer, or no answer for maxShowMs, speaks the model field, waits advanceMs, and then goes to the next item. The microphone listens only while that item is waiting for an answer. Nothing is recorded or saved.",
+    "movement": "riseAfter correct answers in a row move up one band. One miss stays on the band. dropAfter misses in a row move down one band. The first band does not move down. The last band does not move up. The student's grade number stays as it was sent."
+  },
+  "advanceMs": 2000,
+  "maxShowMs": 20000,
+  "riseAfter": 2,
+  "dropAfter": 2,
+  "roundSize": 5,
+  "placement": {
+    "byAge": {
+      "4": "WA",
+      "5": "RH"
+    },
+    "byGrade": {
+      "1": "IS",
+      "2": "PD"
+    },
+    "older": "PD",
+    "note": "Age 4 starts at word awareness (Pre-K). Age 5 starts at rhyme (K). Those ages win over the grade, because the grade form starts at 1st. Grade 1 starts at first and final sound isolation. Grade 2 starts at phoneme deletion and substitution. Grade 3 and above starts at that same grade 2 band, so an older struggling reader can use the engine and can be moved down. A saved band is kept."
+  },
+  "phonemeSpeak": {
+    "p": [
+      "puh",
+      "p"
+    ],
+    "b": [
+      "buh",
+      "b"
+    ],
+    "t": [
+      "tuh",
+      "t"
+    ],
+    "d": [
+      "duh",
+      "d"
+    ],
+    "k": [
+      "kuh",
+      "cuh",
+      "k"
+    ],
+    "g": [
+      "guh",
+      "g"
+    ],
+    "f": [
+      "fff",
+      "ff",
+      "f"
+    ],
+    "s": [
+      "sss",
+      "ss",
+      "s"
+    ],
+    "m": [
+      "mmm",
+      "m"
+    ],
+    "n": [
+      "nnn",
+      "n"
+    ],
+    "l": [
+      "lll",
+      "l"
+    ],
+    "r": [
+      "rrr",
+      "r"
+    ],
+    "h": [
+      "huh",
+      "h"
+    ],
+    "sh": [
+      "shh",
+      "sh"
+    ],
+    "a": [
+      "aeh",
+      "ae",
+      "a"
+    ],
+    "i": [
+      "ih",
+      "i"
+    ],
+    "o": [
+      "ah",
+      "aw",
+      "aah",
+      "o"
+    ],
+    "u": [
+      "uh",
+      "u"
+    ],
+    "ee": [
+      "ee",
+      "eee"
+    ],
+    "oh": [
+      "oh",
+      "oe",
+      "o"
+    ]
+  },
+  "bands": [
+    {
+      "id": "WA",
+      "name": "Word awareness",
+      "grade": "Pre-K",
+      "items": [
+        {
+          "id": "wa-cat-sat",
+          "kind": "word-count",
+          "say": "How many words do you hear? The cat sat.",
+          "answer": "three",
+          "also": [
+            "3"
+          ],
+          "model": "Three."
+        },
+        {
+          "id": "wa-see-dog",
+          "kind": "word-count",
+          "say": "How many words do you hear? I see a dog.",
+          "answer": "four",
+          "also": [
+            "4"
+          ],
+          "model": "Four."
+        },
+        {
+          "id": "wa-mom-runs",
+          "kind": "word-count",
+          "say": "How many words do you hear? Mom runs.",
+          "answer": "two",
+          "also": [
+            "2"
+          ],
+          "model": "Two."
+        },
+        {
+          "id": "wa-go",
+          "kind": "word-count",
+          "say": "How many words do you hear? Go.",
+          "answer": "one",
+          "also": [
+            "1"
+          ],
+          "model": "One."
+        },
+        {
+          "id": "wa-sam-play",
+          "kind": "word-count",
+          "say": "How many words do you hear? Sam and I play.",
+          "answer": "four",
+          "also": [
+            "4"
+          ],
+          "model": "Four."
+        },
+        {
+          "id": "wa-birds",
+          "kind": "word-count",
+          "say": "How many words do you hear? Birds fly high.",
+          "answer": "three",
+          "also": [
+            "3"
+          ],
+          "model": "Three."
+        },
+        {
+          "id": "wa-frog",
+          "kind": "word-count",
+          "say": "How many words do you hear? A little frog jumps.",
+          "answer": "four",
+          "also": [
+            "4"
+          ],
+          "model": "Four."
+        },
+        {
+          "id": "wa-we-can",
+          "kind": "word-count",
+          "say": "How many words do you hear? We can.",
+          "answer": "two",
+          "also": [
+            "2"
+          ],
+          "model": "Two."
+        }
+      ]
+    },
+    {
+      "id": "RH",
+      "name": "Rhyme recognition and production",
+      "grade": "K",
+      "items": [
+        {
+          "id": "rh-cat-hat",
+          "kind": "rhyme-yesno",
+          "say": "Do cat and hat rhyme?",
+          "answer": "yes",
+          "also": [
+            "yeah",
+            "yep",
+            "yup"
+          ],
+          "model": "Yes."
+        },
+        {
+          "id": "rh-cat-dog",
+          "kind": "rhyme-yesno",
+          "say": "Do cat and dog rhyme?",
+          "answer": "no",
+          "also": [
+            "nope",
+            "nah"
+          ],
+          "model": "No."
+        },
+        {
+          "id": "rh-sun-fun",
+          "kind": "rhyme-yesno",
+          "say": "Do sun and fun rhyme?",
+          "answer": "yes",
+          "also": [
+            "yeah",
+            "yep",
+            "yup"
+          ],
+          "model": "Yes."
+        },
+        {
+          "id": "rh-book-fish",
+          "kind": "rhyme-yesno",
+          "say": "Do book and fish rhyme?",
+          "answer": "no",
+          "also": [
+            "nope",
+            "nah"
+          ],
+          "model": "No."
+        },
+        {
+          "id": "rh-make-cat",
+          "kind": "rhyme-produce",
+          "say": "Tell me a word that rhymes with cat.",
+          "answer": "hat",
+          "also": [
+            "bat",
+            "mat",
+            "sat",
+            "rat",
+            "pat",
+            "fat",
+            "flat",
+            "that"
+          ],
+          "rime": "at",
+          "cue": "cat",
+          "model": "Hat."
+        },
+        {
+          "id": "rh-make-sun",
+          "kind": "rhyme-produce",
+          "say": "Tell me a word that rhymes with sun.",
+          "answer": "fun",
+          "also": [
+            "run",
+            "bun"
+          ],
+          "rime": "un",
+          "cue": "sun",
+          "model": "Fun."
+        },
+        {
+          "id": "rh-make-log",
+          "kind": "rhyme-produce",
+          "say": "Tell me a word that rhymes with log.",
+          "answer": "dog",
+          "also": [
+            "fog",
+            "hog",
+            "jog"
+          ],
+          "rime": "og",
+          "cue": "log",
+          "model": "Dog."
+        },
+        {
+          "id": "rh-cake-make",
+          "kind": "rhyme-yesno",
+          "say": "Do cake and make rhyme?",
+          "answer": "yes",
+          "also": [
+            "yeah",
+            "yep",
+            "yup"
+          ],
+          "model": "Yes."
+        }
+      ]
+    },
+    {
+      "id": "SY",
+      "name": "Syllable counting and blending",
+      "grade": "K",
+      "items": [
+        {
+          "id": "sy-count-baby",
+          "kind": "syllable-count",
+          "say": "How many parts do you hear in baby? Ba. By.",
+          "answer": "two",
+          "also": [
+            "2"
+          ],
+          "model": "Two."
+        },
+        {
+          "id": "sy-count-elephant",
+          "kind": "syllable-count",
+          "say": "How many parts do you hear in elephant? El. E. Fant.",
+          "answer": "three",
+          "also": [
+            "3"
+          ],
+          "model": "Three."
+        },
+        {
+          "id": "sy-count-cat",
+          "kind": "syllable-count",
+          "say": "How many parts do you hear in cat?",
+          "answer": "one",
+          "also": [
+            "1"
+          ],
+          "model": "One."
+        },
+        {
+          "id": "sy-count-banana",
+          "kind": "syllable-count",
+          "say": "How many parts do you hear in banana? Ba. Na. Na.",
+          "answer": "three",
+          "also": [
+            "3"
+          ],
+          "model": "Three."
+        },
+        {
+          "id": "sy-blend-baby",
+          "kind": "syllable-blend",
+          "say": "Put these parts together. Ba. By.",
+          "answer": "baby",
+          "model": "Baby."
+        },
+        {
+          "id": "sy-blend-table",
+          "kind": "syllable-blend",
+          "say": "Put these parts together. Ta. Ble.",
+          "answer": "table",
+          "model": "Table."
+        },
+        {
+          "id": "sy-blend-sunshine",
+          "kind": "syllable-blend",
+          "say": "Put these parts together. Sun. Shine.",
+          "answer": "sunshine",
+          "also": [
+            "sun shine"
+          ],
+          "model": "Sunshine."
+        },
+        {
+          "id": "sy-blend-cupcake",
+          "kind": "syllable-blend",
+          "say": "Put these parts together. Cup. Cake.",
+          "answer": "cupcake",
+          "also": [
+            "cup cake"
+          ],
+          "model": "Cupcake."
+        }
+      ]
+    },
+    {
+      "id": "OR",
+      "name": "Onset-rime",
+      "grade": "K",
+      "items": [
+        {
+          "id": "or-blend-cat",
+          "kind": "onset-blend",
+          "say": "Put these parts together. Kuh. At.",
+          "answer": "cat",
+          "model": "Cat."
+        },
+        {
+          "id": "or-blend-sun",
+          "kind": "onset-blend",
+          "say": "Put these parts together. Sss. Un.",
+          "answer": "sun",
+          "model": "Sun."
+        },
+        {
+          "id": "or-blend-map",
+          "kind": "onset-blend",
+          "say": "Put these parts together. Muh. Ap.",
+          "answer": "map",
+          "model": "Map."
+        },
+        {
+          "id": "or-blend-fish",
+          "kind": "onset-blend",
+          "say": "Put these parts together. Fff. Ish.",
+          "answer": "fish",
+          "model": "Fish."
+        },
+        {
+          "id": "or-onset-sun",
+          "kind": "onset-isolate",
+          "say": "The word is sun. The last part is un. What is the first sound?",
+          "answer": "sss",
+          "sounds": [
+            "s"
+          ],
+          "model": "Sss."
+        },
+        {
+          "id": "or-onset-map",
+          "kind": "onset-isolate",
+          "say": "The word is map. The last part is ap. What is the first sound?",
+          "answer": "mmm",
+          "sounds": [
+            "m"
+          ],
+          "model": "Mmm."
+        },
+        {
+          "id": "or-rime-cat",
+          "kind": "rime-say",
+          "say": "The word is cat. The first sound is kuh. What is the last part?",
+          "answer": "at",
+          "model": "At."
+        },
+        {
+          "id": "or-rime-fish",
+          "kind": "rime-say",
+          "say": "The word is fish. The first sound is fff. What is the last part?",
+          "answer": "ish",
+          "model": "Ish."
+        }
+      ]
+    },
+    {
+      "id": "IS",
+      "name": "First and final sound isolation",
+      "grade": "1st",
+      "items": [
+        {
+          "id": "is-first-sun",
+          "kind": "isolate",
+          "say": "What is the first sound in sun?",
+          "answer": "sss",
+          "sounds": [
+            "s"
+          ],
+          "model": "Sss."
+        },
+        {
+          "id": "is-last-sun",
+          "kind": "isolate",
+          "say": "What is the last sound in sun?",
+          "answer": "nnn",
+          "sounds": [
+            "n"
+          ],
+          "model": "Nnn."
+        },
+        {
+          "id": "is-first-map",
+          "kind": "isolate",
+          "say": "What is the first sound in map?",
+          "answer": "mmm",
+          "sounds": [
+            "m"
+          ],
+          "model": "Mmm."
+        },
+        {
+          "id": "is-last-map",
+          "kind": "isolate",
+          "say": "What is the last sound in map?",
+          "answer": "puh",
+          "sounds": [
+            "p"
+          ],
+          "model": "Puh."
+        },
+        {
+          "id": "is-first-fish",
+          "kind": "isolate",
+          "say": "What is the first sound in fish?",
+          "answer": "fff",
+          "sounds": [
+            "f"
+          ],
+          "model": "Fff."
+        },
+        {
+          "id": "is-last-fish",
+          "kind": "isolate",
+          "say": "What is the last sound in fish?",
+          "answer": "shh",
+          "sounds": [
+            "sh"
+          ],
+          "model": "Shh."
+        },
+        {
+          "id": "is-first-dog",
+          "kind": "isolate",
+          "say": "What is the first sound in dog?",
+          "answer": "duh",
+          "sounds": [
+            "d"
+          ],
+          "model": "Duh."
+        },
+        {
+          "id": "is-last-dog",
+          "kind": "isolate",
+          "say": "What is the last sound in dog?",
+          "answer": "guh",
+          "sounds": [
+            "g"
+          ],
+          "model": "Guh."
+        }
+      ]
+    },
+    {
+      "id": "BL",
+      "name": "Phoneme blending",
+      "grade": "1st",
+      "items": [
+        {
+          "id": "bl-cat",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Aeh. Tuh.",
+          "answer": "cat",
+          "model": "Cat."
+        },
+        {
+          "id": "bl-sun",
+          "kind": "blend",
+          "say": "What word is this? Sss. Uh. Nnn.",
+          "answer": "sun",
+          "model": "Sun."
+        },
+        {
+          "id": "bl-map",
+          "kind": "blend",
+          "say": "What word is this? Muh. Aeh. Puh.",
+          "answer": "map",
+          "model": "Map."
+        },
+        {
+          "id": "bl-dog",
+          "kind": "blend",
+          "say": "What word is this? Duh. Ah. Guh.",
+          "answer": "dog",
+          "model": "Dog."
+        },
+        {
+          "id": "bl-fish",
+          "kind": "blend",
+          "say": "What word is this? Fff. Ih. Shh.",
+          "answer": "fish",
+          "model": "Fish."
+        },
+        {
+          "id": "bl-bat",
+          "kind": "blend",
+          "say": "What word is this? Buh. Aeh. Tuh.",
+          "answer": "bat",
+          "model": "Bat."
+        },
+        {
+          "id": "bl-hat",
+          "kind": "blend",
+          "say": "What word is this? Huh. Aeh. Tuh.",
+          "answer": "hat",
+          "model": "Hat."
+        },
+        {
+          "id": "bl-me",
+          "kind": "blend",
+          "say": "What word is this? Muh. Ee.",
+          "answer": "me",
+          "model": "Me."
+        }
+      ]
+    },
+    {
+      "id": "PS",
+      "name": "Phoneme segmentation",
+      "grade": "1st",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "ps-cat",
+          "kind": "segment",
+          "say": "Say each sound in cat.",
+          "answer": "kuh aeh tuh",
+          "sounds": [
+            "k",
+            "a",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Kuh. Aeh. Tuh."
+        },
+        {
+          "id": "ps-sun",
+          "kind": "segment",
+          "say": "Say each sound in sun.",
+          "answer": "sss uh nnn",
+          "sounds": [
+            "s",
+            "u",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Sss. Uh. Nnn."
+        },
+        {
+          "id": "ps-map",
+          "kind": "segment",
+          "say": "Say each sound in map.",
+          "answer": "mmm aeh puh",
+          "sounds": [
+            "m",
+            "a",
+            "p"
+          ],
+          "boxes": 3,
+          "model": "Mmm. Aeh. Puh."
+        },
+        {
+          "id": "ps-dog",
+          "kind": "segment",
+          "say": "Say each sound in dog.",
+          "answer": "duh ah guh",
+          "sounds": [
+            "d",
+            "o",
+            "g"
+          ],
+          "boxes": 3,
+          "model": "Duh. Ah. Guh."
+        },
+        {
+          "id": "ps-me",
+          "kind": "segment",
+          "say": "Say each sound in me.",
+          "answer": "mmm ee",
+          "sounds": [
+            "m",
+            "ee"
+          ],
+          "boxes": 2,
+          "model": "Mmm. Ee."
+        },
+        {
+          "id": "ps-up",
+          "kind": "segment",
+          "say": "Say each sound in up.",
+          "answer": "uh puh",
+          "sounds": [
+            "u",
+            "p"
+          ],
+          "boxes": 2,
+          "model": "Uh. Puh."
+        },
+        {
+          "id": "ps-fish",
+          "kind": "segment",
+          "say": "Say each sound in fish.",
+          "answer": "fff ih shh",
+          "sounds": [
+            "f",
+            "i",
+            "sh"
+          ],
+          "boxes": 3,
+          "model": "Fff. Ih. Shh."
+        },
+        {
+          "id": "ps-go",
+          "kind": "segment",
+          "say": "Say each sound in go.",
+          "answer": "guh oh",
+          "sounds": [
+            "g",
+            "oh"
+          ],
+          "boxes": 2,
+          "model": "Guh. Oh."
+        }
+      ]
+    },
+    {
+      "id": "PD",
+      "name": "Phoneme deletion and substitution",
+      "grade": "2nd",
+      "items": [
+        {
+          "id": "pd-del-cat",
+          "kind": "delete",
+          "say": "Say cat without the kuh.",
+          "answer": "at",
+          "model": "At."
+        },
+        {
+          "id": "pd-del-sun",
+          "kind": "delete",
+          "say": "Say sun without the sss.",
+          "answer": "un",
+          "model": "Un."
+        },
+        {
+          "id": "pd-del-map",
+          "kind": "delete",
+          "say": "Say map without the muh.",
+          "answer": "ap",
+          "model": "Ap."
+        },
+        {
+          "id": "pd-del-fish",
+          "kind": "delete",
+          "say": "Say fish without the fff.",
+          "answer": "ish",
+          "model": "Ish."
+        },
+        {
+          "id": "pd-sub-hat",
+          "kind": "substitute",
+          "say": "Say cat. Now change the kuh to huh.",
+          "answer": "hat",
+          "model": "Hat."
+        },
+        {
+          "id": "pd-sub-fun",
+          "kind": "substitute",
+          "say": "Say sun. Now change the sss to fff.",
+          "answer": "fun",
+          "model": "Fun."
+        },
+        {
+          "id": "pd-sub-cap",
+          "kind": "substitute",
+          "say": "Say map. Now change the muh to kuh.",
+          "answer": "cap",
+          "model": "Cap."
+        },
+        {
+          "id": "pd-sub-log",
+          "kind": "substitute",
+          "say": "Say dog. Now change the duh to lll.",
+          "answer": "log",
+          "model": "Log."
+        }
+      ]
+    }
+  ]
+}

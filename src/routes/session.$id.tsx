@@ -12,6 +12,7 @@ import {
   beginSitting,
   endChildSession,
   getClimb,
+  markPhonemic,
   markSightWord,
   markSpelling,
   recordAnswer,
@@ -28,6 +29,8 @@ import { VKOLE_MOVEMENT } from "@/lib/vkole-cap";
 import { SIGHT_WORD_NOTE } from "@/lib/vkole/constants";
 import { SPELLING_NOTE } from "@/lib/vkole/spelling/items";
 import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
+import { PA_NOTE } from "@/lib/vkole/phonemic-awareness/items";
+import { PhonemicStage } from "@/components/phonemic-stage";
 import { SightWordStage } from "@/components/sight-word-stage";
 import { SpellingStage } from "@/components/spelling-stage";
 import { SG_STAGE_NOTE, sgCodeLabel, singaporePlace } from "@/lib/vkole-singapore";
@@ -111,6 +114,7 @@ function SessionPage() {
   const [sightRound, setSightRound] = useState(0);
   const [spellingRound, setSpellingRound] = useState(0);
   const [songDone, setSongDone] = useState(false);
+  const [paRound, setPaRound] = useState(0);
   const finishRef = useRef<(reason: EndReason) => void>(() => {});
 
   const userId = user?.id;
@@ -134,7 +138,7 @@ function SessionPage() {
   }, [id, userId]);
 
   useEffect(() => {
-    if (!climb || climb.blocked) return;
+    if (!climb || climb.blocked || climb.fullAccess) return;
     const deadline = climb.subscribed ? climb.subscriptionEndsAt : climb.endsAt;
     if (!deadline) return;
     const ms = new Date(deadline).getTime() - Date.now();
@@ -147,7 +151,7 @@ function SessionPage() {
     }
     const id = window.setTimeout(stop, ms);
     return () => window.clearTimeout(id);
-  }, [climb?.id, climb?.endsAt, climb?.subscriptionEndsAt, climb?.subscribed, climb?.renews, climb?.blocked]);
+  }, [climb?.id, climb?.endsAt, climb?.subscriptionEndsAt, climb?.subscribed, climb?.renews, climb?.blocked, climb?.fullAccess]);
 
   useEffect(() => {
     if (!userId || !climb || climb.blocked) return;
@@ -419,14 +423,14 @@ function SessionPage() {
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted">
         <span className="rounded-full border border-line bg-surface px-3 py-1">
-          Level <strong className="font-semibold text-ink">{climb.subject === "sw" || climb.subject === "sp" ? `${levelLabel(climb.level)} · ${climb.standardLabel || climb.standardCode}` : climb.subject === "sg" ? `${singaporePlace(climb.level).short} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3` : `${levelLabel(climb.level)} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3`}</strong>
+          Level <strong className="font-semibold text-ink">{climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa" ? `${levelLabel(climb.level)} · ${climb.standardLabel || climb.standardCode}` : climb.subject === "sg" ? `${singaporePlace(climb.level).short} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3` : `${levelLabel(climb.level)} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3`}</strong>
         </span>
-        {climb.subject === "sw" || climb.subject === "sp" ? null : (
+        {climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa" ? null : (
           <span className="rounded-full border border-line bg-surface px-3 py-1">
             Correct <strong className="font-semibold text-ink">{climb.correctAtLevel}/2</strong>
           </span>
         )}
-        {climb.subject === "sw" || climb.subject === "sp" ? null : (
+        {climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa" ? null : (
           <span className="rounded-full border border-line bg-surface px-3 py-1">
             Miss streak <strong className="font-semibold text-ink">{climb.incorrectStreak}/2</strong>
           </span>
@@ -435,7 +439,7 @@ function SessionPage() {
           Session <strong className="font-semibold text-ink">{climb.rightCount}/{climb.asked}</strong>
         </span>
         <span className="rounded-full border border-line bg-surface px-3 py-1">
-          Free period <strong className="font-semibold text-ink">{climb.subscribed ? `subscribed until ${new Date(climb.subscriptionEndsAt ?? climb.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : climb.expired ? "ended" : `${climb.daysLeft} days`}</strong>
+          {climb.fullAccess ? "Access" : "Free period"} <strong className="font-semibold text-ink">{climb.fullAccess ? "open" : climb.subscribed ? `subscribed until ${new Date(climb.subscriptionEndsAt ?? climb.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : climb.expired ? "ended" : `${climb.daysLeft} days`}</strong>
         </span>
         {climb.age != null ? (
           <span className="rounded-full border border-line bg-surface px-3 py-1">
@@ -448,7 +452,7 @@ function SessionPage() {
           </span>
         ) : null}
       </div>
-      <p className="mt-3 text-sm text-muted">{climb.subject === "sw" ? SIGHT_WORD_NOTE : climb.subject === "sp" ? SPELLING_NOTE : VKOLE_MOVEMENT}</p>
+      <p className="mt-3 text-sm text-muted">{climb.subject === "sw" ? SIGHT_WORD_NOTE : climb.subject === "sp" ? SPELLING_NOTE : climb.subject === "pa" ? PA_NOTE : VKOLE_MOVEMENT}</p>
       {climb.subject === "sg" ? <p className="mt-2 text-sm text-muted">{SG_STAGE_NOTE}</p> : null}
       <SchoolPath />
       {!closure && clock?.closed ? (
@@ -579,6 +583,24 @@ function SessionPage() {
                 .finally(() => setPendingAnswer(false));
             }}
           />
+        ) : climb.subject === "pa" ? (
+          <PhonemicStage
+            key={`${climb.standardCode}:${climb.standardStep}:${paRound}`}
+            band={climb.standardCode}
+            index={climb.standardStep}
+            onDone={(outcome) => {
+              if (pendingAnswer) return;
+              setPendingAnswer(true);
+              setError("");
+              void markPhonemic({ data: { id: climb.id, outcome } })
+                .then((row) => setClimb(row))
+                .catch((err: unknown) => {
+                  setError(err instanceof Error ? err.message : "Could not save that prompt.");
+                  setPaRound((round) => round + 1);
+                })
+                .finally(() => setPendingAnswer(false));
+            }}
+          />
         ) : (
         <>
         <p className="text-xs tracking-wide text-muted uppercase">{climb.subject === "sg" ? sgCodeLabel(climb.standardCode) : climb.standardCode}</p>
@@ -618,7 +640,7 @@ function SessionPage() {
         {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
         </>
         )}
-        {(climb.subject === "sw" || climb.subject === "sp") && error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
+        {(climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa") && error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <button
             type="button"

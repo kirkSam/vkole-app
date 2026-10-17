@@ -20,6 +20,8 @@ import { masteryFromDetails, richerMastery } from "@/lib/vkole-singapore-report"
 import { isSightBand } from "@/lib/vkole/constants";
 import { spAccountLevel } from "@/lib/vkole/spelling/level";
 import { isSpBand, letterView } from "@/lib/vkole/spelling/items";
+import { paAccountLevel } from "@/lib/vkole/phonemic-awareness/level";
+import { cardFromAccount as paCardFromAccount, isPaBand } from "@/lib/vkole/phonemic-awareness/items";
 import { swAccountLevel } from "@/lib/vkole/sight-words/level";
 import { cardFromAccount } from "@/lib/vkole/sight-words/words";
 
@@ -70,6 +72,31 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
             answer_note = ${view.name},
             question_id = ${`sp:${view.band}:${view.id}:s${view.silence}:w${view.wrong}`},
             performance_level = ${level.earnedGrade ?? grade},
+            right_count = ${reached},
+            asked = ${reached + missed},
+            updated_at = now()
+        where user_id = ${userId} and subject = ${engine}
+      `;
+      continue;
+    }
+    if (engine === "pa" && level.band) {
+      const card = paCardFromAccount(level, level.grade);
+      const reached = level.reached ?? 0;
+      const missed = level.missed ?? 0;
+      await sql`
+        update climbs
+        set level = ${Math.min(12, Math.max(1, Math.round(card.grade) || 1))},
+            standard_step = ${card.index},
+            standard_code = ${card.band},
+            standard_label = ${card.name},
+            current_prompt = ${card.say},
+            answer_key = ${card.answer},
+            answer_aliases = ${JSON.stringify(card.also)},
+            answer_note = ${card.name},
+            question_id = ${`pa:${card.band}:${card.index}`},
+            performance_level = ${level.earnedGrade ?? card.grade},
+            correct_at_level = ${level.streak ?? 0},
+            incorrect_streak = ${level.missStreak ?? 0},
             right_count = ${reached},
             asked = ${reached + missed},
             updated_at = now()
@@ -193,6 +220,35 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Eng
         earnedGrade: Math.min(12, Math.max(1, Math.round(Number(row.performance_level) || grade))),
         reached,
         missed: asked - reached,
+        ...(Number.isInteger(starting) && starting >= 1 && starting <= 12 ? { startingGrade: starting } : {}),
+        updatedAt: Date.now(),
+      });
+      continue;
+    }
+    if (row.subject === "pa") {
+      const card = paCardFromAccount(
+        {
+          grade,
+          band: isPaBand(row.standard_code) ? row.standard_code : undefined,
+          index: Math.max(0, Math.round(Number(row.standard_step) || 0)),
+          word: row.current_prompt,
+        },
+        grade,
+      );
+      const reached = Math.max(0, Math.round(Number(row.right_count) || 0));
+      const asked = Math.max(reached, Math.round(Number(row.asked) || 0));
+      const starting = Number(row.start_grade);
+      level.pa = paAccountLevel(remote.pa, {
+        name: row.child_name?.trim() || remote.pa?.name || "",
+        grade,
+        band: card.band,
+        index: card.index,
+        word: card.id,
+        earnedGrade: Math.min(12, Math.max(1, Math.round(Number(row.performance_level) || card.grade))),
+        reached,
+        missed: asked - reached,
+        streak: Math.max(0, Math.round(Number(row.correct_at_level) || 0)),
+        missStreak: Math.max(0, Math.round(Number(row.incorrect_streak) || 0)),
         ...(Number.isInteger(starting) && starting >= 1 && starting <= 12 ? { startingGrade: starting } : {}),
         updatedAt: Date.now(),
       });

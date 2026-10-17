@@ -7,7 +7,8 @@ import { type Cell } from "./pool-shared.ts";
 import { sgCell } from "./vkole-singapore-pool.ts";
 import { ssCell } from "./pool-ss.ts";
 import { BAND_LABELS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
-import { bandMeta, spellingPrompt, startBand as startSpellingBand } from "./vkole/spelling/items.ts";
+import { bandMeta as spellingBandMeta, spellingPrompt, startBand as startSpellingBand } from "./vkole/spelling/items.ts";
+import { bandMeta as phonemicBandMeta, itemAt, startBand as startPhonemicBand } from "./vkole/phonemic-awareness/items.ts";
 import { bandWords } from "./vkole/sight-words/words.ts";
 
 export type PoolQuestion = {
@@ -64,12 +65,24 @@ function swCell(grade: number): Cell {
 
 function spCell(grade: number): Cell {
   const band = startSpellingBand();
-  const meta = bandMeta(band);
+  const meta = spellingBandMeta(band);
   return {
     count: Math.max(1, meta.count),
     build(index) {
       const item = spellingPrompt(band, index, grade);
       return { stem: item.stem, answer: item.answer, aliases: item.aliases, standard: item.standard, note: item.note };
+    },
+  };
+}
+
+function paCell(grade: number): Cell {
+  const band = startPhonemicBand({ grade });
+  const meta = phonemicBandMeta(band);
+  return {
+    count: Math.max(1, meta.count),
+    build(index) {
+      const item = itemAt(band, index);
+      return { stem: item.say, answer: item.answer, aliases: item.also, standard: band, note: meta.name };
     },
   };
 }
@@ -85,6 +98,11 @@ function cellFor(subject: SubjectId, grade: number, step: number): Cell {
   }
   if (subject === "sp") {
     const cell = spCell(grade);
+    cache.set(key, cell);
+    return cell;
+  }
+  if (subject === "pa") {
+    const cell = paCell(grade);
     cache.set(key, cell);
     return cell;
   }
@@ -140,6 +158,7 @@ export function poolCensus(): PoolCensus {
       sg: { total: 0, grades: {} },
       sw: { total: 0, grades: {} },
       sp: { total: 0, grades: {} },
+      pa: { total: 0, grades: {} },
     },
     total: 0,
   } as PoolCensus;

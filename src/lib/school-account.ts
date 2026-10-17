@@ -7,10 +7,111 @@
  * The account id is the lowercase parent email.
  */
 
+import { normalizeAccountEmail } from "./account-scope.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, startBandForGrade, type SightBand } from "./vkole/constants.ts";
 import { cardFromAccount as spCardFromAccount, isSpBand, letterView, spCard, type SpBand } from "./vkole/spelling/items.ts";
+import { cardFromAccount as paCardFromAccount, isPaBand, paCard, type PaBand } from "./vkole/phonemic-awareness/items.ts";
 import { sightCard } from "./vkole/sight-words/words.ts";
+
+/**
+ * The school site's login field. Trailing newlines come off. The rest of the
+ * password, including spaces and capital letters, stays as typed.
+ */
+export function schoolPassword(raw: string): string {
+  return String(raw ?? "").replace(/(?:\r\n|\n|\r)+$/, "");
+}
+
+/** Used when the website's VKOLE_MASTER_EMAIL is unset. */
+export const DEFAULT_WEBSITE_MASTER_EMAIL = "kirksamalpha@dotheimpossible.ai";
+
+/**
+ * The website treats VKOLE_MASTER_EMAIL as one address: trim, then lowercase.
+ * An empty value uses the built-in address. A comma-separated teacher list is
+ * this app's mail list, not that one address, so it keeps the built-in address.
+ */
+export function websiteMasterEmail(raw?: string | null): string {
+  const value = String(raw ?? "").trim().toLowerCase();
+  if (!value || value.includes(",")) return DEFAULT_WEBSITE_MASTER_EMAIL;
+  return value;
+}
+
+export function isWebsiteMasterEmail(email: string, raw?: string | null): boolean {
+  const id = normalizeAccountEmail(email);
+  const master = normalizeAccountEmail(websiteMasterEmail(raw));
+  return id.includes("@") && id === master;
+}
+
+export type SchoolAccessDecision = {
+  fullAccess: boolean;
+  expired: boolean;
+  subscribed: boolean;
+  blocked: boolean;
+  daysLeft: number | null;
+  endsAt: string | null;
+  showTrialPage: boolean;
+};
+
+/**
+ * Whether this sign-in is inside a free week, a paid plan, or the master account.
+ * The master email never reaches the trial-finished page, even when the website
+ * omits access or sends a free week that already ended.
+ */
+export function schoolAccessDecision(input: {
+  email: string;
+  access: "open" | "closed" | null;
+  freeWeekStart: string | null;
+  masterRaw?: string | null;
+  now?: number;
+}): SchoolAccessDecision {
+  const now = input.now ?? Date.now();
+  const week = freeWeek(input.freeWeekStart, now);
+  if (isWebsiteMasterEmail(input.email, input.masterRaw)) {
+    return {
+      fullAccess: true,
+      expired: false,
+      subscribed: true,
+      blocked: false,
+      daysLeft: null,
+      endsAt: null,
+      showTrialPage: false,
+    };
+  }
+  if (input.access !== "open") {
+    return {
+      fullAccess: false,
+      expired: true,
+      subscribed: false,
+      blocked: true,
+      daysLeft: 0,
+      endsAt: week.endsAt,
+      showTrialPage: true,
+    };
+  }
+  const subscribed = week.expired;
+  const blocked = week.expired && !subscribed;
+  return {
+    fullAccess: false,
+    expired: week.expired,
+    subscribed,
+    blocked,
+    daysLeft: week.daysLeft,
+    endsAt: week.endsAt,
+    showTrialPage: blocked,
+  };
+}
+
+/** Same 7-day window as trialState. Kept here so this file stays free of server aliases. */
+function freeWeek(freeWeekStart: string | null, now: number): { endsAt: string; daysLeft: number; expired: boolean } {
+  const start = new Date(freeWeekStart ?? new Date(0).toISOString()).getTime();
+  const end = start + 7 * 24 * 60 * 60 * 1000;
+  const msLeft = end - now;
+  return {
+    endsAt: new Date(end).toISOString(),
+    daysLeft: msLeft <= 0 ? 0 : Math.ceil(msLeft / (24 * 60 * 60 * 1000)),
+    expired: msLeft <= 0,
+  };
+}
 
 export const SCHOOL_ORIGIN = "https://www.dotheimpossible.ai";
 export const SCHOOL_ENGINE_URL = `${SCHOOL_ORIGIN}/engine`;
@@ -35,7 +136,7 @@ export const SCHOOL_ACCOUNT_GONE_MESSAGE =
 
 export const CLOCK_LIMIT_SECONDS = 9000;
 
-export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg", "sw", "sp"] as const;
+export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg", "sw", "sp", "pa"] as const;
 export type EngineId = (typeof ENGINE_IDS)[number];
 
 /** Website tally. `asked` is stored first. `correct` is never above `asked`. Asked 0 is omitted. */
@@ -93,7 +194,7 @@ export type EngineLevel = {
   levelLabel?: string;
   pending?: SgPending;
   mastery?: LevelMastery;
-  /** Sight words and spelling. `index` is the item in `band`. `step` stays 0. */
+  /** Sight words, spelling, and phonemic awareness. `index` is the item in `band`. `step` stays 0. */
   band?: string;
   index?: number;
   word?: string;
@@ -356,6 +457,60 @@ function copyText(row: Record<string, unknown>, key: string): string | undefined
   return typeof row[key] === "string" && row[key] !== "" ? String(row[key]) : undefined;
 }
 
+function savedPaBand(row: Record<string, unknown>): PaBand | undefined {
+  const nested = asRecord(row.pa);
+  const candidates = [row.band, nested?.band, row.levelCode, nested?.levelCode];
+  for (const value of candidates) {
+    if (typeof value === "string" && isPaBand(value)) return value;
+  }
+  return undefined;
+}
+
+function asPaLevel(row: Record<string, unknown>, level: EngineLevel): EngineLevel {
+  const rounded = Math.round(level.grade);
+  level.grade = Number.isFinite(rounded) ? rounded : 0;
+  const nested = asRecord(row.pa);
+  const saved = savedPaBand(row);
+  const age = wholeNumber(row.age) ?? (nested ? wholeNumber(nested.age) : null);
+  const band = saved ?? paCardFromAccount({ grade: Number.isFinite(rounded) ? rounded : Number.NaN, age }, level.grade).band;
+  let index = saved ? (asIndex(row.index) ?? (nested ? asIndex(nested.index) : undefined) ?? 0) : 0;
+  const storedWord = copyText(row, "word") ?? (nested ? copyText(nested, "word") : undefined);
+  if (saved && asIndex(row.index) == null && !(nested && asIndex(nested.index) != null) && storedWord) {
+    const found = paCardFromAccount({ grade: level.grade, band, word: storedWord }, level.grade);
+    if (found.id === storedWord) index = found.index;
+  }
+  const card = paCard(band, index, level.grade);
+  level.step = 0;
+  level.band = card.band;
+  level.index = card.index;
+  level.word = storedWord || card.id;
+  const id = copyText(row, "id");
+  const name = copyText(row, "name");
+  const enteredBy = copyText(row, "enteredBy");
+  const levelCode = copyText(row, "levelCode") ?? (nested ? copyText(nested, "levelCode") : undefined);
+  const levelLabel = copyText(row, "levelLabel") ?? (nested ? copyText(nested, "levelLabel") : undefined);
+  if (id) level.id = id;
+  if (name) level.name = name;
+  if (enteredBy) level.enteredBy = enteredBy;
+  const earnedGrade = wholeNumber(row.earnedGrade);
+  const reached = wholeNumber(row.reached);
+  const missed = wholeNumber(row.missed);
+  const updatedAt = wholeNumber(row.updatedAt);
+  const startingGrade = wholeNumber(row.startingGrade);
+  const streak = wholeNumber(row.streak);
+  const missStreak = wholeNumber(row.missStreak);
+  if (earnedGrade != null) level.earnedGrade = earnedGrade;
+  if (reached != null) level.reached = reached;
+  if (missed != null) level.missed = missed;
+  if (updatedAt != null) level.updatedAt = updatedAt;
+  if (startingGrade != null) level.startingGrade = startingGrade;
+  if (streak != null) level.streak = streak;
+  if (missStreak != null) level.missStreak = missStreak;
+  level.levelCode = levelCode || card.band;
+  level.levelLabel = levelLabel || card.label;
+  return level;
+}
+
 function asLevel(value: unknown, engine: EngineId): EngineLevel | null {
   if (engine === "sp") {
     if (typeof value === "number") return asSpLevel({}, { grade: value, step: 0 });
@@ -364,6 +519,14 @@ function asLevel(value: unknown, engine: EngineId): EngineLevel | null {
     const raw = row.grade ?? row.level;
     const grade = raw == null || raw === "" ? Number.NaN : Number(raw);
     return asSpLevel(row, { grade, step: 0 });
+  }
+  if (engine === "pa") {
+    if (typeof value === "number") return asPaLevel({}, { grade: value, step: 0 });
+    const row = asRecord(value);
+    if (!row) return null;
+    const raw = row.grade ?? row.level;
+    const grade = raw == null || raw === "" ? Number.NaN : Number(raw);
+    return asPaLevel(row, { grade, step: 0 });
   }
   if (engine === "sw") {
     if (typeof value === "number") return asSightLevel({}, { grade: value, step: 0 });
@@ -642,6 +805,18 @@ export function schoolWriteBody(
     seen: unique,
     ...(name ? { student: { name } } : {}),
   };
+}
+
+/**
+ * The sentence to show. A sentence from the website is kept, including on
+ * register and sign-in. The canned mismatch is only the fallback when the
+ * website sent no sentence.
+ */
+export function schoolFailureMessage(signing: boolean, reason: SchoolFailure, spoken: string): string {
+  if (spoken) return spoken;
+  if (reason === "unknown") return "The school website has no password for that email.";
+  if (signing) return "Email or password did not match.";
+  return "The school website did not accept that request.";
 }
 
 export function failureKind(status: number, body: unknown): SchoolFailure {

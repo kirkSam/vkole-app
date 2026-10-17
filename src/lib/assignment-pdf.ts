@@ -66,6 +66,8 @@ export async function buildAssignmentPdf(input: {
         ? "Read each word aloud. A parent may keep the answer key on the last page."
         : input.subject === "sp"
           ? "Say each answer aloud. A parent may keep the answer key on the last page."
+          : input.subject === "pa"
+            ? "Say each prompt aloud. The child answers out loud. A parent may keep the answer key on the last page."
           : "Circle one answer for each item. A parent may keep the answer key on the last page.",
       font,
       11,
