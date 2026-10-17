@@ -127,7 +127,7 @@ function SessionPage() {
   }, [id, userId]);
 
   useEffect(() => {
-    if (!climb || climb.blocked) return;
+    if (!climb || climb.blocked || climb.fullAccess) return;
     const deadline = climb.subscribed ? climb.subscriptionEndsAt : climb.endsAt;
     if (!deadline) return;
     const ms = new Date(deadline).getTime() - Date.now();
@@ -140,7 +140,7 @@ function SessionPage() {
     }
     const id = window.setTimeout(stop, ms);
     return () => window.clearTimeout(id);
-  }, [climb?.id, climb?.endsAt, climb?.subscriptionEndsAt, climb?.subscribed, climb?.renews, climb?.blocked]);
+  }, [climb?.id, climb?.endsAt, climb?.subscriptionEndsAt, climb?.subscribed, climb?.renews, climb?.blocked, climb?.fullAccess]);
 
   useEffect(() => {
     if (!userId || !climb || climb.blocked) return;
@@ -427,7 +427,7 @@ function SessionPage() {
           Session <strong className="font-semibold text-ink">{climb.rightCount}/{climb.asked}</strong>
         </span>
         <span className="rounded-full border border-line bg-surface px-3 py-1">
-          Free period <strong className="font-semibold text-ink">{climb.subscribed ? `subscribed until ${new Date(climb.subscriptionEndsAt ?? climb.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : climb.expired ? "ended" : `${climb.daysLeft} days`}</strong>
+          {climb.fullAccess ? "Access" : "Free period"} <strong className="font-semibold text-ink">{climb.fullAccess ? "open" : climb.subscribed ? `subscribed until ${new Date(climb.subscriptionEndsAt ?? climb.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : climb.expired ? "ended" : `${climb.daysLeft} days`}</strong>
         </span>
         {climb.age != null ? (
           <span className="rounded-full border border-line bg-surface px-3 py-1">

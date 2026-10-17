@@ -34,18 +34,69 @@ async function writeWipeVersion(sql: Sql): Promise<void> {
   `;
 }
 
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+/** A claim older than this can be taken over. A live claim is left alone. */
+const CLAIM_STALE_MS = 15_000;
+
+function pendingStamp(value: string): number {
+  return Number(value.slice("pending:".length).split(":")[0]);
+}
+
+function pendingIsFresh(value: string, now = Date.now()): boolean {
+  const stamp = pendingStamp(value);
+  return Number.isFinite(stamp) && now - stamp < CLAIM_STALE_MS;
+}
+
 /**
  * Delete stored accounts once, then remember the version.
  * A second call leaves rows created after the first wipe.
+ * Two processes can both see an empty version. Only the one that claims the
+ * flag deletes rows. The other waits until that claim is finished, so a
+ * session inserted after the wipe is not deleted by the loser.
  * Returns true when this call performed the delete.
  */
 export async function wipeStoredAccountsOnce(sql: Sql): Promise<boolean> {
-  const current = await readWipeVersion(sql);
-  if (versionIsCurrent(current)) return false;
-  await purgeAllAccountRows(sql);
-  await writeWipeVersion(sql);
-  console.info("[account-wipe] cleared stored accounts");
-  return true;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const current = await readWipeVersion(sql);
+    if (versionIsCurrent(current)) return false;
+    if (current?.startsWith("pending:") && pendingIsFresh(current)) {
+      await wait(50);
+      continue;
+    }
+    const claim = `pending:${Date.now()}:${crypto.randomUUID()}`;
+    const staleBefore = `pending:${Date.now() - CLAIM_STALE_MS}`;
+    const won = await sql<{ value: string }>`
+      insert into app_settings (key, value)
+      values (${WIPE_KEY}, ${claim})
+      on conflict (key) do update
+        set value = excluded.value
+        where app_settings.value is distinct from ${ACCOUNT_WIPE_VERSION}
+          and (
+            app_settings.value not like 'pending:%'
+            or app_settings.value < ${staleBefore}
+          )
+      returning value
+    `;
+    if (won[0]?.value !== claim) {
+      await wait(50);
+      continue;
+    }
+    try {
+      await purgeAllAccountRows(sql);
+      await writeWipeVersion(sql);
+      console.info("[account-wipe] cleared stored accounts");
+      return true;
+    } catch (err) {
+      await sql`delete from app_settings where key = ${WIPE_KEY} and value = ${claim}`;
+      throw err;
+    }
+  }
+  return false;
 }
 
 /** Run the row wipe before this process serves account data. Safe to call twice. */
