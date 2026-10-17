@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EnrollRouteImport } from './routes/enroll'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ZpdRouteImport } from './routes/zpd'
 import { Route as SessionIdRouteImport } from './routes/session.$id'
 import { Route as ApiAssignmentIdRouteImport } from './routes/api/assignment/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -30,6 +31,11 @@ const EnrollRoute = EnrollRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ZpdRoute = ZpdRouteImport.update({
+  id: '/zpd',
+  path: '/zpd',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SessionIdRoute = SessionIdRouteImport.update({
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/enroll': typeof EnrollRoute
   '/login': typeof LoginRoute
+  '/zpd': typeof ZpdRoute
   '/session/$id': typeof SessionIdRoute
   '/api/assignment/$id': typeof ApiAssignmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/enroll': typeof EnrollRoute
   '/login': typeof LoginRoute
+  '/zpd': typeof ZpdRoute
   '/session/$id': typeof SessionIdRoute
   '/api/assignment/$id': typeof ApiAssignmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/enroll': typeof EnrollRoute
   '/login': typeof LoginRoute
+  '/zpd': typeof ZpdRoute
   '/session/$id': typeof SessionIdRoute
   '/api/assignment/$id': typeof ApiAssignmentIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/enroll'
     | '/login'
+    | '/zpd'
     | '/session/$id'
     | '/api/assignment/$id'
     | '/api/auth/$'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/enroll'
     | '/login'
+    | '/zpd'
     | '/session/$id'
     | '/api/assignment/$id'
     | '/api/auth/$'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/enroll'
     | '/login'
+    | '/zpd'
     | '/session/$id'
     | '/api/assignment/$id'
     | '/api/auth/$'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EnrollRoute: typeof EnrollRoute
   LoginRoute: typeof LoginRoute
+  ZpdRoute: typeof ZpdRoute
   SessionIdRoute: typeof SessionIdRoute
   ApiAssignmentIdRoute: typeof ApiAssignmentIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -142,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/zpd': {
+      id: '/zpd'
+      path: '/zpd'
+      fullPath: '/zpd'
+      preLoaderRoute: typeof ZpdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/session/$id': {
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EnrollRoute: EnrollRoute,
   LoginRoute: LoginRoute,
+  ZpdRoute: ZpdRoute,
   SessionIdRoute: SessionIdRoute,
   ApiAssignmentIdRoute: ApiAssignmentIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

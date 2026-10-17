@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { ParentLogin } from "@/components/parent-login";
@@ -21,6 +21,7 @@ import { useRefetchWhenConnectorReady } from "@/lib/app-data/use-connector-readi
 import { endReasonSentence, type EndReason } from "@/lib/academic-email";
 import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
 import { ACCOUNT_GONE_FLAG } from "@/lib/account-purge";
+import { takeZpdReturn } from "@/lib/zpd-info";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -40,6 +41,14 @@ function Home() {
   const touring = useRef(false);
   const stageRef = useRef(stage);
   stageRef.current = stage;
+
+  useLayoutEffect(() => {
+    try {
+      if (takeZpdReturn(sessionStorage)) setStage("app");
+    } catch {
+      /* storage may be unavailable */
+    }
+  }, []);
 
   useEffect(() => {
     try {
