@@ -145,6 +145,8 @@ describe("clock and seen writes", () => {
     assert.equal(body.levels.sp?.grade, 1);
     assert.equal("student" in body, false);
     assert.equal("id" in body, false);
+    const enrolled = schoolWriteBody({ m: { grade: 2, step: 0 } }, 0, 0, [], { name: "Ada", age: 8, startingGrade: 2 });
+    assert.deepEqual(enrolled.student, { name: "Ada", age: 8, startingGrade: 2 });
   });
 });
 

@@ -246,6 +246,8 @@ export type FamilyWrite = {
   levels: Partial<Record<LevelKey, EngineLevel>>;
   clock: { seconds: number };
   seen: SeenQuestion[];
+  /** Set on the first child-name save. The website ignores a bare studentName field. */
+  student?: { name: string; age: number | null; startingGrade: number | null };
 };
 
 /**
@@ -973,6 +975,7 @@ export function schoolWriteBody(
   localClock: number,
   remoteClock: number,
   seen: SeenQuestion[],
+  student?: { name: string; age?: number | null; startingGrade?: number | null },
 ): FamilyWrite {
   const unique: SeenQuestion[] = [];
   const keys = new Set<string>();
@@ -986,10 +989,22 @@ export function schoolWriteBody(
   }
   const levels: FamilyWrite["levels"] = { ...level };
   if (levels.sp) levels.sp = toWebsiteSpLevel(levels.sp);
+  const name = student?.name.trim() ?? "";
+  const age = student?.age;
+  const starting = student?.startingGrade;
   return {
     levels,
     clock: { seconds: clockToWrite(localClock, remoteClock) },
     seen: unique,
+    ...(name
+      ? {
+          student: {
+            name,
+            age: Number.isInteger(age) ? (age as number) : null,
+            startingGrade: Number.isInteger(starting) && (starting as number) >= 1 && (starting as number) <= 12 ? (starting as number) : null,
+          },
+        }
+      : {}),
   };
 }
 

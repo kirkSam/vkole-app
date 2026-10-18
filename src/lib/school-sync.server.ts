@@ -377,15 +377,24 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
   const level = await collectLevel(sql, userId, remoteLevel);
   const localClock = await collectClock(sql, userId);
   const seen = await collectSeen(sql, userId);
-  const named = await sql<{ child_name: string }>`
-    select child_name from climbs
+  const named = await sql<{ child_name: string; age: number | string | null; start_grade: number | string | null }>`
+    select child_name, age, start_grade from climbs
     where user_id = ${userId} and child_name is not null and trim(child_name) <> ''
     order by created_at asc
     limit 1
   `;
   const studentName = (mirror?.studentName || named[0]?.child_name || "").trim();
-  const body = schoolWriteBody(level, localClock, mirror?.clockSeconds ?? 0, seen);
-  await writeSchoolAccount(userId, body);
+  const age = named[0]?.age == null ? null : Number(named[0].age);
+  const startingGrade = named[0]?.start_grade == null ? null : Number(named[0].start_grade);
+  const grant = await readAccountGrant(sql, userId);
+  const body = schoolWriteBody(
+    level,
+    localClock,
+    mirror?.clockSeconds ?? 0,
+    seen,
+    studentName ? { name: studentName, age, startingGrade } : undefined,
+  );
+  await writeSchoolAccount(userId, body, grant ? { token: grant.token, expiresAt: grant.expiresAt } : undefined);
   const next: SchoolProfile = {
     access: mirror?.access ?? "closed",
     studentName: studentName || mirror?.studentName || "",
