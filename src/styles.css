@@ -80,14 +80,23 @@
 .pastel-nav .vkole-nav {
   color: #1d2420;
 }
+.pastel-nav[data-engine="m"],
 .pastel-nav [data-engine="m"] { background-color: #d4e6f7; }
+.pastel-nav[data-engine="ela"],
 .pastel-nav [data-engine="ela"] { background-color: #d5f0e4; }
+.pastel-nav[data-engine="ss"],
 .pastel-nav [data-engine="ss"] { background-color: #e4dcf6; }
+.pastel-nav[data-engine="gen"],
 .pastel-nav [data-engine="gen"] { background-color: #fde4d2; }
+.pastel-nav[data-engine="sg"],
 .pastel-nav [data-engine="sg"] { background-color: #f8f0c4; }
+.pastel-nav[data-engine="sw"],
 .pastel-nav [data-engine="sw"] { background-color: #f8dce8; }
+.pastel-nav[data-engine="sp"],
 .pastel-nav [data-engine="sp"] { background-color: #d4f0ee; }
+.pastel-nav[data-engine="pa"],
 .pastel-nav [data-engine="pa"] { background-color: #eadff6; }
+.pastel-nav[data-engine="zpd"],
 .pastel-nav [data-engine="zpd"] { background-color: #f6e6d8; }
 .pastel-nav [data-engine="m"]:hover,
 .pastel-nav [data-engine="m"]:focus-visible { background-color: #c3daf2; }
@@ -130,6 +139,9 @@
 .pastel-nav .engine-rail a.is-current {
   color: #1d2420;
   box-shadow: inset 0 -2px 0 #1d2420;
+}
+.pastel-nav.engine-card {
+  color: #1d2420;
 }
 
 .office-engine-picks {

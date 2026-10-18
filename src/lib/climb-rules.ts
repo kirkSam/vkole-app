@@ -76,7 +76,7 @@ export function subjectMeta(id: SubjectId) {
   return found;
 }
 
-/** Website nav button. Singapore and Sight Words have no slash. Spelling uses VKOLE/Spelling ZPD. Phonemic awareness uses VKOLE/PA ZPD. */
+/** App nav button. Singapore and Sight Words have no slash. Spelling uses VKOLE/Spelling ZPD. Phonemic awareness uses VKOLE/Phonemic Awareness ZPD. */
 const ENGINE_NAV_LABEL: Record<SubjectId, string> = {
   m: "VKOLE/M ZPD",
   ela: "VKOLE/ELA ZPD",
@@ -85,7 +85,7 @@ const ENGINE_NAV_LABEL: Record<SubjectId, string> = {
   sg: "VKOLE Singapore ZPD",
   sw: "VKOLE Sight Words ZPD",
   sp: "VKOLE/Spelling ZPD",
-  pa: "VKOLE/PA ZPD",
+  pa: "VKOLE/Phonemic Awareness ZPD",
 };
 
 /** Website engine-rail and office engine picks. Headings stay VKOLE/{code}. */

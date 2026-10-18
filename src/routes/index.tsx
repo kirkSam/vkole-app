@@ -22,6 +22,7 @@ import { endReasonSentence, type EndReason } from "@/lib/academic-email";
 import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
 import { ACCOUNT_GONE_FLAG } from "@/lib/account-purge";
 import { takeZpdReturn } from "@/lib/zpd-info";
+import { PASTEL_NAV } from "@/lib/pastel-nav";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -585,7 +586,12 @@ function AppGate({
   }
 
   return (
-    <form id={`engine-${subject}`} onSubmit={submit} className="scroll-mt-6 rounded-2xl border border-line bg-surface p-5">
+    <form
+      id={`engine-${subject}`}
+      data-engine={subject}
+      onSubmit={submit}
+      className={PASTEL_NAV ? "engine-card pastel-nav scroll-mt-6 rounded-2xl border border-line p-5" : "scroll-mt-6 rounded-2xl border border-line bg-surface p-5"}
+    >
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="font-display text-2xl text-ink">VKOLE/{meta.code}</h2>
         <span className="text-sm text-muted">

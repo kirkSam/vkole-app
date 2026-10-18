@@ -62,7 +62,7 @@ describe("canonical phonemic awareness file", () => {
     assert.equal(canonicalBands()[7]?.grade, "2nd");
     assert.equal(canonicalBands()[7]?.last, "pd-sub-log");
     assert.equal(itemAt("PS", 0).boxes, 3);
-    assert.equal(engineNavLabel("pa"), "VKOLE/PA ZPD");
+    assert.equal(engineNavLabel("pa"), "VKOLE/Phonemic Awareness ZPD");
     assert.equal(enginePickLabel("pa"), "Phonemic Awareness ZPD");
   });
 });
