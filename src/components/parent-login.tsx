@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import { schoolPasswordConfirm, schoolPasswordReset, schoolSignIn, schoolSignUp } from "@/lib/school-auth";
 import { schoolScreen } from "@/lib/school-account";
 import { SIGN_IN_AGAIN_NOTE } from "@/lib/account-purge";
+import { rememberAppSession } from "@/lib/auth/client";
 import { recordLogin } from "@/lib/ledger";
 import { beginSharedTrial } from "@/lib/climbs";
 import { SchoolAccountScreen } from "@/components/school-account-screen";
@@ -22,7 +22,6 @@ export function ParentLogin({
   initialMode?: "in" | "up";
   onAccountReady?: () => void;
 }) {
-  const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,6 +46,16 @@ export function ParentLogin({
     setError("");
     setNote("");
     setPending(false);
+  }
+
+  async function enterApp(sessionToken: string) {
+    if (sessionToken) rememberAppSession(sessionToken);
+    await recordLogin({ data: { kind: mode === "up" ? "sign-up" : "sign-in" } }).catch(() => undefined);
+    sessionStorage.removeItem("vkole-sync-trial");
+    sessionStorage.removeItem("vkole-account-gone");
+    await beginSharedTrial().catch(() => undefined);
+    onAccountReady?.();
+    window.location.assign("/?open=1");
   }
 
   async function sendCode() {
@@ -107,23 +116,19 @@ export function ParentLogin({
           setError(res.message);
           return;
         }
-      } else {
-        const res = await schoolSignIn({ data: { email: email.trim(), password } });
-        if (!res.ok) {
-          if (res.reason === "gone") {
-            const { clearStaleSignIn } = await import("@/lib/account-purge");
-            await clearStaleSignIn();
-          }
-          setError(res.message);
-          return;
-        }
+        await enterApp(res.sessionToken);
+        return;
       }
-      await recordLogin({ data: { kind: mode === "up" ? "sign-up" : "sign-in" } }).catch(() => undefined);
-      sessionStorage.removeItem("vkole-sync-trial");
-      sessionStorage.removeItem("vkole-account-gone");
-      await beginSharedTrial().catch(() => undefined);
-      onAccountReady?.();
-      await navigate({ to: "/" });
+      const res = await schoolSignIn({ data: { email: email.trim(), password } });
+      if (!res.ok) {
+        if (res.reason === "gone") {
+          const { clearStaleSignIn } = await import("@/lib/account-purge");
+          await clearStaleSignIn();
+        }
+        setError(res.message);
+        return;
+      }
+      await enterApp(res.sessionToken);
     } catch (err) {
       setError(err instanceof Error ? err.message : "That step failed.");
     } finally {

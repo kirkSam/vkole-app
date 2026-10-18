@@ -92,7 +92,7 @@ export async function adoptLocalAccount(sql: Sql, email: string): Promise<void> 
   }
 }
 
-export async function openSchoolSession(email: string, name: string): Promise<void> {
+export async function openSchoolSession(email: string, name: string): Promise<string> {
   const id = email.trim().toLowerCase();
   if (!isSchoolAccountId(id)) throw new Error("The school account id has to be the parent email.");
   const sql = await getSql();
@@ -130,6 +130,7 @@ export async function openSchoolSession(email: string, name: string): Promise<vo
   };
   setCookie(SESSION_TOKEN_COOKIE, signed, cookie);
   setCookie("__Host-grok-auth.session_data", "", { ...cookie, maxAge: 0 });
+  return token;
 }
 
 export async function localEmailExists(email: string): Promise<boolean> {

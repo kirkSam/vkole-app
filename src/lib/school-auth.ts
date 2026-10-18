@@ -34,7 +34,7 @@ function parse<T>(schema: z.ZodType<T>, data: unknown): T {
 }
 
 export type SchoolAuthResult =
-  | { ok: true }
+  | { ok: true; sessionToken: string }
   | { ok: false; reason: SchoolFailure | "legacy" | "mail"; message: string };
 
 function failed(reason: Extract<SchoolAuthResult, { ok: false }>["reason"], message: string): SchoolAuthResult {
@@ -55,8 +55,8 @@ export const schoolSignUp = createServerFn({ method: "POST" })
       }
       const { rememberAccountSession } = await import("./school-sync.server");
       const profile = await rememberAccountSession(account);
-      await openSchoolSession(account.id, profile.studentName || data.name);
-      return { ok: true };
+      const sessionToken = await openSchoolSession(account.id, profile.studentName || data.name);
+      return { ok: true, sessionToken };
     } catch (err) {
       if (err instanceof SchoolCallError) return failed(err.reason, err.message);
       return failed("offline", SCHOOL_OFFLINE_MESSAGE);
@@ -78,8 +78,8 @@ export const schoolSignIn = createServerFn({ method: "POST" })
       }
       const { rememberAccountSession } = await import("./school-sync.server");
       const profile = await rememberAccountSession(account);
-      await openSchoolSession(account.id, profile.studentName || "Parent");
-      return { ok: true };
+      const sessionToken = await openSchoolSession(account.id, profile.studentName || "Parent");
+      return { ok: true, sessionToken };
     } catch (err) {
       if (err instanceof SchoolCallError) {
         if (err.reason === "gone") {
@@ -109,7 +109,7 @@ export const schoolPasswordReset = createServerFn({ method: "POST" })
     const email = data.email.trim().toLowerCase();
     try {
       await requestSchoolReset(email);
-      return { ok: true };
+      return { ok: true, sessionToken: "" };
     } catch (err) {
       if (err instanceof SchoolCallError) return failed(err.reason, err.message);
       return failed("offline", SCHOOL_OFFLINE_MESSAGE);
@@ -126,7 +126,7 @@ export const schoolPasswordConfirm = createServerFn({ method: "POST" })
         code: data.code,
         newPassword: data.newPassword,
       });
-      return { ok: true };
+      return { ok: true, sessionToken: "" };
     } catch (err) {
       if (err instanceof SchoolCallError) return failed(err.reason, err.message);
       return failed("offline", SCHOOL_OFFLINE_MESSAGE);

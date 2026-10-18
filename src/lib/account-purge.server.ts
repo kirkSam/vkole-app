@@ -141,7 +141,7 @@ export async function forgetLocalAccount(
 
   for (const table of ACCOUNT_TABLES) {
     if (table.sqlName === '"user"' || table.sqlName === '"verification"') continue;
-    if (keepSignIn && (table.sqlName === '"session"' || table.sqlName === '"account"')) continue;
+    if (keepSignIn && (table.sqlName === '"session"' || table.sqlName === '"account"' || table.sqlName === "school_mirror")) continue;
     if (!(await tableExists(sql, table.regclass))) continue;
     if (table.userColumn) {
       for (const userId of ids) {
@@ -183,7 +183,8 @@ export async function forgetLocalAccount(
 
 /**
  * The website account is fresh: drop this email's copied climbs, login rows,
- * and the other local student rows. The signed-in user and session stay.
+ * and the other local student rows. The signed-in user, session, and website
+ * token stay.
  */
 export async function clearFreshLocalRows(sql: Sql, id: string): Promise<Record<string, number>> {
   return forgetLocalAccount(sql, id, { keepSignIn: true });

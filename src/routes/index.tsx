@@ -48,6 +48,19 @@ function Home() {
     } catch {
       /* storage may be unavailable */
     }
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("open") !== "1") return;
+    params.delete("open");
+    const next = params.toString();
+    window.history.replaceState(null, "", next ? `/?${next}` : "/");
+    setUnpaid(false);
+    setGate("open");
+    try {
+      sessionStorage.removeItem("vkole-unpaid");
+    } catch {
+      /* storage may be unavailable */
+    }
+    setStage("app");
   }, []);
 
   useEffect(() => {
@@ -68,19 +81,6 @@ function Home() {
     const engineId = window.location.hash.replace(/^#engine-/, "");
     if (SUBJECTS.some((subject) => subject.id === engineId)) setStage("app");
     const params = new URLSearchParams(window.location.search);
-    if (params.get("open") === "1") {
-      params.delete("open");
-      const next = params.toString();
-      window.history.replaceState(null, "", next ? `/?${next}` : "/");
-      setUnpaid(false);
-      setGate("open");
-      try {
-        sessionStorage.removeItem("vkole-unpaid");
-      } catch {
-        /* storage may be unavailable */
-      }
-      setStage("app");
-    }
     if (params.get("new") !== "1") return;
     params.delete("new");
     const next = params.toString();

@@ -60,6 +60,13 @@ function setBearerToken(token: string | null): void {
   }
 }
 
+/** Keep this app's session for the live preview, where the cookie is partitioned. */
+export function rememberAppSession(token: string): void {
+  const value = token.trim();
+  if (!value) return;
+  setBearerToken(value);
+}
+
 /**
  * The sandbox live preview runs this app inside an iframe on a `*.grok-sandbox.com`
  * host, where a full-page redirect to the broker can't work — so sign-in uses a
