@@ -5,7 +5,7 @@
  * The website account routes take no shared secret and no cookies.
  * A browser request that sends X-Vkole-Secret is refused, so this client
  * does not send that header. The bearer token from sign-in or register
- * authorizes GET and POST /api/account/family.
+ * authorizes GET, POST, and PATCH /api/account/family.
  */
 import { accountEmailForms, normalizeAccountEmail, sameAccount } from "./account-scope.ts";
 import {
@@ -65,7 +65,7 @@ function signInAgain(spoken = ""): SchoolCallError {
 }
 
 async function callSchool(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH",
   path: string,
   body: unknown | undefined,
   deps?: CallDeps,
@@ -258,6 +258,45 @@ export async function readSchoolAccount(id: string, deps?: CallDeps): Promise<Sc
   const parsed = parseSchoolProfile(body, email);
   if (!parsed) throw new SchoolCallError("rejected", "The school website did not open the account.");
   return masterProfile(email, parsed.profile);
+}
+
+/**
+ * Save the child on the website before a level is opened.
+ * The website keeps `{ student: { name, startingGrade } }`.
+ * `{ studentName }` alone comes back unchanged. `{ student: { name } }`
+ * without a grade is refused with "Enter a starting grade from 1 to 12."
+ */
+export async function saveSchoolStudent(
+  id: string,
+  input: { name: string; startingGrade: number; age?: number },
+  deps?: CallDeps,
+): Promise<SchoolProfile> {
+  const email = accountId(id);
+  const name = input.name.trim().replace(/\s+/g, " ");
+  const startingGrade = Math.round(input.startingGrade);
+  if (!name) throw new SchoolCallError("rejected", "Enter the student’s first name.");
+  if (!Number.isInteger(startingGrade) || startingGrade < 1 || startingGrade > 12) {
+    throw new SchoolCallError("rejected", "Enter a starting grade from 1 to 12.");
+  }
+  const student: { name: string; startingGrade: number; age?: number } = { name, startingGrade };
+  if (input.age != null && Number.isInteger(input.age)) student.age = input.age;
+  const token = await tokenFor(email, deps);
+  let response: unknown;
+  try {
+    response = await callSchool("PATCH", PATHS.family, { student }, { ...deps, token });
+  } catch (err) {
+    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token) {
+      await clearStoredGrant(email);
+    }
+    throw err;
+  }
+  const parsed = parseSchoolProfile(response, email);
+  const saved = parsed ? masterProfile(email, parsed.profile) : null;
+  if (!saved?.studentName) {
+    const spoken = websiteErrorText(response);
+    throw new SchoolCallError("rejected", spoken || "The school website did not save the student.");
+  }
+  return saved;
 }
 
 export async function writeSchoolAccount(id: string, body: FamilyWrite, deps?: CallDeps): Promise<SchoolProfile | null> {

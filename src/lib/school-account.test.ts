@@ -29,6 +29,7 @@ import {
   readSchoolAccount,
   registerSchoolAccount,
   requestSchoolReset,
+  saveSchoolStudent,
   signInSchoolAccount,
   studentCheck,
   writeSchoolAccount,
@@ -509,6 +510,65 @@ describe("server calls", () => {
           },
         ),
       (err: unknown) => err instanceof SchoolCallError && err.reason === "rejected",
+    );
+  });
+
+  it("registers, then saves the child name with that same token", async () => {
+    const email = "ada@family.test";
+    const calls: { path: string; method: string; authorization: string | null; body: unknown }[] = [];
+    const fetchImpl = async (input: string, init?: RequestInit) => {
+      const path = String(input);
+      const headers = new Headers(init?.headers);
+      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      calls.push({ path, method: String(init?.method), authorization: headers.get("authorization"), body });
+      assert.equal(headers.get("x-vkole-secret"), null);
+      assert.equal(headers.get("cookie"), null);
+      if (path.endsWith("/api/account/register")) {
+        return jsonResponse(200, session(email, { access: "closed", studentName: "", student: { name: "" } }, "register-token"));
+      }
+      assert.equal(headers.get("authorization"), "Bearer register-token");
+      if (body && typeof body === "object" && "student" in body) {
+        return jsonResponse(200, {
+          family: {
+            email,
+            access: "closed",
+            studentName: "Ada",
+            student: { name: "Ada", age: 8, startingGrade: 2 },
+          },
+        });
+      }
+      return jsonResponse(400, { error: "Enter a starting grade from 1 to 12." });
+    };
+    const account = await registerSchoolAccount(
+      { email, password: "long-enough", name: "Parent" },
+      { fetch: fetchImpl },
+    );
+    assert.equal(account.token, "register-token");
+    assert.equal(account.expiresAt, EXPIRES);
+    const saved = await saveSchoolStudent(
+      account.id,
+      { name: "Ada", startingGrade: 2, age: 8 },
+      { token: account.token, expiresAt: account.expiresAt, fetch: fetchImpl },
+    );
+    assert.equal(saved.studentName, "Ada");
+    assert.equal(isFreshSchoolProfile(saved), false);
+    assert.equal(calls[0]?.path, "https://www.dotheimpossible.ai/api/account/register");
+    assert.equal(calls[1]?.path, "https://www.dotheimpossible.ai/api/account/family");
+    assert.equal(calls[1]?.method, "PATCH");
+    assert.equal(calls[1]?.authorization, "Bearer register-token");
+    assert.deepEqual(calls[1]?.body, { student: { name: "Ada", startingGrade: 2, age: 8 } });
+    await assert.rejects(
+      () =>
+        saveSchoolStudent(
+          account.id,
+          { name: "Ada", startingGrade: 2 },
+          {
+            token: account.token,
+            expiresAt: account.expiresAt,
+            fetch: async () => jsonResponse(400, { error: "Enter a starting grade from 1 to 12." }),
+          },
+        ),
+      (err: unknown) => err instanceof SchoolCallError && err.message === "Enter a starting grade from 1 to 12.",
     );
   });
 

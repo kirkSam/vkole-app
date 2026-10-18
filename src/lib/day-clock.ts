@@ -237,6 +237,24 @@ export const enterEngine = createServerFn({ method: "POST" })
       if (websiteStudent === "new" && (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12)) {
         return { status: "new" as const };
       }
+      if (websiteStudent === "new" && data.grade != null) {
+        const { saveSchoolStudent } = await import("@/lib/school-account.server");
+        const saved = await saveSchoolStudent(context.userId, {
+          name: data.firstName.trim(),
+          startingGrade: data.grade,
+          ...(data.age != null ? { age: data.age } : {}),
+        });
+        const { readSchoolMirror, saveSchoolMirror } = await import("@/lib/school-mirror.server");
+        const mirror = await readSchoolMirror(sql, context.userId);
+        if (mirror) {
+          await saveSchoolMirror(
+            sql,
+            context.userId,
+            { ...mirror, studentName: saved.studentName || data.firstName.trim(), seen: [] },
+            false,
+          );
+        }
+      }
     }
     const key = childKey(data.firstName);
     const existing = await sql<{ id: string; level: number | string; subject: string }>`
