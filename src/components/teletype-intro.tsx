@@ -17,7 +17,6 @@ const AFTER_CAN_MS = 510;
 type Phase = "lead" | "can" | "price" | "done";
 
 export function TeletypeIntro({
-  onSplash,
   onContinue,
 }: {
   onSplash: () => void;
@@ -88,13 +87,7 @@ export function TeletypeIntro({
 
   return (
     <main className="flex min-h-svh flex-col bg-[#05070d] px-6 py-10 text-[#f4f1ea]">
-      <button
-        type="button"
-        onClick={onSplash}
-        className="vkole-nav text-left font-display text-sm leading-tight tracking-wide text-[#e6c65c]"
-      >
-        {APP_NAME}
-      </button>
+      <p className="text-left font-display text-sm leading-tight tracking-wide text-[#e6c65c]">{APP_NAME}</p>
       <p className="mt-8 max-w-2xl font-mono text-xl leading-relaxed" aria-label={SPOKEN}>
         {lead}
         {phase === "lead" ? caret : null}
