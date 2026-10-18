@@ -1,6 +1,11 @@
 /**
  * Server-only calls to the school website account API.
- * Never import this from a client component. The secret stays here.
+ * Never import this from a client component.
+ *
+ * The website account routes take no shared secret and no cookies.
+ * A browser request that sends X-Vkole-Secret is refused, so this client
+ * does not send that header. The bearer token from sign-in or register
+ * authorizes GET and POST /api/account/family.
  */
 import { accountEmailForms, normalizeAccountEmail, sameAccount } from "./account-scope.ts";
 import {
@@ -8,26 +13,30 @@ import {
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_ORIGIN,
   SCHOOL_WAIT_MESSAGE,
+  accountTokenExpired,
   decideStudent,
   failureKind,
   isWebsiteMasterEmail,
+  parseAccountSession,
   parseSchoolProfile,
-  resetCode,
   schoolFailureMessage,
   schoolPassword,
   websiteErrorText,
+  type AccountSession,
+  type FamilyWrite,
   type SchoolFailure,
   type SchoolProfile,
 } from "./school-account.ts";
 
 const PATHS = {
-  register: "/api/vkole/register",
-  signIn: "/api/vkole/sign-in",
-  read: "/api/vkole/read",
-  write: "/api/vkole/write",
-  passwordReset: "/api/vkole/password-reset",
-  passwordResetConfirm: "/api/vkole/password-reset/confirm",
+  register: "/api/account/register",
+  signIn: "/api/account/sign-in",
+  family: "/api/account/family",
+  sendCode: "/api/account/forgot-password/send-code",
+  confirm: "/api/account/forgot-password/confirm",
 } as const;
+
+const RETIRED_RESET = "/api/vkole/password-reset";
 
 export class SchoolCallError extends Error {
   readonly reason: SchoolFailure;
@@ -42,36 +51,48 @@ type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
 type CallDeps = {
   fetch?: FetchLike;
-  secret?: string;
+  token?: string;
+  expiresAt?: string;
+  now?: number;
 };
-
-function secretFrom(deps?: CallDeps): string {
-  const secret = (deps?.secret ?? process.env.VKOLE_SHARED_SECRET ?? "").trim();
-  return secret;
-}
 
 function offline(): SchoolCallError {
   return new SchoolCallError("offline", SCHOOL_OFFLINE_MESSAGE);
 }
 
-async function postSchool(path: string, body: unknown, deps?: CallDeps): Promise<unknown> {
-  const secret = secretFrom(deps);
-  if (!secret) throw offline();
+function signInAgain(spoken = ""): SchoolCallError {
+  return new SchoolCallError("unauthorized", spoken.trim() || "Sign in again.");
+}
+
+async function callSchool(
+  method: "GET" | "POST",
+  path: string,
+  body: unknown | undefined,
+  deps?: CallDeps,
+): Promise<unknown> {
+  if (path === RETIRED_RESET || path.startsWith(`${RETIRED_RESET}/`)) {
+    throw new SchoolCallError("rejected", "The school website did not accept that request.");
+  }
   const headers = new Headers();
-  headers.set("content-type", "application/json");
   headers.set("accept", "application/json");
-  headers.set("x-vkole-secret", secret);
+  if (body !== undefined) headers.set("content-type", "application/json");
+  if (deps?.token) headers.set("authorization", `Bearer ${deps.token}`);
   headers.delete("origin");
   headers.delete("Origin");
+  headers.delete("cookie");
+  headers.delete("Cookie");
+  headers.delete("x-vkole-secret");
+  headers.delete("X-Vkole-Secret");
   const fetchImpl = deps?.fetch ?? fetch;
   let response: Response;
   try {
     response = await fetchImpl(`${SCHOOL_ORIGIN}${path}`, {
-      method: "POST",
+      method,
       headers,
-      body: JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
       redirect: "manual",
       referrerPolicy: "no-referrer",
+      credentials: "omit",
       signal: AbortSignal.timeout(12_000),
     });
   } catch {
@@ -89,11 +110,15 @@ async function postSchool(path: string, body: unknown, deps?: CallDeps): Promise
     }
   }
   if (response.status >= 500) throw offline();
+  if (response.status === 401 && deps?.token) {
+    throw signInAgain(websiteErrorText(parsed));
+  }
   const reason = failureKind(response.status, parsed);
-  if (!response.ok || (parsed && typeof parsed === "object" && (parsed as { ok?: boolean }).ok === false)) {
+  if (!response.ok) {
     if (reason === "offline") throw offline();
     if (reason === "wait") throw new SchoolCallError("wait", SCHOOL_WAIT_MESSAGE);
     if (reason === "gone") throw new SchoolCallError("gone", SCHOOL_ACCOUNT_GONE_MESSAGE);
+    if (reason === "unauthorized") throw signInAgain(websiteErrorText(parsed));
     const signing = path === PATHS.signIn || path === PATHS.register;
     const spoken = redactPassword(websiteErrorText(parsed), passwordOf(body));
     throw new SchoolCallError(reason, schoolFailureMessage(signing, reason, spoken));
@@ -126,29 +151,57 @@ function accountId(raw: string): string {
   return email;
 }
 
+async function storedGrant(email: string): Promise<{ token: string; expiresAt: string } | null> {
+  const { getSql } = await import("./db");
+  const { readAccountGrant } = await import("./school-mirror.server");
+  return readAccountGrant(await getSql(), email);
+}
+
+async function clearStoredGrant(email: string): Promise<void> {
+  try {
+    const { getSql } = await import("./db");
+    const { clearAccountGrant } = await import("./school-mirror.server");
+    await clearAccountGrant(await getSql(), email);
+  } catch {
+    /* A caller that passed the token clears the row itself. */
+  }
+}
+
+async function tokenFor(email: string, deps?: CallDeps): Promise<string> {
+  if (deps?.expiresAt && accountTokenExpired(deps.expiresAt, deps.now)) {
+    if (!deps.token) await clearStoredGrant(email);
+    throw signInAgain();
+  }
+  if (deps?.token) return deps.token;
+  const grant = await storedGrant(email);
+  if (!grant || accountTokenExpired(grant.expiresAt, deps?.now)) {
+    await clearStoredGrant(email);
+    throw signInAgain();
+  }
+  return grant.token;
+}
+
 export async function registerSchoolAccount(
-  input: { email: string; password: string; name: string },
+  input: { email: string; password: string; name: string; studentName?: string },
   deps?: CallDeps,
-): Promise<{ id: string; profile: SchoolProfile }> {
+): Promise<AccountSession> {
   const email = accountId(input.email);
-  const name = input.name.trim() || "Parent";
   const password = schoolPassword(input.password);
-  const body = await postSchool(PATHS.register, { email, password, name, parentName: name }, deps);
-  const parsed = parseSchoolProfile(body);
-  if (!parsed || !sameAccount(parsed.id, email)) {
+  const studentName = input.studentName?.trim() ?? "";
+  const payload: { email: string; password: string; studentName?: string } = { email, password };
+  if (studentName) payload.studentName = studentName;
+  const body = await callSchool("POST", PATHS.register, payload, deps);
+  const session = parseAccountSession(body, email);
+  if (!session || !sameAccount(session.id, email)) {
     throw new SchoolCallError("rejected", "The school website did not open the account.");
   }
-  const profile = masterProfile(email, parsed.profile);
-  if (profile.access !== "open" && profile.access !== "closed") {
-    throw new SchoolCallError("rejected", "The school website did not open the account.");
-  }
-  return { id: email, profile };
+  return { ...session, id: email, profile: masterProfile(email, session.profile) };
 }
 
 export async function signInSchoolAccount(
   input: { email: string; password: string },
   deps?: CallDeps,
-): Promise<{ id: string; profile: SchoolProfile }> {
+): Promise<AccountSession> {
   const forms = accountEmailForms(input.email);
   const id = forms[0];
   if (!id) throw new SchoolCallError("rejected", "Check the email and password and try again.");
@@ -156,16 +209,12 @@ export async function signInSchoolAccount(
   let last: unknown = new SchoolCallError("rejected", "Email or password did not match.");
   for (const email of forms) {
     try {
-      const body = await postSchool(PATHS.signIn, { email, password }, deps);
-      const parsed = parseSchoolProfile(body);
-      if (parsed && !sameAccount(parsed.id, id)) {
+      const body = await callSchool("POST", PATHS.signIn, { email, password }, deps);
+      const session = parseAccountSession(body, id);
+      if (!session || !sameAccount(session.id, id)) {
         throw new SchoolCallError("rejected", "Email or password did not match.");
       }
-      const account = parsed ?? parseSchoolProfile({ ...(asRecord(body) ?? {}), id, email: id, ok: true });
-      if (!account || !sameAccount(account.id, id)) {
-        throw new SchoolCallError("rejected", "Email or password did not match.");
-      }
-      return { id, profile: masterProfile(id, account.profile) };
+      return { ...session, id, profile: masterProfile(id, session.profile) };
     } catch (err) {
       last = err;
       if (!(err instanceof SchoolCallError) || err.reason !== "unknown") throw err;
@@ -174,12 +223,8 @@ export async function signInSchoolAccount(
   throw last;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-}
-
 /**
- * The student gate. Calls POST /api/vkole/read.
+ * The student gate. Calls GET /api/account/family.
  * A failed read throws the website's own sentence and never comes back as `extra`.
  * An empty or missing student name is `new`. `extra` is only a different saved first name.
  */
@@ -200,49 +245,56 @@ export async function studentCheck(
 
 export async function readSchoolAccount(id: string, deps?: CallDeps): Promise<SchoolProfile> {
   const email = accountId(id);
-  const body = await postSchool(PATHS.read, { id: email, email }, deps);
-  const payload = body && typeof body === "object" ? { ...(body as object), id: email, ok: true } : { id: email, ok: true };
-  const parsed = parseSchoolProfile(payload);
-  if (!parsed) throw offline();
+  const token = await tokenFor(email, deps);
+  let body: unknown;
+  try {
+    body = await callSchool("GET", PATHS.family, undefined, { ...deps, token });
+  } catch (err) {
+    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token) {
+      await clearStoredGrant(email);
+    }
+    throw err;
+  }
+  const parsed = parseSchoolProfile(body, email);
+  if (!parsed) throw new SchoolCallError("rejected", "The school website did not open the account.");
   return masterProfile(email, parsed.profile);
 }
 
-export async function writeSchoolAccount(
-  body: { id: string; level: unknown; clockSeconds: number; seen: unknown; student?: { name: string } },
-  deps?: CallDeps,
-): Promise<void> {
-  await postSchool(PATHS.write, { ...body, email: body.id }, deps);
+export async function writeSchoolAccount(id: string, body: FamilyWrite, deps?: CallDeps): Promise<SchoolProfile | null> {
+  const email = accountId(id);
+  const token = await tokenFor(email, deps);
+  let response: unknown;
+  try {
+    response = await callSchool("POST", PATHS.family, body, { ...deps, token });
+  } catch (err) {
+    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token) {
+      await clearStoredGrant(email);
+    }
+    throw err;
+  }
+  const parsed = parseSchoolProfile(response, email);
+  return parsed ? masterProfile(email, parsed.profile) : null;
 }
 
-export async function requestSchoolReset(
-  email: string,
-  deps?: CallDeps,
-): Promise<{ code: string; expiresAt: string }> {
+/** Ask the website to email a reset code. The app does not send that code. */
+export async function requestSchoolReset(email: string, deps?: CallDeps): Promise<{ message: string }> {
   const id = accountId(email);
-  const body = await postSchool(PATHS.passwordReset, { id, email: id }, deps);
-  const code = resetCode(body);
-  if (!code) throw new SchoolCallError("unknown", "The school website has no password reset for that email.");
-  return code;
+  const body = await callSchool("POST", PATHS.sendCode, { email: id }, deps);
+  const message = websiteErrorText(body) || "Code sent";
+  return { message };
 }
 
 /** Save a new password with the code from the website reset email. */
 export async function confirmSchoolReset(
   input: { email: string; code: string; newPassword: string },
   deps?: CallDeps,
-): Promise<void> {
+): Promise<{ message: string }> {
   const email = accountId(input.email);
-  await postSchool(
-    PATHS.passwordResetConfirm,
+  const body = await callSchool(
+    "POST",
+    PATHS.confirm,
     { email, code: input.code.trim(), newPassword: schoolPassword(input.newPassword) },
     deps,
   );
-}
-
-export function schoolHeaders(secret: string): Headers {
-  const headers = new Headers();
-  headers.set("content-type", "application/json");
-  headers.set("accept", "application/json");
-  headers.set("x-vkole-secret", secret);
-  headers.delete("origin");
-  return headers;
+  return { message: websiteErrorText(body) || "Password updated" };
 }

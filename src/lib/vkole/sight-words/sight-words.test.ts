@@ -198,9 +198,8 @@ describe("spoken match", () => {
 describe("level.sw", () => {
   it("reads and writes the website field names", () => {
     const parsed = parseSchoolProfile({
-      ok: true,
-      id: "ada@school.test",
-      profile: {
+      family: {
+        email: "ada@school.test",
         access: "open",
         student: { name: "Ada" },
         level: {
@@ -254,9 +253,8 @@ describe("level.sw", () => {
 
   it("starts a bare grade on that grade's band", () => {
     const parsed = parseSchoolProfile({
-      ok: true,
-      id: "ada@school.test",
-      profile: { level: { sw: 2 } },
+      family: {
+        email: "ada@school.test", level: { sw: 2 } },
     });
     assert.equal(parsed?.profile.level.sw?.grade, 2);
     assert.equal(parsed?.profile.level.sw?.band, "D-2");
@@ -267,40 +265,35 @@ describe("level.sw", () => {
 
   it("lets a saved band or levelCode win over the grade map", () => {
     const byBand = parseSchoolProfile({
-      ok: true,
-      id: "ada@school.test",
-      profile: { level: { sw: { grade: 5, band: "D-PP", index: 2 } } },
+      family: {
+        email: "ada@school.test", level: { sw: { grade: 5, band: "D-PP", index: 2 } } },
     });
     assert.equal(byBand?.profile.level.sw?.band, "D-PP");
     assert.equal(byBand?.profile.level.sw?.word, "away");
     assert.equal(byBand?.profile.level.sw?.grade, 5);
     const byCode = parseSchoolProfile({
-      ok: true,
-      id: "ada@school.test",
-      profile: { level: { sw: { grade: 1, levelCode: "F-10" } } },
+      family: {
+        email: "ada@school.test", level: { sw: { grade: 1, levelCode: "F-10" } } },
     });
     assert.equal(byCode?.profile.level.sw?.band, "F-10");
     assert.equal(byCode?.profile.level.sw?.word, "company");
     const nested = parseSchoolProfile({
-      ok: true,
-      id: "ada@school.test",
-      profile: { level: { sw: { grade: 4, sight: { band: "D-N", index: 1 } } } },
+      family: {
+        email: "ada@school.test", level: { sw: { grade: 4, sight: { band: "D-N", index: 1 } } } },
     });
     assert.equal(nested?.profile.level.sw?.band, "D-N");
     assert.equal(nested?.profile.level.sw?.index, 1);
     assert.equal(nested?.profile.level.sw?.word, "baby");
     const below = parseSchoolProfile({
-      ok: true,
-      id: "ada@school.test",
-      profile: { level: { sw: { grade: 0 } } },
+      family: {
+        email: "ada@school.test", level: { sw: { grade: 0 } } },
     });
     assert.equal(below?.profile.level.sw?.grade, 0);
     assert.equal(below?.profile.level.sw?.band, "D-PP");
     assert.equal(below?.profile.level.sw?.word, "a");
     const missing = parseSchoolProfile({
-      ok: true,
-      id: "ada@school.test",
-      profile: { level: { sw: {} } },
+      family: {
+        email: "ada@school.test", level: { sw: {} } },
     });
     assert.equal(missing?.profile.level.sw?.band, "D-PP");
   });

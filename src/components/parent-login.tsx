@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { schoolPasswordConfirm, schoolPasswordReset, schoolSignIn, schoolSignUp } from "@/lib/school-auth";
 import { schoolScreen } from "@/lib/school-account";
+import { SIGN_IN_AGAIN_NOTE } from "@/lib/account-purge";
 import { recordLogin } from "@/lib/ledger";
 import { beginSharedTrial } from "@/lib/climbs";
 import { SchoolAccountScreen } from "@/components/school-account-screen";
@@ -29,6 +30,17 @@ export function ParentLogin({
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    try {
+      const note = sessionStorage.getItem(SIGN_IN_AGAIN_NOTE);
+      if (!note) return;
+      sessionStorage.removeItem(SIGN_IN_AGAIN_NOTE);
+      setError(note);
+    } catch {
+      /* storage may be unavailable */
+    }
+  }, []);
 
   function go(next: Mode) {
     setMode(next);

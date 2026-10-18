@@ -1,6 +1,6 @@
 import type { Sql } from "@/lib/db";
-import type { EngineId, EngineLevel, SchoolProfile } from "@/lib/school-account";
-import { ENGINE_IDS, normalizeEngineLevel } from "@/lib/school-account";
+import type { EngineLevel, LevelKey, SchoolProfile } from "@/lib/school-account";
+import { LEVEL_KEYS, normalizeEngineLevel } from "@/lib/school-account";
 
 export type SchoolMirror = {
   access: "open" | "closed";
@@ -8,10 +8,16 @@ export type SchoolMirror = {
   clockSeconds: number;
   studentName: string;
   plan: "month" | "year" | null;
-  level: Partial<Record<EngineId, EngineLevel>>;
+  level: Partial<Record<LevelKey, EngineLevel>>;
   lastPushAt: string | null;
   officePurchased: boolean;
   officeSlug: string | null;
+};
+
+/** The website bearer token, stored on the same row as the family mirror. */
+export type AccountGrant = {
+  token: string;
+  expiresAt: string;
 };
 
 type MirrorRow = {
@@ -42,14 +48,16 @@ export async function ensureSchoolMirror(sql: Sql): Promise<void> {
   `;
   await sql`alter table school_mirror add column if not exists office_purchased boolean not null default false`;
   await sql`alter table school_mirror add column if not exists office_slug text`;
+  await sql`alter table school_mirror add column if not exists account_token text`;
+  await sql`alter table school_mirror add column if not exists token_expires_at timestamptz`;
 }
 
-function parseLevels(raw: string | null): Partial<Record<EngineId, EngineLevel>> {
+function parseLevels(raw: string | null): Partial<Record<LevelKey, EngineLevel>> {
   if (!raw) return {};
   try {
-    const parsed = JSON.parse(raw) as Partial<Record<EngineId, EngineLevel>>;
-    const level: Partial<Record<EngineId, EngineLevel>> = {};
-    for (const id of ENGINE_IDS) {
+    const parsed = JSON.parse(raw) as Partial<Record<LevelKey, EngineLevel>>;
+    const level: Partial<Record<LevelKey, EngineLevel>> = {};
+    for (const id of LEVEL_KEYS) {
       const item = normalizeEngineLevel(parsed[id], id);
       if (item) level[id] = item;
     }
@@ -114,5 +122,48 @@ export async function saveSchoolMirror(sql: Sql, userId: string, profile: School
         office_purchased = excluded.office_purchased,
         office_slug = excluded.office_slug,
         updated_at = now()
+  `;
+}
+
+type GrantRow = {
+  account_token: string | null;
+  token_expires_at: unknown;
+};
+
+export async function readAccountGrant(sql: Sql, userId: string): Promise<AccountGrant | null> {
+  await ensureSchoolMirror(sql);
+  const rows = await sql<GrantRow>`
+    select account_token, token_expires_at
+    from school_mirror
+    where user_id = ${userId}
+  `;
+  const token = rows[0]?.account_token?.trim() ?? "";
+  const raw = rows[0]?.token_expires_at;
+  if (!token || !raw) return null;
+  const expiresAt = new Date(String(raw)).toISOString();
+  if (Number.isNaN(Date.parse(expiresAt))) return null;
+  return { token, expiresAt };
+}
+
+export async function saveAccountGrant(sql: Sql, userId: string, grant: AccountGrant): Promise<void> {
+  await ensureSchoolMirror(sql);
+  const token = grant.token.trim();
+  if (!token) return;
+  await sql`
+    insert into school_mirror (user_id, access, account_token, token_expires_at, updated_at)
+    values (${userId}, 'closed', ${token}, ${grant.expiresAt}, now())
+    on conflict (user_id) do update
+    set account_token = excluded.account_token,
+        token_expires_at = excluded.token_expires_at,
+        updated_at = now()
+  `;
+}
+
+export async function clearAccountGrant(sql: Sql, userId: string): Promise<void> {
+  await ensureSchoolMirror(sql);
+  await sql`
+    update school_mirror
+    set account_token = null, token_expires_at = null, updated_at = now()
+    where user_id = ${userId}
   `;
 }

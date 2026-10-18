@@ -8,7 +8,10 @@ import {
   clearKeyStore,
   expiredCookie,
   isAccountGoneError,
+  isSignInAgainError,
   matchingStaleKeys,
+  signInAgainError,
+  websiteErrorOnScreen,
 } from "./account-purge.ts";
 import {
   adminEmailList,
@@ -81,6 +84,11 @@ describe("device sign-in cache", () => {
     assert.equal(isAccountGoneError({ message: SCHOOL_ACCOUNT_GONE_MESSAGE }), true);
     assert.equal(isAccountGoneError(new Error("Email or password did not match.")), false);
     assert.equal(SCHOOL_ACCOUNT_GONE_MESSAGE.includes(SECRET), false);
+    const marked = signInAgainError("Token expired");
+    assert.equal(websiteErrorOnScreen(marked), "Token expired");
+    assert.equal(isSignInAgainError(new Error(marked)), true);
+    assert.equal(isSignInAgainError(new Error("Token expired")), false);
+    assert.equal(isAccountGoneError(new Error(marked)), false);
   });
 });
 

@@ -11,8 +11,13 @@ export const schoolMiddleware = createMiddleware({ type: "function" })
     try {
       return await next();
     } catch (err) {
-      const { isAccountGoneError, leaveStaleSignIn } = await import("./account-purge");
-      if (isAccountGoneError(err)) await leaveStaleSignIn();
+      const { isAccountGoneError, isSignInAgainError, leaveForSignIn, leaveStaleSignIn } = await import("./account-purge");
+      if (isSignInAgainError(err)) {
+        const message = err instanceof Error ? err.message : "";
+        await leaveForSignIn(message);
+      } else if (isAccountGoneError(err)) {
+        await leaveStaleSignIn();
+      }
       throw err;
     }
   })

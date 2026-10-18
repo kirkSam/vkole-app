@@ -178,9 +178,8 @@ describe("Singapore mastery", () => {
 
   it("keeps mastery on the website account level", () => {
     const parsed = parseSchoolProfile({
-      ok: true,
-      id: "ada@school.test",
-      profile: {
+      family: {
+        email: "ada@school.test",
         access: "open",
         level: {
           sg: {
@@ -241,9 +240,8 @@ describe("Singapore mastery", () => {
       },
     };
     const parsed = parseSchoolProfile({
-      ok: true,
-      id: "ada@school.test",
-      profile: { access: "open", level: { sg: source } },
+      family: {
+        email: "ada@school.test", access: "open", level: { sg: source } },
     });
     const sg = parsed?.profile.level.sg;
     assert.equal(sg?.id, "sg-alex");
