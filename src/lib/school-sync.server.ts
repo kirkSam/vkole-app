@@ -354,12 +354,12 @@ export async function pullSchoolAccount(sql: Sql, userId: string): Promise<Schoo
 }
 
 /**
- * Store the token beside the family mirror, then fill that mirror from
- * GET /api/account/family. Used after a local clear so the device does not
- * keep an empty copy in place of the website family.
+ * Store the register or sign-in token before any family read, then fill the
+ * mirror from GET /api/account/family. The child-name save uses that same token.
  */
 export async function rememberAccountSession(session: AccountSession): Promise<SchoolProfile> {
   const sql = await getSql();
+  await saveAccountGrant(sql, session.id, { token: session.token, expiresAt: session.expiresAt });
   let profile = session.profile;
   try {
     profile = await readSchoolAccount(session.id, { token: session.token, expiresAt: session.expiresAt });
@@ -367,7 +367,6 @@ export async function rememberAccountSession(session: AccountSession): Promise<S
     if (err instanceof SchoolCallError && (err.reason === "unauthorized" || err.reason === "gone")) throw err;
   }
   await saveSchoolMirror(sql, session.id, profile, false);
-  await saveAccountGrant(sql, session.id, { token: session.token, expiresAt: session.expiresAt });
   return profile;
 }
 

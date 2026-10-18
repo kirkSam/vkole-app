@@ -11,6 +11,7 @@ The school website is the account book. The app calls `https://www.dotheimpossib
 | `POST /api/account/forgot-password/send-code` | `{ email }` returns `{ message: "Code sent" }` |
 | `POST /api/account/forgot-password/confirm` | `{ email, code, newPassword }` returns `{ message: "Password updated" }` |
 | `GET /api/account/family` | bearer token, returns `{ family }` |
+| `PATCH /api/account/family` | bearer token. A new child is `{ student: { name, startingGrade, age? } }`. `startingGrade` is 1–12. `{ studentName }` alone is ignored. `{ student: { name } }` without a grade is refused: `Enter a starting grade from 1 to 12.` |
 | `POST /api/account/family` | bearer token, `{ levels, clock, seen }`, returns `{ family }` |
 
 Level keys are `m`, `ela`, `ss`, `gen`, `sg`, `sw`, `pa`, `mg`, and `sp`. Spelling progress is `levels.sp`. This app does not call `/api/vkole/password-reset`.
