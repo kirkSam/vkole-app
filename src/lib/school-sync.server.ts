@@ -9,12 +9,14 @@ import {
   isFreshSchoolProfile,
   schoolWriteBody,
   sgAccountLevel,
+  type AccountSession,
   type EngineId,
   type EngineLevel,
+  type LevelKey,
   type SchoolProfile,
 } from "@/lib/school-account";
 import { readSchoolAccount, SchoolCallError, writeSchoolAccount } from "@/lib/school-account.server";
-import { readSchoolMirror, saveSchoolMirror } from "@/lib/school-mirror.server";
+import { readAccountGrant, readSchoolMirror, saveAccountGrant, saveSchoolMirror } from "@/lib/school-mirror.server";
 import { separateSignIn } from "@/lib/school-session.server";
 import { masteryFromDetails, richerMastery } from "@/lib/vkole-singapore-report";
 import { isSightBand } from "@/lib/vkole/constants";
@@ -53,6 +55,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
     const local = localLevels.find((row) => row.subject === engine);
     const localAt = local ? new Date(String(rowTime(local.updated_at))).getTime() : 0;
     if (pushedAt != null && local && localAt > pushedAt) continue;
+    if (engine === "sp" && level.band && level.band !== "LK") continue;
     if (engine === "sp" && level.band) {
       const view = letterView({ index: level.index ?? 0, silence: level.streak ?? 0, wrong: level.missStreak ?? 0 });
       const reached = level.reached ?? 0;
@@ -172,7 +175,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
   await saveSchoolMirror(sql, userId, profile, false);
 }
 
-async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<EngineId, EngineLevel>>) {
+async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<LevelKey, EngineLevel>>) {
   const rows = await sql<{
     subject: string;
     level: number | string;
@@ -193,7 +196,7 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Eng
     where user_id = ${userId}
     order by updated_at desc
   `;
-  const level: Partial<Record<EngineId, EngineLevel>> = { ...remote };
+  const level: Partial<Record<LevelKey, EngineLevel>> = { ...remote };
   const seen = new Set<string>();
   for (const row of rows) {
     if (!ENGINE_IDS.includes(row.subject as EngineId) || seen.has(row.subject)) continue;
@@ -338,12 +341,33 @@ async function collectSeen(sql: Sql, userId: string): Promise<Array<{ key: strin
 }
 
 export async function pullSchoolAccount(sql: Sql, userId: string): Promise<SchoolProfile> {
-  const profile = await readSchoolAccount(userId);
+  const grant = await readAccountGrant(sql, userId);
+  if (!grant) throw new SchoolCallError("unauthorized", "Sign in again.");
+  const profile = await readSchoolAccount(userId, { token: grant.token, expiresAt: grant.expiresAt });
   if (isFreshSchoolProfile(profile)) {
     const { clearFreshLocalRows } = await import("./account-purge.server");
     await clearFreshLocalRows(sql, userId);
   }
   await applyProfile(sql, userId, profile);
+  await saveAccountGrant(sql, userId, grant);
+  return profile;
+}
+
+/**
+ * Store the token beside the family mirror, then fill that mirror from
+ * GET /api/account/family. Used after a local clear so the device does not
+ * keep an empty copy in place of the website family.
+ */
+export async function rememberAccountSession(session: AccountSession): Promise<SchoolProfile> {
+  const sql = await getSql();
+  let profile = session.profile;
+  try {
+    profile = await readSchoolAccount(session.id, { token: session.token, expiresAt: session.expiresAt });
+  } catch (err) {
+    if (err instanceof SchoolCallError && (err.reason === "unauthorized" || err.reason === "gone")) throw err;
+  }
+  await saveSchoolMirror(sql, session.id, profile, false);
+  await saveAccountGrant(sql, session.id, { token: session.token, expiresAt: session.expiresAt });
   return profile;
 }
 
@@ -360,14 +384,14 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
     limit 1
   `;
   const studentName = (mirror?.studentName || named[0]?.child_name || "").trim();
-  const body = schoolWriteBody(userId, level, localClock, mirror?.clockSeconds ?? 0, seen, studentName);
-  await writeSchoolAccount(body);
+  const body = schoolWriteBody(level, localClock, mirror?.clockSeconds ?? 0, seen);
+  await writeSchoolAccount(userId, body);
   const next: SchoolProfile = {
     access: mirror?.access ?? "closed",
     studentName: studentName || mirror?.studentName || "",
     level,
     freeWeekStart: mirror?.freeWeekStart ?? null,
-    clockSeconds: body.clockSeconds,
+    clockSeconds: body.clock.seconds,
     seen,
     plan: mirror?.plan ?? null,
     officePurchased: mirror?.officePurchased === true,
@@ -385,6 +409,9 @@ export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>
   try {
     await pullSchoolAccount(sql, userId);
   } catch (err) {
+    if (err instanceof SchoolCallError && err.reason === "unauthorized") {
+      throw await endWebsiteSession(sql, userId, err.message);
+    }
     if (err instanceof SchoolCallError && (err.reason === "unknown" || err.reason === "gone")) {
       try {
         const { expireLocalSignInCookies, forgetLocalAccount } = await import("./account-purge.server");
@@ -398,7 +425,27 @@ export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>
     throw err;
   }
   const result = await run();
-  await pushSchoolAccount(sql, userId);
+  try {
+    await pushSchoolAccount(sql, userId);
+  } catch (err) {
+    if (err instanceof SchoolCallError && err.reason === "unauthorized") {
+      throw await endWebsiteSession(sql, userId, err.message);
+    }
+    throw err;
+  }
   return result;
+}
+
+async function endWebsiteSession(sql: Sql, userId: string, website: string): Promise<Error> {
+  const { signInAgainError } = await import("./account-purge");
+  try {
+    const { expireLocalSignInCookies } = await import("./account-purge.server");
+    const { clearAccountGrant } = await import("./school-mirror.server");
+    await clearAccountGrant(sql, userId);
+    await expireLocalSignInCookies();
+  } catch {
+    throw new Error(SCHOOL_OFFLINE_MESSAGE);
+  }
+  return new Error(signInAgainError(website));
 }
 

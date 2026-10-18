@@ -2,12 +2,13 @@
  * School website account contract. Safe to import from the browser:
  * no secret, no network call.
  *
- * The app server POSTs to https://www.dotheimpossible.ai/api/vkole/*
- * with header X-Vkole-Secret. The browser never calls those routes.
+ * The app server calls https://www.dotheimpossible.ai/api/account/*
+ * with no cookies. Sign-in and register return a token. Later reads and
+ * saves send Authorization: Bearer. The browser never sends a shared secret.
  * The account id is the lowercase parent email.
  */
 
-import { normalizeAccountEmail } from "./account-scope.ts";
+import { normalizeAccountEmail, sameAccount } from "./account-scope.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, startBandForGrade, type SightBand } from "./vkole/constants.ts";
 import { cardFromAccount as spCardFromAccount, isSpBand, letterView, spCard, type SpBand } from "./vkole/spelling/items.ts";
@@ -139,6 +140,13 @@ export const CLOCK_LIMIT_SECONDS = 9000;
 export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg", "sw", "sp", "pa"] as const;
 export type EngineId = (typeof ENGINE_IDS)[number];
 
+/**
+ * Level keys on the website family. `mg` is stored and sent back with the
+ * others. It is not one of this app's eight engines. `sp` is spelling.
+ */
+export const LEVEL_KEYS = ["m", "ela", "ss", "gen", "sg", "sw", "pa", "mg", "sp"] as const;
+export type LevelKey = (typeof LEVEL_KEYS)[number];
+
 /** Website tally. `asked` is stored first. `correct` is never above `asked`. Asked 0 is omitted. */
 export type MasteryTally = { asked: number; correct: number };
 
@@ -205,7 +213,7 @@ export type SeenQuestion = { key: string; text: string };
 export type SchoolProfile = {
   access: "open" | "closed";
   studentName: string;
-  level: Partial<Record<EngineId, EngineLevel>>;
+  level: Partial<Record<LevelKey, EngineLevel>>;
   freeWeekStart: string | null;
   clockSeconds: number;
   seen: SeenQuestion[];
@@ -216,7 +224,29 @@ export type SchoolProfile = {
   officeSlug: string | null;
 };
 
-export type SchoolFailure = "offline" | "wait" | "unknown" | "password" | "exists" | "rejected" | "gone";
+export type SchoolFailure =
+  | "offline"
+  | "wait"
+  | "unknown"
+  | "password"
+  | "exists"
+  | "rejected"
+  | "gone"
+  | "unauthorized";
+
+/** A sign-in or register response. The token is the only credential for later calls. */
+export type AccountSession = {
+  id: string;
+  profile: SchoolProfile;
+  token: string;
+  expiresAt: string;
+};
+
+export type FamilyWrite = {
+  levels: Partial<Record<LevelKey, EngineLevel>>;
+  clock: { seconds: number };
+  seen: SeenQuestion[];
+};
 
 /**
  * A leftover local user row does not make a website account unrecognized.
@@ -245,8 +275,14 @@ export function clockToWrite(localSeconds: number, remoteSeconds: number): numbe
   return Math.min(CLOCK_LIMIT_SECONDS, value);
 }
 
-function isEngine(value: string): value is EngineId {
-  return (ENGINE_IDS as readonly string[]).includes(value);
+export function isLevelKey(value: string): value is LevelKey {
+  return (LEVEL_KEYS as readonly string[]).includes(value);
+}
+
+/** The website token lasts 12 hours and is not refreshed. Past `expiresAt`, it is done. */
+export function accountTokenExpired(expiresAt: string, now = Date.now()): boolean {
+  const at = Date.parse(expiresAt);
+  return Number.isNaN(at) || at <= now;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -345,14 +381,88 @@ function asStep(value: unknown): number {
   return Math.min(2, Math.max(0, Number.isFinite(step) ? Math.round(step) : 0));
 }
 
-export function normalizeEngineLevel(value: unknown, engine: EngineId = "m"): EngineLevel | null {
+export function normalizeEngineLevel(value: unknown, engine: LevelKey = "m"): EngineLevel | null {
   return asLevel(value, engine);
+}
+
+function asMgLevel(value: unknown): EngineLevel | null {
+  const base = asLevel(value, "m");
+  if (!base) return null;
+  const row = asRecord(value);
+  if (!row) return base;
+  const kept: EngineLevel = { ...base };
+  const extra = kept as unknown as Record<string, unknown>;
+  for (const [key, item] of Object.entries(row)) {
+    if (key === "grade" || key === "level" || key === "step" || key === "stage") continue;
+    if (item == null) continue;
+    extra[key] = item;
+  }
+  return kept;
 }
 
 function asIndex(value: unknown): number | undefined {
   const index = Number(value);
   if (!Number.isInteger(index) || index < 0 || index > 100000) return undefined;
   return index;
+}
+
+/**
+ * Bands the website keeps on level.sp. Any other band is dropped.
+ * Alphabet progress is stored as `cvc` so the letter is not dropped.
+ */
+export const WEBSITE_SP_BANDS = ["cvc", "blends", "vowels", "patterns", "affixes"] as const;
+export type WebsiteSpBand = (typeof WEBSITE_SP_BANDS)[number];
+
+/** A website spelling word: lowercase letters and at most one apostrophe. */
+const WEBSITE_SP_WORD = /^[a-z]+(?:'[a-z]+)?$/;
+
+function isWebsiteSpBand(value: string | undefined | null): value is WebsiteSpBand {
+  return !!value && (WEBSITE_SP_BANDS as readonly string[]).includes(value);
+}
+
+function websiteSpWordOk(word: string): boolean {
+  return WEBSITE_SP_WORD.test(word);
+}
+
+function websiteSpGrade(grade: number): number {
+  const rounded = Math.round(grade);
+  if (!Number.isFinite(rounded)) return 1;
+  return Math.min(12, Math.max(1, rounded));
+}
+
+function plainSpWord(word: string | undefined): string {
+  return (word ?? "").trim().toLowerCase().replace(/’/g, "'");
+}
+
+/** 0 is A. A prompt id such as lk-next-m or lk-cue-5-m still names its letter. */
+function alphabetIndex(level: Pick<EngineLevel, "index" | "word">): number {
+  const index = level.index;
+  if (typeof index === "number" && Number.isInteger(index)) return Math.min(25, Math.max(0, index));
+  const word = plainSpWord(level.word);
+  if (word === "lk-first") return 0;
+  if (/^[a-z]$/.test(word)) return word.charCodeAt(0) - 97;
+  const tail = word.match(/-([a-z])$/);
+  if (tail?.[1]) return tail[1].charCodeAt(0) - 97;
+  return 0;
+}
+
+/**
+ * The spelling engine tracks alphabet letters as band LK and a prompt id.
+ * The website drops LK and refuses a word that is not letters.
+ * Alphabet progress is sent as band cvc, grade 1-12, and word set to the letter.
+ * index, streak, and missStreak stay so a cue in progress can be restored.
+ */
+export function toWebsiteSpLevel(level: EngineLevel): EngineLevel {
+  const grade = websiteSpGrade(level.grade);
+  const bandRaw = (level.band ?? "").trim().toLowerCase();
+  const wordRaw = plainSpWord(level.word);
+  const internal = isSpBand(level.band) || isSpBand(level.levelCode);
+  if (!internal && isWebsiteSpBand(bandRaw) && websiteSpWordOk(wordRaw)) {
+    return { ...level, grade, step: 0, band: bandRaw, word: wordRaw, levelCode: bandRaw };
+  }
+  const index = alphabetIndex(level);
+  const letter = "abcdefghijklmnopqrstuvwxyz"[index] ?? "a";
+  return { ...level, grade, step: 0, band: "cvc", index, word: letter, levelCode: "cvc" };
 }
 
 function savedSpBand(row: Record<string, unknown>): SpBand | undefined {
@@ -364,15 +474,36 @@ function savedSpBand(row: Record<string, unknown>): SpBand | undefined {
   return undefined;
 }
 
+function websiteSpBandOf(row: Record<string, unknown>): WebsiteSpBand | undefined {
+  const nested = asRecord(row.sp);
+  for (const value of [row.band, nested?.band]) {
+    if (typeof value !== "string") continue;
+    const band = value.trim().toLowerCase();
+    if (isWebsiteSpBand(band)) return band;
+  }
+  return undefined;
+}
+
 function asSpLevel(row: Record<string, unknown>, level: EngineLevel): EngineLevel {
   const rounded = Math.round(level.grade);
   level.grade = Number.isFinite(rounded) ? rounded : 0;
   const nested = asRecord(row.sp);
   const saved = savedSpBand(row);
-  const band = saved ?? spCardFromAccount({ grade: Number.isFinite(rounded) ? rounded : Number.NaN }, level.grade).band;
+  const storedWordRaw = copyText(row, "word") ?? (nested ? copyText(nested, "word") : undefined);
+  const storedWord = storedWordRaw ? plainSpWord(storedWordRaw) : undefined;
+  const websiteBand = websiteSpBandOf(row);
+  if (!saved && websiteBand && storedWord && websiteSpWordOk(storedWord) && storedWord.length > 1) {
+    return keptWebsiteSp(row, nested, level, websiteBand, storedWord);
+  }
+  const alphabetAt =
+    !saved && websiteBand === "cvc" && storedWord && /^[a-z]$/.test(storedWord) ? storedWord.charCodeAt(0) - 97 : undefined;
+  const band =
+    alphabetAt != null
+      ? "LK"
+      : (saved ?? spCardFromAccount({ grade: Number.isFinite(rounded) ? rounded : Number.NaN }, level.grade).band);
   let index = saved ? (asIndex(row.index) ?? (nested ? asIndex(nested.index) : undefined) ?? 0) : 0;
-  const storedWord = copyText(row, "word") ?? (nested ? copyText(nested, "word") : undefined);
-  if (saved && asIndex(row.index) == null && !(nested && asIndex(nested.index) != null) && storedWord) {
+  if (alphabetAt != null) index = alphabetAt;
+  if (saved && alphabetAt == null && asIndex(row.index) == null && !(nested && asIndex(nested.index) != null) && storedWord) {
     const found = spCardFromAccount({ grade: level.grade, band, word: storedWord }, level.grade);
     if (found.id === storedWord) index = found.index;
   }
@@ -404,8 +535,47 @@ function asSpLevel(row: Record<string, unknown>, level: EngineLevel): EngineLeve
   if (missed != null) level.missed = missed;
   if (updatedAt != null) level.updatedAt = updatedAt;
   if (startingGrade != null) level.startingGrade = startingGrade;
-  level.levelCode = levelCode || card.band;
+  level.levelCode = alphabetAt != null ? card.band : levelCode || card.band;
   level.levelLabel = levelLabel || card.name;
+  return level;
+}
+
+function keptWebsiteSp(
+  row: Record<string, unknown>,
+  nested: Record<string, unknown> | null,
+  level: EngineLevel,
+  band: WebsiteSpBand,
+  word: string,
+): EngineLevel {
+  level.grade = websiteSpGrade(level.grade);
+  level.step = 0;
+  level.band = band;
+  level.word = word;
+  level.levelCode = band;
+  const index = asIndex(row.index) ?? (nested ? asIndex(nested.index) : undefined);
+  if (index != null) level.index = index;
+  const streak = wholeNumber(row.streak) ?? (nested ? wholeNumber(nested.streak) : null);
+  const missStreak = wholeNumber(row.missStreak) ?? (nested ? wholeNumber(nested.missStreak) : null);
+  if (streak != null) level.streak = streak;
+  if (missStreak != null) level.missStreak = missStreak;
+  const id = copyText(row, "id");
+  const name = copyText(row, "name");
+  const enteredBy = copyText(row, "enteredBy");
+  const levelLabel = copyText(row, "levelLabel") ?? (nested ? copyText(nested, "levelLabel") : undefined);
+  if (id) level.id = id;
+  if (name) level.name = name;
+  if (enteredBy) level.enteredBy = enteredBy;
+  if (levelLabel) level.levelLabel = levelLabel;
+  const earnedGrade = wholeNumber(row.earnedGrade);
+  const reached = wholeNumber(row.reached);
+  const missed = wholeNumber(row.missed);
+  const updatedAt = wholeNumber(row.updatedAt);
+  const startingGrade = wholeNumber(row.startingGrade);
+  if (earnedGrade != null) level.earnedGrade = earnedGrade;
+  if (reached != null) level.reached = reached;
+  if (missed != null) level.missed = missed;
+  if (updatedAt != null) level.updatedAt = updatedAt;
+  if (startingGrade != null) level.startingGrade = startingGrade;
   return level;
 }
 
@@ -511,7 +681,8 @@ function asPaLevel(row: Record<string, unknown>, level: EngineLevel): EngineLeve
   return level;
 }
 
-function asLevel(value: unknown, engine: EngineId): EngineLevel | null {
+function asLevel(value: unknown, engine: LevelKey): EngineLevel | null {
+  if (engine === "mg") return asMgLevel(value);
   if (engine === "sp") {
     if (typeof value === "number") return asSpLevel({}, { grade: value, step: 0 });
     const row = asRecord(value);
@@ -692,47 +863,70 @@ function asAccess(value: unknown, plan: "month" | "year" | null): "open" | "clos
   return plan ? "open" : "closed";
 }
 
-/** Read a register, sign-in, or read payload. Missing access stays closed. */
-export function parseSchoolProfile(body: unknown): { id: string; profile: SchoolProfile } | null {
+function expiresAtOf(value: unknown): string | null {
+  const parsed = typeof value === "string" ? Date.parse(value) : typeof value === "number" ? value : Number.NaN;
+  if (Number.isNaN(parsed)) return null;
+  return new Date(parsed).toISOString();
+}
+
+/**
+ * Read `{ family }` from a sign-in, register, or family response.
+ * The old `{ ok, id, profile }` shape is not an account.
+ * Missing access stays closed.
+ */
+export function parseSchoolProfile(body: unknown, knownEmail?: string): { id: string; profile: SchoolProfile } | null {
   const root = asRecord(body);
-  if (!root || root.ok === false) return null;
-  const profile = asRecord(root.profile) ?? root;
-  const id = String(root.id ?? profile.id ?? profile.email ?? "").trim().toLowerCase();
+  const family = asRecord(root?.family);
+  if (!family) return null;
+  const id = String(family.email ?? family.id ?? knownEmail ?? "").trim().toLowerCase();
   if (!isSchoolAccountId(id)) return null;
-  const student = profile.student;
+  if (knownEmail && !sameAccount(id, knownEmail)) return null;
+  const student = family.student;
   const studentName =
     typeof student === "string"
       ? student.trim()
-      : String(asRecord(student)?.name ?? profile.studentName ?? "").trim();
-  const levelSource = asRecord(profile.level) ?? asRecord(profile.levels) ?? {};
-  const level: Partial<Record<EngineId, EngineLevel>> = {};
+      : String(family.studentName ?? asRecord(student)?.name ?? "").trim();
+  const levelSource = asRecord(family.levels) ?? asRecord(family.level) ?? {};
+  const level: Partial<Record<LevelKey, EngineLevel>> = {};
   for (const [key, value] of Object.entries(levelSource)) {
-    if (!isEngine(key)) continue;
+    if (!isLevelKey(key)) continue;
     const parsed = asLevel(value, key);
     if (parsed) level[key] = parsed;
   }
-  const freeRaw = profile.freeWeekStart ?? profile.freeWeek ?? profile.trialStartedAt ?? null;
+  const freeRaw = family.freeWeekStart ?? family.freeWeek ?? family.trialStartedAt ?? null;
   const freeWeekStart = typeof freeRaw === "string" && !Number.isNaN(Date.parse(freeRaw)) ? new Date(freeRaw).toISOString() : null;
-  const clockRow = asRecord(profile.clock);
+  const clockRow = asRecord(family.clock);
+  const clockNumber = typeof family.clock === "number" ? family.clock : undefined;
   const clockSeconds = clockToWrite(
-    Number(profile.clockSeconds ?? clockRow?.seconds ?? clockRow?.usedSeconds ?? 0),
+    Number(family.clockSeconds ?? clockNumber ?? clockRow?.seconds ?? clockRow?.usedSeconds ?? 0),
     0,
   );
-  const plan = asPlan(profile.subscription ?? profile.plan);
+  const plan = asPlan(family.subscription ?? family.plan);
   return {
     id,
     profile: {
-      access: asAccess(profile.access, plan),
+      access: asAccess(family.access, plan),
       studentName,
       level,
       freeWeekStart,
       clockSeconds,
-      seen: asSeen(profile.seen ?? profile.seenQuestions),
+      seen: asSeen(family.seen ?? family.seenQuestions),
       plan,
-      officePurchased: profile.officePurchased === true,
-      officeSlug: officeSlugOf(profile.officeSlug),
+      officePurchased: family.officePurchased === true,
+      officeSlug: officeSlugOf(family.officeSlug),
     },
   };
+}
+
+/** Sign-in and register: token, expiresAt, and family. A missing token is not a session. */
+export function parseAccountSession(body: unknown, knownEmail?: string): AccountSession | null {
+  const root = asRecord(body);
+  if (!root) return null;
+  const token = typeof root.token === "string" ? root.token.trim() : "";
+  const expiresAt = expiresAtOf(root.expiresAt);
+  const parsed = parseSchoolProfile(body, knownEmail);
+  if (!token || !expiresAt || !parsed) return null;
+  return { id: parsed.id, profile: parsed.profile, token, expiresAt };
 }
 
 /**
@@ -773,20 +967,13 @@ export function decideStudent(studentName: string | null | undefined, typedFirst
   return "extra";
 }
 
+/** Body for POST /api/account/family. Levels include spelling on `sp`. */
 export function schoolWriteBody(
-  id: string,
-  level: Partial<Record<EngineId, EngineLevel>>,
+  level: Partial<Record<LevelKey, EngineLevel>>,
   localClock: number,
   remoteClock: number,
   seen: SeenQuestion[],
-  studentName = "",
-): {
-  id: string;
-  level: Partial<Record<EngineId, EngineLevel>>;
-  clockSeconds: number;
-  seen: SeenQuestion[];
-  student?: { name: string };
-} {
+): FamilyWrite {
   const unique: SeenQuestion[] = [];
   const keys = new Set<string>();
   for (const item of seen) {
@@ -797,13 +984,12 @@ export function schoolWriteBody(
     unique.push({ key, text: text || key });
     if (unique.length >= 400) break;
   }
-  const name = studentName.trim();
+  const levels: FamilyWrite["levels"] = { ...level };
+  if (levels.sp) levels.sp = toWebsiteSpLevel(levels.sp);
   return {
-    id,
-    level,
-    clockSeconds: clockToWrite(localClock, remoteClock),
+    levels,
+    clock: { seconds: clockToWrite(localClock, remoteClock) },
     seen: unique,
-    ...(name ? { student: { name } } : {}),
   };
 }
 
@@ -814,6 +1000,7 @@ export function schoolWriteBody(
  */
 export function schoolFailureMessage(signing: boolean, reason: SchoolFailure, spoken: string): string {
   if (spoken) return spoken;
+  if (reason === "unauthorized") return "Sign in again.";
   if (reason === "unknown") return "The school website has no password for that email.";
   if (signing) return "Email or password did not match.";
   return "The school website did not accept that request.";
@@ -834,28 +1021,12 @@ export function failureKind(status: number, body: unknown): SchoolFailure {
   ) {
     return "gone";
   }
-  if (
-    (status === 401 || status === 403) &&
-    !text.includes("password") &&
-    (text.includes("secret") || text.includes("unauthorized") || text.includes("forbidden"))
-  ) {
-    return "offline";
+  if (status === 401) {
+    if (text.includes("password") || (text.includes("invalid") && text.includes("email"))) return "password";
+    return "unauthorized";
   }
   if (text.includes("not found") || text.includes("unknown") || text.includes("no account")) return "unknown";
   if (text.includes("password") || text.includes("match") || text.includes("invalid")) return "password";
   if (status >= 500 || status === 0) return "offline";
   return "rejected";
-}
-
-export function resetCode(body: unknown): { code: string; expiresAt: string } | null {
-  const row = asRecord(body);
-  if (!row || row.ok === false) return null;
-  const code = String(row.code ?? "").trim();
-  if (!/^\d{6}$/.test(code)) return null;
-  const raw = row.expiresAt ?? row.expiry ?? row.expires;
-  const parsed = typeof raw === "string" ? Date.parse(raw) : typeof raw === "number" ? raw : NaN;
-  const expiresAt = Number.isNaN(parsed)
-    ? new Date(Date.now() + 30 * 60 * 1000).toISOString()
-    : new Date(parsed).toISOString();
-  return { code, expiresAt };
 }

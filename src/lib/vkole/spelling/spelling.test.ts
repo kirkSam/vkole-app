@@ -276,9 +276,8 @@ describe("spoken spelling answers", () => {
 describe("level.sp", () => {
   it("reads and writes only this account's spelling band", () => {
     const parsed = parseSchoolProfile({
-      ok: true,
-      id: "ada@family.test",
-      profile: {
+      family: {
+        email: "ada@family.test",
         access: "open",
         student: { name: "Ada" },
         level: {
@@ -333,40 +332,115 @@ describe("level.sp", () => {
     assert.equal(written.levelCode, "LK");
     assert.equal(written.levelLabel, "Letter knowledge");
     assert.equal(written.step, 0);
-    const body = schoolWriteBody("ada@family.test", { sp: written }, 0, 0, []);
-    assert.equal(body.id, "ada@family.test");
-    assert.equal(body.level.sp?.band, "LK");
-    assert.equal(body.level.sp?.word, cue.id);
-    assert.equal(body.level.sp?.streak, 1);
-    assert.equal(body.level.sp?.missStreak, 2);
-    assert.equal("sw" in body.level, false);
+    const body = schoolWriteBody({ sp: written }, 0, 0, []);
+    assert.equal(body.levels.sp?.band, "cvc");
+    assert.equal(body.levels.sp?.word, "c");
+    assert.equal(body.levels.sp?.index, 2);
+    assert.equal(body.levels.sp?.streak, 1);
+    assert.equal(body.levels.sp?.missStreak, 2);
+    assert.equal(written.band, "LK");
+    assert.equal(written.word, cue.id);
+    assert.equal("sw" in body.levels, false);
     assert.equal(JSON.stringify(body).includes("bea@other.test"), false);
     assert.equal(JSON.stringify(body).includes("after"), false);
   });
 
   it("starts a numeric grade at the first letter, and keeps a saved index", () => {
     const fresh = parseSchoolProfile({
-      ok: true,
-      id: "ada@family.test",
-      profile: { level: { sp: 1 } },
+      family: {
+        email: "ada@family.test", level: { sp: 1 } },
     });
     assert.equal(fresh?.profile.level.sp?.band, "LK");
     assert.equal(fresh?.profile.level.sp?.index, 0);
     assert.equal(fresh?.profile.level.sp?.word, "lk-first");
     const kept = parseSchoolProfile({
-      ok: true,
-      id: "ada@family.test",
-      profile: { level: { sp: { grade: 5, levelCode: "LK", index: 51 } } },
+      family: {
+        email: "ada@family.test", level: { sp: { grade: 5, levelCode: "LK", index: 51 } } },
     });
     assert.equal(kept?.profile.level.sp?.band, "LK");
     assert.equal(kept?.profile.level.sp?.index, 25);
     assert.equal(kept?.profile.level.sp?.word, letterView({ index: 25, silence: 0, wrong: 0 }).id);
     const mid = parseSchoolProfile({
-      ok: true,
-      id: "ada@family.test",
-      profile: { level: { sp: { grade: 2, band: "LK", index: 12 } } },
+      family: {
+        email: "ada@family.test", level: { sp: { grade: 2, band: "LK", index: 12 } } },
     });
     assert.equal(mid?.profile.level.sp?.index, 12);
     assert.equal(mid?.profile.level.sp?.word, "lk-next-m");
+  });
+
+  it("sends a spelling payload the website keeps, and reads the letter back", () => {
+    const websiteBands = ["cvc", "blends", "vowels", "patterns", "affixes"];
+    const wordRule = /^[a-z]+(?:'[a-z]+)?$/;
+    const written = spAccountLevel(undefined, {
+      name: "Ada",
+      grade: 0,
+      band: "LK",
+      index: 12,
+      word: "lk-next-m",
+      silence: 1,
+      wrong: 2,
+      earnedGrade: 1,
+      reached: 4,
+      missed: 1,
+      updatedAt: 10,
+    });
+    const high = spAccountLevel(undefined, {
+      name: "Ada",
+      grade: 14,
+      band: "LK",
+      index: 0,
+      word: "lk-first",
+      silence: 0,
+      wrong: 0,
+      earnedGrade: 1,
+      reached: 0,
+      missed: 0,
+      updatedAt: 10,
+    });
+    const body = schoolWriteBody({ sp: written }, 0, 0, []);
+    const sp = body.levels.sp;
+    assert.ok(sp);
+    assert.equal(websiteBands.includes(String(sp.band)), true);
+    assert.equal(sp.band, "cvc");
+    assert.equal(Number.isInteger(sp.grade) && sp.grade >= 1 && sp.grade <= 12, true);
+    assert.equal(sp.grade, 1);
+    assert.match(sp.word ?? "", wordRule);
+    assert.equal(sp.word, "m");
+    assert.equal(sp.index, 12);
+    assert.equal(sp.streak, 1);
+    assert.equal(sp.missStreak, 2);
+    assert.equal(sp.levelCode, "cvc");
+    assert.equal(wordRule.test("lk-next-m"), false);
+    assert.equal(wordRule.test("don't"), true);
+    const capped = schoolWriteBody({ sp: high }, 0, 0, []);
+    assert.equal(capped.levels.sp?.grade, 12);
+    assert.equal(capped.levels.sp?.word, "a");
+    const restored = parseSchoolProfile({
+      family: {
+        email: "ada@family.test",
+        level: { sp: { grade: sp.grade, band: sp.band, word: sp.word, index: sp.index, streak: sp.streak, missStreak: sp.missStreak } },
+      },
+    });
+    const again = restored?.profile.level.sp;
+    const cue = letterView({ index: 12, silence: 1, wrong: 2 });
+    assert.equal(again?.band, "LK");
+    assert.equal(again?.index, 12);
+    assert.equal(again?.word, cue.id);
+    assert.equal(again?.streak, 1);
+    assert.equal(again?.missStreak, 2);
+    assert.equal(again?.levelCode, "LK");
+    const letterOnly = parseSchoolProfile({
+      family: { email: "ada@family.test", level: { sp: { grade: 3, band: "cvc", word: "m" } } },
+    });
+    assert.equal(letterOnly?.profile.level.sp?.band, "LK");
+    assert.equal(letterOnly?.profile.level.sp?.index, 12);
+    assert.equal(letterOnly?.profile.level.sp?.word, letterView({ index: 12, silence: 0, wrong: 0 }).id);
+    const keptWord = parseSchoolProfile({
+      family: { email: "ada@family.test", level: { sp: { grade: 2, band: "blends", word: "bl" } } },
+    });
+    const kept = schoolWriteBody({ sp: keptWord?.profile.level.sp ?? { grade: 1, step: 0 } }, 0, 0, []);
+    assert.equal(kept.levels.sp?.band, "blends");
+    assert.equal(kept.levels.sp?.word, "bl");
+    assert.match(kept.levels.sp?.word ?? "", wordRule);
   });
 });

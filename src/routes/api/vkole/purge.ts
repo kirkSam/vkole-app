@@ -4,6 +4,9 @@ import { createFileRoute } from "@tanstack/react-router";
  * Matching cleanup for the school website's teacher-only "delete all accounts".
  * POST with the shared secret, or a signed-in admin email, and the confirm phrase.
  * Deletes account and student rows only. Does not run unless that request arrives.
+ *
+ * VKOLE_SHARED_SECRET is still required here (or VKOLE_ADMIN_EMAILS for a
+ * signed-in admin). It is not used for /api/account/* and is not sent by the browser.
  */
 export const Route = createFileRoute("/api/vkole/purge")({
   server: {

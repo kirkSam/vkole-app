@@ -16,6 +16,24 @@ export const PURGE_CONFIRM = "delete-all-accounts";
  */
 export const ACCOUNT_GONE_FLAG = "vkole-account-gone";
 
+/**
+ * Set when the website rejects the account token. The sign-in screen shows
+ * the website's sentence, then the flag is removed.
+ */
+export const SIGN_IN_AGAIN_NOTE = "vkole-sign-in-again";
+
+/** Invisible marker so a token rejection can send the parent back to sign-in. */
+export const SIGN_IN_AGAIN_MARK = "\u2060\u2060\u2060";
+
+export function signInAgainError(website: string): string {
+  const text = website.trim() || "Sign in again.";
+  return `${text}${SIGN_IN_AGAIN_MARK}`;
+}
+
+export function websiteErrorOnScreen(message: string): string {
+  return message.split(SIGN_IN_AGAIN_MARK).join("").trim();
+}
+
 /** Device keys that hold a sign-in or a cached level/session hint. */
 export const STALE_STORAGE_PREFIXES = ["vkole-", "grok-auth."] as const;
 
@@ -105,6 +123,10 @@ export function isAccountGoneError(err: unknown): boolean {
   return errorText(err).includes(SCHOOL_ACCOUNT_GONE_MESSAGE);
 }
 
+export function isSignInAgainError(err: unknown): boolean {
+  return errorText(err).includes(SIGN_IN_AGAIN_MARK);
+}
+
 /** Ask Better Auth to drop the HttpOnly cookie, then stay on this page. */
 export async function clearStaleSignIn(): Promise<void> {
   clearStaleDeviceSignIn();
@@ -121,6 +143,27 @@ export async function clearStaleSignIn(): Promise<void> {
  * The signed-in account is gone on the website. Drop device copies, remember
  * that for this tab, and leave for a fresh sign-in.
  */
+/**
+ * The website token was rejected or has expired. Drop it, keep the website's
+ * sentence for the sign-in screen, and leave the signed-in app.
+ */
+export async function leaveForSignIn(message: string): Promise<void> {
+  clearStaleDeviceSignIn();
+  if (typeof window === "undefined") return;
+  const note = websiteErrorOnScreen(message);
+  try {
+    if (note) window.sessionStorage.setItem(SIGN_IN_AGAIN_NOTE, note);
+  } catch {
+    /* storage unavailable */
+  }
+  try {
+    const { signOut } = await import("./auth/client");
+    await signOut("/login");
+  } catch {
+    window.location.assign("/login");
+  }
+}
+
 export async function leaveStaleSignIn(): Promise<void> {
   clearStaleDeviceSignIn();
   if (typeof window === "undefined") return;

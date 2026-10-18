@@ -158,9 +158,8 @@ describe("spoken phonemic answers", () => {
 describe("level.pa", () => {
   it("reads and writes only this account's phonemic band", () => {
     const parsed = parseSchoolProfile({
-      ok: true,
-      id: "ada@family.test",
-      profile: {
+      family: {
+        email: "ada@family.test",
         access: "open",
         student: { name: "Ada" },
         level: {
@@ -212,32 +211,28 @@ describe("level.pa", () => {
     assert.equal(written.levelLabel, "K");
     assert.equal(written.grade, 1);
     assert.equal(written.step, 0);
-    const body = schoolWriteBody("ada@family.test", { pa: written }, 0, 0, []);
-    assert.equal(body.id, "ada@family.test");
-    assert.equal(body.level.pa?.band, "RH");
-    assert.equal("sw" in body.level, false);
+    const body = schoolWriteBody({ pa: written }, 0, 0, []);
+    assert.equal(body.levels.pa?.band, "RH");
+    assert.equal("sw" in body.levels, false);
     assert.equal(JSON.stringify(body).includes("bea@other.test"), false);
   });
 
   it("lets age 4 win, and a saved band win over age", () => {
     const byGrade = parseSchoolProfile({
-      ok: true,
-      id: "ada@family.test",
-      profile: { level: { pa: 1 } },
+      family: {
+        email: "ada@family.test", level: { pa: 1 } },
     });
     assert.equal(byGrade?.profile.level.pa?.band, "IS");
     assert.equal(byGrade?.profile.level.pa?.word, "is-first-sun");
     const older = parseSchoolProfile({
-      ok: true,
-      id: "ada@family.test",
-      profile: { level: { pa: { grade: 4, age: 4 } } },
+      family: {
+        email: "ada@family.test", level: { pa: { grade: 4, age: 4 } } },
     });
     assert.equal(older?.profile.level.pa?.band, "WA");
     assert.equal(older?.profile.level.pa?.grade, 4);
     const kept = parseSchoolProfile({
-      ok: true,
-      id: "ada@family.test",
-      profile: { level: { pa: { grade: 2, age: 4, band: "PD", index: 4 } } },
+      family: {
+        email: "ada@family.test", level: { pa: { grade: 2, age: 4, band: "PD", index: 4 } } },
     });
     assert.equal(kept?.profile.level.pa?.band, "PD");
     assert.equal(kept?.profile.level.pa?.word, "pd-sub-hat");

@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { APP_NAME } from "@/lib/brand";
 import {
   SCHOOL_ACCOUNT_GONE_MESSAGE,
   SCHOOL_OFFLINE_MESSAGE,
@@ -54,15 +53,12 @@ export const schoolSignUp = createServerFn({ method: "POST" })
         const { getSql } = await import("./db");
         await forgetLocalAccount(await getSql(), account.id);
       }
-      await openSchoolSession(account.id, data.name);
+      const { rememberAccountSession } = await import("./school-sync.server");
+      const profile = await rememberAccountSession(account);
+      await openSchoolSession(account.id, profile.studentName || data.name);
       return { ok: true };
     } catch (err) {
-      if (err instanceof SchoolCallError) {
-        if (err.reason === "exists") {
-          return failed("exists", "That email is already registered. Sign in with the school password.");
-        }
-        return failed(err.reason, err.message);
-      }
+      if (err instanceof SchoolCallError) return failed(err.reason, err.message);
       return failed("offline", SCHOOL_OFFLINE_MESSAGE);
     }
   });
@@ -80,7 +76,9 @@ export const schoolSignIn = createServerFn({ method: "POST" })
         const { getSql } = await import("./db");
         await forgetLocalAccount(await getSql(), account.id);
       }
-      await openSchoolSession(account.id, account.profile.studentName || "Parent");
+      const { rememberAccountSession } = await import("./school-sync.server");
+      const profile = await rememberAccountSession(account);
+      await openSchoolSession(account.id, profile.studentName || "Parent");
       return { ok: true };
     } catch (err) {
       if (err instanceof SchoolCallError) {
@@ -110,25 +108,11 @@ export const schoolPasswordReset = createServerFn({ method: "POST" })
     const { requestSchoolReset, SchoolCallError } = await import("./school-account.server");
     const email = data.email.trim().toLowerCase();
     try {
-      const reset = await requestSchoolReset(email);
-      const { sendAppMail } = await import("./app-mail");
-      const when = new Date(reset.expiresAt).toLocaleString("en-US", {
-        timeZone: "America/Los_Angeles",
-        dateStyle: "medium",
-        timeStyle: "short",
-      });
-      const sent = await sendAppMail(
-        email,
-        `${APP_NAME} password code`,
-        `Your password code for ${APP_NAME} is ${reset.code}. It expires at ${when} Pacific time (30 minutes). Enter that code and a new password in the app. If you did not ask for this, ignore this email.`,
-      );
-      if (sent !== "sent") {
-        return failed("mail", "The code could not be emailed. Try again in a moment.");
-      }
+      await requestSchoolReset(email);
       return { ok: true };
     } catch (err) {
       if (err instanceof SchoolCallError) return failed(err.reason, err.message);
-      return failed("mail", "The code could not be emailed. Try again in a moment.");
+      return failed("offline", SCHOOL_OFFLINE_MESSAGE);
     }
   });
 

@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   CLOCK_LIMIT_SECONDS,
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_WAIT_MESSAGE,
   WEBSITE_ERRORS_NOT_EXTRA,
+  accountTokenExpired,
   clockToWrite,
   decideStudent,
   DEFAULT_WEBSITE_MASTER_EMAIL,
@@ -13,7 +17,6 @@ import {
   isWebsiteMasterEmail,
   officeOffer,
   parseSchoolProfile,
-  resetCode,
   schoolAccessDecision,
   schoolFailureMessage,
   schoolPassword,
@@ -32,6 +35,12 @@ import {
 } from "./school-account.server.ts";
 
 const SECRET = "unit-test-secret-do-not-ship";
+const TOKEN = "account-token";
+const EXPIRES = "2026-10-19T04:00:00.000Z";
+
+function session(email: string, family: Record<string, unknown> = {}, token = TOKEN) {
+  return { token, expiresAt: EXPIRES, family: { email, ...family } };
+}
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -43,9 +52,8 @@ function jsonResponse(status: number, body: unknown): Response {
 describe("school profile", () => {
   it("maps the website account onto the app fields", () => {
     const parsed = parseSchoolProfile({
-      ok: true,
-      id: "Parent@Example.com",
-      profile: {
+      family: {
+        email: "Parent@Example.com",
         access: "open",
         student: { name: "Ada" },
         level: { m: { grade: 3, step: 1 }, ela: 4, other: 9 },
@@ -71,9 +79,8 @@ describe("school profile", () => {
 
   it("reads a purchased office and treats missing or unsafe fields as not purchased", () => {
     const open = parseSchoolProfile({
-      ok: true,
-      id: "ada@school.test",
-      profile: { officePurchased: true, officeSlug: "ada-l" },
+      family: {
+        email: "ada@school.test", officePurchased: true, officeSlug: "ada-l" },
     });
     assert.equal(open?.profile.officePurchased, true);
     assert.equal(open?.profile.officeSlug, "ada-l");
@@ -81,7 +88,9 @@ describe("school profile", () => {
       kind: "office",
       href: "https://www.dotheimpossible.ai/s/ada-l/",
     });
-    const missing = parseSchoolProfile({ ok: true, id: "a@b.co", profile: {} });
+    const missing = parseSchoolProfile({
+      family: {
+        email: "a@b.co",} });
     assert.equal(missing?.profile.officePurchased, false);
     assert.equal(missing?.profile.officeSlug, null);
     assert.deepEqual(officeOffer(false, null), {
@@ -89,27 +98,28 @@ describe("school profile", () => {
       href: "https://www.dotheimpossible.ai/pay/checkout?item=first-month",
     });
     const unsafe = parseSchoolProfile({
-      ok: true,
-      id: "a@b.co",
-      profile: { officePurchased: true, officeSlug: "../admin" },
+      family: {
+        email: "a@b.co", officePurchased: true, officeSlug: "../admin" },
     });
     assert.equal(unsafe?.profile.officePurchased, true);
     assert.equal(unsafe?.profile.officeSlug, null);
     assert.equal(officeOffer(true, unsafe?.profile.officeSlug ?? null).kind, "package");
     assert.equal(officeOffer(false, "ada-l").kind, "package");
     const word = parseSchoolProfile({
-      ok: true,
-      id: "a@b.co",
-      profile: { officePurchased: "true", officeSlug: null },
+      family: {
+        email: "a@b.co", officePurchased: "true", officeSlug: null },
     });
     assert.equal(word?.profile.officePurchased, false);
   });
 
   it("stays closed when access is missing and there is no paid plan", () => {
-    const parsed = parseSchoolProfile({ ok: true, id: "a@b.co", profile: {} });
+    const parsed = parseSchoolProfile({
+      family: {
+        email: "a@b.co",} });
     assert.equal(parsed?.profile.access, "closed");
     assert.equal(parsed?.profile.plan, null);
     assert.equal(parseSchoolProfile({ ok: false, id: "a@b.co" }), null);
+    assert.equal(parseSchoolProfile({ ok: true, id: "a@b.co", profile: { access: "open" } }), null);
   });
 });
 
@@ -123,19 +133,18 @@ describe("clock and seen writes", () => {
   });
 
   it("sends the higher clock and unique seen questions", () => {
-    const body = schoolWriteBody("a@b.co", { m: { grade: 2, step: 0 } }, 100, 40, [
+    const body = schoolWriteBody({ m: { grade: 2, step: 0 }, sp: { grade: 1, step: 0, band: "LK", index: 0 } }, 100, 40, [
       { key: "m:1:0:0", text: "stem" },
       { key: "m:1:0:0", text: "other" },
       { key: "", text: "blank" },
     ]);
-    assert.equal(body.clockSeconds, 100);
+    assert.equal(body.clock.seconds, 100);
     assert.deepEqual(body.seen, [{ key: "m:1:0:0", text: "stem" }]);
-    assert.equal(body.student, undefined);
-  });
-
-  it("sends the first child's name so the website can enroll that student", () => {
-    const body = schoolWriteBody("a@b.co", { m: { grade: 2, step: 0 } }, 0, 0, [], "Ada");
-    assert.deepEqual(body.student, { name: "Ada" });
+    assert.equal(body.levels.sp?.band, "cvc");
+    assert.equal(body.levels.sp?.word, "a");
+    assert.equal(body.levels.sp?.grade, 1);
+    assert.equal("student" in body, false);
+    assert.equal("id" in body, false);
   });
 });
 
@@ -152,12 +161,10 @@ describe("website errors", () => {
     assert.equal(failureKind(0, {}), "offline");
   });
 
-  it("accepts only a 6-digit reset code", () => {
-    const coded = resetCode({ ok: true, code: "123456", expiresAt: "2026-10-15T18:00:00.000Z" });
-    assert.equal(coded?.code, "123456");
-    assert.equal(coded?.expiresAt, "2026-10-15T18:00:00.000Z");
-    assert.equal(resetCode({ ok: true, code: "12345" }), null);
-    assert.equal(resetCode({ ok: false, code: "123456" }), null);
+  it("treats a past token as finished and keeps a future one", () => {
+    assert.equal(accountTokenExpired("2020-01-01T00:00:00.000Z", Date.parse("2026-10-18T00:00:00.000Z")), true);
+    assert.equal(accountTokenExpired("2026-10-19T00:00:00.000Z", Date.parse("2026-10-18T00:00:00.000Z")), false);
+    assert.equal(accountTokenExpired("not-a-date"), true);
   });
 });
 
@@ -176,11 +183,9 @@ const freshProfile = {
 describe("student check", () => {
   it("treats a blank website student as new, including a name that matches the parent", () => {
     const parsed = parseSchoolProfile({
-      ok: true,
-      id: "Parent@Example.com",
-      profile: {
+      family: {
+        email: "Parent@Example.com",
         parentName: "Ada",
-        email: "parent@example.com",
         student: { name: "" },
         level: null,
       },
@@ -198,9 +203,8 @@ describe("student check", () => {
     assert.equal(decideStudent("Ada", " ADA "), "same");
     assert.equal(decideStudent("Ada", "Bea"), "extra");
     const enrolled = parseSchoolProfile({
-      ok: true,
-      id: "parent@example.com",
-      profile: { student: { name: "Ada" }, level: null, parentName: "Bea" },
+      family: {
+        email: "parent@example.com", student: { name: "Ada" }, level: null, parentName: "Bea" },
     });
     assert.equal(isFreshSchoolProfile(enrolled!.profile), false);
     assert.equal(decideStudent(enrolled?.profile.studentName, "Bea"), "extra");
@@ -240,11 +244,15 @@ describe("student check", () => {
     await assert.rejects(
       () =>
         readSchoolAccount("parent@example.com", {
-          secret: SECRET,
+          token: TOKEN,
           fetch: async (input, init) => {
-            assert.equal(input, "https://www.dotheimpossible.ai/api/vkole/read");
-            assert.equal(JSON.parse(String(init?.body)).email, "parent@example.com");
-            return jsonResponse(400, { ok: false, error: "That level could not be saved." });
+            assert.equal(input, "https://www.dotheimpossible.ai/api/account/family");
+            assert.equal(init?.method, "GET");
+            assert.equal(init?.body, undefined);
+            const headers = new Headers(init?.headers);
+            assert.equal(headers.get("authorization"), `Bearer ${TOKEN}`);
+            assert.equal(headers.get("x-vkole-secret"), null);
+            return jsonResponse(400, { error: "That level could not be saved." });
           },
         }),
       (err: unknown) =>
@@ -254,8 +262,8 @@ describe("student check", () => {
       () =>
         studentCheck("parent@example.com", "Ada", (id) =>
           readSchoolAccount(id, {
-            secret: SECRET,
-            fetch: async () => jsonResponse(409, { message: "An account already exists for that email. Sign in with it." }),
+            token: TOKEN,
+            fetch: async () => jsonResponse(409, { error: "An account already exists for that email. Sign in with it." }),
           }),
         ),
       (err: unknown) => err instanceof Error && err.message === "An account already exists for that email. Sign in with it.",
@@ -264,54 +272,52 @@ describe("student check", () => {
 });
 
 describe("server calls", () => {
-  it("posts with the secret and without an Origin header", async () => {
+  it("posts sign-in without a shared secret, cookies, or an Origin header", async () => {
     const seen: { url: string; init: RequestInit | undefined } = { url: "", init: undefined };
     const account = await signInSchoolAccount(
       { email: "Ada@School.test", password: "long-enough" },
       {
-        secret: SECRET,
         fetch: async (input, init) => {
           seen.url = input;
           seen.init = init;
-          return jsonResponse(200, {
-            ok: true,
-            id: "ada@school.test",
-            profile: { access: "open", studentName: "Ada" },
-          });
+          return jsonResponse(200, session("ada@school.test", { access: "open", studentName: "Ada" }));
         },
       },
     );
     assert.equal(account.id, "ada@school.test");
-    assert.equal(seen.url, "https://www.dotheimpossible.ai/api/vkole/sign-in");
+    assert.equal(account.token, TOKEN);
+    assert.equal(account.expiresAt, EXPIRES);
+    assert.equal(account.profile.studentName, "Ada");
+    assert.equal(seen.url, "https://www.dotheimpossible.ai/api/account/sign-in");
     const headers = new Headers(seen.init?.headers);
-    assert.equal(headers.get("x-vkole-secret"), SECRET);
+    assert.equal(headers.get("x-vkole-secret"), null);
+    assert.equal(headers.get("cookie"), null);
+    assert.equal(headers.get("authorization"), null);
     assert.equal(headers.get("origin"), null);
     assert.equal(seen.init?.method, "POST");
+    assert.equal(seen.init?.credentials, "omit");
     assert.equal(seen.init?.referrerPolicy, "no-referrer");
     assert.equal(JSON.parse(String(seen.init?.body)).email, "ada@school.test");
+    assert.equal(String(seen.url).includes("/api/vkole/"), false);
   });
 
-  it("does not call the website when the secret is missing", async () => {
+  it("calls the website when no shared secret is configured", async () => {
     let called = false;
-    await assert.rejects(
-      () =>
-        signInSchoolAccount(
-          { email: "a@b.co", password: "long-enough" },
-          {
-            secret: "   ",
-            fetch: async () => {
-              called = true;
-              return jsonResponse(200, {});
-            },
-          },
-        ),
-      (err: unknown) =>
-        err instanceof SchoolCallError &&
-        err.reason === "offline" &&
-        err.message === SCHOOL_OFFLINE_MESSAGE &&
-        !err.message.includes(SECRET),
+    const account = await signInSchoolAccount(
+      { email: "a@b.co", password: "long-enough" },
+      {
+        fetch: async (_input, init) => {
+          called = true;
+          const headers = new Headers(init?.headers);
+          assert.equal(headers.get("x-vkole-secret"), null);
+          assert.equal(headers.has("x-vkole-secret"), false);
+          return jsonResponse(200, session("a@b.co", { access: "closed" }));
+        },
+      },
     );
-    assert.equal(called, false);
+    assert.equal(called, true);
+    assert.equal(account.id, "a@b.co");
+    assert.equal(JSON.stringify(account).includes(SECRET), false);
   });
 
   it("turns a lockout and a dropped connection into stable messages", async () => {
@@ -319,7 +325,7 @@ describe("server calls", () => {
       () =>
         registerSchoolAccount(
           { email: "a@b.co", password: "long-enough", name: "Ada" },
-          { secret: SECRET, fetch: async () => jsonResponse(429, { error: SECRET }) },
+          { fetch: async () => jsonResponse(429, { error: SECRET }) },
         ),
       (err: unknown) =>
         err instanceof SchoolCallError &&
@@ -330,7 +336,7 @@ describe("server calls", () => {
     await assert.rejects(
       () =>
         readSchoolAccount("a@b.co", {
-          secret: SECRET,
+          token: TOKEN,
           fetch: async () => {
             throw new Error(`connect ${SECRET}`);
           },
@@ -339,30 +345,51 @@ describe("server calls", () => {
     );
   });
 
-  it("writes the account and reads a reset code without putting the secret in the result", async () => {
+  it("saves spelling on level sp and asks the website to send the reset code", async () => {
+    const paths: string[] = [];
     await writeSchoolAccount(
-      { id: "a@b.co", level: { m: { grade: 2, step: 1 } }, clockSeconds: 40, seen: [{ key: "k", text: "t" }] },
+      "a@b.co",
+      schoolWriteBody(
+        { m: { grade: 2, step: 1 }, sp: { grade: 1, step: 0, band: "LK", index: 2, word: "lk-next-c" }, mg: { grade: 3, step: 0 } },
+        40,
+        0,
+        [{ key: "k", text: "t" }],
+      ),
       {
-        secret: SECRET,
-        fetch: async (_input, init) => {
+        token: TOKEN,
+        fetch: async (input, init) => {
+          paths.push(String(input));
+          assert.equal(init?.method, "POST");
           const headers = new Headers(init?.headers);
           assert.equal(headers.get("origin"), null);
-          assert.equal(headers.get("x-vkole-secret"), SECRET);
+          assert.equal(headers.get("x-vkole-secret"), null);
+          assert.equal(headers.get("cookie"), null);
+          assert.equal(headers.get("authorization"), `Bearer ${TOKEN}`);
           const body = JSON.parse(String(init?.body));
-          assert.equal(body.email, "a@b.co");
-          assert.equal(body.clockSeconds, 40);
-          return jsonResponse(200, { ok: true });
+          assert.equal(body.email, undefined);
+          assert.equal(body.clock.seconds, 40);
+          assert.equal(body.levels.sp.band, "cvc");
+          assert.equal(body.levels.sp.word, "c");
+          assert.equal(body.levels.sp.grade, 1);
+          assert.equal(body.levels.mg.grade, 3);
+          assert.equal(String(input).includes("/api/vkole/"), false);
+          return jsonResponse(200, session("a@b.co", { levels: body.levels, clock: body.clock, seen: body.seen }));
         },
       },
     );
     const reset = await requestSchoolReset("A@B.co", {
-      secret: SECRET,
-      fetch: async (input) => {
-        assert.equal(input, "https://www.dotheimpossible.ai/api/vkole/password-reset");
-        return jsonResponse(200, { ok: true, code: "654321", expiresAt: "2026-10-15T18:00:00.000Z" });
+      fetch: async (input, init) => {
+        paths.push(String(input));
+        assert.equal(init?.method, "POST");
+        assert.deepEqual(JSON.parse(String(init?.body)), { email: "a@b.co" });
+        assert.equal(new Headers(init?.headers).get("x-vkole-secret"), null);
+        return jsonResponse(200, { message: "Code sent" });
       },
     });
-    assert.equal(reset.code, "654321");
+    assert.equal(reset.message, "Code sent");
+    assert.equal(paths[0], "https://www.dotheimpossible.ai/api/account/family");
+    assert.equal(paths[1], "https://www.dotheimpossible.ai/api/account/forgot-password/send-code");
+    assert.equal(paths.some((path) => path.includes("/api/vkole/password-reset")), false);
     assert.equal(JSON.stringify(reset).includes(SECRET), false);
   });
 
@@ -371,14 +398,14 @@ describe("server calls", () => {
     await confirmSchoolReset(
       { email: "Ada@School.test", code: " 123456 ", newPassword: "long-enough" },
       {
-        secret: SECRET,
         fetch: async (input, init) => {
-          assert.equal(input, "https://www.dotheimpossible.ai/api/vkole/password-reset/confirm");
+          assert.equal(input, "https://www.dotheimpossible.ai/api/account/forgot-password/confirm");
+          assert.equal(String(input).includes("/api/vkole/password-reset"), false);
           const headers = new Headers(init?.headers);
-          assert.equal(headers.get("x-vkole-secret"), SECRET);
+          assert.equal(headers.get("x-vkole-secret"), null);
           assert.equal(headers.get("origin"), null);
           body = JSON.parse(String(init?.body));
-          return jsonResponse(200, { ok: true });
+          return jsonResponse(200, { message: "Password updated" });
         },
       },
     );
@@ -388,8 +415,7 @@ describe("server calls", () => {
         confirmSchoolReset(
           { email: "a@b.co", code: "000000", newPassword: "long-enough" },
           {
-            secret: SECRET,
-            fetch: async () => jsonResponse(400, { ok: false, error: "That code has expired." }),
+            fetch: async () => jsonResponse(400, { error: "That code has expired." }),
           },
         ),
       (err: unknown) => err instanceof SchoolCallError && err.message === "That code has expired.",
@@ -401,13 +427,12 @@ describe("server calls", () => {
     const account = await signInSchoolAccount(
       { email: "  Sam@Family.test ", password: "long-enough" },
       {
-        secret: SECRET,
         fetch: async (input, init) => {
-          assert.equal(input, "https://www.dotheimpossible.ai/api/vkole/sign-in");
+          assert.equal(input, "https://www.dotheimpossible.ai/api/account/sign-in");
           const email = JSON.parse(String(init?.body)).email as string;
           calls.push(email);
-          if (email === "sam@family.test") return jsonResponse(404, { ok: false, error: "No account for that email." });
-          return jsonResponse(200, { ok: true, profile: { access: "open", studentName: "Sam" } });
+          if (email === "sam@family.test") return jsonResponse(404, { error: "No account for this email" });
+          return jsonResponse(200, session("sam@family.test", { access: "open", studentName: "Sam" }));
         },
       },
     );
@@ -416,9 +441,36 @@ describe("server calls", () => {
     assert.equal(account.profile.studentName, "Sam");
   });
 
-  it("treats a secret rejection as offline, not as an unrecognized password", () => {
-    assert.equal(failureKind(401, { error: "Unauthorized" }), "offline");
-    assert.equal(failureKind(403, { error: "Forbidden secret" }), "offline");
+  it("treats a token rejection as sign-in again and shows the website sentence", async () => {
+    assert.equal(failureKind(401, { error: "Unauthorized" }), "unauthorized");
+    assert.equal(failureKind(401, { error: "Invalid email or password" }), "password");
+    assert.equal(failureKind(403, { error: "Forbidden secret" }), "rejected");
+    let called = false;
+    await assert.rejects(
+      () =>
+        readSchoolAccount("ada@school.test", {
+          token: TOKEN,
+          expiresAt: "2020-01-01T00:00:00.000Z",
+          now: Date.parse("2026-10-18T00:00:00.000Z"),
+          fetch: async () => {
+            called = true;
+            return jsonResponse(200, session("ada@school.test"));
+          },
+        }),
+      (err: unknown) => err instanceof SchoolCallError && err.reason === "unauthorized" && err.message === "Sign in again.",
+    );
+    assert.equal(called, false);
+    await assert.rejects(
+      () =>
+        readSchoolAccount("ada@school.test", {
+          token: "expired-token",
+          fetch: async (_input, init) => {
+            assert.equal(new Headers(init?.headers).get("authorization"), "Bearer expired-token");
+            return jsonResponse(401, { error: "Token expired" });
+          },
+        }),
+      (err: unknown) => err instanceof SchoolCallError && err.reason === "unauthorized" && err.message === "Token expired",
+    );
   });
 
   it("does not open the dotted operator session for an ordinary parent sign-in", async () => {
@@ -427,14 +479,8 @@ describe("server calls", () => {
         signInSchoolAccount(
           { email: "kirksamalpha@gmail.com", password: "long-enough" },
           {
-            secret: SECRET,
             fetch: async () =>
-              jsonResponse(200, {
-                ok: true,
-                id: "kirk.sam.alpha@gmail.com",
-                email: "kirk.sam.alpha@gmail.com",
-                profile: { access: "open", studentName: "Sam" },
-              }),
+              jsonResponse(200, session("kirk.sam.alpha@gmail.com", { access: "open", studentName: "Sam" })),
           },
         ),
       (err: unknown) => err instanceof SchoolCallError && err.reason === "rejected",
@@ -445,13 +491,12 @@ describe("server calls", () => {
     const account = await registerSchoolAccount(
       { email: "kirksamalpha@gmail.com", password: "long-enough", name: "Kirk" },
       {
-        secret: SECRET,
-        fetch: async () =>
-          jsonResponse(200, {
-            ok: true,
-            id: "kirksamalpha@gmail.com",
-            profile: { access: "open", studentName: "" },
-          }),
+        fetch: async (_input, init) => {
+          const body = JSON.parse(String(init?.body)) as { studentName?: string; name?: string };
+          assert.equal(body.studentName, undefined);
+          assert.equal(body.name, undefined);
+          return jsonResponse(200, session("kirksamalpha@gmail.com", { access: "open", studentName: "" }));
+        },
       },
     );
     assert.equal(account.id, "kirksamalpha@gmail.com");
@@ -460,13 +505,7 @@ describe("server calls", () => {
         registerSchoolAccount(
           { email: "kirksamalpha@gmail.com", password: "long-enough", name: "Kirk" },
           {
-            secret: SECRET,
-            fetch: async () =>
-              jsonResponse(200, {
-                ok: true,
-                id: "kirk.sam.alpha@gmail.com",
-                profile: { access: "open" },
-              }),
+            fetch: async () => jsonResponse(200, session("kirk.sam.alpha@gmail.com", { access: "open" })),
           },
         ),
       (err: unknown) => err instanceof SchoolCallError && err.reason === "rejected",
@@ -487,37 +526,35 @@ describe("server calls", () => {
         email,
         samePassword: password === schoolPassword(typedPassword) && !password.includes("\n"),
       });
-      if (path.endsWith("/register")) {
+      if (path.endsWith("/api/account/register")) {
         stored.set(email, password);
-        return jsonResponse(200, {
-          ok: true,
-          id: email,
-          profile: { access: "closed", studentName: "", freeWeekStart: "1970-01-01T00:00:00.000Z" },
-        });
+        return jsonResponse(
+          200,
+          session(email, { access: "closed", studentName: "", freeWeekStart: "1970-01-01T00:00:00.000Z" }),
+        );
       }
       const saved = stored.get(email);
       if (saved == null || saved !== password) {
-        return jsonResponse(401, { ok: false, error: "Email or password did not match." });
+        return jsonResponse(401, { error: "Invalid email or password" });
       }
-      return jsonResponse(200, {
-        ok: true,
-        id: email,
-        profile: { access: "closed", studentName: "", freeWeekStart: "1970-01-01T00:00:00.000Z" },
-      });
+      return jsonResponse(
+        200,
+        session(email, { access: "closed", studentName: "", freeWeekStart: "1970-01-01T00:00:00.000Z" }),
+      );
     };
     const registered = await registerSchoolAccount(
       { email: "  KirkSamAlpha@DotHeimpossible.ai ", password: typedPassword, name: "Parent" },
-      { secret: SECRET, fetch: fetchImpl },
+      { fetch: fetchImpl },
     );
     const signedIn = await signInSchoolAccount(
       { email: "KirkSamAlpha@DotHeimpossible.ai", password: typedPassword },
-      { secret: SECRET, fetch: fetchImpl },
+      { fetch: fetchImpl },
     );
     assert.equal(registered.id, DEFAULT_WEBSITE_MASTER_EMAIL);
     assert.equal(signedIn.id, registered.id);
     assert.equal(calls.length, 2);
-    assert.equal(calls[0]?.path.endsWith("/api/vkole/register"), true);
-    assert.equal(calls[1]?.path.endsWith("/api/vkole/sign-in"), true);
+    assert.equal(calls[0]?.path.endsWith("/api/account/register"), true);
+    assert.equal(calls[1]?.path.endsWith("/api/account/sign-in"), true);
     assert.equal(calls[0]?.email, DEFAULT_WEBSITE_MASTER_EMAIL);
     assert.equal(calls[1]?.email, calls[0]?.email);
     assert.equal(calls.every((call) => call.samePassword), true);
@@ -551,12 +588,101 @@ describe("server calls", () => {
       () =>
         signInSchoolAccount(
           { email: "parent@example.com", password: "long-enough" },
-          { secret: SECRET, fetch: async () => jsonResponse(404, { ok: false, error: missing }) },
+          { fetch: async () => jsonResponse(404, { error: missing }) },
         ),
       (err: unknown) => err instanceof SchoolCallError && err.reason === "unknown" && err.message === missing,
     );
   });
+
+  it("shows the website account errors as they were sent", async () => {
+    const errors = ["No account for this email", "Invalid email or password", "Account already exists"] as const;
+    await assert.rejects(
+      () =>
+        signInSchoolAccount(
+          { email: "parent@example.com", password: "long-enough" },
+          { fetch: async () => jsonResponse(404, { error: errors[0] }) },
+        ),
+      (err: unknown) => err instanceof SchoolCallError && err.message === errors[0],
+    );
+    await assert.rejects(
+      () =>
+        signInSchoolAccount(
+          { email: "parent@example.com", password: "long-enough" },
+          { fetch: async () => jsonResponse(401, { error: errors[1] }) },
+        ),
+      (err: unknown) => err instanceof SchoolCallError && err.message === errors[1] && err.reason === "password",
+    );
+    await assert.rejects(
+      () =>
+        registerSchoolAccount(
+          { email: "parent@example.com", password: "long-enough", name: "Parent" },
+          { fetch: async () => jsonResponse(409, { error: errors[2] }) },
+        ),
+      (err: unknown) => err instanceof SchoolCallError && err.message === errors[2] && err.reason === "exists",
+    );
+  });
+
+  it("re-hydrates spelling and mg from GET family with the bearer token", async () => {
+    const profile = await readSchoolAccount("ada@school.test", {
+      token: TOKEN,
+      fetch: async (input, init) => {
+        assert.equal(input, "https://www.dotheimpossible.ai/api/account/family");
+        assert.equal(init?.method, "GET");
+        assert.equal(new Headers(init?.headers).get("authorization"), `Bearer ${TOKEN}`);
+        return jsonResponse(200, {
+          family: {
+            email: "ada@school.test",
+            studentName: "Ada",
+            levels: {
+              sp: { grade: 1, band: "LK", index: 1, word: "lk-next-b" },
+              mg: { grade: 4, step: 2, note: "kept" },
+            },
+            clock: { seconds: 15 },
+            seen: [{ key: "sp:1", text: "letter" }],
+          },
+        });
+      },
+    });
+    assert.equal(profile.level.sp?.band, "LK");
+    assert.equal(profile.level.sp?.word, "lk-next-b");
+    assert.equal(profile.level.mg?.grade, 4);
+    assert.equal(profile.level.mg?.step, 2);
+    assert.equal((profile.level.mg as { note?: string } | undefined)?.note, "kept");
+    assert.equal(profile.clockSeconds, 15);
+    assert.equal(profile.seen[0]?.text, "letter");
+  });
+
+  it("does not send the shared secret from browser code", () => {
+    const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+    const files = [
+      ...walk(join(root, "components")),
+      ...walk(join(root, "routes")).filter((path) => !path.endsWith(join("api", "vkole", "purge.ts"))),
+      join(root, "lib", "school-account.ts"),
+      join(root, "lib", "school-auth.ts"),
+      join(root, "lib", "account-purge.ts"),
+    ];
+    for (const path of files) {
+      const text = readFileSync(path, "utf8");
+      assert.equal(text.includes("x-vkole-secret"), false, path);
+      assert.equal(text.includes("VKOLE_SHARED_SECRET"), false, path);
+    }
+    const server = readFileSync(join(root, "lib", "school-account.server.ts"), "utf8");
+    assert.equal(server.includes('set("x-vkole-secret"'), false);
+    assert.equal(server.includes("VKOLE_SHARED_SECRET"), false);
+    assert.equal(server.includes("/api/account/forgot-password/send-code"), true);
+    assert.equal(server.includes('"/api/vkole/password-reset"'), true);
+  });
 });
+
+function walk(dir: string): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) out.push(...walk(path));
+    else if (name.endsWith(".ts") || name.endsWith(".tsx")) out.push(path);
+  }
+  return out;
+}
 
 describe("master access", () => {
   it("never shows the trial page for the master email", () => {

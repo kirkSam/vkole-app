@@ -1,31 +1,33 @@
 # VKOLE shared account API
 
-The school website is the account book. The app calls it from its own server with header `X-Vkole-Secret`. The browser never sees the secret. The account id is the lowercase parent email.
+The school website is the account book. The app calls `https://www.dotheimpossible.ai/api/account/*` from its own server. No cookies. Sign-in and register return `{ token, expiresAt, family }`. Family reads and saves send `Authorization: Bearer`. The token lasts 12 hours and is not refreshed. A 401 clears the stored token and returns the parent to sign-in. The browser never sends `X-Vkole-Secret`. The account id is the lowercase parent email.
 
-Base: `https://www.dotheimpossible.ai`
+`POST /api/vkole/purge` on this app still accepts `X-Vkole-Secret` or a signed-in admin email. That header is not sent to the website.
 
 | Path | Body |
 |---|---|
-| `POST /api/vkole/register` | email, password, and the first student name when one is being enrolled |
-| `POST /api/vkole/sign-in` | email and password |
-| `POST /api/vkole/read` | `{ "id" }` |
-| `POST /api/vkole/write` | `{ "id", "level", "clockSeconds", "seen", "student"? }` |
-| `POST /api/vkole/password-reset` | email |
-| `POST /api/vkole/password-reset/confirm` | email, code, password |
+| `POST /api/account/register` | `{ email, password, studentName? }` returns `{ token, expiresAt, family }` |
+| `POST /api/account/sign-in` | `{ email, password }` returns the same shape |
+| `POST /api/account/forgot-password/send-code` | `{ email }` returns `{ message: "Code sent" }` |
+| `POST /api/account/forgot-password/confirm` | `{ email, code, newPassword }` returns `{ message: "Password updated" }` |
+| `GET /api/account/family` | bearer token, returns `{ family }` |
+| `POST /api/account/family` | bearer token, `{ levels, clock, seen }`, returns `{ family }` |
+
+Level keys are `m`, `ela`, `ss`, `gen`, `sg`, `sw`, `pa`, `mg`, and `sp`. Spelling progress is `levels.sp`. This app does not call `/api/vkole/password-reset`.
 
 The account id is the email after trimming and lowercasing. Dots in the address stay. Register and sign-in both send that lowercase id. Sign-in tries the typed spelling only when the lowercase id is unknown.
 
-The password is the typed password with trailing newlines removed. It is not trimmed and it is not lowercased. Register, sign-in, and password-reset confirm all send that same value. The website's `src/lib/vkole` handlers must store and check that same value, in the same account row the engine sign-in reads.
+The password is the typed password with trailing newlines removed. It is not trimmed and it is not lowercased. Register, sign-in, and password confirm all send that same value.
 
-`VKOLE_MASTER_EMAIL`, or `kirksamalpha@dotheimpossible.ai` when that variable is empty, is never on a free week and never has to pay. Register, sign-in, and read for that email return `access: "open"` and do not send a finished free week. The website's client already skips the free week for that address. The API handlers in `src/lib/vkole` have to do the same.
+`VKOLE_MASTER_EMAIL`, or `kirksamalpha@dotheimpossible.ai` when that variable is empty, is never on a free week and never has to pay. Register, sign-in, and the family read for that email return `access: "open"` and do not send a finished free week.
 
-A write replaces each engine object that is sent. Engines that are omitted are not part of this app's write. The app sends every engine it has on the device.
+A family save sends each engine object the app has, including spelling on `sp` and a stored `mg` level when one was read. `seen` is the last 400 questions, `{ "key", "text" }`. `clock.seconds` is the shared day clock, capped at 2.5 hours.
 
-`seen` is the last 400 questions, `{ "key", "text" }`. `clockSeconds` is the shared day clock, capped at 2.5 hours.
+Errors are JSON `{ "error": "..." }` and are shown as sent. Those sentences include `No account for this email`, `Invalid email or password`, `Account already exists`, and token errors.
 
 ## Engine keys
 
-`m`, `ela`, `ss`, `gen`, `sg`, `sw`, `sp`, `pa`.
+`m`, `ela`, `ss`, `gen`, `sg`, `sw`, `sp`, `pa`. The website also stores `mg`. This app keeps that level and sends it back. It does not add an engine screen for it.
 
 `m`, `ela`, `ss`, and `gen` store `{ "grade": 1-12, "step": 0|1|2 }`.
 
@@ -111,6 +113,8 @@ The microphone listens only while a word is on the screen. Audio is not recorded
 
 Spelling. The key is `sp`. The letters, timings, question bands, and spoken names are in `src/lib/vkole/spelling/data.json`. That file is the canonical copy. The website copies it byte for byte.
 
+The engine still tracks letter knowledge internally as band `LK` and a prompt id such as `lk-next-m`. A family save does not send that shape. The website drops an unknown band, refuses a grade outside 1-12, and keeps a word only when it is lowercase letters with at most one apostrophe. Alphabet progress is therefore saved as band `cvc` and `word` set to the current letter.
+
 ```json
 {
   "id": "sp-ada",
@@ -118,20 +122,22 @@ Spelling. The key is `sp`. The letters, timings, question bands, and spoken name
   "enteredBy": "parent",
   "grade": 1,
   "step": 0,
-  "band": "LK",
-  "index": 0,
-  "word": "lk-first",
+  "band": "cvc",
+  "index": 12,
+  "word": "m",
+  "streak": 1,
+  "missStreak": 2,
   "earnedGrade": 1,
   "reached": 0,
   "missed": 0,
   "updatedAt": 0,
   "startingGrade": 1,
-  "levelCode": "LK",
+  "levelCode": "cvc",
   "levelLabel": "Letter knowledge"
 }
 ```
 
-`band` is the list. During the letter phase, `index` is the letter: 0 is A and 25 is Z. `step` stays 0. `word` is the prompt id. `streak` is how many times the current letter has been met with silence. `missStreak` is the wrong-answer step: 0 is the letter question, 1 is the 3-letter cue, and 2 is the 5-letter cue. The grade number stays when the letter changes.
+`band` on the wire is `cvc` for the alphabet stage. The website's other kept bands are `blends`, `vowels`, `patterns`, and `affixes`. `word` is the letter, `a` through `z`. `index` is that same letter: 0 is A and 25 is Z. `step` stays 0. `streak` is how many times the current letter has been met with silence. `missStreak` is the wrong-answer step: 0 is the letter question, 1 is the 3-letter cue, and 2 is the 5-letter cue. The grade number stays when the letter changes, and it is always sent as an integer from 1 to 12. A read of band `cvc` plus a one-letter `word` restores the same letter inside the engine. `index`, `streak`, and `missStreak` restore a cue that was already showing.
 
 ### Bands
 
@@ -147,7 +153,7 @@ Spelling. The key is `sp`. The letters, timings, question bands, and spoken name
 
 Letter knowledge, in order: the first letter of the alphabet, the next letter through Z, what letter comes after each letter from A through Y (including X), then the name of each letter A through Z.
 
-A new student starts at the first letter question. A saved `band`, or a `levelCode` that is a band id, wins. A saved band with no items yet falls back to letter knowledge.
+A new student starts at the first letter question. Inside the engine, a saved `band`, or a `levelCode` that is one of those band ids, wins. A saved band with no items yet falls back to letter knowledge. The family save still writes that letter as `band: "cvc"` and `word` set to the lowercase letter.
 
 Opening the engine plays the alphabet from A to Z, one letter every 1.5 seconds (26 letters, 39 seconds). Each letter is a different bright color on a changing background. The picture changes once every 1.5 seconds, which is slower than 3 changes per second. At the end, when the student is still on the first question, the engine says and shows: `Your turn! What is the first letter of the alphabet?`
 

@@ -209,11 +209,13 @@ async function selectOwned(sql: Sql, userId: string, id: string): Promise<Climb>
   return finishLoad(sql, userId, rows[0]);
 }
 
-export async function accountPasswordMatches(_sql: Sql, userId: string, password: string): Promise<boolean> {
+export async function accountPasswordMatches(sql: Sql, userId: string, password: string): Promise<boolean> {
   if (!isSchoolAccountId(userId)) return false;
   const { SchoolCallError, signInSchoolAccount } = await import("@/lib/school-account.server");
   try {
-    await signInSchoolAccount({ email: userId, password });
+    const session = await signInSchoolAccount({ email: userId, password });
+    const { saveAccountGrant } = await import("@/lib/school-mirror.server");
+    await saveAccountGrant(sql, userId, { token: session.token, expiresAt: session.expiresAt }).catch(() => undefined);
     return true;
   } catch (err) {
     if (err instanceof SchoolCallError && err.reason !== "offline" && err.reason !== "wait") return false;
