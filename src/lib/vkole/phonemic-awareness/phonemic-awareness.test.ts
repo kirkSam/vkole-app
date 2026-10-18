@@ -264,11 +264,12 @@ describe("level.pa", () => {
     assert.equal(written.grade, 1);
     assert.equal(written.step, 0);
     const body = schoolWriteBody({ pa: written }, 0, 0, []);
-    assert.equal(body.levels.pa?.band, "RH");
-    assert.equal(body.levels.pa?.streak, 0);
-    assert.equal(body.levels.pa?.missStreak, 0);
-    assert.equal(body.levels.pa?.adult, undefined);
-    assert.equal(body.levels.pa?.approved, undefined);
+    const saved = body.levels.pa as Record<string, unknown> | undefined;
+    assert.equal(saved?.band, "RH");
+    assert.equal(saved?.streak, 0);
+    assert.equal(saved?.missStreak, 0);
+    assert.equal(saved?.adult, undefined);
+    assert.equal(saved?.approved, undefined);
     assert.equal("sw" in body.levels, false);
     assert.equal(JSON.stringify(body).includes("bea@other.test"), false);
     assert.equal(JSON.stringify(body).includes("adult"), false);
