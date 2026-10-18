@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PA_ADVANCE_MS, PA_MAX_SHOW_MS, itemAt, isPaBand, type PaBand } from "@/lib/vkole/phonemic-awareness/items";
 import { judgePaSpoken } from "@/lib/vkole/phonemic-awareness/match";
+import { speechTokens } from "@/lib/vkole/sight-words/match";
 
 const MIC_KEY = "vkole-pa-mic";
 
@@ -94,6 +95,7 @@ export function PhonemicStage({
     setPhase("prompt");
   }, [item.id]);
 
+  // The microphone is on only while the child should answer. It stays off while the prompt or the model is spoken.
   const listening = ready && !unsupported && allowed && phase === "listen";
   const waiting = ready && (unsupported || allowed) && (phase === "prompt" || phase === "listen");
 
@@ -153,6 +155,7 @@ export function PhonemicStage({
             if (!result) continue;
             for (let j = 0; j < result.length; j += 1) {
               const transcript = result[j]?.transcript ?? "";
+              if (speechTokens(transcript).length === 0) continue;
               const judged = judgePaSpoken(itemRef.current, transcript, Boolean(result.isFinal));
               if (judged === "wait") continue;
               finishRef.current(judged);
@@ -240,19 +243,6 @@ export function PhonemicStage({
           </div>
         ) : null}
       </div>
-      {phase === "listen" ? (
-        <div className="mt-6">
-          <p className="text-sm text-ink">An adult marks what the child said out loud.</p>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-            <button type="button" onClick={() => finishRef.current("correct")} className="min-h-11 flex-1 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
-              They said it right
-            </button>
-            <button type="button" onClick={() => finishRef.current("miss")} className="min-h-11 flex-1 rounded-xl border border-ink bg-paper px-5 font-semibold text-ink">
-              Not yet
-            </button>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }

@@ -147,11 +147,63 @@ describe("spoken phonemic answers", () => {
     const segment = itemAt("PS", 0);
     assert.equal(paSpokenMatches(segment, "kuh aeh tuh"), true);
     assert.equal(paSpokenMatches(segment, "cuh ae t"), true);
+    assert.equal(paSpokenMatches(segment, "k"), false);
     assert.equal(paSpokenMatches(segment, "cat"), false);
+    assert.equal(judgePaSpoken(count, "", false), "wait");
     assert.equal(judgePaSpoken(count, "", true), "miss");
     assert.equal(judgePaSpoken(count, "th", false), "wait");
     assert.equal(judgePaSpoken(count, "three", false), "correct");
     assert.equal(judgePaSpoken(count, "four", true), "miss");
+  });
+
+  it("accepts case, punctuation, /k/ variants, and a hyphenated c-a-t", () => {
+    const segment = itemAt("PS", 0);
+    assert.equal(segment.sounds.join(" "), "k a t");
+    assert.equal(paSpokenMatches(segment, "kuh"), false);
+    assert.equal(paSpokenMatches(segment, "KUH AEH TUH"), true);
+    assert.equal(paSpokenMatches(segment, "Kuh. Aeh. Tuh!"), true);
+    assert.equal(paSpokenMatches(segment, "k, kuh, aeh, tuh"), true);
+    assert.equal(paSpokenMatches(segment, "c-a-t"), true);
+    assert.equal(paSpokenMatches(segment, "C-A-T"), true);
+    assert.equal(judgePaSpoken(segment, "c-a-t", false), "correct");
+    assert.equal(judgePaSpoken(segment, "cat", true), "miss");
+    assert.equal(judgePaSpoken(segment, "", false), "wait");
+  });
+});
+
+describe("automatic advance and drop", () => {
+  it("moves to the next item on one right answer and rises on the second", () => {
+    const firstHeard = judgePaSpoken(itemAt("PS", 0), "c-a-t", true);
+    assert.equal(firstHeard, "correct");
+    const stayed = nextAfterAnswer({ band: "PS", index: 0, grade: 1, correctStreak: 0, missStreak: 0 }, true);
+    assert.equal(stayed.move, "stay");
+    assert.equal(stayed.band, "PS");
+    assert.equal(stayed.index, 1);
+    assert.equal(stayed.correctStreak, 1);
+    assert.equal(judgePaSpoken(itemAt("PS", stayed.index), "sss uh nnn", true), "correct");
+    const rose = nextAfterAnswer(stayed, true);
+    assert.equal(rose.move, "up");
+    assert.equal(rose.band, "PD");
+    assert.equal(rose.index, 0);
+    assert.equal(rose.correctStreak, 0);
+    assert.equal(rose.grade, 1);
+  });
+
+  it("treats a wrong answer and a timeout as a miss, and drops on the second", () => {
+    const wrong = judgePaSpoken(itemAt("BL", 1), "dog", true);
+    assert.equal(wrong, "miss");
+    const stayed = nextAfterAnswer({ band: "BL", index: 1, grade: 2, correctStreak: 1, missStreak: 0 }, false);
+    assert.equal(stayed.move, "stay");
+    assert.equal(stayed.band, "BL");
+    assert.equal(stayed.index, 2);
+    assert.equal(stayed.correctStreak, 0);
+    assert.equal(stayed.missStreak, 1);
+    const dropped = nextAfterAnswer(stayed, false);
+    assert.equal(dropped.move, "down");
+    assert.equal(dropped.band, "IS");
+    assert.equal(dropped.index, 0);
+    assert.equal(dropped.missStreak, 0);
+    assert.equal(dropped.grade, 2);
   });
 });
 
@@ -213,8 +265,13 @@ describe("level.pa", () => {
     assert.equal(written.step, 0);
     const body = schoolWriteBody({ pa: written }, 0, 0, []);
     assert.equal(body.levels.pa?.band, "RH");
+    assert.equal(body.levels.pa?.streak, 0);
+    assert.equal(body.levels.pa?.missStreak, 0);
+    assert.equal(body.levels.pa?.adult, undefined);
+    assert.equal(body.levels.pa?.approved, undefined);
     assert.equal("sw" in body.levels, false);
     assert.equal(JSON.stringify(body).includes("bea@other.test"), false);
+    assert.equal(JSON.stringify(body).includes("adult"), false);
   });
 
   it("lets age 4 win, and a saved band win over age", () => {

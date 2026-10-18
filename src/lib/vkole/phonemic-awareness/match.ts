@@ -7,9 +7,14 @@ import { phonemeSpeak, type PaItem } from "./items.ts";
  * The sight-word tokenizer is used, so case and extra words follow that matcher.
  */
 
+/** Letter a recognizer prints for a phoneme stored under another key. /k/ is already k, kuh, and cuh. */
+const LETTER_FOR_SOUND: Record<string, readonly string[]> = {
+  k: ["c"],
+};
+
 function soundOptions(sound: string): Set<string> {
   const accepted = new Set<string>();
-  const spoken = phonemeSpeak()[sound] ?? [sound];
+  const spoken = [...(phonemeSpeak()[sound] ?? [sound]), ...(LETTER_FOR_SOUND[sound] ?? [])];
   for (const option of spoken) {
     for (const token of speechTokens(option)) accepted.add(token);
     const compact = compactSpeech(option);
@@ -45,13 +50,13 @@ export function paSpokenMatches(item: Pick<PaItem, "answer" | "also" | "sounds" 
   return false;
 }
 
-/** An empty transcript misses. A live non-match waits. Only a finished non-match is a miss. */
+/** A blank live result waits. A finished blank misses. A live non-match waits. Only a finished non-match is a miss. */
 export function judgePaSpoken(
   item: Pick<PaItem, "answer" | "also" | "sounds" | "rime" | "cue">,
   heard: string,
   final: boolean,
 ): "correct" | "miss" | "wait" {
-  if (speechTokens(heard).length === 0) return "miss";
+  if (speechTokens(heard).length === 0) return final ? "miss" : "wait";
   if (paSpokenMatches(item, heard)) return "correct";
   return final ? "miss" : "wait";
 }

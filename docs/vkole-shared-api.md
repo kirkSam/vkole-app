@@ -217,4 +217,4 @@ Age 4 and age 5 win over the grade. A saved `band`, or a `levelCode` that is a b
 
 Two correct answers in a row move up one band. Two misses in a row move down one band. The first band does not move down. The last band does not move up. A miss or 20 seconds of silence speaks the `model` line, waits 2 seconds, and moves on. A correct answer is silent, then the next item after 2 seconds.
 
-The microphone listens only while a prompt is waiting for an answer. Audio is not recorded and is not saved. The adult buttons are “They said it right” and “Not yet”.
+The microphone listens only while a prompt is waiting for an answer, and it stays off while the prompt or the model is spoken. Audio is not recorded and is not saved. Speech recognition scores the utterance against the answer, the `also` list, and the phoneme variants. There is no adult button.
