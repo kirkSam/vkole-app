@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { APP_NAME, SCHOOL_EMAIL, SCHOOL_SITE } from "@/lib/brand";
 import { markZpdReturn } from "@/lib/zpd-info";
 import { SUBJECTS, engineNavLabel, enginePickLabel, type SubjectId } from "@/lib/climb-rules";
+import { PASTEL_NAV } from "@/lib/pastel-nav";
 import { authClient, authEnabled, signOut } from "@/lib/auth/client";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { notifyParentSignedOut } from "@/lib/climbs";
@@ -94,11 +95,12 @@ export function Shell({ children, onSplash }: { children: ReactNode; onSplash?: 
 
 function EngineNav() {
   return (
-    <nav className="mb-5 flex flex-wrap gap-2" aria-label="VKOLE engines">
+    <nav className={PASTEL_NAV ? "pastel-nav mb-5 flex flex-wrap gap-2" : "mb-5 flex flex-wrap gap-2"} aria-label="VKOLE engines">
       {SUBJECTS.map((subject) => (
         <a
           key={subject.id}
           href={`/#engine-${subject.id}`}
+          data-engine={subject.id}
           className="vkole-nav text-left font-display text-base leading-tight tracking-wide text-ink"
         >
           {engineNavLabel(subject.id)}
@@ -106,6 +108,7 @@ function EngineNav() {
       ))}
       <Link
         to="/zpd"
+        data-engine="zpd"
         onClick={(event) => {
           if (
             event.metaKey ||

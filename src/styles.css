@@ -74,6 +74,48 @@
   }
 }
 
+/* PASTEL ENGINE NAV — child focus experiment. Color only; no layout change.
+   revert: set PASTEL_NAV to false in src/lib/pastel-nav.ts.
+   That removes the pastel-nav class and restores the non-pastel styling. */
+.pastel-nav .vkole-nav {
+  color: #1d2420;
+}
+.pastel-nav .vkole-nav[data-engine="m"] { background-color: #d4e6f7; }
+.pastel-nav .vkole-nav[data-engine="ela"] { background-color: #d5f0e4; }
+.pastel-nav .vkole-nav[data-engine="ss"] { background-color: #e4dcf6; }
+.pastel-nav .vkole-nav[data-engine="gen"] { background-color: #fde4d2; }
+.pastel-nav .vkole-nav[data-engine="sg"] { background-color: #f8f0c4; }
+.pastel-nav .vkole-nav[data-engine="sw"] { background-color: #f8dce8; }
+.pastel-nav .vkole-nav[data-engine="sp"] { background-color: #d4f0ee; }
+.pastel-nav .vkole-nav[data-engine="pa"] { background-color: #eadff6; }
+.pastel-nav .vkole-nav[data-engine="zpd"] { background-color: #f6e6d8; }
+.pastel-nav .vkole-nav[data-engine="m"]:hover,
+.pastel-nav .vkole-nav[data-engine="m"]:focus-visible { background-color: #c3daf2; }
+.pastel-nav .vkole-nav[data-engine="ela"]:hover,
+.pastel-nav .vkole-nav[data-engine="ela"]:focus-visible { background-color: #c2e6d4; }
+.pastel-nav .vkole-nav[data-engine="ss"]:hover,
+.pastel-nav .vkole-nav[data-engine="ss"]:focus-visible { background-color: #d4c8f0; }
+.pastel-nav .vkole-nav[data-engine="gen"]:hover,
+.pastel-nav .vkole-nav[data-engine="gen"]:focus-visible { background-color: #f6d4ba; }
+.pastel-nav .vkole-nav[data-engine="sg"]:hover,
+.pastel-nav .vkole-nav[data-engine="sg"]:focus-visible { background-color: #f0e4a8; }
+.pastel-nav .vkole-nav[data-engine="sw"]:hover,
+.pastel-nav .vkole-nav[data-engine="sw"]:focus-visible { background-color: #f0c8da; }
+.pastel-nav .vkole-nav[data-engine="sp"]:hover,
+.pastel-nav .vkole-nav[data-engine="sp"]:focus-visible { background-color: #bee6e3; }
+.pastel-nav .vkole-nav[data-engine="pa"]:hover,
+.pastel-nav .vkole-nav[data-engine="pa"]:focus-visible { background-color: #dccff0; }
+.pastel-nav .vkole-nav[data-engine="zpd"]:hover,
+.pastel-nav .vkole-nav[data-engine="zpd"]:focus-visible { background-color: #edd4c0; }
+.pastel-nav .vkole-nav:hover,
+.pastel-nav .vkole-nav:focus-visible {
+  color: #1d2420;
+  box-shadow: none;
+}
+.pastel-nav .vkole-nav:focus-visible {
+  outline-color: #1d2420;
+}
+
 .office-engine-picks {
   display: flex;
   flex-wrap: wrap;
