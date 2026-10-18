@@ -406,6 +406,65 @@ function asIndex(value: unknown): number | undefined {
   return index;
 }
 
+/**
+ * Bands the website keeps on level.sp. Any other band is dropped.
+ * Alphabet progress is stored as `cvc` so the letter is not dropped.
+ */
+export const WEBSITE_SP_BANDS = ["cvc", "blends", "vowels", "patterns", "affixes"] as const;
+export type WebsiteSpBand = (typeof WEBSITE_SP_BANDS)[number];
+
+/** A website spelling word: lowercase letters and at most one apostrophe. */
+const WEBSITE_SP_WORD = /^[a-z]+(?:'[a-z]+)?$/;
+
+function isWebsiteSpBand(value: string | undefined | null): value is WebsiteSpBand {
+  return !!value && (WEBSITE_SP_BANDS as readonly string[]).includes(value);
+}
+
+function websiteSpWordOk(word: string): boolean {
+  return WEBSITE_SP_WORD.test(word);
+}
+
+function websiteSpGrade(grade: number): number {
+  const rounded = Math.round(grade);
+  if (!Number.isFinite(rounded)) return 1;
+  return Math.min(12, Math.max(1, rounded));
+}
+
+function plainSpWord(word: string | undefined): string {
+  return (word ?? "").trim().toLowerCase().replace(/’/g, "'");
+}
+
+/** 0 is A. A prompt id such as lk-next-m or lk-cue-5-m still names its letter. */
+function alphabetIndex(level: Pick<EngineLevel, "index" | "word">): number {
+  const index = level.index;
+  if (typeof index === "number" && Number.isInteger(index)) return Math.min(25, Math.max(0, index));
+  const word = plainSpWord(level.word);
+  if (word === "lk-first") return 0;
+  if (/^[a-z]$/.test(word)) return word.charCodeAt(0) - 97;
+  const tail = word.match(/-([a-z])$/);
+  if (tail?.[1]) return tail[1].charCodeAt(0) - 97;
+  return 0;
+}
+
+/**
+ * The spelling engine tracks alphabet letters as band LK and a prompt id.
+ * The website drops LK and refuses a word that is not letters.
+ * Alphabet progress is sent as band cvc, grade 1-12, and word set to the letter.
+ * index, streak, and missStreak stay so a cue in progress can be restored.
+ */
+export function toWebsiteSpLevel(level: EngineLevel): EngineLevel {
+  const grade = websiteSpGrade(level.grade);
+  const bandRaw = (level.band ?? "").trim().toLowerCase();
+  const wordRaw = plainSpWord(level.word);
+  const internal = isSpBand(level.band) || isSpBand(level.levelCode);
+  if (!internal && isWebsiteSpBand(bandRaw) && websiteSpWordOk(wordRaw)) {
+    return { ...level, grade, step: 0, band: bandRaw, word: wordRaw, levelCode: bandRaw };
+  }
+  const index = alphabetIndex(level);
+  const letter = "abcdefghijklmnopqrstuvwxyz"[index] ?? "a";
+  return { ...level, grade, step: 0, band: "cvc", index, word: letter, levelCode: "cvc" };
+}
+
 function savedSpBand(row: Record<string, unknown>): SpBand | undefined {
   const nested = asRecord(row.sp);
   const candidates = [row.band, nested?.band, row.levelCode, nested?.levelCode];
@@ -415,15 +474,36 @@ function savedSpBand(row: Record<string, unknown>): SpBand | undefined {
   return undefined;
 }
 
+function websiteSpBandOf(row: Record<string, unknown>): WebsiteSpBand | undefined {
+  const nested = asRecord(row.sp);
+  for (const value of [row.band, nested?.band]) {
+    if (typeof value !== "string") continue;
+    const band = value.trim().toLowerCase();
+    if (isWebsiteSpBand(band)) return band;
+  }
+  return undefined;
+}
+
 function asSpLevel(row: Record<string, unknown>, level: EngineLevel): EngineLevel {
   const rounded = Math.round(level.grade);
   level.grade = Number.isFinite(rounded) ? rounded : 0;
   const nested = asRecord(row.sp);
   const saved = savedSpBand(row);
-  const band = saved ?? spCardFromAccount({ grade: Number.isFinite(rounded) ? rounded : Number.NaN }, level.grade).band;
+  const storedWordRaw = copyText(row, "word") ?? (nested ? copyText(nested, "word") : undefined);
+  const storedWord = storedWordRaw ? plainSpWord(storedWordRaw) : undefined;
+  const websiteBand = websiteSpBandOf(row);
+  if (!saved && websiteBand && storedWord && websiteSpWordOk(storedWord) && storedWord.length > 1) {
+    return keptWebsiteSp(row, nested, level, websiteBand, storedWord);
+  }
+  const alphabetAt =
+    !saved && websiteBand === "cvc" && storedWord && /^[a-z]$/.test(storedWord) ? storedWord.charCodeAt(0) - 97 : undefined;
+  const band =
+    alphabetAt != null
+      ? "LK"
+      : (saved ?? spCardFromAccount({ grade: Number.isFinite(rounded) ? rounded : Number.NaN }, level.grade).band);
   let index = saved ? (asIndex(row.index) ?? (nested ? asIndex(nested.index) : undefined) ?? 0) : 0;
-  const storedWord = copyText(row, "word") ?? (nested ? copyText(nested, "word") : undefined);
-  if (saved && asIndex(row.index) == null && !(nested && asIndex(nested.index) != null) && storedWord) {
+  if (alphabetAt != null) index = alphabetAt;
+  if (saved && alphabetAt == null && asIndex(row.index) == null && !(nested && asIndex(nested.index) != null) && storedWord) {
     const found = spCardFromAccount({ grade: level.grade, band, word: storedWord }, level.grade);
     if (found.id === storedWord) index = found.index;
   }
@@ -455,8 +535,47 @@ function asSpLevel(row: Record<string, unknown>, level: EngineLevel): EngineLeve
   if (missed != null) level.missed = missed;
   if (updatedAt != null) level.updatedAt = updatedAt;
   if (startingGrade != null) level.startingGrade = startingGrade;
-  level.levelCode = levelCode || card.band;
+  level.levelCode = alphabetAt != null ? card.band : levelCode || card.band;
   level.levelLabel = levelLabel || card.name;
+  return level;
+}
+
+function keptWebsiteSp(
+  row: Record<string, unknown>,
+  nested: Record<string, unknown> | null,
+  level: EngineLevel,
+  band: WebsiteSpBand,
+  word: string,
+): EngineLevel {
+  level.grade = websiteSpGrade(level.grade);
+  level.step = 0;
+  level.band = band;
+  level.word = word;
+  level.levelCode = band;
+  const index = asIndex(row.index) ?? (nested ? asIndex(nested.index) : undefined);
+  if (index != null) level.index = index;
+  const streak = wholeNumber(row.streak) ?? (nested ? wholeNumber(nested.streak) : null);
+  const missStreak = wholeNumber(row.missStreak) ?? (nested ? wholeNumber(nested.missStreak) : null);
+  if (streak != null) level.streak = streak;
+  if (missStreak != null) level.missStreak = missStreak;
+  const id = copyText(row, "id");
+  const name = copyText(row, "name");
+  const enteredBy = copyText(row, "enteredBy");
+  const levelLabel = copyText(row, "levelLabel") ?? (nested ? copyText(nested, "levelLabel") : undefined);
+  if (id) level.id = id;
+  if (name) level.name = name;
+  if (enteredBy) level.enteredBy = enteredBy;
+  if (levelLabel) level.levelLabel = levelLabel;
+  const earnedGrade = wholeNumber(row.earnedGrade);
+  const reached = wholeNumber(row.reached);
+  const missed = wholeNumber(row.missed);
+  const updatedAt = wholeNumber(row.updatedAt);
+  const startingGrade = wholeNumber(row.startingGrade);
+  if (earnedGrade != null) level.earnedGrade = earnedGrade;
+  if (reached != null) level.reached = reached;
+  if (missed != null) level.missed = missed;
+  if (updatedAt != null) level.updatedAt = updatedAt;
+  if (startingGrade != null) level.startingGrade = startingGrade;
   return level;
 }
 
@@ -865,8 +984,10 @@ export function schoolWriteBody(
     unique.push({ key, text: text || key });
     if (unique.length >= 400) break;
   }
+  const levels: FamilyWrite["levels"] = { ...level };
+  if (levels.sp) levels.sp = toWebsiteSpLevel(levels.sp);
   return {
-    levels: level,
+    levels,
     clock: { seconds: clockToWrite(localClock, remoteClock) },
     seen: unique,
   };

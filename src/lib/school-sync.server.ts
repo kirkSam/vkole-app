@@ -55,6 +55,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
     const local = localLevels.find((row) => row.subject === engine);
     const localAt = local ? new Date(String(rowTime(local.updated_at))).getTime() : 0;
     if (pushedAt != null && local && localAt > pushedAt) continue;
+    if (engine === "sp" && level.band && level.band !== "LK") continue;
     if (engine === "sp" && level.band) {
       const view = letterView({ index: level.index ?? 0, silence: level.streak ?? 0, wrong: level.missStreak ?? 0 });
       const reached = level.reached ?? 0;

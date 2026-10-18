@@ -140,7 +140,9 @@ describe("clock and seen writes", () => {
     ]);
     assert.equal(body.clock.seconds, 100);
     assert.deepEqual(body.seen, [{ key: "m:1:0:0", text: "stem" }]);
-    assert.equal(body.levels.sp?.band, "LK");
+    assert.equal(body.levels.sp?.band, "cvc");
+    assert.equal(body.levels.sp?.word, "a");
+    assert.equal(body.levels.sp?.grade, 1);
     assert.equal("student" in body, false);
     assert.equal("id" in body, false);
   });
@@ -366,8 +368,9 @@ describe("server calls", () => {
           const body = JSON.parse(String(init?.body));
           assert.equal(body.email, undefined);
           assert.equal(body.clock.seconds, 40);
-          assert.equal(body.levels.sp.band, "LK");
-          assert.equal(body.levels.sp.word, "lk-next-c");
+          assert.equal(body.levels.sp.band, "cvc");
+          assert.equal(body.levels.sp.word, "c");
+          assert.equal(body.levels.sp.grade, 1);
           assert.equal(body.levels.mg.grade, 3);
           assert.equal(String(input).includes("/api/vkole/"), false);
           return jsonResponse(200, session("a@b.co", { levels: body.levels, clock: body.clock, seen: body.seen }));

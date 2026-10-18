@@ -113,6 +113,8 @@ The microphone listens only while a word is on the screen. Audio is not recorded
 
 Spelling. The key is `sp`. The letters, timings, question bands, and spoken names are in `src/lib/vkole/spelling/data.json`. That file is the canonical copy. The website copies it byte for byte.
 
+The engine still tracks letter knowledge internally as band `LK` and a prompt id such as `lk-next-m`. A family save does not send that shape. The website drops an unknown band, refuses a grade outside 1-12, and keeps a word only when it is lowercase letters with at most one apostrophe. Alphabet progress is therefore saved as band `cvc` and `word` set to the current letter.
+
 ```json
 {
   "id": "sp-ada",
@@ -120,20 +122,22 @@ Spelling. The key is `sp`. The letters, timings, question bands, and spoken name
   "enteredBy": "parent",
   "grade": 1,
   "step": 0,
-  "band": "LK",
-  "index": 0,
-  "word": "lk-first",
+  "band": "cvc",
+  "index": 12,
+  "word": "m",
+  "streak": 1,
+  "missStreak": 2,
   "earnedGrade": 1,
   "reached": 0,
   "missed": 0,
   "updatedAt": 0,
   "startingGrade": 1,
-  "levelCode": "LK",
+  "levelCode": "cvc",
   "levelLabel": "Letter knowledge"
 }
 ```
 
-`band` is the list. During the letter phase, `index` is the letter: 0 is A and 25 is Z. `step` stays 0. `word` is the prompt id. `streak` is how many times the current letter has been met with silence. `missStreak` is the wrong-answer step: 0 is the letter question, 1 is the 3-letter cue, and 2 is the 5-letter cue. The grade number stays when the letter changes.
+`band` on the wire is `cvc` for the alphabet stage. The website's other kept bands are `blends`, `vowels`, `patterns`, and `affixes`. `word` is the letter, `a` through `z`. `index` is that same letter: 0 is A and 25 is Z. `step` stays 0. `streak` is how many times the current letter has been met with silence. `missStreak` is the wrong-answer step: 0 is the letter question, 1 is the 3-letter cue, and 2 is the 5-letter cue. The grade number stays when the letter changes, and it is always sent as an integer from 1 to 12. A read of band `cvc` plus a one-letter `word` restores the same letter inside the engine. `index`, `streak`, and `missStreak` restore a cue that was already showing.
 
 ### Bands
 
@@ -149,7 +153,7 @@ Spelling. The key is `sp`. The letters, timings, question bands, and spoken name
 
 Letter knowledge, in order: the first letter of the alphabet, the next letter through Z, what letter comes after each letter from A through Y (including X), then the name of each letter A through Z.
 
-A new student starts at the first letter question. A saved `band`, or a `levelCode` that is a band id, wins. A saved band with no items yet falls back to letter knowledge.
+A new student starts at the first letter question. Inside the engine, a saved `band`, or a `levelCode` that is one of those band ids, wins. A saved band with no items yet falls back to letter knowledge. The family save still writes that letter as `band: "cvc"` and `word` set to the lowercase letter.
 
 Opening the engine plays the alphabet from A to Z, one letter every 1.5 seconds (26 letters, 39 seconds). Each letter is a different bright color on a changing background. The picture changes once every 1.5 seconds, which is slower than 3 changes per second. At the end, when the student is still on the first question, the engine says and shows: `Your turn! What is the first letter of the alphabet?`
 
