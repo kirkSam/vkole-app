@@ -136,9 +136,9 @@ function EngineNav() {
 
 export function EnginePicks() {
   return (
-    <div className="office-engine-picks" role="group" aria-label="Engine picks">
+    <div className={PASTEL_NAV ? "office-engine-picks pastel-nav" : "office-engine-picks"} role="group" aria-label="Engine picks">
       {SUBJECTS.map((subject) => (
-        <a key={subject.id} href={`/#engine-${subject.id}`} className="office-engine-pick">
+        <a key={subject.id} href={`/#engine-${subject.id}`} data-engine={subject.id} className="office-engine-pick">
           {enginePickLabel(subject.id)}
         </a>
       ))}
@@ -148,11 +148,12 @@ export function EnginePicks() {
 
 export function EngineRail({ current }: { current: SubjectId }) {
   return (
-    <nav className="engine-rail" aria-label="Engines">
+    <nav className={PASTEL_NAV ? "engine-rail pastel-nav" : "engine-rail"} aria-label="Engines">
       {SUBJECTS.map((subject) => (
         <a
           key={subject.id}
           href={`/#engine-${subject.id}`}
+          data-engine={subject.id}
           className={subject.id === current ? "is-current" : undefined}
           aria-current={subject.id === current ? "true" : undefined}
         >
