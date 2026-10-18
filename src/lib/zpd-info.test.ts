@@ -44,17 +44,19 @@ describe("in-app zone of proximal development page", () => {
     assert.doesNotMatch(shell, /dotheimpossible\.ai\/zpd/);
   });
 
-  it("keeps the website page's words", () => {
+  it("shows the app document, not the website shelves", () => {
     const text = zpdInfoText();
     assert.equal(
       zpdInfo.title,
       "Vygotsky's Zone of Proximal Development: Amplified by VKOLE/ZPD - Space XSI Integrated Learning Engine.",
     );
-    assert.match(text, /Put the cookies within reach, but on a shelf that takes ingenuity\./);
-    assert.match(text, /How this academy uses the zone/);
-    assert.match(text, /The zone is not a softer curriculum\./);
+    assert.match(text, /From that starting point the VKOLE ZPD Online Learning Engine, in conjunction with Space XSI super-intelligence calibrates/);
+    assert.match(text, /measured against demonstrated grade levels on the Common Core Curriculum/);
+    assert.match(text, /integral to all learning and is the key to measurable learning growth/);
+    assert.doesNotMatch(text, /Baseline\/Growth Test/);
+    assert.doesNotMatch(text, /Put the cookies within reach/);
+    assert.doesNotMatch(text, /How this academy uses the zone/);
     assert.doesNotMatch(text, /Online School Menu/);
-    assert.doesNotMatch(text, /Choose to/);
   });
 
   it("returns through app history, and home when the page was opened directly", () => {

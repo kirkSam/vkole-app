@@ -50,23 +50,6 @@ function ZpdInfoPage() {
           />
         </div>
       </section>
-      <section className="zpd-cards" aria-label="The three shelves">
-        {zpdInfo.cards.map((card) => (
-          <article key={card.title} className="zpd-card">
-            <p className="zpd-kicker">{card.kicker}</p>
-            <h2>{card.title}</h2>
-            <p>{card.body}</p>
-          </article>
-        ))}
-      </section>
-      <section className="zpd-panel">
-        <h2>{zpdInfo.panel.title}</h2>
-        <div className="zpd-copy">
-          {zpdInfo.panel.paragraphs.map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
-          ))}
-        </div>
-      </section>
     </main>
   );
 }
