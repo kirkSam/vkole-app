@@ -348,6 +348,39 @@ describe("server calls", () => {
     );
   });
 
+  it("saves phonemic progress on level pa with the bearer token and no adult flag", async () => {
+    await writeSchoolAccount(
+      "a@b.co",
+      schoolWriteBody(
+        { pa: { grade: 1, step: 0, band: "PS", index: 1, word: "ps-sun", streak: 1, missStreak: 0 } },
+        0,
+        0,
+        [],
+      ),
+      {
+        token: TOKEN,
+        fetch: async (input, init) => {
+          assert.equal(String(input), "https://www.dotheimpossible.ai/api/account/family");
+          assert.equal(init?.method, "POST");
+          const headers = new Headers(init?.headers);
+          assert.equal(headers.get("authorization"), `Bearer ${TOKEN}`);
+          assert.equal(headers.get("x-vkole-secret"), null);
+          assert.equal(headers.get("cookie"), null);
+          const body = JSON.parse(String(init?.body));
+          assert.equal(body.levels.pa.band, "PS");
+          assert.equal(body.levels.pa.index, 1);
+          assert.equal(body.levels.pa.word, "ps-sun");
+          assert.equal(body.levels.pa.streak, 1);
+          assert.equal(body.levels.pa.missStreak, 0);
+          assert.equal(body.levels.pa.adult, undefined);
+          assert.equal(body.levels.pa.approved, undefined);
+          assert.equal(JSON.stringify(body).includes("adult"), false);
+          return jsonResponse(200, session("a@b.co", { levels: body.levels }));
+        },
+      },
+    );
+  });
+
   it("saves spelling on level sp and asks the website to send the reset code", async () => {
     const paths: string[] = [];
     await writeSchoolAccount(
