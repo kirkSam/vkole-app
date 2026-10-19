@@ -9,6 +9,9 @@ import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { notifyParentSignedOut } from "@/lib/climbs";
 import { markChoosingAccount } from "@/lib/account-choice";
 
+/** Header nav control only. APP_NAME stays unchanged for headings, mail, and the footer. */
+const BRAND_NAV_LABEL = "VKOLE ZPD/ZPD - Space XSI Integrated Learning Engine";
+
 function leaveForNewAccount() {
   window.location.assign("/?new=1");
 }
@@ -74,14 +77,14 @@ export function Shell({ children, onSplash }: { children: ReactNode; onSplash?: 
             onClick={onSplash}
             className="vkole-nav text-left font-display text-lg leading-tight tracking-wide text-ink sm:text-xl"
           >
-            {APP_NAME}
+            {BRAND_NAV_LABEL}
           </button>
         ) : (
           <Link
             to="/"
             className="vkole-nav text-left font-display text-lg leading-tight tracking-wide text-ink sm:text-xl"
           >
-            {APP_NAME}
+            {BRAND_NAV_LABEL}
           </Link>
         )}
         <ParentAccount />

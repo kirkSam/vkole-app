@@ -1,7 +1,7 @@
 {
   "engine": "sp",
   "name": "VKOLE/Spelling ZPD",
-  "navLabel": "VKOLE/Spelling ZPD",
+  "navLabel": "VKOLE ZPD/Spelling ZPD",
   "pickLabel": "Spelling ZPD",
   "letterMs": 1500,
   "songMs": 39000,

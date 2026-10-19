@@ -7,14 +7,14 @@ describe("engine labels", () => {
     assert.deepEqual(
       SUBJECTS.map((subject) => engineNavLabel(subject.id)),
       [
-        "VKOLE/M ZPD",
-        "VKOLE/ELA ZPD",
-        "VKOLE/SS ZPD",
-        "VKOLE/gen ZPD",
-        "VKOLE Singapore ZPD",
-        "VKOLE Sight Words ZPD",
-        "VKOLE/Spelling ZPD",
-        "VKOLE/Phonemic Awareness ZPD",
+        "VKOLE ZPD/M ZPD",
+        "VKOLE ZPD/ELA ZPD",
+        "VKOLE ZPD/SS ZPD",
+        "VKOLE ZPD/gen ZPD",
+        "VKOLE ZPD Singapore ZPD",
+        "VKOLE ZPD Sight Words ZPD",
+        "VKOLE ZPD/Spelling ZPD",
+        "VKOLE ZPD/Phonemic Awareness ZPD",
       ],
     );
   });

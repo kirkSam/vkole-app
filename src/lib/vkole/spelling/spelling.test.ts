@@ -89,7 +89,7 @@ describe("spelling timing", () => {
 
 describe("letter knowledge sequence", () => {
   it("starts with the spoken first-letter prompt, then next letter, letter after X, and letter names", () => {
-    assert.equal(engineNavLabel("sp"), "VKOLE/Spelling ZPD");
+    assert.equal(engineNavLabel("sp"), "VKOLE ZPD/Spelling ZPD");
     assert.equal(engineNavLabel("sp"), lists.navLabel);
     assert.equal(enginePickLabel("sp"), "Spelling ZPD");
     assert.deepEqual(SPELLING_BANDS, ["LK", "LS", "CVC", "DOLCH", "FRY"]);
