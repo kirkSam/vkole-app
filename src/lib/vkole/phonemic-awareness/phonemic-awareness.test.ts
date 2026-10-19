@@ -171,6 +171,173 @@ describe("spoken phonemic answers", () => {
   });
 });
 
+describe("stretched sounds and a full-bank run", () => {
+  it("accepts nn for the last sound in sun and rejects a different sound", () => {
+    const last = itemAt("IS", 1);
+    assert.equal(last.id, "is-last-sun");
+    assert.equal(last.answer, "nnn");
+    for (const heard of ["n", "nn", "nnn", "nnnn", "en", "nuh", "sun nn", "sun nuh", "sunn"]) {
+      assert.equal(judgePaSpoken(last, heard, true), "correct", heard);
+    }
+    for (const heard of ["m", "mm", "mmm", "em", "muh", "sun", "sun m", "sun muh", "ess"]) {
+      assert.equal(judgePaSpoken(last, heard, true), "miss", heard);
+    }
+    const first = itemAt("IS", 0);
+    assert.equal(judgePaSpoken(first, "ss", true), "correct");
+    assert.equal(judgePaSpoken(first, "ess", true), "correct");
+    assert.equal(judgePaSpoken(first, "suh", true), "correct");
+    assert.equal(judgePaSpoken(first, "sun s", true), "correct");
+    assert.equal(judgePaSpoken(first, "en", true), "miss");
+    assert.equal(judgePaSpoken(first, "sun", true), "miss");
+    const onset = itemAt("OR", 4);
+    assert.equal(onset.kind, "onset-isolate");
+    assert.equal(judgePaSpoken(onset, "ss", true), "correct");
+    assert.equal(judgePaSpoken(onset, "nn", true), "miss");
+    const rime = itemAt("OR", 6);
+    assert.equal(rime.kind, "rime-say");
+    assert.equal(judgePaSpoken(rime, "at", true), "correct");
+    assert.equal(judgePaSpoken(rime, "aat", true), "correct");
+    assert.equal(judgePaSpoken(rime, "att", true), "correct");
+    assert.equal(judgePaSpoken(rime, "cat", true), "miss");
+    assert.equal(judgePaSpoken(rime, "un", true), "miss");
+    const segment = itemAt("PS", 1);
+    assert.equal(segment.id, "ps-sun");
+    assert.equal(judgePaSpoken(segment, "ss uh nn", true), "correct");
+    assert.equal(judgePaSpoken(segment, "s u n", true), "correct");
+    assert.equal(judgePaSpoken(segment, "sss uhhhh nnnn", true), "correct");
+    assert.equal(judgePaSpoken(segment, "sun", true), "miss");
+    assert.equal(judgePaSpoken(segment, "mmm aeh puh", true), "miss");
+    assert.equal(judgePaSpoken(itemAt("PS", 0), "cat", true), "miss");
+  });
+
+  it("walks IS, BL, PS, PD when every answer from grade 1 is correct", () => {
+    let state = { band: startBand({ grade: 1 }), index: 0, grade: 1, correctStreak: 0, missStreak: 0 };
+    assert.equal(state.band, "IS");
+    const bands: string[] = [];
+    for (let n = 0; n < 8; n += 1) {
+      const card = itemAt(state.band, state.index);
+      const judged = judgePaSpoken(card, card.answer, true);
+      assert.equal(judged, "correct");
+      if (!bands.includes(state.band)) bands.push(state.band);
+      const next = nextAfterAnswer(state, judged === "correct");
+      state = {
+        band: next.band,
+        index: next.index,
+        grade: next.grade,
+        correctStreak: next.correctStreak,
+        missStreak: next.missStreak,
+      };
+    }
+    assert.deepEqual(bands, ["IS", "BL", "PS", "PD"]);
+    assert.equal(state.grade, 1);
+    assert.equal(state.band, "PD");
+  });
+
+  it("uses all 8 items in a band before any item repeats", () => {
+    let state = { band: "IS" as const, index: 0, grade: 1, correctStreak: 0, missStreak: 0 };
+    const ids: string[] = [];
+    for (let n = 0; n < 8; n += 1) {
+      const card = itemAt(state.band, state.index);
+      ids.push(card.id);
+      const correct = n % 2 === 0;
+      const next = nextAfterAnswer(state, correct);
+      assert.equal(next.band, "IS");
+      assert.equal(next.move, "stay");
+      state = {
+        band: next.band,
+        index: next.index,
+        grade: next.grade,
+        correctStreak: next.correctStreak,
+        missStreak: next.missStreak,
+      };
+    }
+    assert.equal(ids.length, 8);
+    assert.equal(new Set(ids).size, 8);
+    assert.ok(ids.length > PA_ROUND_SIZE);
+    assert.equal(itemAt(state.band, state.index).id, ids[0]);
+    const prompts = ids.map((id, index) => `${state.band}:${id}:${index}`);
+    assert.notDeepEqual(prompts.slice(0, 3), prompts.slice(3, 6));
+  });
+
+  it("keeps a saved band and index through a push and the next pull", () => {
+    const heard = judgePaSpoken(itemAt("IS", 0), "sss", true);
+    assert.equal(heard, "correct");
+    const moved = nextAfterAnswer({ band: "IS", index: 0, grade: 1, correctStreak: 0, missStreak: 0 }, heard === "correct");
+    assert.equal(moved.band, "IS");
+    assert.equal(moved.index, 1);
+    assert.equal(moved.correctStreak, 1);
+    assert.equal(moved.missStreak, 0);
+    const card = cardFromAccount(
+      {
+        grade: 1,
+        band: moved.band,
+        index: moved.index,
+        word: itemAt(moved.band, moved.index).say,
+      },
+      1,
+    );
+    assert.equal(card.band, "IS");
+    assert.equal(card.index, 1);
+    assert.equal(card.id, "is-last-sun");
+    const pushed = paAccountLevel(undefined, {
+      name: "Ada",
+      grade: 1,
+      band: card.band,
+      index: card.index,
+      word: card.id,
+      earnedGrade: 1,
+      reached: 1,
+      missed: 0,
+      streak: moved.correctStreak,
+      missStreak: moved.missStreak,
+      updatedAt: 10,
+    });
+    const body = schoolWriteBody({ pa: pushed }, 0, 0, []);
+    const reloaded = parseSchoolProfile({
+      family: { email: "ada@family.test", level: body.levels },
+    });
+    const pa = reloaded?.profile.level.pa;
+    assert.equal(pa?.band, "IS");
+    assert.equal(pa?.index, 1);
+    assert.equal(pa?.word, "is-last-sun");
+    assert.equal(pa?.streak, 1);
+    assert.equal(pa?.missStreak, 0);
+    assert.equal(pa?.step, 0);
+    const again = cardFromAccount({ grade: 1, band: pa?.band, index: pa?.index, word: pa?.word }, 1);
+    assert.equal(again.band, "IS");
+    assert.equal(again.index, 1);
+    assert.equal(again.id, "is-last-sun");
+    const fromPrompt = parseSchoolProfile({
+      family: {
+        email: "ada@family.test",
+        level: {
+          pa: {
+            grade: 1,
+            band: "IS",
+            word: "What is the last sound in sun?",
+            streak: 1,
+            missStreak: 0,
+          },
+        },
+      },
+    });
+    assert.equal(fromPrompt?.profile.level.pa?.band, "IS");
+    assert.equal(fromPrompt?.profile.level.pa?.index, 1);
+    assert.equal(fromPrompt?.profile.level.pa?.word, "is-last-sun");
+    const kept = cardFromAccount(
+      { grade: 1, band: "PS", index: 5, word: "What is the first sound in sun?" },
+      1,
+    );
+    assert.equal(kept.band, "PS");
+    assert.equal(kept.index, 5);
+    assert.equal(kept.id, "ps-up");
+    const rose = cardFromAccount({ grade: 1, band: "BL", index: 0, word: "bl-cat" }, 1);
+    assert.equal(rose.band, "BL");
+    assert.equal(rose.index, 0);
+    assert.equal(rose.id, "bl-cat");
+  });
+});
+
 describe("automatic advance and drop", () => {
   it("moves to the next item on one right answer and rises on the second", () => {
     const firstHeard = judgePaSpoken(itemAt("PS", 0), "c-a-t", true);

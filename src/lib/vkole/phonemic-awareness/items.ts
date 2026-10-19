@@ -127,9 +127,29 @@ export function startCard(grade: number, age?: number | null): PaCard {
   return paCard(startBand({ age, grade: stored }), 0, stored);
 }
 
+function finiteIndex(value: number | null | undefined): number | undefined {
+  if (value == null) return undefined;
+  const index = Number(value);
+  if (!Number.isInteger(index) || index < 0) return undefined;
+  return index;
+}
+
+/** Item id or the spoken prompt. The prompt is what a climb stores in current_prompt. */
+function itemIndex(band: PaBand, word: string): number {
+  const items = bandItems(band);
+  const trimmed = word.trim().toLowerCase();
+  if (!trimmed) return -1;
+  const byId = items.findIndex((item) => (item.id ?? "") === trimmed);
+  if (byId >= 0) return byId;
+  return items.findIndex((item) => (item.say ?? "").trim().toLowerCase() === trimmed);
+}
+
 /**
  * A saved band wins, including a levelCode that is a band id.
- * Otherwise age and grade choose the band, at the first item.
+ * A positive index stays on that item. It is never folded back to the start.
+ * Index 0 is the start only when the saved word does not name a later item.
+ * The word may be the item id or the prompt sentence.
+ * With no saved band, age and grade choose the band, at the first item.
  */
 export function cardFromAccount(
   input: {
@@ -147,10 +167,16 @@ export function cardFromAccount(
   const grade = Number.isFinite(rounded) ? rounded : 0;
   const saved = isPaBand(input?.band) ? input.band : isPaBand(input?.levelCode) ? input.levelCode : undefined;
   const band = saved ?? startBand({ age: input?.age, grade: Number.isFinite(rounded) ? rounded : Number.NaN });
-  let index = saved && Number.isInteger(input?.index) && (input?.index ?? 0) >= 0 ? Number(input?.index) : 0;
-  if (saved && !Number.isInteger(input?.index) && input?.word) {
-    const found = bandItems(band).findIndex((item) => item.id === input.word);
+  const explicit = saved ? finiteIndex(input?.index) : undefined;
+  let index = 0;
+  if (saved && explicit != null && explicit > 0) {
+    index = explicit;
+  } else if (saved && input?.word) {
+    const found = itemIndex(band, input.word);
     if (found >= 0) index = found;
+    else if (explicit != null) index = explicit;
+  } else if (explicit != null) {
+    index = explicit;
   }
   return paCard(band, index, grade);
 }
@@ -161,6 +187,8 @@ export type PaMove = "up" | "down" | "stay";
  * Two correct answers in a row move up one band. Two misses in a row move down one band.
  * One miss stays. The first band does not move down. The last band does not move up.
  * The grade number stays. The next item is the next one in the band, or the first item of the new band.
+ * A band is all 8 items. The index wraps only after each of them has been used.
+ * roundSize is the website review window and is not a cap on this cycle.
  */
 export function nextAfterAnswer(
   state: { band: PaBand; index: number; grade: number; correctStreak: number; missStreak: number },

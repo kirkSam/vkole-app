@@ -12,7 +12,7 @@ import { normalizeAccountEmail, sameAccount } from "./account-scope.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, startBandForGrade, type SightBand } from "./vkole/constants.ts";
 import { cardFromAccount as spCardFromAccount, isSpBand, letterView, spCard, type SpBand } from "./vkole/spelling/items.ts";
-import { cardFromAccount as paCardFromAccount, isPaBand, paCard, type PaBand } from "./vkole/phonemic-awareness/items.ts";
+import { cardFromAccount as paCardFromAccount, isPaBand, type PaBand } from "./vkole/phonemic-awareness/items.ts";
 import { sightCard } from "./vkole/sight-words/words.ts";
 
 /**
@@ -642,20 +642,25 @@ function asPaLevel(row: Record<string, unknown>, level: EngineLevel): EngineLeve
   const rounded = Math.round(level.grade);
   level.grade = Number.isFinite(rounded) ? rounded : 0;
   const nested = asRecord(row.pa);
-  const saved = savedPaBand(row);
   const age = wholeNumber(row.age) ?? (nested ? wholeNumber(nested.age) : null);
-  const band = saved ?? paCardFromAccount({ grade: Number.isFinite(rounded) ? rounded : Number.NaN, age }, level.grade).band;
-  let index = saved ? (asIndex(row.index) ?? (nested ? asIndex(nested.index) : undefined) ?? 0) : 0;
   const storedWord = copyText(row, "word") ?? (nested ? copyText(nested, "word") : undefined);
-  if (saved && asIndex(row.index) == null && !(nested && asIndex(nested.index) != null) && storedWord) {
-    const found = paCardFromAccount({ grade: level.grade, band, word: storedWord }, level.grade);
-    if (found.id === storedWord) index = found.index;
-  }
-  const card = paCard(band, index, level.grade);
+  const explicit = asIndex(row.index) ?? (nested ? asIndex(nested.index) : undefined);
+  const card = paCardFromAccount(
+    {
+      grade: Number.isFinite(rounded) ? rounded : Number.NaN,
+      age,
+      band: savedPaBand(row),
+      index: explicit,
+      word: storedWord,
+      levelCode: copyText(row, "levelCode") ?? (nested ? copyText(nested, "levelCode") : undefined),
+    },
+    level.grade,
+  );
   level.step = 0;
   level.band = card.band;
   level.index = card.index;
-  level.word = storedWord || card.id;
+  const namesThisCard = !!storedWord && (storedWord === card.id || storedWord.trim().toLowerCase() === card.say.trim().toLowerCase());
+  level.word = !storedWord || namesThisCard ? card.id : storedWord;
   const id = copyText(row, "id");
   const name = copyText(row, "name");
   const enteredBy = copyText(row, "enteredBy");
