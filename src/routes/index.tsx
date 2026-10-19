@@ -246,7 +246,6 @@ function Home() {
 
 function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTrialSplash: () => void }) {
   const [climbs, setClimbs] = useState<Climb[] | null>(null);
-  const [daysLeft, setDaysLeft] = useState<number | null>(null);
   const [fullAccess, setFullAccess] = useState(false);
   const [trialOver, setTrialOver] = useState(false);
   const [endedPlan, setEndedPlan] = useState<EndedReason>("trial");
@@ -324,7 +323,6 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       .then((result) => {
         if (!live) return;
         setClimbs(result.climbs);
-        setDaysLeft(result.fullAccess ? null : result.daysLeft);
         setFullAccess(result.fullAccess);
         setTrialOver(result.fullAccess ? false : result.blocked);
         if (result.plan === "month" || result.plan === "year") {
@@ -480,9 +478,6 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
             key={subject.id}
             subject={subject.id}
             roster={(climbs ?? []).filter((climb) => climb.subject === subject.id)}
-            daysLeft={daysLeft}
-            trialOver={trialOver}
-            fullAccess={fullAccess}
             onTrialFinished={() => setClosedApp(subject.id)}
             onLevelsChanged={() => setRevision((n) => n + 1)}
             onClock={() => setRevision((n) => n + 1)}
@@ -496,18 +491,12 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
 function AppGate({
   subject,
   roster,
-  daysLeft,
-  trialOver,
-  fullAccess = false,
   onTrialFinished,
   onLevelsChanged,
   onClock,
 }: {
   subject: SubjectId;
   roster: Climb[];
-  daysLeft: number | null;
-  trialOver: boolean;
-  fullAccess?: boolean;
   onTrialFinished: () => void;
   onLevelsChanged: () => void;
   onClock: () => void;
@@ -592,12 +581,7 @@ function AppGate({
       onSubmit={submit}
       className={PASTEL_NAV ? "engine-card pastel-nav scroll-mt-6 rounded-2xl border border-line p-5" : "scroll-mt-6 rounded-2xl border border-line bg-surface p-5"}
     >
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="font-display text-2xl text-ink">VKOLE/{meta.code}</h2>
-        <span className="text-sm text-muted">
-          {fullAccess ? "Open" : trialOver ? "7 day trial finished" : daysLeft == null ? "7 days free" : daysLeft === 0 ? "7 day trial finished" : `${daysLeft} days left`}
-        </span>
-      </div>
+      <h2 className="font-display text-2xl text-ink">VKOLE/{meta.code}</h2>
       <p className="text-sm text-muted">{meta.name}</p>
       <p className="mt-2 text-sm text-ink">{meta.lede}</p>
       <label className="mt-3 block text-sm text-muted">

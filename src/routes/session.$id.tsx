@@ -438,9 +438,16 @@ function SessionPage() {
         <span className="rounded-full border border-line bg-surface px-3 py-1">
           Session <strong className="font-semibold text-ink">{climb.rightCount}/{climb.asked}</strong>
         </span>
-        <span className="rounded-full border border-line bg-surface px-3 py-1">
-          {climb.fullAccess ? "Access" : "Free period"} <strong className="font-semibold text-ink">{climb.fullAccess ? "open" : climb.subscribed ? `subscribed until ${new Date(climb.subscriptionEndsAt ?? climb.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : climb.expired ? "ended" : `${climb.daysLeft} days`}</strong>
-        </span>
+        {climb.fullAccess || climb.subscribed ? (
+          <span className="rounded-full border border-line bg-surface px-3 py-1">
+            {climb.fullAccess ? "Access" : "Free period"}{" "}
+            <strong className="font-semibold text-ink">
+              {climb.fullAccess
+                ? "open"
+                : `subscribed until ${new Date(climb.subscriptionEndsAt ?? climb.endsAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
+            </strong>
+          </span>
+        ) : null}
         {climb.age != null ? (
           <span className="rounded-full border border-line bg-surface px-3 py-1">
             Age <strong className="font-semibold text-ink">{climb.age}</strong>
