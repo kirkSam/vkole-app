@@ -188,34 +188,25 @@ Phonemic awareness. The key is `pa`. The prompts, answers, `also` lists, phoneme
 }
 ```
 
-`band` is the list. `index` is the item in that list. `step` stays 0. `word` is the item id. `streak` and `missStreak` are the running counts toward a band change. The grade number stays when the band changes.
+`band` is the level. `index` is the item in that level. `step` stays 0. `word` is the item id. `streak` and `missStreak` are the running counts toward a level change. The grade number stays when the level changes.
 
-### Bands
+### Levels
 
-`WA`, `RH`, `SY`, `OR`, `IS`, `BL`, `PS`, `PD`. Each band has 8 items.
+There are 88 levels and 526 items. `WA`, `RH`, `SY`, and `OR` come first (8 items each). Then one level per phoneme pattern: simple consonants, short vowels, consonant digraphs, two-letter blends, three-letter blends, vowel teams, and r-controlled vowels. Most of those levels have 6 items (isolation, blending, and segmenting for each word). Four vowel-team levels have 3 items. `PD` is last and has 8 items.
 
-| Band | Name | Grade label |
-|---|---|---|
-| WA | Word awareness | Pre-K |
-| RH | Rhyme recognition and production | K |
-| SY | Syllable counting and blending | K |
-| OR | Onset-rime | K |
-| IS | First and final sound isolation | 1st |
-| BL | Phoneme blending | 1st |
-| PS | Phoneme segmentation | 1st |
-| PD | Phoneme deletion and substitution | 2nd |
+A saved `band` or `levelCode` of `IS`, `BL`, or `PS` from the earlier list maps on read to the first consonant level (`c-b`), the first two-letter blend (`b-bl`), and the first vowel team (`w-ai`). The write body keeps the code it was given.
 
 ### Where a student starts
 
-Age 4 and age 5 win over the grade. A saved `band`, or a `levelCode` that is a band id, wins over both.
+Age 4 and age 5 win over the grade. A saved `band`, or a `levelCode` that is a level id, wins over both.
 
 | Placement | Starts on |
 |---|---|
 | age 4 | WA |
 | age 5 | RH |
-| grade 1 | IS |
+| grade 1 | c-b (first consonant) |
 | grade 2 and above | PD |
 
-Two correct answers in a row move up one band. Two misses in a row move down one band. The first band does not move down. The last band does not move up. A miss or 20 seconds of silence speaks the `model` line, waits 2 seconds, and moves on. A correct answer is silent, then the next item after 2 seconds.
+Two correct answers in a row move up one level. Two misses in a row move down one level. The first level does not move down. The last level does not move up. Every item in a level is used before the index wraps, including a level with 3 items. `roundSize` is the website review window and does not shorten that cycle. A miss or 20 seconds of silence speaks the `model` line, waits 2 seconds, and moves on. A correct answer is silent, then the next item after 2 seconds.
 
 The microphone listens only while a prompt is waiting for an answer, and it stays off while the prompt or the model is spoken. Audio is not recorded and is not saved. Speech recognition scores the utterance against the answer, the `also` list, and the phoneme variants. There is no adult button.

@@ -1,6 +1,6 @@
 {
   "source": {
-    "sequence": "Phonemic awareness moves from larger spoken parts to smaller sounds, then to changing a sound. The order is the phonological awareness continuum used in beginning-reading research: word awareness, rhyme recognition and production, syllable counting and blending, onset-rime, first and final sound isolation, phoneme blending, phoneme segmentation with Elkonin boxes, then phoneme deletion and substitution. Marilyn Jager Adams, Beginning to Read (1990); National Reading Panel (2000); Liberman, Shankweiler, Fischer, and Carter (1974); D. B. Elkonin (1973); Ehri and others in the National Reading Panel phonemic awareness report (2001); David A. Kilpatrick, Equipped for Reading Success (2015). Older struggling readers are included. Kilpatrick treats phoneme deletion and substitution as the skill that still needs work for many of them.",
+    "sequence": "Phonemic awareness moves from larger spoken parts to single sounds, then to changing a sound. The order is word awareness, rhyme, syllables, onset-rime, then one level per phoneme: simple consonants, short vowels, consonant digraphs, two-letter blends, three-letter blends, vowel teams and diphthongs, and r-controlled vowels. Phoneme deletion and substitution stays last. Each phoneme level asks the child to isolate the target, blend the word, and segment it into Elkonin boxes. A blend is two or three separate phonemes. A digraph is one phoneme. Marilyn Jager Adams, Beginning to Read (1990); National Reading Panel (2000); Liberman, Shankweiler, Fischer, and Carter (1974); D. B. Elkonin (1973); Ehri and others in the National Reading Panel phonemic awareness report (2001); David A. Kilpatrick, Equipped for Reading Success (2015). Older struggling readers are included. Kilpatrick treats phoneme deletion and substitution as the skill that still needs work for many of them.",
     "audio": "The computer speaks the say field. The child answers out loud. Nothing on the screen has to be read. A correct answer is silent, then the next item after advanceMs. A wrong answer, or no answer for maxShowMs, speaks the model field, waits advanceMs, and then goes to the next item. The microphone listens only while that item is waiting for an answer. Nothing is recorded or saved.",
     "movement": "riseAfter correct answers in a row move up one band. One miss stays on the band. dropAfter misses in a row move down one band. The first band does not move down. The last band does not move up. The student's grade number stays as it was sent."
   },
@@ -15,11 +15,11 @@
       "5": "RH"
     },
     "byGrade": {
-      "1": "IS",
+      "1": "c-b",
       "2": "PD"
     },
     "older": "PD",
-    "note": "Age 4 starts at word awareness (Pre-K). Age 5 starts at rhyme (K). Those ages win over the grade, because the grade form starts at 1st. Grade 1 starts at first and final sound isolation. Grade 2 starts at phoneme deletion and substitution. Grade 3 and above starts at that same grade 2 band, so an older struggling reader can use the engine and can be moved down. A saved band is kept."
+    "note": "Age 4 starts at word awareness (Pre-K). Age 5 starts at rhyme (K). Those ages win over the grade, because the grade form starts at 1st. Grade 1 starts at the first consonant level. Grade 2 starts at phoneme deletion and substitution. Grade 3 and above starts at that same grade 2 band, so an older struggling reader can use the engine and can be moved down. A saved band is kept. Saved bands IS, BL, and PS from the earlier list map to the first consonant level, the first two-letter blend level, and the first vowel-team level."
   },
   "phonemeSpeak": {
     "p": [
@@ -41,7 +41,8 @@
     "k": [
       "kuh",
       "cuh",
-      "k"
+      "k",
+      "ck"
     ],
     "g": [
       "guh",
@@ -50,7 +51,8 @@
     "f": [
       "fff",
       "ff",
-      "f"
+      "f",
+      "ph"
     ],
     "s": [
       "sss",
@@ -77,14 +79,66 @@
       "huh",
       "h"
     ],
+    "j": [
+      "juh",
+      "j"
+    ],
+    "v": [
+      "vvv",
+      "v"
+    ],
+    "w": [
+      "wuh",
+      "w",
+      "wh",
+      "hw"
+    ],
+    "y": [
+      "yuh",
+      "y"
+    ],
+    "z": [
+      "zzz",
+      "z"
+    ],
     "sh": [
       "shh",
       "sh"
+    ],
+    "ch": [
+      "ch",
+      "chh"
+    ],
+    "th": [
+      "th",
+      "thh"
+    ],
+    "ng": [
+      "ng",
+      "ngh"
+    ],
+    "wh": [
+      "wh",
+      "w",
+      "hw"
+    ],
+    "kw": [
+      "kw",
+      "qu",
+      "q"
+    ],
+    "ks": [
+      "ks",
+      "x"
     ],
     "a": [
       "aeh",
       "ae",
       "a"
+    ],
+    "e": [
+      "eh",
+      "e"
     ],
     "i": [
       "ih",
@@ -92,7 +146,6 @@
     ],
     "o": [
       "ah",
-      "aw",
       "aah",
       "o"
     ],
@@ -102,12 +155,52 @@
     ],
     "ee": [
       "ee",
-      "eee"
+      "eee",
+      "ea"
+    ],
+    "igh": [
+      "igh",
+      "ie"
     ],
     "oh": [
       "oh",
-      "oe",
-      "o"
+      "oa",
+      "oe"
+    ],
+    "oo": [
+      "oo",
+      "ooh",
+      "ooo"
+    ],
+    "uu": [
+      "uu"
+    ],
+    "ay": [
+      "ay",
+      "ai"
+    ],
+    "ow": [
+      "ow",
+      "ou"
+    ],
+    "oi": [
+      "oi",
+      "oy"
+    ],
+    "aw": [
+      "aw",
+      "au"
+    ],
+    "ar": [
+      "ar"
+    ],
+    "er": [
+      "er",
+      "ir",
+      "ur"
+    ],
+    "or": [
+      "or"
     ]
   },
   "bands": [
@@ -460,163 +553,101 @@
       ]
     },
     {
-      "id": "IS",
-      "name": "First and final sound isolation",
+      "id": "c-b",
+      "name": "Consonant b",
       "grade": "1st",
+      "pattern": "b",
+      "elkonin": true,
       "items": [
         {
-          "id": "is-first-sun",
+          "id": "c-b-bat-iso",
           "kind": "isolate",
-          "say": "What is the first sound in sun?",
-          "answer": "sss",
+          "say": "What is the first sound in bat?",
+          "answer": "buh",
           "sounds": [
-            "s"
+            "b"
           ],
-          "model": "Sss."
+          "model": "Buh."
         },
         {
-          "id": "is-last-sun",
-          "kind": "isolate",
-          "say": "What is the last sound in sun?",
-          "answer": "nnn",
-          "sounds": [
-            "n"
-          ],
-          "model": "Nnn."
-        },
-        {
-          "id": "is-first-map",
-          "kind": "isolate",
-          "say": "What is the first sound in map?",
-          "answer": "mmm",
-          "sounds": [
-            "m"
-          ],
-          "model": "Mmm."
-        },
-        {
-          "id": "is-last-map",
-          "kind": "isolate",
-          "say": "What is the last sound in map?",
-          "answer": "puh",
-          "sounds": [
-            "p"
-          ],
-          "model": "Puh."
-        },
-        {
-          "id": "is-first-fish",
-          "kind": "isolate",
-          "say": "What is the first sound in fish?",
-          "answer": "fff",
-          "sounds": [
-            "f"
-          ],
-          "model": "Fff."
-        },
-        {
-          "id": "is-last-fish",
-          "kind": "isolate",
-          "say": "What is the last sound in fish?",
-          "answer": "shh",
-          "sounds": [
-            "sh"
-          ],
-          "model": "Shh."
-        },
-        {
-          "id": "is-first-dog",
-          "kind": "isolate",
-          "say": "What is the first sound in dog?",
-          "answer": "duh",
-          "sounds": [
-            "d"
-          ],
-          "model": "Duh."
-        },
-        {
-          "id": "is-last-dog",
-          "kind": "isolate",
-          "say": "What is the last sound in dog?",
-          "answer": "guh",
-          "sounds": [
-            "g"
-          ],
-          "model": "Guh."
-        }
-      ]
-    },
-    {
-      "id": "BL",
-      "name": "Phoneme blending",
-      "grade": "1st",
-      "items": [
-        {
-          "id": "bl-cat",
-          "kind": "blend",
-          "say": "What word is this? Kuh. Aeh. Tuh.",
-          "answer": "cat",
-          "model": "Cat."
-        },
-        {
-          "id": "bl-sun",
-          "kind": "blend",
-          "say": "What word is this? Sss. Uh. Nnn.",
-          "answer": "sun",
-          "model": "Sun."
-        },
-        {
-          "id": "bl-map",
-          "kind": "blend",
-          "say": "What word is this? Muh. Aeh. Puh.",
-          "answer": "map",
-          "model": "Map."
-        },
-        {
-          "id": "bl-dog",
-          "kind": "blend",
-          "say": "What word is this? Duh. Ah. Guh.",
-          "answer": "dog",
-          "model": "Dog."
-        },
-        {
-          "id": "bl-fish",
-          "kind": "blend",
-          "say": "What word is this? Fff. Ih. Shh.",
-          "answer": "fish",
-          "model": "Fish."
-        },
-        {
-          "id": "bl-bat",
+          "id": "c-b-bat-blend",
           "kind": "blend",
           "say": "What word is this? Buh. Aeh. Tuh.",
           "answer": "bat",
           "model": "Bat."
         },
         {
-          "id": "bl-hat",
-          "kind": "blend",
-          "say": "What word is this? Huh. Aeh. Tuh.",
-          "answer": "hat",
-          "model": "Hat."
+          "id": "c-b-bat-seg",
+          "kind": "segment",
+          "say": "Say each sound in bat.",
+          "answer": "buh aeh tuh",
+          "sounds": [
+            "b",
+            "a",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Buh. Aeh. Tuh."
         },
         {
-          "id": "bl-me",
+          "id": "c-b-baby-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in baby?",
+          "answer": "buh",
+          "sounds": [
+            "b"
+          ],
+          "model": "Buh."
+        },
+        {
+          "id": "c-b-baby-blend",
           "kind": "blend",
-          "say": "What word is this? Muh. Ee.",
-          "answer": "me",
-          "model": "Me."
+          "say": "What word is this? Buh. Ay. Buh. Ee.",
+          "answer": "baby",
+          "model": "Baby."
+        },
+        {
+          "id": "c-b-baby-seg",
+          "kind": "segment",
+          "say": "Say each sound in baby.",
+          "answer": "buh ay buh ee",
+          "sounds": [
+            "b",
+            "ay",
+            "b",
+            "ee"
+          ],
+          "boxes": 4,
+          "model": "Buh. Ay. Buh. Ee."
         }
       ]
     },
     {
-      "id": "PS",
-      "name": "Phoneme segmentation",
+      "id": "c-c",
+      "name": "Consonant c",
       "grade": "1st",
+      "pattern": "c",
       "elkonin": true,
       "items": [
         {
-          "id": "ps-cat",
+          "id": "c-c-cat-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in cat?",
+          "answer": "kuh",
+          "sounds": [
+            "k"
+          ],
+          "model": "Kuh."
+        },
+        {
+          "id": "c-c-cat-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Aeh. Tuh.",
+          "answer": "cat",
+          "model": "Cat."
+        },
+        {
+          "id": "c-c-cat-seg",
           "kind": "segment",
           "say": "Say each sound in cat.",
           "answer": "kuh aeh tuh",
@@ -629,33 +660,64 @@
           "model": "Kuh. Aeh. Tuh."
         },
         {
-          "id": "ps-sun",
-          "kind": "segment",
-          "say": "Say each sound in sun.",
-          "answer": "sss uh nnn",
+          "id": "c-c-cookie-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in cookie?",
+          "answer": "kuh",
           "sounds": [
-            "s",
-            "u",
-            "n"
+            "k"
           ],
-          "boxes": 3,
-          "model": "Sss. Uh. Nnn."
+          "model": "Kuh."
         },
         {
-          "id": "ps-map",
-          "kind": "segment",
-          "say": "Say each sound in map.",
-          "answer": "mmm aeh puh",
-          "sounds": [
-            "m",
-            "a",
-            "p"
-          ],
-          "boxes": 3,
-          "model": "Mmm. Aeh. Puh."
+          "id": "c-c-cookie-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Uu. Kuh. Ee.",
+          "answer": "cookie",
+          "model": "Cookie."
         },
         {
-          "id": "ps-dog",
+          "id": "c-c-cookie-seg",
+          "kind": "segment",
+          "say": "Say each sound in cookie.",
+          "answer": "kuh uu kuh ee",
+          "sounds": [
+            "k",
+            "uu",
+            "k",
+            "ee"
+          ],
+          "boxes": 4,
+          "model": "Kuh. Uu. Kuh. Ee."
+        }
+      ]
+    },
+    {
+      "id": "c-d",
+      "name": "Consonant d",
+      "grade": "1st",
+      "pattern": "d",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-d-dog-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in dog?",
+          "answer": "duh",
+          "sounds": [
+            "d"
+          ],
+          "model": "Duh."
+        },
+        {
+          "id": "c-d-dog-blend",
+          "kind": "blend",
+          "say": "What word is this? Duh. Ah. Guh.",
+          "answer": "dog",
+          "model": "Dog."
+        },
+        {
+          "id": "c-d-dog-seg",
           "kind": "segment",
           "say": "Say each sound in dog.",
           "answer": "duh ah guh",
@@ -668,53 +730,5604 @@
           "model": "Duh. Ah. Guh."
         },
         {
-          "id": "ps-me",
-          "kind": "segment",
-          "say": "Say each sound in me.",
-          "answer": "mmm ee",
+          "id": "c-d-daddy-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in daddy?",
+          "answer": "duh",
           "sounds": [
-            "m",
-            "ee"
+            "d"
           ],
-          "boxes": 2,
-          "model": "Mmm. Ee."
+          "model": "Duh."
         },
         {
-          "id": "ps-up",
+          "id": "c-d-daddy-blend",
+          "kind": "blend",
+          "say": "What word is this? Duh. Aeh. Duh. Ee.",
+          "answer": "daddy",
+          "model": "Daddy."
+        },
+        {
+          "id": "c-d-daddy-seg",
           "kind": "segment",
-          "say": "Say each sound in up.",
-          "answer": "uh puh",
+          "say": "Say each sound in daddy.",
+          "answer": "duh aeh duh ee",
           "sounds": [
+            "d",
+            "a",
+            "d",
+            "ee"
+          ],
+          "boxes": 4,
+          "model": "Duh. Aeh. Duh. Ee."
+        }
+      ]
+    },
+    {
+      "id": "c-f",
+      "name": "Consonant f",
+      "grade": "1st",
+      "pattern": "f",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-f-fox-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in fox?",
+          "answer": "fff",
+          "sounds": [
+            "f"
+          ],
+          "model": "Fff."
+        },
+        {
+          "id": "c-f-fox-blend",
+          "kind": "blend",
+          "say": "What word is this? Fff. Ah. Kuh. Sss.",
+          "answer": "fox",
+          "model": "Fox."
+        },
+        {
+          "id": "c-f-fox-seg",
+          "kind": "segment",
+          "say": "Say each sound in fox.",
+          "answer": "fff ah kuh sss",
+          "sounds": [
+            "f",
+            "o",
+            "k",
+            "s"
+          ],
+          "boxes": 4,
+          "model": "Fff. Ah. Kuh. Sss."
+        },
+        {
+          "id": "c-f-family-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in family?",
+          "answer": "fff",
+          "sounds": [
+            "f"
+          ],
+          "model": "Fff."
+        },
+        {
+          "id": "c-f-family-blend",
+          "kind": "blend",
+          "say": "What word is this? Fff. Aeh. Mmm. Uh. Lll. Ee.",
+          "answer": "family",
+          "model": "Family."
+        },
+        {
+          "id": "c-f-family-seg",
+          "kind": "segment",
+          "say": "Say each sound in family.",
+          "answer": "fff aeh mmm uh lll ee",
+          "sounds": [
+            "f",
+            "a",
+            "m",
+            "u",
+            "l",
+            "ee"
+          ],
+          "boxes": 6,
+          "model": "Fff. Aeh. Mmm. Uh. Lll. Ee."
+        }
+      ]
+    },
+    {
+      "id": "c-g",
+      "name": "Consonant g",
+      "grade": "1st",
+      "pattern": "g",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-g-gas-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in gas?",
+          "answer": "guh",
+          "sounds": [
+            "g"
+          ],
+          "model": "Guh."
+        },
+        {
+          "id": "c-g-gas-blend",
+          "kind": "blend",
+          "say": "What word is this? Guh. Aeh. Sss.",
+          "answer": "gas",
+          "model": "Gas."
+        },
+        {
+          "id": "c-g-gas-seg",
+          "kind": "segment",
+          "say": "Say each sound in gas.",
+          "answer": "guh aeh sss",
+          "sounds": [
+            "g",
+            "a",
+            "s"
+          ],
+          "boxes": 3,
+          "model": "Guh. Aeh. Sss."
+        },
+        {
+          "id": "c-g-gorilla-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in gorilla?",
+          "answer": "guh",
+          "sounds": [
+            "g"
+          ],
+          "model": "Guh."
+        },
+        {
+          "id": "c-g-gorilla-blend",
+          "kind": "blend",
+          "say": "What word is this? Guh. Uh. Rrr. Ih. Lll. Uh.",
+          "answer": "gorilla",
+          "model": "Gorilla."
+        },
+        {
+          "id": "c-g-gorilla-seg",
+          "kind": "segment",
+          "say": "Say each sound in gorilla.",
+          "answer": "guh uh rrr ih lll uh",
+          "sounds": [
+            "g",
+            "u",
+            "r",
+            "i",
+            "l",
+            "u"
+          ],
+          "boxes": 6,
+          "model": "Guh. Uh. Rrr. Ih. Lll. Uh."
+        }
+      ]
+    },
+    {
+      "id": "c-h",
+      "name": "Consonant h",
+      "grade": "1st",
+      "pattern": "h",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-h-hat-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in hat?",
+          "answer": "huh",
+          "sounds": [
+            "h"
+          ],
+          "model": "Huh."
+        },
+        {
+          "id": "c-h-hat-blend",
+          "kind": "blend",
+          "say": "What word is this? Huh. Aeh. Tuh.",
+          "answer": "hat",
+          "model": "Hat."
+        },
+        {
+          "id": "c-h-hat-seg",
+          "kind": "segment",
+          "say": "Say each sound in hat.",
+          "answer": "huh aeh tuh",
+          "sounds": [
+            "h",
+            "a",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Huh. Aeh. Tuh."
+        },
+        {
+          "id": "c-h-happy-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in happy?",
+          "answer": "huh",
+          "sounds": [
+            "h"
+          ],
+          "model": "Huh."
+        },
+        {
+          "id": "c-h-happy-blend",
+          "kind": "blend",
+          "say": "What word is this? Huh. Aeh. Puh. Ee.",
+          "answer": "happy",
+          "model": "Happy."
+        },
+        {
+          "id": "c-h-happy-seg",
+          "kind": "segment",
+          "say": "Say each sound in happy.",
+          "answer": "huh aeh puh ee",
+          "sounds": [
+            "h",
+            "a",
+            "p",
+            "ee"
+          ],
+          "boxes": 4,
+          "model": "Huh. Aeh. Puh. Ee."
+        }
+      ]
+    },
+    {
+      "id": "c-j",
+      "name": "Consonant j",
+      "grade": "1st",
+      "pattern": "j",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-j-jam-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in jam?",
+          "answer": "juh",
+          "sounds": [
+            "j"
+          ],
+          "model": "Juh."
+        },
+        {
+          "id": "c-j-jam-blend",
+          "kind": "blend",
+          "say": "What word is this? Juh. Aeh. Mmm.",
+          "answer": "jam",
+          "model": "Jam."
+        },
+        {
+          "id": "c-j-jam-seg",
+          "kind": "segment",
+          "say": "Say each sound in jam.",
+          "answer": "juh aeh mmm",
+          "sounds": [
+            "j",
+            "a",
+            "m"
+          ],
+          "boxes": 3,
+          "model": "Juh. Aeh. Mmm."
+        },
+        {
+          "id": "c-j-jacket-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in jacket?",
+          "answer": "juh",
+          "sounds": [
+            "j"
+          ],
+          "model": "Juh."
+        },
+        {
+          "id": "c-j-jacket-blend",
+          "kind": "blend",
+          "say": "What word is this? Juh. Aeh. Kuh. Ih. Tuh.",
+          "answer": "jacket",
+          "model": "Jacket."
+        },
+        {
+          "id": "c-j-jacket-seg",
+          "kind": "segment",
+          "say": "Say each sound in jacket.",
+          "answer": "juh aeh kuh ih tuh",
+          "sounds": [
+            "j",
+            "a",
+            "k",
+            "i",
+            "t"
+          ],
+          "boxes": 5,
+          "model": "Juh. Aeh. Kuh. Ih. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "c-k",
+      "name": "Consonant k",
+      "grade": "1st",
+      "pattern": "k",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-k-kite-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in kite?",
+          "answer": "kuh",
+          "sounds": [
+            "k"
+          ],
+          "model": "Kuh."
+        },
+        {
+          "id": "c-k-kite-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Igh. Tuh.",
+          "answer": "kite",
+          "model": "Kite."
+        },
+        {
+          "id": "c-k-kite-seg",
+          "kind": "segment",
+          "say": "Say each sound in kite.",
+          "answer": "kuh igh tuh",
+          "sounds": [
+            "k",
+            "igh",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Kuh. Igh. Tuh."
+        },
+        {
+          "id": "c-k-kangaroo-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in kangaroo?",
+          "answer": "kuh",
+          "sounds": [
+            "k"
+          ],
+          "model": "Kuh."
+        },
+        {
+          "id": "c-k-kangaroo-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Aeh. Ng. Guh. Uh. Rrr. Oo.",
+          "answer": "kangaroo",
+          "model": "Kangaroo."
+        },
+        {
+          "id": "c-k-kangaroo-seg",
+          "kind": "segment",
+          "say": "Say each sound in kangaroo.",
+          "answer": "kuh aeh ng guh uh rrr oo",
+          "sounds": [
+            "k",
+            "a",
+            "ng",
+            "g",
+            "u",
+            "r",
+            "oo"
+          ],
+          "boxes": 7,
+          "model": "Kuh. Aeh. Ng. Guh. Uh. Rrr. Oo."
+        }
+      ]
+    },
+    {
+      "id": "c-l",
+      "name": "Consonant l",
+      "grade": "1st",
+      "pattern": "l",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-l-lip-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in lip?",
+          "answer": "lll",
+          "sounds": [
+            "l"
+          ],
+          "model": "Lll."
+        },
+        {
+          "id": "c-l-lip-blend",
+          "kind": "blend",
+          "say": "What word is this? Lll. Ih. Puh.",
+          "answer": "lip",
+          "model": "Lip."
+        },
+        {
+          "id": "c-l-lip-seg",
+          "kind": "segment",
+          "say": "Say each sound in lip.",
+          "answer": "lll ih puh",
+          "sounds": [
+            "l",
+            "i",
+            "p"
+          ],
+          "boxes": 3,
+          "model": "Lll. Ih. Puh."
+        },
+        {
+          "id": "c-l-lemon-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in lemon?",
+          "answer": "lll",
+          "sounds": [
+            "l"
+          ],
+          "model": "Lll."
+        },
+        {
+          "id": "c-l-lemon-blend",
+          "kind": "blend",
+          "say": "What word is this? Lll. Eh. Mmm. Uh. Nnn.",
+          "answer": "lemon",
+          "model": "Lemon."
+        },
+        {
+          "id": "c-l-lemon-seg",
+          "kind": "segment",
+          "say": "Say each sound in lemon.",
+          "answer": "lll eh mmm uh nnn",
+          "sounds": [
+            "l",
+            "e",
+            "m",
+            "u",
+            "n"
+          ],
+          "boxes": 5,
+          "model": "Lll. Eh. Mmm. Uh. Nnn."
+        }
+      ]
+    },
+    {
+      "id": "c-m",
+      "name": "Consonant m",
+      "grade": "1st",
+      "pattern": "m",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-m-man-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in man?",
+          "answer": "mmm",
+          "sounds": [
+            "m"
+          ],
+          "model": "Mmm."
+        },
+        {
+          "id": "c-m-man-blend",
+          "kind": "blend",
+          "say": "What word is this? Mmm. Aeh. Nnn.",
+          "answer": "man",
+          "model": "Man."
+        },
+        {
+          "id": "c-m-man-seg",
+          "kind": "segment",
+          "say": "Say each sound in man.",
+          "answer": "mmm aeh nnn",
+          "sounds": [
+            "m",
+            "a",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Mmm. Aeh. Nnn."
+        },
+        {
+          "id": "c-m-monkey-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in monkey?",
+          "answer": "mmm",
+          "sounds": [
+            "m"
+          ],
+          "model": "Mmm."
+        },
+        {
+          "id": "c-m-monkey-blend",
+          "kind": "blend",
+          "say": "What word is this? Mmm. Uh. Ng. Kuh. Ee.",
+          "answer": "monkey",
+          "model": "Monkey."
+        },
+        {
+          "id": "c-m-monkey-seg",
+          "kind": "segment",
+          "say": "Say each sound in monkey.",
+          "answer": "mmm uh ng kuh ee",
+          "sounds": [
+            "m",
+            "u",
+            "ng",
+            "k",
+            "ee"
+          ],
+          "boxes": 5,
+          "model": "Mmm. Uh. Ng. Kuh. Ee."
+        }
+      ]
+    },
+    {
+      "id": "c-n",
+      "name": "Consonant n",
+      "grade": "1st",
+      "pattern": "n",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-n-net-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in net?",
+          "answer": "nnn",
+          "sounds": [
+            "n"
+          ],
+          "model": "Nnn."
+        },
+        {
+          "id": "c-n-net-blend",
+          "kind": "blend",
+          "say": "What word is this? Nnn. Eh. Tuh.",
+          "answer": "net",
+          "model": "Net."
+        },
+        {
+          "id": "c-n-net-seg",
+          "kind": "segment",
+          "say": "Say each sound in net.",
+          "answer": "nnn eh tuh",
+          "sounds": [
+            "n",
+            "e",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Nnn. Eh. Tuh."
+        },
+        {
+          "id": "c-n-banana-iso",
+          "kind": "isolate",
+          "say": "What is the n sound in the middle of banana? It is not the first sound.",
+          "answer": "nnn",
+          "sounds": [
+            "n"
+          ],
+          "model": "Nnn."
+        },
+        {
+          "id": "c-n-banana-blend",
+          "kind": "blend",
+          "say": "What word is this? Buh. Uh. Nnn. Aeh. Nnn. Uh.",
+          "answer": "banana",
+          "model": "Banana."
+        },
+        {
+          "id": "c-n-banana-seg",
+          "kind": "segment",
+          "say": "Say each sound in banana.",
+          "answer": "buh uh nnn aeh nnn uh",
+          "sounds": [
+            "b",
+            "u",
+            "n",
+            "a",
+            "n",
+            "u"
+          ],
+          "boxes": 6,
+          "model": "Buh. Uh. Nnn. Aeh. Nnn. Uh."
+        }
+      ]
+    },
+    {
+      "id": "c-p",
+      "name": "Consonant p",
+      "grade": "1st",
+      "pattern": "p",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-p-pig-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in pig?",
+          "answer": "puh",
+          "sounds": [
+            "p"
+          ],
+          "model": "Puh."
+        },
+        {
+          "id": "c-p-pig-blend",
+          "kind": "blend",
+          "say": "What word is this? Puh. Ih. Guh.",
+          "answer": "pig",
+          "model": "Pig."
+        },
+        {
+          "id": "c-p-pig-seg",
+          "kind": "segment",
+          "say": "Say each sound in pig.",
+          "answer": "puh ih guh",
+          "sounds": [
+            "p",
+            "i",
+            "g"
+          ],
+          "boxes": 3,
+          "model": "Puh. Ih. Guh."
+        },
+        {
+          "id": "c-p-paper-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in paper?",
+          "answer": "puh",
+          "sounds": [
+            "p"
+          ],
+          "model": "Puh."
+        },
+        {
+          "id": "c-p-paper-blend",
+          "kind": "blend",
+          "say": "What word is this? Puh. Ay. Puh. Er.",
+          "answer": "paper",
+          "model": "Paper."
+        },
+        {
+          "id": "c-p-paper-seg",
+          "kind": "segment",
+          "say": "Say each sound in paper.",
+          "answer": "puh ay puh er",
+          "sounds": [
+            "p",
+            "ay",
+            "p",
+            "er"
+          ],
+          "boxes": 4,
+          "model": "Puh. Ay. Puh. Er."
+        }
+      ]
+    },
+    {
+      "id": "c-q",
+      "name": "Consonant q",
+      "grade": "1st",
+      "pattern": "q",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-q-queen-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in queen?",
+          "answer": "kw",
+          "sounds": [
+            "kw"
+          ],
+          "model": "Kw."
+        },
+        {
+          "id": "c-q-queen-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Wuh. Ee. Nnn.",
+          "answer": "queen",
+          "model": "Queen."
+        },
+        {
+          "id": "c-q-queen-seg",
+          "kind": "segment",
+          "say": "Say each sound in queen.",
+          "answer": "kuh wuh ee nnn",
+          "sounds": [
+            "k",
+            "w",
+            "ee",
+            "n"
+          ],
+          "boxes": 4,
+          "model": "Kuh. Wuh. Ee. Nnn."
+        },
+        {
+          "id": "c-q-quiet-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in quiet?",
+          "answer": "kw",
+          "sounds": [
+            "kw"
+          ],
+          "model": "Kw."
+        },
+        {
+          "id": "c-q-quiet-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Wuh. Igh. Uh. Tuh.",
+          "answer": "quiet",
+          "model": "Quiet."
+        },
+        {
+          "id": "c-q-quiet-seg",
+          "kind": "segment",
+          "say": "Say each sound in quiet.",
+          "answer": "kuh wuh igh uh tuh",
+          "sounds": [
+            "k",
+            "w",
+            "igh",
+            "u",
+            "t"
+          ],
+          "boxes": 5,
+          "model": "Kuh. Wuh. Igh. Uh. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "c-r",
+      "name": "Consonant r",
+      "grade": "1st",
+      "pattern": "r",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-r-rat-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in rat?",
+          "answer": "rrr",
+          "sounds": [
+            "r"
+          ],
+          "model": "Rrr."
+        },
+        {
+          "id": "c-r-rat-blend",
+          "kind": "blend",
+          "say": "What word is this? Rrr. Aeh. Tuh.",
+          "answer": "rat",
+          "model": "Rat."
+        },
+        {
+          "id": "c-r-rat-seg",
+          "kind": "segment",
+          "say": "Say each sound in rat.",
+          "answer": "rrr aeh tuh",
+          "sounds": [
+            "r",
+            "a",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Rrr. Aeh. Tuh."
+        },
+        {
+          "id": "c-r-rabbit-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in rabbit?",
+          "answer": "rrr",
+          "sounds": [
+            "r"
+          ],
+          "model": "Rrr."
+        },
+        {
+          "id": "c-r-rabbit-blend",
+          "kind": "blend",
+          "say": "What word is this? Rrr. Aeh. Buh. Ih. Tuh.",
+          "answer": "rabbit",
+          "model": "Rabbit."
+        },
+        {
+          "id": "c-r-rabbit-seg",
+          "kind": "segment",
+          "say": "Say each sound in rabbit.",
+          "answer": "rrr aeh buh ih tuh",
+          "sounds": [
+            "r",
+            "a",
+            "b",
+            "i",
+            "t"
+          ],
+          "boxes": 5,
+          "model": "Rrr. Aeh. Buh. Ih. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "c-s",
+      "name": "Consonant s",
+      "grade": "1st",
+      "pattern": "s",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-s-sun-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in sun?",
+          "answer": "sss",
+          "sounds": [
+            "s"
+          ],
+          "model": "Sss."
+        },
+        {
+          "id": "c-s-sun-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Uh. Nnn.",
+          "answer": "sun",
+          "model": "Sun."
+        },
+        {
+          "id": "c-s-sun-seg",
+          "kind": "segment",
+          "say": "Say each sound in sun.",
+          "answer": "sss uh nnn",
+          "sounds": [
+            "s",
+            "u",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Sss. Uh. Nnn."
+        },
+        {
+          "id": "c-s-spider-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in spider?",
+          "answer": "sss",
+          "sounds": [
+            "s"
+          ],
+          "model": "Sss."
+        },
+        {
+          "id": "c-s-spider-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Puh. Igh. Duh. Er.",
+          "answer": "spider",
+          "model": "Spider."
+        },
+        {
+          "id": "c-s-spider-seg",
+          "kind": "segment",
+          "say": "Say each sound in spider.",
+          "answer": "sss puh igh duh er",
+          "sounds": [
+            "s",
+            "p",
+            "igh",
+            "d",
+            "er"
+          ],
+          "boxes": 5,
+          "model": "Sss. Puh. Igh. Duh. Er."
+        }
+      ]
+    },
+    {
+      "id": "c-t",
+      "name": "Consonant t",
+      "grade": "1st",
+      "pattern": "t",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-t-top-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in top?",
+          "answer": "tuh",
+          "sounds": [
+            "t"
+          ],
+          "model": "Tuh."
+        },
+        {
+          "id": "c-t-top-blend",
+          "kind": "blend",
+          "say": "What word is this? Tuh. Ah. Puh.",
+          "answer": "top",
+          "model": "Top."
+        },
+        {
+          "id": "c-t-top-seg",
+          "kind": "segment",
+          "say": "Say each sound in top.",
+          "answer": "tuh ah puh",
+          "sounds": [
+            "t",
+            "o",
+            "p"
+          ],
+          "boxes": 3,
+          "model": "Tuh. Ah. Puh."
+        },
+        {
+          "id": "c-t-turtle-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in turtle?",
+          "answer": "tuh",
+          "sounds": [
+            "t"
+          ],
+          "model": "Tuh."
+        },
+        {
+          "id": "c-t-turtle-blend",
+          "kind": "blend",
+          "say": "What word is this? Tuh. Er. Tuh. Uh. Lll.",
+          "answer": "turtle",
+          "model": "Turtle."
+        },
+        {
+          "id": "c-t-turtle-seg",
+          "kind": "segment",
+          "say": "Say each sound in turtle.",
+          "answer": "tuh er tuh uh lll",
+          "sounds": [
+            "t",
+            "er",
+            "t",
+            "u",
+            "l"
+          ],
+          "boxes": 5,
+          "model": "Tuh. Er. Tuh. Uh. Lll."
+        }
+      ]
+    },
+    {
+      "id": "c-v",
+      "name": "Consonant v",
+      "grade": "1st",
+      "pattern": "v",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-v-van-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in van?",
+          "answer": "vvv",
+          "sounds": [
+            "v"
+          ],
+          "model": "Vvv."
+        },
+        {
+          "id": "c-v-van-blend",
+          "kind": "blend",
+          "say": "What word is this? Vvv. Aeh. Nnn.",
+          "answer": "van",
+          "model": "Van."
+        },
+        {
+          "id": "c-v-van-seg",
+          "kind": "segment",
+          "say": "Say each sound in van.",
+          "answer": "vvv aeh nnn",
+          "sounds": [
+            "v",
+            "a",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Vvv. Aeh. Nnn."
+        },
+        {
+          "id": "c-v-violin-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in violin?",
+          "answer": "vvv",
+          "sounds": [
+            "v"
+          ],
+          "model": "Vvv."
+        },
+        {
+          "id": "c-v-violin-blend",
+          "kind": "blend",
+          "say": "What word is this? Vvv. Igh. Uh. Lll. Ih. Nnn.",
+          "answer": "violin",
+          "model": "Violin."
+        },
+        {
+          "id": "c-v-violin-seg",
+          "kind": "segment",
+          "say": "Say each sound in violin.",
+          "answer": "vvv igh uh lll ih nnn",
+          "sounds": [
+            "v",
+            "igh",
+            "u",
+            "l",
+            "i",
+            "n"
+          ],
+          "boxes": 6,
+          "model": "Vvv. Igh. Uh. Lll. Ih. Nnn."
+        }
+      ]
+    },
+    {
+      "id": "c-w",
+      "name": "Consonant w",
+      "grade": "1st",
+      "pattern": "w",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-w-win-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in win?",
+          "answer": "wuh",
+          "sounds": [
+            "w"
+          ],
+          "model": "Wuh."
+        },
+        {
+          "id": "c-w-win-blend",
+          "kind": "blend",
+          "say": "What word is this? Wuh. Ih. Nnn.",
+          "answer": "win",
+          "model": "Win."
+        },
+        {
+          "id": "c-w-win-seg",
+          "kind": "segment",
+          "say": "Say each sound in win.",
+          "answer": "wuh ih nnn",
+          "sounds": [
+            "w",
+            "i",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Wuh. Ih. Nnn."
+        },
+        {
+          "id": "c-w-window-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in window?",
+          "answer": "wuh",
+          "sounds": [
+            "w"
+          ],
+          "model": "Wuh."
+        },
+        {
+          "id": "c-w-window-blend",
+          "kind": "blend",
+          "say": "What word is this? Wuh. Ih. Nnn. Duh. Oh.",
+          "answer": "window",
+          "model": "Window."
+        },
+        {
+          "id": "c-w-window-seg",
+          "kind": "segment",
+          "say": "Say each sound in window.",
+          "answer": "wuh ih nnn duh oh",
+          "sounds": [
+            "w",
+            "i",
+            "n",
+            "d",
+            "oh"
+          ],
+          "boxes": 5,
+          "model": "Wuh. Ih. Nnn. Duh. Oh."
+        }
+      ]
+    },
+    {
+      "id": "c-x",
+      "name": "Consonant x",
+      "grade": "1st",
+      "pattern": "x",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-x-box-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in box?",
+          "answer": "ks",
+          "sounds": [
+            "ks"
+          ],
+          "model": "Ks."
+        },
+        {
+          "id": "c-x-box-blend",
+          "kind": "blend",
+          "say": "What word is this? Buh. Ah. Kuh. Sss.",
+          "answer": "box",
+          "model": "Box."
+        },
+        {
+          "id": "c-x-box-seg",
+          "kind": "segment",
+          "say": "Say each sound in box.",
+          "answer": "buh ah kuh sss",
+          "sounds": [
+            "b",
+            "o",
+            "k",
+            "s"
+          ],
+          "boxes": 4,
+          "model": "Buh. Ah. Kuh. Sss."
+        },
+        {
+          "id": "c-x-fox-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in fox?",
+          "answer": "ks",
+          "sounds": [
+            "ks"
+          ],
+          "model": "Ks."
+        },
+        {
+          "id": "c-x-fox-blend",
+          "kind": "blend",
+          "say": "What word is this? Fff. Ah. Kuh. Sss.",
+          "answer": "fox",
+          "model": "Fox."
+        },
+        {
+          "id": "c-x-fox-seg",
+          "kind": "segment",
+          "say": "Say each sound in fox.",
+          "answer": "fff ah kuh sss",
+          "sounds": [
+            "f",
+            "o",
+            "k",
+            "s"
+          ],
+          "boxes": 4,
+          "model": "Fff. Ah. Kuh. Sss."
+        }
+      ]
+    },
+    {
+      "id": "c-y",
+      "name": "Consonant y",
+      "grade": "1st",
+      "pattern": "y",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-y-yellow-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in yellow?",
+          "answer": "yuh",
+          "sounds": [
+            "y"
+          ],
+          "model": "Yuh."
+        },
+        {
+          "id": "c-y-yellow-blend",
+          "kind": "blend",
+          "say": "What word is this? Yuh. Eh. Lll. Oh.",
+          "answer": "yellow",
+          "model": "Yellow."
+        },
+        {
+          "id": "c-y-yellow-seg",
+          "kind": "segment",
+          "say": "Say each sound in yellow.",
+          "answer": "yuh eh lll oh",
+          "sounds": [
+            "y",
+            "e",
+            "l",
+            "oh"
+          ],
+          "boxes": 4,
+          "model": "Yuh. Eh. Lll. Oh."
+        },
+        {
+          "id": "c-y-yo-yo-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in yo-yo?",
+          "answer": "yuh",
+          "sounds": [
+            "y"
+          ],
+          "model": "Yuh."
+        },
+        {
+          "id": "c-y-yo-yo-blend",
+          "kind": "blend",
+          "say": "What word is this? Yuh. Oh. Yuh. Oh.",
+          "answer": "yo-yo",
+          "model": "Yo-yo."
+        },
+        {
+          "id": "c-y-yo-yo-seg",
+          "kind": "segment",
+          "say": "Say each sound in yo-yo.",
+          "answer": "yuh oh yuh oh",
+          "sounds": [
+            "y",
+            "oh",
+            "y",
+            "oh"
+          ],
+          "boxes": 4,
+          "model": "Yuh. Oh. Yuh. Oh."
+        }
+      ]
+    },
+    {
+      "id": "c-z",
+      "name": "Consonant z",
+      "grade": "1st",
+      "pattern": "z",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "c-z-zoo-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in zoo?",
+          "answer": "zzz",
+          "sounds": [
+            "z"
+          ],
+          "model": "Zzz."
+        },
+        {
+          "id": "c-z-zoo-blend",
+          "kind": "blend",
+          "say": "What word is this? Zzz. Oo.",
+          "answer": "zoo",
+          "model": "Zoo."
+        },
+        {
+          "id": "c-z-zoo-seg",
+          "kind": "segment",
+          "say": "Say each sound in zoo.",
+          "answer": "zzz oo",
+          "sounds": [
+            "z",
+            "oo"
+          ],
+          "boxes": 2,
+          "model": "Zzz. Oo."
+        },
+        {
+          "id": "c-z-zebra-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in zebra?",
+          "answer": "zzz",
+          "sounds": [
+            "z"
+          ],
+          "model": "Zzz."
+        },
+        {
+          "id": "c-z-zebra-blend",
+          "kind": "blend",
+          "say": "What word is this? Zzz. Ee. Buh. Rrr. Uh.",
+          "answer": "zebra",
+          "model": "Zebra."
+        },
+        {
+          "id": "c-z-zebra-seg",
+          "kind": "segment",
+          "say": "Say each sound in zebra.",
+          "answer": "zzz ee buh rrr uh",
+          "sounds": [
+            "z",
+            "ee",
+            "b",
+            "r",
+            "u"
+          ],
+          "boxes": 5,
+          "model": "Zzz. Ee. Buh. Rrr. Uh."
+        }
+      ]
+    },
+    {
+      "id": "v-a",
+      "name": "Short vowel a",
+      "grade": "1st",
+      "pattern": "a",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "v-a-apple-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in apple?",
+          "answer": "aeh",
+          "sounds": [
+            "a"
+          ],
+          "model": "Aeh."
+        },
+        {
+          "id": "v-a-apple-blend",
+          "kind": "blend",
+          "say": "What word is this? Aeh. Puh. Uh. Lll.",
+          "answer": "apple",
+          "model": "Apple."
+        },
+        {
+          "id": "v-a-apple-seg",
+          "kind": "segment",
+          "say": "Say each sound in apple.",
+          "answer": "aeh puh uh lll",
+          "sounds": [
+            "a",
+            "p",
+            "u",
+            "l"
+          ],
+          "boxes": 4,
+          "model": "Aeh. Puh. Uh. Lll."
+        },
+        {
+          "id": "v-a-hat-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in hat?",
+          "answer": "aeh",
+          "sounds": [
+            "a"
+          ],
+          "model": "Aeh."
+        },
+        {
+          "id": "v-a-hat-blend",
+          "kind": "blend",
+          "say": "What word is this? Huh. Aeh. Tuh.",
+          "answer": "hat",
+          "model": "Hat."
+        },
+        {
+          "id": "v-a-hat-seg",
+          "kind": "segment",
+          "say": "Say each sound in hat.",
+          "answer": "huh aeh tuh",
+          "sounds": [
+            "h",
+            "a",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Huh. Aeh. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "v-e",
+      "name": "Short vowel e",
+      "grade": "1st",
+      "pattern": "e",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "v-e-egg-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in egg?",
+          "answer": "eh",
+          "sounds": [
+            "e"
+          ],
+          "model": "Eh."
+        },
+        {
+          "id": "v-e-egg-blend",
+          "kind": "blend",
+          "say": "What word is this? Eh. Guh.",
+          "answer": "egg",
+          "model": "Egg."
+        },
+        {
+          "id": "v-e-egg-seg",
+          "kind": "segment",
+          "say": "Say each sound in egg.",
+          "answer": "eh guh",
+          "sounds": [
+            "e",
+            "g"
+          ],
+          "boxes": 2,
+          "model": "Eh. Guh."
+        },
+        {
+          "id": "v-e-bed-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in bed?",
+          "answer": "eh",
+          "sounds": [
+            "e"
+          ],
+          "model": "Eh."
+        },
+        {
+          "id": "v-e-bed-blend",
+          "kind": "blend",
+          "say": "What word is this? Buh. Eh. Duh.",
+          "answer": "bed",
+          "model": "Bed."
+        },
+        {
+          "id": "v-e-bed-seg",
+          "kind": "segment",
+          "say": "Say each sound in bed.",
+          "answer": "buh eh duh",
+          "sounds": [
+            "b",
+            "e",
+            "d"
+          ],
+          "boxes": 3,
+          "model": "Buh. Eh. Duh."
+        }
+      ]
+    },
+    {
+      "id": "v-i",
+      "name": "Short vowel i",
+      "grade": "1st",
+      "pattern": "i",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "v-i-igloo-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in igloo?",
+          "answer": "ih",
+          "sounds": [
+            "i"
+          ],
+          "model": "Ih."
+        },
+        {
+          "id": "v-i-igloo-blend",
+          "kind": "blend",
+          "say": "What word is this? Ih. Guh. Lll. Oo.",
+          "answer": "igloo",
+          "model": "Igloo."
+        },
+        {
+          "id": "v-i-igloo-seg",
+          "kind": "segment",
+          "say": "Say each sound in igloo.",
+          "answer": "ih guh lll oo",
+          "sounds": [
+            "i",
+            "g",
+            "l",
+            "oo"
+          ],
+          "boxes": 4,
+          "model": "Ih. Guh. Lll. Oo."
+        },
+        {
+          "id": "v-i-pin-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in pin?",
+          "answer": "ih",
+          "sounds": [
+            "i"
+          ],
+          "model": "Ih."
+        },
+        {
+          "id": "v-i-pin-blend",
+          "kind": "blend",
+          "say": "What word is this? Puh. Ih. Nnn.",
+          "answer": "pin",
+          "model": "Pin."
+        },
+        {
+          "id": "v-i-pin-seg",
+          "kind": "segment",
+          "say": "Say each sound in pin.",
+          "answer": "puh ih nnn",
+          "sounds": [
+            "p",
+            "i",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Puh. Ih. Nnn."
+        }
+      ]
+    },
+    {
+      "id": "v-o",
+      "name": "Short vowel o",
+      "grade": "1st",
+      "pattern": "o",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "v-o-octopus-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in octopus?",
+          "answer": "ah",
+          "sounds": [
+            "o"
+          ],
+          "model": "Ah."
+        },
+        {
+          "id": "v-o-octopus-blend",
+          "kind": "blend",
+          "say": "What word is this? Ah. Kuh. Tuh. Uh. Puh. Uh. Sss.",
+          "answer": "octopus",
+          "model": "Octopus."
+        },
+        {
+          "id": "v-o-octopus-seg",
+          "kind": "segment",
+          "say": "Say each sound in octopus.",
+          "answer": "ah kuh tuh uh puh uh sss",
+          "sounds": [
+            "o",
+            "k",
+            "t",
+            "u",
+            "p",
+            "u",
+            "s"
+          ],
+          "boxes": 7,
+          "model": "Ah. Kuh. Tuh. Uh. Puh. Uh. Sss."
+        },
+        {
+          "id": "v-o-hot-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in hot?",
+          "answer": "ah",
+          "sounds": [
+            "o"
+          ],
+          "model": "Ah."
+        },
+        {
+          "id": "v-o-hot-blend",
+          "kind": "blend",
+          "say": "What word is this? Huh. Ah. Tuh.",
+          "answer": "hot",
+          "model": "Hot."
+        },
+        {
+          "id": "v-o-hot-seg",
+          "kind": "segment",
+          "say": "Say each sound in hot.",
+          "answer": "huh ah tuh",
+          "sounds": [
+            "h",
+            "o",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Huh. Ah. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "v-u",
+      "name": "Short vowel u",
+      "grade": "1st",
+      "pattern": "u",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "v-u-umbrella-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in umbrella?",
+          "answer": "uh",
+          "sounds": [
+            "u"
+          ],
+          "model": "Uh."
+        },
+        {
+          "id": "v-u-umbrella-blend",
+          "kind": "blend",
+          "say": "What word is this? Uh. Mmm. Buh. Rrr. Eh. Lll. Uh.",
+          "answer": "umbrella",
+          "model": "Umbrella."
+        },
+        {
+          "id": "v-u-umbrella-seg",
+          "kind": "segment",
+          "say": "Say each sound in umbrella.",
+          "answer": "uh mmm buh rrr eh lll uh",
+          "sounds": [
+            "u",
+            "m",
+            "b",
+            "r",
+            "e",
+            "l",
+            "u"
+          ],
+          "boxes": 7,
+          "model": "Uh. Mmm. Buh. Rrr. Eh. Lll. Uh."
+        },
+        {
+          "id": "v-u-cup-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in cup?",
+          "answer": "uh",
+          "sounds": [
+            "u"
+          ],
+          "model": "Uh."
+        },
+        {
+          "id": "v-u-cup-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Uh. Puh.",
+          "answer": "cup",
+          "model": "Cup."
+        },
+        {
+          "id": "v-u-cup-seg",
+          "kind": "segment",
+          "say": "Say each sound in cup.",
+          "answer": "kuh uh puh",
+          "sounds": [
+            "k",
             "u",
             "p"
           ],
-          "boxes": 2,
-          "model": "Uh. Puh."
+          "boxes": 3,
+          "model": "Kuh. Uh. Puh."
+        }
+      ]
+    },
+    {
+      "id": "d-ch",
+      "name": "Digraph ch",
+      "grade": "1st",
+      "pattern": "ch",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "d-ch-chin-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in chin?",
+          "answer": "ch",
+          "sounds": [
+            "ch"
+          ],
+          "model": "Ch."
         },
         {
-          "id": "ps-fish",
+          "id": "d-ch-chin-blend",
+          "kind": "blend",
+          "say": "What word is this? Ch. Ih. Nnn.",
+          "answer": "chin",
+          "model": "Chin."
+        },
+        {
+          "id": "d-ch-chin-seg",
           "kind": "segment",
-          "say": "Say each sound in fish.",
-          "answer": "fff ih shh",
+          "say": "Say each sound in chin.",
+          "answer": "ch ih nnn",
           "sounds": [
-            "f",
+            "ch",
             "i",
-            "sh"
+            "n"
           ],
           "boxes": 3,
-          "model": "Fff. Ih. Shh."
+          "model": "Ch. Ih. Nnn."
         },
         {
-          "id": "ps-go",
-          "kind": "segment",
-          "say": "Say each sound in go.",
-          "answer": "guh oh",
+          "id": "d-ch-chair-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in chair?",
+          "answer": "ch",
           "sounds": [
-            "g",
-            "oh"
+            "ch"
+          ],
+          "model": "Ch."
+        },
+        {
+          "id": "d-ch-chair-blend",
+          "kind": "blend",
+          "say": "What word is this? Ch. Er.",
+          "answer": "chair",
+          "model": "Chair."
+        },
+        {
+          "id": "d-ch-chair-seg",
+          "kind": "segment",
+          "say": "Say each sound in chair.",
+          "answer": "ch er",
+          "sounds": [
+            "ch",
+            "er"
           ],
           "boxes": 2,
-          "model": "Guh. Oh."
+          "model": "Ch. Er."
+        }
+      ]
+    },
+    {
+      "id": "d-sh",
+      "name": "Digraph sh",
+      "grade": "1st",
+      "pattern": "sh",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "d-sh-ship-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in ship?",
+          "answer": "shh",
+          "sounds": [
+            "sh"
+          ],
+          "model": "Shh."
+        },
+        {
+          "id": "d-sh-ship-blend",
+          "kind": "blend",
+          "say": "What word is this? Shh. Ih. Puh.",
+          "answer": "ship",
+          "model": "Ship."
+        },
+        {
+          "id": "d-sh-ship-seg",
+          "kind": "segment",
+          "say": "Say each sound in ship.",
+          "answer": "shh ih puh",
+          "sounds": [
+            "sh",
+            "i",
+            "p"
+          ],
+          "boxes": 3,
+          "model": "Shh. Ih. Puh."
+        },
+        {
+          "id": "d-sh-shoe-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in shoe?",
+          "answer": "shh",
+          "sounds": [
+            "sh"
+          ],
+          "model": "Shh."
+        },
+        {
+          "id": "d-sh-shoe-blend",
+          "kind": "blend",
+          "say": "What word is this? Shh. Oo.",
+          "answer": "shoe",
+          "model": "Shoe."
+        },
+        {
+          "id": "d-sh-shoe-seg",
+          "kind": "segment",
+          "say": "Say each sound in shoe.",
+          "answer": "shh oo",
+          "sounds": [
+            "sh",
+            "oo"
+          ],
+          "boxes": 2,
+          "model": "Shh. Oo."
+        }
+      ]
+    },
+    {
+      "id": "d-th",
+      "name": "Digraph th",
+      "grade": "1st",
+      "pattern": "th",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "d-th-thin-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in thin?",
+          "answer": "th",
+          "sounds": [
+            "th"
+          ],
+          "model": "Th."
+        },
+        {
+          "id": "d-th-thin-blend",
+          "kind": "blend",
+          "say": "What word is this? Th. Ih. Nnn.",
+          "answer": "thin",
+          "model": "Thin."
+        },
+        {
+          "id": "d-th-thin-seg",
+          "kind": "segment",
+          "say": "Say each sound in thin.",
+          "answer": "th ih nnn",
+          "sounds": [
+            "th",
+            "i",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Th. Ih. Nnn."
+        },
+        {
+          "id": "d-th-thumb-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in thumb?",
+          "answer": "th",
+          "sounds": [
+            "th"
+          ],
+          "model": "Th."
+        },
+        {
+          "id": "d-th-thumb-blend",
+          "kind": "blend",
+          "say": "What word is this? Th. Uh. Mmm.",
+          "answer": "thumb",
+          "model": "Thumb."
+        },
+        {
+          "id": "d-th-thumb-seg",
+          "kind": "segment",
+          "say": "Say each sound in thumb.",
+          "answer": "th uh mmm",
+          "sounds": [
+            "th",
+            "u",
+            "m"
+          ],
+          "boxes": 3,
+          "model": "Th. Uh. Mmm."
+        }
+      ]
+    },
+    {
+      "id": "d-wh",
+      "name": "Digraph wh",
+      "grade": "1st",
+      "pattern": "wh",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "d-wh-whale-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in whale?",
+          "answer": "wh",
+          "sounds": [
+            "wh"
+          ],
+          "model": "Wh."
+        },
+        {
+          "id": "d-wh-whale-blend",
+          "kind": "blend",
+          "say": "What word is this? Wuh. Ay. Lll.",
+          "answer": "whale",
+          "model": "Whale."
+        },
+        {
+          "id": "d-wh-whale-seg",
+          "kind": "segment",
+          "say": "Say each sound in whale.",
+          "answer": "wuh ay lll",
+          "sounds": [
+            "w",
+            "ay",
+            "l"
+          ],
+          "boxes": 3,
+          "model": "Wuh. Ay. Lll."
+        },
+        {
+          "id": "d-wh-white-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in white?",
+          "answer": "wh",
+          "sounds": [
+            "wh"
+          ],
+          "model": "Wh."
+        },
+        {
+          "id": "d-wh-white-blend",
+          "kind": "blend",
+          "say": "What word is this? Wuh. Igh. Tuh.",
+          "answer": "white",
+          "model": "White."
+        },
+        {
+          "id": "d-wh-white-seg",
+          "kind": "segment",
+          "say": "Say each sound in white.",
+          "answer": "wuh igh tuh",
+          "sounds": [
+            "w",
+            "igh",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Wuh. Igh. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "d-ph",
+      "name": "Digraph ph",
+      "grade": "1st",
+      "pattern": "ph",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "d-ph-phone-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in phone?",
+          "answer": "fff",
+          "sounds": [
+            "f"
+          ],
+          "model": "Fff."
+        },
+        {
+          "id": "d-ph-phone-blend",
+          "kind": "blend",
+          "say": "What word is this? Fff. Oh. Nnn.",
+          "answer": "phone",
+          "model": "Phone."
+        },
+        {
+          "id": "d-ph-phone-seg",
+          "kind": "segment",
+          "say": "Say each sound in phone.",
+          "answer": "fff oh nnn",
+          "sounds": [
+            "f",
+            "oh",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Fff. Oh. Nnn."
+        },
+        {
+          "id": "d-ph-photo-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in photo?",
+          "answer": "fff",
+          "sounds": [
+            "f"
+          ],
+          "model": "Fff."
+        },
+        {
+          "id": "d-ph-photo-blend",
+          "kind": "blend",
+          "say": "What word is this? Fff. Oh. Tuh. Oh.",
+          "answer": "photo",
+          "model": "Photo."
+        },
+        {
+          "id": "d-ph-photo-seg",
+          "kind": "segment",
+          "say": "Say each sound in photo.",
+          "answer": "fff oh tuh oh",
+          "sounds": [
+            "f",
+            "oh",
+            "t",
+            "oh"
+          ],
+          "boxes": 4,
+          "model": "Fff. Oh. Tuh. Oh."
+        }
+      ]
+    },
+    {
+      "id": "d-ng",
+      "name": "Digraph ng",
+      "grade": "1st",
+      "pattern": "ng",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "d-ng-ring-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in ring?",
+          "answer": "ng",
+          "sounds": [
+            "ng"
+          ],
+          "model": "Ng."
+        },
+        {
+          "id": "d-ng-ring-blend",
+          "kind": "blend",
+          "say": "What word is this? Rrr. Ih. Ng.",
+          "answer": "ring",
+          "model": "Ring."
+        },
+        {
+          "id": "d-ng-ring-seg",
+          "kind": "segment",
+          "say": "Say each sound in ring.",
+          "answer": "rrr ih ng",
+          "sounds": [
+            "r",
+            "i",
+            "ng"
+          ],
+          "boxes": 3,
+          "model": "Rrr. Ih. Ng."
+        },
+        {
+          "id": "d-ng-king-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in king?",
+          "answer": "ng",
+          "sounds": [
+            "ng"
+          ],
+          "model": "Ng."
+        },
+        {
+          "id": "d-ng-king-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Ih. Ng.",
+          "answer": "king",
+          "model": "King."
+        },
+        {
+          "id": "d-ng-king-seg",
+          "kind": "segment",
+          "say": "Say each sound in king.",
+          "answer": "kuh ih ng",
+          "sounds": [
+            "k",
+            "i",
+            "ng"
+          ],
+          "boxes": 3,
+          "model": "Kuh. Ih. Ng."
+        }
+      ]
+    },
+    {
+      "id": "d-nk",
+      "name": "Digraph nk",
+      "grade": "1st",
+      "pattern": "nk",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "d-nk-pink-iso",
+          "kind": "isolate",
+          "say": "What are the last two sounds in pink?",
+          "answer": "ng kuh",
+          "sounds": [
+            "ng",
+            "k"
+          ],
+          "model": "Ng. Kuh."
+        },
+        {
+          "id": "d-nk-pink-blend",
+          "kind": "blend",
+          "say": "What word is this? Puh. Ih. Ng. Kuh.",
+          "answer": "pink",
+          "model": "Pink."
+        },
+        {
+          "id": "d-nk-pink-seg",
+          "kind": "segment",
+          "say": "Say each sound in pink.",
+          "answer": "puh ih ng kuh",
+          "sounds": [
+            "p",
+            "i",
+            "ng",
+            "k"
+          ],
+          "boxes": 4,
+          "model": "Puh. Ih. Ng. Kuh."
+        },
+        {
+          "id": "d-nk-sink-iso",
+          "kind": "isolate",
+          "say": "What are the last two sounds in sink?",
+          "answer": "ng kuh",
+          "sounds": [
+            "ng",
+            "k"
+          ],
+          "model": "Ng. Kuh."
+        },
+        {
+          "id": "d-nk-sink-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Ih. Ng. Kuh.",
+          "answer": "sink",
+          "model": "Sink."
+        },
+        {
+          "id": "d-nk-sink-seg",
+          "kind": "segment",
+          "say": "Say each sound in sink.",
+          "answer": "sss ih ng kuh",
+          "sounds": [
+            "s",
+            "i",
+            "ng",
+            "k"
+          ],
+          "boxes": 4,
+          "model": "Sss. Ih. Ng. Kuh."
+        }
+      ]
+    },
+    {
+      "id": "d-ck",
+      "name": "Digraph ck",
+      "grade": "1st",
+      "pattern": "ck",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "d-ck-duck-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in duck?",
+          "answer": "kuh",
+          "sounds": [
+            "k"
+          ],
+          "model": "Kuh."
+        },
+        {
+          "id": "d-ck-duck-blend",
+          "kind": "blend",
+          "say": "What word is this? Duh. Uh. Kuh.",
+          "answer": "duck",
+          "model": "Duck."
+        },
+        {
+          "id": "d-ck-duck-seg",
+          "kind": "segment",
+          "say": "Say each sound in duck.",
+          "answer": "duh uh kuh",
+          "sounds": [
+            "d",
+            "u",
+            "k"
+          ],
+          "boxes": 3,
+          "model": "Duh. Uh. Kuh."
+        },
+        {
+          "id": "d-ck-sock-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in sock?",
+          "answer": "kuh",
+          "sounds": [
+            "k"
+          ],
+          "model": "Kuh."
+        },
+        {
+          "id": "d-ck-sock-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Ah. Kuh.",
+          "answer": "sock",
+          "model": "Sock."
+        },
+        {
+          "id": "d-ck-sock-seg",
+          "kind": "segment",
+          "say": "Say each sound in sock.",
+          "answer": "sss ah kuh",
+          "sounds": [
+            "s",
+            "o",
+            "k"
+          ],
+          "boxes": 3,
+          "model": "Sss. Ah. Kuh."
+        }
+      ]
+    },
+    {
+      "id": "b-bl",
+      "name": "Blend bl",
+      "grade": "1st",
+      "pattern": "bl",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-bl-blue-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in blue?",
+          "answer": "buh lll",
+          "sounds": [
+            "b",
+            "l"
+          ],
+          "model": "Buh. Lll."
+        },
+        {
+          "id": "b-bl-blue-blend",
+          "kind": "blend",
+          "say": "What word is this? Buh. Lll. Oo.",
+          "answer": "blue",
+          "model": "Blue."
+        },
+        {
+          "id": "b-bl-blue-seg",
+          "kind": "segment",
+          "say": "Say each sound in blue.",
+          "answer": "buh lll oo",
+          "sounds": [
+            "b",
+            "l",
+            "oo"
+          ],
+          "boxes": 3,
+          "model": "Buh. Lll. Oo."
+        },
+        {
+          "id": "b-bl-blanket-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in blanket?",
+          "answer": "buh lll",
+          "sounds": [
+            "b",
+            "l"
+          ],
+          "model": "Buh. Lll."
+        },
+        {
+          "id": "b-bl-blanket-blend",
+          "kind": "blend",
+          "say": "What word is this? Buh. Lll. Aeh. Ng. Kuh. Ih. Tuh.",
+          "answer": "blanket",
+          "model": "Blanket."
+        },
+        {
+          "id": "b-bl-blanket-seg",
+          "kind": "segment",
+          "say": "Say each sound in blanket.",
+          "answer": "buh lll aeh ng kuh ih tuh",
+          "sounds": [
+            "b",
+            "l",
+            "a",
+            "ng",
+            "k",
+            "i",
+            "t"
+          ],
+          "boxes": 7,
+          "model": "Buh. Lll. Aeh. Ng. Kuh. Ih. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "b-cl",
+      "name": "Blend cl",
+      "grade": "1st",
+      "pattern": "cl",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-cl-clock-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in clock?",
+          "answer": "kuh lll",
+          "sounds": [
+            "k",
+            "l"
+          ],
+          "model": "Kuh. Lll."
+        },
+        {
+          "id": "b-cl-clock-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Lll. Ah. Kuh.",
+          "answer": "clock",
+          "model": "Clock."
+        },
+        {
+          "id": "b-cl-clock-seg",
+          "kind": "segment",
+          "say": "Say each sound in clock.",
+          "answer": "kuh lll ah kuh",
+          "sounds": [
+            "k",
+            "l",
+            "o",
+            "k"
+          ],
+          "boxes": 4,
+          "model": "Kuh. Lll. Ah. Kuh."
+        },
+        {
+          "id": "b-cl-cloud-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in cloud?",
+          "answer": "kuh lll",
+          "sounds": [
+            "k",
+            "l"
+          ],
+          "model": "Kuh. Lll."
+        },
+        {
+          "id": "b-cl-cloud-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Lll. Ow. Duh.",
+          "answer": "cloud",
+          "model": "Cloud."
+        },
+        {
+          "id": "b-cl-cloud-seg",
+          "kind": "segment",
+          "say": "Say each sound in cloud.",
+          "answer": "kuh lll ow duh",
+          "sounds": [
+            "k",
+            "l",
+            "ow",
+            "d"
+          ],
+          "boxes": 4,
+          "model": "Kuh. Lll. Ow. Duh."
+        }
+      ]
+    },
+    {
+      "id": "b-fl",
+      "name": "Blend fl",
+      "grade": "1st",
+      "pattern": "fl",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-fl-fly-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in fly?",
+          "answer": "fff lll",
+          "sounds": [
+            "f",
+            "l"
+          ],
+          "model": "Fff. Lll."
+        },
+        {
+          "id": "b-fl-fly-blend",
+          "kind": "blend",
+          "say": "What word is this? Fff. Lll. Igh.",
+          "answer": "fly",
+          "model": "Fly."
+        },
+        {
+          "id": "b-fl-fly-seg",
+          "kind": "segment",
+          "say": "Say each sound in fly.",
+          "answer": "fff lll igh",
+          "sounds": [
+            "f",
+            "l",
+            "igh"
+          ],
+          "boxes": 3,
+          "model": "Fff. Lll. Igh."
+        },
+        {
+          "id": "b-fl-flag-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in flag?",
+          "answer": "fff lll",
+          "sounds": [
+            "f",
+            "l"
+          ],
+          "model": "Fff. Lll."
+        },
+        {
+          "id": "b-fl-flag-blend",
+          "kind": "blend",
+          "say": "What word is this? Fff. Lll. Aeh. Guh.",
+          "answer": "flag",
+          "model": "Flag."
+        },
+        {
+          "id": "b-fl-flag-seg",
+          "kind": "segment",
+          "say": "Say each sound in flag.",
+          "answer": "fff lll aeh guh",
+          "sounds": [
+            "f",
+            "l",
+            "a",
+            "g"
+          ],
+          "boxes": 4,
+          "model": "Fff. Lll. Aeh. Guh."
+        }
+      ]
+    },
+    {
+      "id": "b-gl",
+      "name": "Blend gl",
+      "grade": "1st",
+      "pattern": "gl",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-gl-glue-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in glue?",
+          "answer": "guh lll",
+          "sounds": [
+            "g",
+            "l"
+          ],
+          "model": "Guh. Lll."
+        },
+        {
+          "id": "b-gl-glue-blend",
+          "kind": "blend",
+          "say": "What word is this? Guh. Lll. Oo.",
+          "answer": "glue",
+          "model": "Glue."
+        },
+        {
+          "id": "b-gl-glue-seg",
+          "kind": "segment",
+          "say": "Say each sound in glue.",
+          "answer": "guh lll oo",
+          "sounds": [
+            "g",
+            "l",
+            "oo"
+          ],
+          "boxes": 3,
+          "model": "Guh. Lll. Oo."
+        },
+        {
+          "id": "b-gl-glass-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in glass?",
+          "answer": "guh lll",
+          "sounds": [
+            "g",
+            "l"
+          ],
+          "model": "Guh. Lll."
+        },
+        {
+          "id": "b-gl-glass-blend",
+          "kind": "blend",
+          "say": "What word is this? Guh. Lll. Aeh. Sss.",
+          "answer": "glass",
+          "model": "Glass."
+        },
+        {
+          "id": "b-gl-glass-seg",
+          "kind": "segment",
+          "say": "Say each sound in glass.",
+          "answer": "guh lll aeh sss",
+          "sounds": [
+            "g",
+            "l",
+            "a",
+            "s"
+          ],
+          "boxes": 4,
+          "model": "Guh. Lll. Aeh. Sss."
+        }
+      ]
+    },
+    {
+      "id": "b-pl",
+      "name": "Blend pl",
+      "grade": "1st",
+      "pattern": "pl",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-pl-play-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in play?",
+          "answer": "puh lll",
+          "sounds": [
+            "p",
+            "l"
+          ],
+          "model": "Puh. Lll."
+        },
+        {
+          "id": "b-pl-play-blend",
+          "kind": "blend",
+          "say": "What word is this? Puh. Lll. Ay.",
+          "answer": "play",
+          "model": "Play."
+        },
+        {
+          "id": "b-pl-play-seg",
+          "kind": "segment",
+          "say": "Say each sound in play.",
+          "answer": "puh lll ay",
+          "sounds": [
+            "p",
+            "l",
+            "ay"
+          ],
+          "boxes": 3,
+          "model": "Puh. Lll. Ay."
+        },
+        {
+          "id": "b-pl-plum-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in plum?",
+          "answer": "puh lll",
+          "sounds": [
+            "p",
+            "l"
+          ],
+          "model": "Puh. Lll."
+        },
+        {
+          "id": "b-pl-plum-blend",
+          "kind": "blend",
+          "say": "What word is this? Puh. Lll. Uh. Mmm.",
+          "answer": "plum",
+          "model": "Plum."
+        },
+        {
+          "id": "b-pl-plum-seg",
+          "kind": "segment",
+          "say": "Say each sound in plum.",
+          "answer": "puh lll uh mmm",
+          "sounds": [
+            "p",
+            "l",
+            "u",
+            "m"
+          ],
+          "boxes": 4,
+          "model": "Puh. Lll. Uh. Mmm."
+        }
+      ]
+    },
+    {
+      "id": "b-sl",
+      "name": "Blend sl",
+      "grade": "1st",
+      "pattern": "sl",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-sl-sleep-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in sleep?",
+          "answer": "sss lll",
+          "sounds": [
+            "s",
+            "l"
+          ],
+          "model": "Sss. Lll."
+        },
+        {
+          "id": "b-sl-sleep-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Lll. Ee. Puh.",
+          "answer": "sleep",
+          "model": "Sleep."
+        },
+        {
+          "id": "b-sl-sleep-seg",
+          "kind": "segment",
+          "say": "Say each sound in sleep.",
+          "answer": "sss lll ee puh",
+          "sounds": [
+            "s",
+            "l",
+            "ee",
+            "p"
+          ],
+          "boxes": 4,
+          "model": "Sss. Lll. Ee. Puh."
+        },
+        {
+          "id": "b-sl-slide-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in slide?",
+          "answer": "sss lll",
+          "sounds": [
+            "s",
+            "l"
+          ],
+          "model": "Sss. Lll."
+        },
+        {
+          "id": "b-sl-slide-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Lll. Igh. Duh.",
+          "answer": "slide",
+          "model": "Slide."
+        },
+        {
+          "id": "b-sl-slide-seg",
+          "kind": "segment",
+          "say": "Say each sound in slide.",
+          "answer": "sss lll igh duh",
+          "sounds": [
+            "s",
+            "l",
+            "igh",
+            "d"
+          ],
+          "boxes": 4,
+          "model": "Sss. Lll. Igh. Duh."
+        }
+      ]
+    },
+    {
+      "id": "b-br",
+      "name": "Blend br",
+      "grade": "1st",
+      "pattern": "br",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-br-brown-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in brown?",
+          "answer": "buh rrr",
+          "sounds": [
+            "b",
+            "r"
+          ],
+          "model": "Buh. Rrr."
+        },
+        {
+          "id": "b-br-brown-blend",
+          "kind": "blend",
+          "say": "What word is this? Buh. Rrr. Ow. Nnn.",
+          "answer": "brown",
+          "model": "Brown."
+        },
+        {
+          "id": "b-br-brown-seg",
+          "kind": "segment",
+          "say": "Say each sound in brown.",
+          "answer": "buh rrr ow nnn",
+          "sounds": [
+            "b",
+            "r",
+            "ow",
+            "n"
+          ],
+          "boxes": 4,
+          "model": "Buh. Rrr. Ow. Nnn."
+        },
+        {
+          "id": "b-br-bread-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in bread?",
+          "answer": "buh rrr",
+          "sounds": [
+            "b",
+            "r"
+          ],
+          "model": "Buh. Rrr."
+        },
+        {
+          "id": "b-br-bread-blend",
+          "kind": "blend",
+          "say": "What word is this? Buh. Rrr. Eh. Duh.",
+          "answer": "bread",
+          "model": "Bread."
+        },
+        {
+          "id": "b-br-bread-seg",
+          "kind": "segment",
+          "say": "Say each sound in bread.",
+          "answer": "buh rrr eh duh",
+          "sounds": [
+            "b",
+            "r",
+            "e",
+            "d"
+          ],
+          "boxes": 4,
+          "model": "Buh. Rrr. Eh. Duh."
+        }
+      ]
+    },
+    {
+      "id": "b-cr",
+      "name": "Blend cr",
+      "grade": "1st",
+      "pattern": "cr",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-cr-crab-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in crab?",
+          "answer": "kuh rrr",
+          "sounds": [
+            "k",
+            "r"
+          ],
+          "model": "Kuh. Rrr."
+        },
+        {
+          "id": "b-cr-crab-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Rrr. Aeh. Buh.",
+          "answer": "crab",
+          "model": "Crab."
+        },
+        {
+          "id": "b-cr-crab-seg",
+          "kind": "segment",
+          "say": "Say each sound in crab.",
+          "answer": "kuh rrr aeh buh",
+          "sounds": [
+            "k",
+            "r",
+            "a",
+            "b"
+          ],
+          "boxes": 4,
+          "model": "Kuh. Rrr. Aeh. Buh."
+        },
+        {
+          "id": "b-cr-crayon-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in crayon?",
+          "answer": "kuh rrr",
+          "sounds": [
+            "k",
+            "r"
+          ],
+          "model": "Kuh. Rrr."
+        },
+        {
+          "id": "b-cr-crayon-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Rrr. Ay. Ah. Nnn.",
+          "answer": "crayon",
+          "model": "Crayon."
+        },
+        {
+          "id": "b-cr-crayon-seg",
+          "kind": "segment",
+          "say": "Say each sound in crayon.",
+          "answer": "kuh rrr ay ah nnn",
+          "sounds": [
+            "k",
+            "r",
+            "ay",
+            "o",
+            "n"
+          ],
+          "boxes": 5,
+          "model": "Kuh. Rrr. Ay. Ah. Nnn."
+        }
+      ]
+    },
+    {
+      "id": "b-dr",
+      "name": "Blend dr",
+      "grade": "1st",
+      "pattern": "dr",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-dr-drum-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in drum?",
+          "answer": "duh rrr",
+          "sounds": [
+            "d",
+            "r"
+          ],
+          "model": "Duh. Rrr."
+        },
+        {
+          "id": "b-dr-drum-blend",
+          "kind": "blend",
+          "say": "What word is this? Duh. Rrr. Uh. Mmm.",
+          "answer": "drum",
+          "model": "Drum."
+        },
+        {
+          "id": "b-dr-drum-seg",
+          "kind": "segment",
+          "say": "Say each sound in drum.",
+          "answer": "duh rrr uh mmm",
+          "sounds": [
+            "d",
+            "r",
+            "u",
+            "m"
+          ],
+          "boxes": 4,
+          "model": "Duh. Rrr. Uh. Mmm."
+        },
+        {
+          "id": "b-dr-dress-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in dress?",
+          "answer": "duh rrr",
+          "sounds": [
+            "d",
+            "r"
+          ],
+          "model": "Duh. Rrr."
+        },
+        {
+          "id": "b-dr-dress-blend",
+          "kind": "blend",
+          "say": "What word is this? Duh. Rrr. Eh. Sss.",
+          "answer": "dress",
+          "model": "Dress."
+        },
+        {
+          "id": "b-dr-dress-seg",
+          "kind": "segment",
+          "say": "Say each sound in dress.",
+          "answer": "duh rrr eh sss",
+          "sounds": [
+            "d",
+            "r",
+            "e",
+            "s"
+          ],
+          "boxes": 4,
+          "model": "Duh. Rrr. Eh. Sss."
+        }
+      ]
+    },
+    {
+      "id": "b-fr",
+      "name": "Blend fr",
+      "grade": "1st",
+      "pattern": "fr",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-fr-frog-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in frog?",
+          "answer": "fff rrr",
+          "sounds": [
+            "f",
+            "r"
+          ],
+          "model": "Fff. Rrr."
+        },
+        {
+          "id": "b-fr-frog-blend",
+          "kind": "blend",
+          "say": "What word is this? Fff. Rrr. Ah. Guh.",
+          "answer": "frog",
+          "model": "Frog."
+        },
+        {
+          "id": "b-fr-frog-seg",
+          "kind": "segment",
+          "say": "Say each sound in frog.",
+          "answer": "fff rrr ah guh",
+          "sounds": [
+            "f",
+            "r",
+            "o",
+            "g"
+          ],
+          "boxes": 4,
+          "model": "Fff. Rrr. Ah. Guh."
+        },
+        {
+          "id": "b-fr-friend-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in friend?",
+          "answer": "fff rrr",
+          "sounds": [
+            "f",
+            "r"
+          ],
+          "model": "Fff. Rrr."
+        },
+        {
+          "id": "b-fr-friend-blend",
+          "kind": "blend",
+          "say": "What word is this? Fff. Rrr. Eh. Nnn. Duh.",
+          "answer": "friend",
+          "model": "Friend."
+        },
+        {
+          "id": "b-fr-friend-seg",
+          "kind": "segment",
+          "say": "Say each sound in friend.",
+          "answer": "fff rrr eh nnn duh",
+          "sounds": [
+            "f",
+            "r",
+            "e",
+            "n",
+            "d"
+          ],
+          "boxes": 5,
+          "model": "Fff. Rrr. Eh. Nnn. Duh."
+        }
+      ]
+    },
+    {
+      "id": "b-gr",
+      "name": "Blend gr",
+      "grade": "1st",
+      "pattern": "gr",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-gr-green-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in green?",
+          "answer": "guh rrr",
+          "sounds": [
+            "g",
+            "r"
+          ],
+          "model": "Guh. Rrr."
+        },
+        {
+          "id": "b-gr-green-blend",
+          "kind": "blend",
+          "say": "What word is this? Guh. Rrr. Ee. Nnn.",
+          "answer": "green",
+          "model": "Green."
+        },
+        {
+          "id": "b-gr-green-seg",
+          "kind": "segment",
+          "say": "Say each sound in green.",
+          "answer": "guh rrr ee nnn",
+          "sounds": [
+            "g",
+            "r",
+            "ee",
+            "n"
+          ],
+          "boxes": 4,
+          "model": "Guh. Rrr. Ee. Nnn."
+        },
+        {
+          "id": "b-gr-grass-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in grass?",
+          "answer": "guh rrr",
+          "sounds": [
+            "g",
+            "r"
+          ],
+          "model": "Guh. Rrr."
+        },
+        {
+          "id": "b-gr-grass-blend",
+          "kind": "blend",
+          "say": "What word is this? Guh. Rrr. Aeh. Sss.",
+          "answer": "grass",
+          "model": "Grass."
+        },
+        {
+          "id": "b-gr-grass-seg",
+          "kind": "segment",
+          "say": "Say each sound in grass.",
+          "answer": "guh rrr aeh sss",
+          "sounds": [
+            "g",
+            "r",
+            "a",
+            "s"
+          ],
+          "boxes": 4,
+          "model": "Guh. Rrr. Aeh. Sss."
+        }
+      ]
+    },
+    {
+      "id": "b-pr",
+      "name": "Blend pr",
+      "grade": "1st",
+      "pattern": "pr",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-pr-prince-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in prince?",
+          "answer": "puh rrr",
+          "sounds": [
+            "p",
+            "r"
+          ],
+          "model": "Puh. Rrr."
+        },
+        {
+          "id": "b-pr-prince-blend",
+          "kind": "blend",
+          "say": "What word is this? Puh. Rrr. Ih. Nnn. Sss.",
+          "answer": "prince",
+          "model": "Prince."
+        },
+        {
+          "id": "b-pr-prince-seg",
+          "kind": "segment",
+          "say": "Say each sound in prince.",
+          "answer": "puh rrr ih nnn sss",
+          "sounds": [
+            "p",
+            "r",
+            "i",
+            "n",
+            "s"
+          ],
+          "boxes": 5,
+          "model": "Puh. Rrr. Ih. Nnn. Sss."
+        },
+        {
+          "id": "b-pr-prize-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in prize?",
+          "answer": "puh rrr",
+          "sounds": [
+            "p",
+            "r"
+          ],
+          "model": "Puh. Rrr."
+        },
+        {
+          "id": "b-pr-prize-blend",
+          "kind": "blend",
+          "say": "What word is this? Puh. Rrr. Igh. Zzz.",
+          "answer": "prize",
+          "model": "Prize."
+        },
+        {
+          "id": "b-pr-prize-seg",
+          "kind": "segment",
+          "say": "Say each sound in prize.",
+          "answer": "puh rrr igh zzz",
+          "sounds": [
+            "p",
+            "r",
+            "igh",
+            "z"
+          ],
+          "boxes": 4,
+          "model": "Puh. Rrr. Igh. Zzz."
+        }
+      ]
+    },
+    {
+      "id": "b-tr",
+      "name": "Blend tr",
+      "grade": "1st",
+      "pattern": "tr",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-tr-tree-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in tree?",
+          "answer": "tuh rrr",
+          "sounds": [
+            "t",
+            "r"
+          ],
+          "model": "Tuh. Rrr."
+        },
+        {
+          "id": "b-tr-tree-blend",
+          "kind": "blend",
+          "say": "What word is this? Tuh. Rrr. Ee.",
+          "answer": "tree",
+          "model": "Tree."
+        },
+        {
+          "id": "b-tr-tree-seg",
+          "kind": "segment",
+          "say": "Say each sound in tree.",
+          "answer": "tuh rrr ee",
+          "sounds": [
+            "t",
+            "r",
+            "ee"
+          ],
+          "boxes": 3,
+          "model": "Tuh. Rrr. Ee."
+        },
+        {
+          "id": "b-tr-truck-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in truck?",
+          "answer": "tuh rrr",
+          "sounds": [
+            "t",
+            "r"
+          ],
+          "model": "Tuh. Rrr."
+        },
+        {
+          "id": "b-tr-truck-blend",
+          "kind": "blend",
+          "say": "What word is this? Tuh. Rrr. Uh. Kuh.",
+          "answer": "truck",
+          "model": "Truck."
+        },
+        {
+          "id": "b-tr-truck-seg",
+          "kind": "segment",
+          "say": "Say each sound in truck.",
+          "answer": "tuh rrr uh kuh",
+          "sounds": [
+            "t",
+            "r",
+            "u",
+            "k"
+          ],
+          "boxes": 4,
+          "model": "Tuh. Rrr. Uh. Kuh."
+        }
+      ]
+    },
+    {
+      "id": "b-sc",
+      "name": "Blend sc",
+      "grade": "1st",
+      "pattern": "sc",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-sc-scary-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in scary?",
+          "answer": "sss kuh",
+          "sounds": [
+            "s",
+            "k"
+          ],
+          "model": "Sss. Kuh."
+        },
+        {
+          "id": "b-sc-scary-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Kuh. Er. Ee.",
+          "answer": "scary",
+          "model": "Scary."
+        },
+        {
+          "id": "b-sc-scary-seg",
+          "kind": "segment",
+          "say": "Say each sound in scary.",
+          "answer": "sss kuh er ee",
+          "sounds": [
+            "s",
+            "k",
+            "er",
+            "ee"
+          ],
+          "boxes": 4,
+          "model": "Sss. Kuh. Er. Ee."
+        },
+        {
+          "id": "b-sc-scooter-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in scooter?",
+          "answer": "sss kuh",
+          "sounds": [
+            "s",
+            "k"
+          ],
+          "model": "Sss. Kuh."
+        },
+        {
+          "id": "b-sc-scooter-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Kuh. Oo. Tuh. Er.",
+          "answer": "scooter",
+          "model": "Scooter."
+        },
+        {
+          "id": "b-sc-scooter-seg",
+          "kind": "segment",
+          "say": "Say each sound in scooter.",
+          "answer": "sss kuh oo tuh er",
+          "sounds": [
+            "s",
+            "k",
+            "oo",
+            "t",
+            "er"
+          ],
+          "boxes": 5,
+          "model": "Sss. Kuh. Oo. Tuh. Er."
+        }
+      ]
+    },
+    {
+      "id": "b-sk",
+      "name": "Blend sk",
+      "grade": "1st",
+      "pattern": "sk",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-sk-sky-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in sky?",
+          "answer": "sss kuh",
+          "sounds": [
+            "s",
+            "k"
+          ],
+          "model": "Sss. Kuh."
+        },
+        {
+          "id": "b-sk-sky-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Kuh. Igh.",
+          "answer": "sky",
+          "model": "Sky."
+        },
+        {
+          "id": "b-sk-sky-seg",
+          "kind": "segment",
+          "say": "Say each sound in sky.",
+          "answer": "sss kuh igh",
+          "sounds": [
+            "s",
+            "k",
+            "igh"
+          ],
+          "boxes": 3,
+          "model": "Sss. Kuh. Igh."
+        },
+        {
+          "id": "b-sk-skirt-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in skirt?",
+          "answer": "sss kuh",
+          "sounds": [
+            "s",
+            "k"
+          ],
+          "model": "Sss. Kuh."
+        },
+        {
+          "id": "b-sk-skirt-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Kuh. Er. Tuh.",
+          "answer": "skirt",
+          "model": "Skirt."
+        },
+        {
+          "id": "b-sk-skirt-seg",
+          "kind": "segment",
+          "say": "Say each sound in skirt.",
+          "answer": "sss kuh er tuh",
+          "sounds": [
+            "s",
+            "k",
+            "er",
+            "t"
+          ],
+          "boxes": 4,
+          "model": "Sss. Kuh. Er. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "b-sm",
+      "name": "Blend sm",
+      "grade": "1st",
+      "pattern": "sm",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-sm-small-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in small?",
+          "answer": "sss mmm",
+          "sounds": [
+            "s",
+            "m"
+          ],
+          "model": "Sss. Mmm."
+        },
+        {
+          "id": "b-sm-small-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Mmm. Aw. Lll.",
+          "answer": "small",
+          "model": "Small."
+        },
+        {
+          "id": "b-sm-small-seg",
+          "kind": "segment",
+          "say": "Say each sound in small.",
+          "answer": "sss mmm aw lll",
+          "sounds": [
+            "s",
+            "m",
+            "aw",
+            "l"
+          ],
+          "boxes": 4,
+          "model": "Sss. Mmm. Aw. Lll."
+        },
+        {
+          "id": "b-sm-smile-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in smile?",
+          "answer": "sss mmm",
+          "sounds": [
+            "s",
+            "m"
+          ],
+          "model": "Sss. Mmm."
+        },
+        {
+          "id": "b-sm-smile-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Mmm. Igh. Lll.",
+          "answer": "smile",
+          "model": "Smile."
+        },
+        {
+          "id": "b-sm-smile-seg",
+          "kind": "segment",
+          "say": "Say each sound in smile.",
+          "answer": "sss mmm igh lll",
+          "sounds": [
+            "s",
+            "m",
+            "igh",
+            "l"
+          ],
+          "boxes": 4,
+          "model": "Sss. Mmm. Igh. Lll."
+        }
+      ]
+    },
+    {
+      "id": "b-sn",
+      "name": "Blend sn",
+      "grade": "1st",
+      "pattern": "sn",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-sn-snake-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in snake?",
+          "answer": "sss nnn",
+          "sounds": [
+            "s",
+            "n"
+          ],
+          "model": "Sss. Nnn."
+        },
+        {
+          "id": "b-sn-snake-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Nnn. Ay. Kuh.",
+          "answer": "snake",
+          "model": "Snake."
+        },
+        {
+          "id": "b-sn-snake-seg",
+          "kind": "segment",
+          "say": "Say each sound in snake.",
+          "answer": "sss nnn ay kuh",
+          "sounds": [
+            "s",
+            "n",
+            "ay",
+            "k"
+          ],
+          "boxes": 4,
+          "model": "Sss. Nnn. Ay. Kuh."
+        },
+        {
+          "id": "b-sn-snow-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in snow?",
+          "answer": "sss nnn",
+          "sounds": [
+            "s",
+            "n"
+          ],
+          "model": "Sss. Nnn."
+        },
+        {
+          "id": "b-sn-snow-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Nnn. Oh.",
+          "answer": "snow",
+          "model": "Snow."
+        },
+        {
+          "id": "b-sn-snow-seg",
+          "kind": "segment",
+          "say": "Say each sound in snow.",
+          "answer": "sss nnn oh",
+          "sounds": [
+            "s",
+            "n",
+            "oh"
+          ],
+          "boxes": 3,
+          "model": "Sss. Nnn. Oh."
+        }
+      ]
+    },
+    {
+      "id": "b-sp",
+      "name": "Blend sp",
+      "grade": "1st",
+      "pattern": "sp",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-sp-spoon-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in spoon?",
+          "answer": "sss puh",
+          "sounds": [
+            "s",
+            "p"
+          ],
+          "model": "Sss. Puh."
+        },
+        {
+          "id": "b-sp-spoon-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Puh. Oo. Nnn.",
+          "answer": "spoon",
+          "model": "Spoon."
+        },
+        {
+          "id": "b-sp-spoon-seg",
+          "kind": "segment",
+          "say": "Say each sound in spoon.",
+          "answer": "sss puh oo nnn",
+          "sounds": [
+            "s",
+            "p",
+            "oo",
+            "n"
+          ],
+          "boxes": 4,
+          "model": "Sss. Puh. Oo. Nnn."
+        },
+        {
+          "id": "b-sp-spider-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in spider?",
+          "answer": "sss puh",
+          "sounds": [
+            "s",
+            "p"
+          ],
+          "model": "Sss. Puh."
+        },
+        {
+          "id": "b-sp-spider-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Puh. Igh. Duh. Er.",
+          "answer": "spider",
+          "model": "Spider."
+        },
+        {
+          "id": "b-sp-spider-seg",
+          "kind": "segment",
+          "say": "Say each sound in spider.",
+          "answer": "sss puh igh duh er",
+          "sounds": [
+            "s",
+            "p",
+            "igh",
+            "d",
+            "er"
+          ],
+          "boxes": 5,
+          "model": "Sss. Puh. Igh. Duh. Er."
+        }
+      ]
+    },
+    {
+      "id": "b-st",
+      "name": "Blend st",
+      "grade": "1st",
+      "pattern": "st",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-st-star-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in star?",
+          "answer": "sss tuh",
+          "sounds": [
+            "s",
+            "t"
+          ],
+          "model": "Sss. Tuh."
+        },
+        {
+          "id": "b-st-star-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Tuh. Ar.",
+          "answer": "star",
+          "model": "Star."
+        },
+        {
+          "id": "b-st-star-seg",
+          "kind": "segment",
+          "say": "Say each sound in star.",
+          "answer": "sss tuh ar",
+          "sounds": [
+            "s",
+            "t",
+            "ar"
+          ],
+          "boxes": 3,
+          "model": "Sss. Tuh. Ar."
+        },
+        {
+          "id": "b-st-stop-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in stop?",
+          "answer": "sss tuh",
+          "sounds": [
+            "s",
+            "t"
+          ],
+          "model": "Sss. Tuh."
+        },
+        {
+          "id": "b-st-stop-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Tuh. Ah. Puh.",
+          "answer": "stop",
+          "model": "Stop."
+        },
+        {
+          "id": "b-st-stop-seg",
+          "kind": "segment",
+          "say": "Say each sound in stop.",
+          "answer": "sss tuh ah puh",
+          "sounds": [
+            "s",
+            "t",
+            "o",
+            "p"
+          ],
+          "boxes": 4,
+          "model": "Sss. Tuh. Ah. Puh."
+        }
+      ]
+    },
+    {
+      "id": "b-sw",
+      "name": "Blend sw",
+      "grade": "1st",
+      "pattern": "sw",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-sw-swim-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in swim?",
+          "answer": "sss wuh",
+          "sounds": [
+            "s",
+            "w"
+          ],
+          "model": "Sss. Wuh."
+        },
+        {
+          "id": "b-sw-swim-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Wuh. Ih. Mmm.",
+          "answer": "swim",
+          "model": "Swim."
+        },
+        {
+          "id": "b-sw-swim-seg",
+          "kind": "segment",
+          "say": "Say each sound in swim.",
+          "answer": "sss wuh ih mmm",
+          "sounds": [
+            "s",
+            "w",
+            "i",
+            "m"
+          ],
+          "boxes": 4,
+          "model": "Sss. Wuh. Ih. Mmm."
+        },
+        {
+          "id": "b-sw-swing-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in swing?",
+          "answer": "sss wuh",
+          "sounds": [
+            "s",
+            "w"
+          ],
+          "model": "Sss. Wuh."
+        },
+        {
+          "id": "b-sw-swing-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Wuh. Ih. Ng.",
+          "answer": "swing",
+          "model": "Swing."
+        },
+        {
+          "id": "b-sw-swing-seg",
+          "kind": "segment",
+          "say": "Say each sound in swing.",
+          "answer": "sss wuh ih ng",
+          "sounds": [
+            "s",
+            "w",
+            "i",
+            "ng"
+          ],
+          "boxes": 4,
+          "model": "Sss. Wuh. Ih. Ng."
+        }
+      ]
+    },
+    {
+      "id": "b-tw",
+      "name": "Blend tw",
+      "grade": "1st",
+      "pattern": "tw",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "b-tw-twin-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in twin?",
+          "answer": "tuh wuh",
+          "sounds": [
+            "t",
+            "w"
+          ],
+          "model": "Tuh. Wuh."
+        },
+        {
+          "id": "b-tw-twin-blend",
+          "kind": "blend",
+          "say": "What word is this? Tuh. Wuh. Ih. Nnn.",
+          "answer": "twin",
+          "model": "Twin."
+        },
+        {
+          "id": "b-tw-twin-seg",
+          "kind": "segment",
+          "say": "Say each sound in twin.",
+          "answer": "tuh wuh ih nnn",
+          "sounds": [
+            "t",
+            "w",
+            "i",
+            "n"
+          ],
+          "boxes": 4,
+          "model": "Tuh. Wuh. Ih. Nnn."
+        },
+        {
+          "id": "b-tw-twig-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in twig?",
+          "answer": "tuh wuh",
+          "sounds": [
+            "t",
+            "w"
+          ],
+          "model": "Tuh. Wuh."
+        },
+        {
+          "id": "b-tw-twig-blend",
+          "kind": "blend",
+          "say": "What word is this? Tuh. Wuh. Ih. Guh.",
+          "answer": "twig",
+          "model": "Twig."
+        },
+        {
+          "id": "b-tw-twig-seg",
+          "kind": "segment",
+          "say": "Say each sound in twig.",
+          "answer": "tuh wuh ih guh",
+          "sounds": [
+            "t",
+            "w",
+            "i",
+            "g"
+          ],
+          "boxes": 4,
+          "model": "Tuh. Wuh. Ih. Guh."
+        }
+      ]
+    },
+    {
+      "id": "t-scr",
+      "name": "Blend scr",
+      "grade": "1st",
+      "pattern": "scr",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "t-scr-scrap-iso",
+          "kind": "isolate",
+          "say": "What are the first three sounds in scrap?",
+          "answer": "sss kuh rrr",
+          "sounds": [
+            "s",
+            "k",
+            "r"
+          ],
+          "model": "Sss. Kuh. Rrr."
+        },
+        {
+          "id": "t-scr-scrap-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Kuh. Rrr. Aeh. Puh.",
+          "answer": "scrap",
+          "model": "Scrap."
+        },
+        {
+          "id": "t-scr-scrap-seg",
+          "kind": "segment",
+          "say": "Say each sound in scrap.",
+          "answer": "sss kuh rrr aeh puh",
+          "sounds": [
+            "s",
+            "k",
+            "r",
+            "a",
+            "p"
+          ],
+          "boxes": 5,
+          "model": "Sss. Kuh. Rrr. Aeh. Puh."
+        },
+        {
+          "id": "t-scr-screen-iso",
+          "kind": "isolate",
+          "say": "What are the first three sounds in screen?",
+          "answer": "sss kuh rrr",
+          "sounds": [
+            "s",
+            "k",
+            "r"
+          ],
+          "model": "Sss. Kuh. Rrr."
+        },
+        {
+          "id": "t-scr-screen-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Kuh. Rrr. Ee. Nnn.",
+          "answer": "screen",
+          "model": "Screen."
+        },
+        {
+          "id": "t-scr-screen-seg",
+          "kind": "segment",
+          "say": "Say each sound in screen.",
+          "answer": "sss kuh rrr ee nnn",
+          "sounds": [
+            "s",
+            "k",
+            "r",
+            "ee",
+            "n"
+          ],
+          "boxes": 5,
+          "model": "Sss. Kuh. Rrr. Ee. Nnn."
+        }
+      ]
+    },
+    {
+      "id": "t-str",
+      "name": "Blend str",
+      "grade": "1st",
+      "pattern": "str",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "t-str-street-iso",
+          "kind": "isolate",
+          "say": "What are the first three sounds in street?",
+          "answer": "sss tuh rrr",
+          "sounds": [
+            "s",
+            "t",
+            "r"
+          ],
+          "model": "Sss. Tuh. Rrr."
+        },
+        {
+          "id": "t-str-street-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Tuh. Rrr. Ee. Tuh.",
+          "answer": "street",
+          "model": "Street."
+        },
+        {
+          "id": "t-str-street-seg",
+          "kind": "segment",
+          "say": "Say each sound in street.",
+          "answer": "sss tuh rrr ee tuh",
+          "sounds": [
+            "s",
+            "t",
+            "r",
+            "ee",
+            "t"
+          ],
+          "boxes": 5,
+          "model": "Sss. Tuh. Rrr. Ee. Tuh."
+        },
+        {
+          "id": "t-str-strong-iso",
+          "kind": "isolate",
+          "say": "What are the first three sounds in strong?",
+          "answer": "sss tuh rrr",
+          "sounds": [
+            "s",
+            "t",
+            "r"
+          ],
+          "model": "Sss. Tuh. Rrr."
+        },
+        {
+          "id": "t-str-strong-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Tuh. Rrr. Aw. Ng.",
+          "answer": "strong",
+          "model": "Strong."
+        },
+        {
+          "id": "t-str-strong-seg",
+          "kind": "segment",
+          "say": "Say each sound in strong.",
+          "answer": "sss tuh rrr aw ng",
+          "sounds": [
+            "s",
+            "t",
+            "r",
+            "aw",
+            "ng"
+          ],
+          "boxes": 5,
+          "model": "Sss. Tuh. Rrr. Aw. Ng."
+        }
+      ]
+    },
+    {
+      "id": "t-spr",
+      "name": "Blend spr",
+      "grade": "1st",
+      "pattern": "spr",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "t-spr-spring-iso",
+          "kind": "isolate",
+          "say": "What are the first three sounds in spring?",
+          "answer": "sss puh rrr",
+          "sounds": [
+            "s",
+            "p",
+            "r"
+          ],
+          "model": "Sss. Puh. Rrr."
+        },
+        {
+          "id": "t-spr-spring-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Puh. Rrr. Ih. Ng.",
+          "answer": "spring",
+          "model": "Spring."
+        },
+        {
+          "id": "t-spr-spring-seg",
+          "kind": "segment",
+          "say": "Say each sound in spring.",
+          "answer": "sss puh rrr ih ng",
+          "sounds": [
+            "s",
+            "p",
+            "r",
+            "i",
+            "ng"
+          ],
+          "boxes": 5,
+          "model": "Sss. Puh. Rrr. Ih. Ng."
+        },
+        {
+          "id": "t-spr-spray-iso",
+          "kind": "isolate",
+          "say": "What are the first three sounds in spray?",
+          "answer": "sss puh rrr",
+          "sounds": [
+            "s",
+            "p",
+            "r"
+          ],
+          "model": "Sss. Puh. Rrr."
+        },
+        {
+          "id": "t-spr-spray-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Puh. Rrr. Ay.",
+          "answer": "spray",
+          "model": "Spray."
+        },
+        {
+          "id": "t-spr-spray-seg",
+          "kind": "segment",
+          "say": "Say each sound in spray.",
+          "answer": "sss puh rrr ay",
+          "sounds": [
+            "s",
+            "p",
+            "r",
+            "ay"
+          ],
+          "boxes": 4,
+          "model": "Sss. Puh. Rrr. Ay."
+        }
+      ]
+    },
+    {
+      "id": "t-spl",
+      "name": "Blend spl",
+      "grade": "1st",
+      "pattern": "spl",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "t-spl-splash-iso",
+          "kind": "isolate",
+          "say": "What are the first three sounds in splash?",
+          "answer": "sss puh lll",
+          "sounds": [
+            "s",
+            "p",
+            "l"
+          ],
+          "model": "Sss. Puh. Lll."
+        },
+        {
+          "id": "t-spl-splash-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Puh. Lll. Aeh. Shh.",
+          "answer": "splash",
+          "model": "Splash."
+        },
+        {
+          "id": "t-spl-splash-seg",
+          "kind": "segment",
+          "say": "Say each sound in splash.",
+          "answer": "sss puh lll aeh shh",
+          "sounds": [
+            "s",
+            "p",
+            "l",
+            "a",
+            "sh"
+          ],
+          "boxes": 5,
+          "model": "Sss. Puh. Lll. Aeh. Shh."
+        },
+        {
+          "id": "t-spl-split-iso",
+          "kind": "isolate",
+          "say": "What are the first three sounds in split?",
+          "answer": "sss puh lll",
+          "sounds": [
+            "s",
+            "p",
+            "l"
+          ],
+          "model": "Sss. Puh. Lll."
+        },
+        {
+          "id": "t-spl-split-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Puh. Lll. Ih. Tuh.",
+          "answer": "split",
+          "model": "Split."
+        },
+        {
+          "id": "t-spl-split-seg",
+          "kind": "segment",
+          "say": "Say each sound in split.",
+          "answer": "sss puh lll ih tuh",
+          "sounds": [
+            "s",
+            "p",
+            "l",
+            "i",
+            "t"
+          ],
+          "boxes": 5,
+          "model": "Sss. Puh. Lll. Ih. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "t-thr",
+      "name": "Blend thr",
+      "grade": "1st",
+      "pattern": "thr",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "t-thr-three-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in three?",
+          "answer": "th rrr",
+          "sounds": [
+            "th",
+            "r"
+          ],
+          "model": "Th. Rrr."
+        },
+        {
+          "id": "t-thr-three-blend",
+          "kind": "blend",
+          "say": "What word is this? Th. Rrr. Ee.",
+          "answer": "three",
+          "model": "Three."
+        },
+        {
+          "id": "t-thr-three-seg",
+          "kind": "segment",
+          "say": "Say each sound in three.",
+          "answer": "th rrr ee",
+          "sounds": [
+            "th",
+            "r",
+            "ee"
+          ],
+          "boxes": 3,
+          "model": "Th. Rrr. Ee."
+        },
+        {
+          "id": "t-thr-throw-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in throw?",
+          "answer": "th rrr",
+          "sounds": [
+            "th",
+            "r"
+          ],
+          "model": "Th. Rrr."
+        },
+        {
+          "id": "t-thr-throw-blend",
+          "kind": "blend",
+          "say": "What word is this? Th. Rrr. Oh.",
+          "answer": "throw",
+          "model": "Throw."
+        },
+        {
+          "id": "t-thr-throw-seg",
+          "kind": "segment",
+          "say": "Say each sound in throw.",
+          "answer": "th rrr oh",
+          "sounds": [
+            "th",
+            "r",
+            "oh"
+          ],
+          "boxes": 3,
+          "model": "Th. Rrr. Oh."
+        }
+      ]
+    },
+    {
+      "id": "t-shr",
+      "name": "Blend shr",
+      "grade": "1st",
+      "pattern": "shr",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "t-shr-shrimp-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in shrimp?",
+          "answer": "shh rrr",
+          "sounds": [
+            "sh",
+            "r"
+          ],
+          "model": "Shh. Rrr."
+        },
+        {
+          "id": "t-shr-shrimp-blend",
+          "kind": "blend",
+          "say": "What word is this? Shh. Rrr. Ih. Mmm. Puh.",
+          "answer": "shrimp",
+          "model": "Shrimp."
+        },
+        {
+          "id": "t-shr-shrimp-seg",
+          "kind": "segment",
+          "say": "Say each sound in shrimp.",
+          "answer": "shh rrr ih mmm puh",
+          "sounds": [
+            "sh",
+            "r",
+            "i",
+            "m",
+            "p"
+          ],
+          "boxes": 5,
+          "model": "Shh. Rrr. Ih. Mmm. Puh."
+        },
+        {
+          "id": "t-shr-shrink-iso",
+          "kind": "isolate",
+          "say": "What are the first two sounds in shrink?",
+          "answer": "shh rrr",
+          "sounds": [
+            "sh",
+            "r"
+          ],
+          "model": "Shh. Rrr."
+        },
+        {
+          "id": "t-shr-shrink-blend",
+          "kind": "blend",
+          "say": "What word is this? Shh. Rrr. Ih. Ng. Kuh.",
+          "answer": "shrink",
+          "model": "Shrink."
+        },
+        {
+          "id": "t-shr-shrink-seg",
+          "kind": "segment",
+          "say": "Say each sound in shrink.",
+          "answer": "shh rrr ih ng kuh",
+          "sounds": [
+            "sh",
+            "r",
+            "i",
+            "ng",
+            "k"
+          ],
+          "boxes": 5,
+          "model": "Shh. Rrr. Ih. Ng. Kuh."
+        }
+      ]
+    },
+    {
+      "id": "w-ai",
+      "name": "Vowel team ai",
+      "grade": "1st",
+      "pattern": "ai",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-ai-rain-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in rain?",
+          "answer": "ay",
+          "sounds": [
+            "ay"
+          ],
+          "model": "Ay."
+        },
+        {
+          "id": "w-ai-rain-blend",
+          "kind": "blend",
+          "say": "What word is this? Rrr. Ay. Nnn.",
+          "answer": "rain",
+          "model": "Rain."
+        },
+        {
+          "id": "w-ai-rain-seg",
+          "kind": "segment",
+          "say": "Say each sound in rain.",
+          "answer": "rrr ay nnn",
+          "sounds": [
+            "r",
+            "ay",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Rrr. Ay. Nnn."
+        },
+        {
+          "id": "w-ai-train-iso",
+          "kind": "isolate",
+          "say": "What is the vowel sound in the middle of train?",
+          "answer": "ay",
+          "sounds": [
+            "ay"
+          ],
+          "model": "Ay."
+        },
+        {
+          "id": "w-ai-train-blend",
+          "kind": "blend",
+          "say": "What word is this? Tuh. Rrr. Ay. Nnn.",
+          "answer": "train",
+          "model": "Train."
+        },
+        {
+          "id": "w-ai-train-seg",
+          "kind": "segment",
+          "say": "Say each sound in train.",
+          "answer": "tuh rrr ay nnn",
+          "sounds": [
+            "t",
+            "r",
+            "ay",
+            "n"
+          ],
+          "boxes": 4,
+          "model": "Tuh. Rrr. Ay. Nnn."
+        }
+      ]
+    },
+    {
+      "id": "w-ay",
+      "name": "Vowel team ay",
+      "grade": "1st",
+      "pattern": "ay",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-ay-day-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in day?",
+          "answer": "ay",
+          "sounds": [
+            "ay"
+          ],
+          "model": "Ay."
+        },
+        {
+          "id": "w-ay-day-blend",
+          "kind": "blend",
+          "say": "What word is this? Duh. Ay.",
+          "answer": "day",
+          "model": "Day."
+        },
+        {
+          "id": "w-ay-day-seg",
+          "kind": "segment",
+          "say": "Say each sound in day.",
+          "answer": "duh ay",
+          "sounds": [
+            "d",
+            "ay"
+          ],
+          "boxes": 2,
+          "model": "Duh. Ay."
+        },
+        {
+          "id": "w-ay-play-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in play?",
+          "answer": "ay",
+          "sounds": [
+            "ay"
+          ],
+          "model": "Ay."
+        },
+        {
+          "id": "w-ay-play-blend",
+          "kind": "blend",
+          "say": "What word is this? Puh. Lll. Ay.",
+          "answer": "play",
+          "model": "Play."
+        },
+        {
+          "id": "w-ay-play-seg",
+          "kind": "segment",
+          "say": "Say each sound in play.",
+          "answer": "puh lll ay",
+          "sounds": [
+            "p",
+            "l",
+            "ay"
+          ],
+          "boxes": 3,
+          "model": "Puh. Lll. Ay."
+        }
+      ]
+    },
+    {
+      "id": "w-ee",
+      "name": "Vowel team ee",
+      "grade": "1st",
+      "pattern": "ee",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-ee-tree-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in tree?",
+          "answer": "ee",
+          "sounds": [
+            "ee"
+          ],
+          "model": "Ee."
+        },
+        {
+          "id": "w-ee-tree-blend",
+          "kind": "blend",
+          "say": "What word is this? Tuh. Rrr. Ee.",
+          "answer": "tree",
+          "model": "Tree."
+        },
+        {
+          "id": "w-ee-tree-seg",
+          "kind": "segment",
+          "say": "Say each sound in tree.",
+          "answer": "tuh rrr ee",
+          "sounds": [
+            "t",
+            "r",
+            "ee"
+          ],
+          "boxes": 3,
+          "model": "Tuh. Rrr. Ee."
+        },
+        {
+          "id": "w-ee-bee-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in bee?",
+          "answer": "ee",
+          "sounds": [
+            "ee"
+          ],
+          "model": "Ee."
+        },
+        {
+          "id": "w-ee-bee-blend",
+          "kind": "blend",
+          "say": "What word is this? Buh. Ee.",
+          "answer": "bee",
+          "model": "Bee."
+        },
+        {
+          "id": "w-ee-bee-seg",
+          "kind": "segment",
+          "say": "Say each sound in bee.",
+          "answer": "buh ee",
+          "sounds": [
+            "b",
+            "ee"
+          ],
+          "boxes": 2,
+          "model": "Buh. Ee."
+        }
+      ]
+    },
+    {
+      "id": "w-ea",
+      "name": "Vowel team ea as long e",
+      "grade": "1st",
+      "pattern": "ea",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-ea-leaf-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in leaf?",
+          "answer": "ee",
+          "sounds": [
+            "ee"
+          ],
+          "model": "Ee."
+        },
+        {
+          "id": "w-ea-leaf-blend",
+          "kind": "blend",
+          "say": "What word is this? Lll. Ee. Fff.",
+          "answer": "leaf",
+          "model": "Leaf."
+        },
+        {
+          "id": "w-ea-leaf-seg",
+          "kind": "segment",
+          "say": "Say each sound in leaf.",
+          "answer": "lll ee fff",
+          "sounds": [
+            "l",
+            "ee",
+            "f"
+          ],
+          "boxes": 3,
+          "model": "Lll. Ee. Fff."
+        },
+        {
+          "id": "w-ea-meat-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in meat?",
+          "answer": "ee",
+          "sounds": [
+            "ee"
+          ],
+          "model": "Ee."
+        },
+        {
+          "id": "w-ea-meat-blend",
+          "kind": "blend",
+          "say": "What word is this? Mmm. Ee. Tuh.",
+          "answer": "meat",
+          "model": "Meat."
+        },
+        {
+          "id": "w-ea-meat-seg",
+          "kind": "segment",
+          "say": "Say each sound in meat.",
+          "answer": "mmm ee tuh",
+          "sounds": [
+            "m",
+            "ee",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Mmm. Ee. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "w-ie",
+      "name": "Vowel team ie",
+      "grade": "1st",
+      "pattern": "ie",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-ie-pie-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in pie?",
+          "answer": "igh",
+          "sounds": [
+            "igh"
+          ],
+          "model": "Igh."
+        },
+        {
+          "id": "w-ie-pie-blend",
+          "kind": "blend",
+          "say": "What word is this? Puh. Igh.",
+          "answer": "pie",
+          "model": "Pie."
+        },
+        {
+          "id": "w-ie-pie-seg",
+          "kind": "segment",
+          "say": "Say each sound in pie.",
+          "answer": "puh igh",
+          "sounds": [
+            "p",
+            "igh"
+          ],
+          "boxes": 2,
+          "model": "Puh. Igh."
+        },
+        {
+          "id": "w-ie-tie-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in tie?",
+          "answer": "igh",
+          "sounds": [
+            "igh"
+          ],
+          "model": "Igh."
+        },
+        {
+          "id": "w-ie-tie-blend",
+          "kind": "blend",
+          "say": "What word is this? Tuh. Igh.",
+          "answer": "tie",
+          "model": "Tie."
+        },
+        {
+          "id": "w-ie-tie-seg",
+          "kind": "segment",
+          "say": "Say each sound in tie.",
+          "answer": "tuh igh",
+          "sounds": [
+            "t",
+            "igh"
+          ],
+          "boxes": 2,
+          "model": "Tuh. Igh."
+        }
+      ]
+    },
+    {
+      "id": "w-igh",
+      "name": "Vowel team igh",
+      "grade": "1st",
+      "pattern": "igh",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-igh-light-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in light?",
+          "answer": "igh",
+          "sounds": [
+            "igh"
+          ],
+          "model": "Igh."
+        },
+        {
+          "id": "w-igh-light-blend",
+          "kind": "blend",
+          "say": "What word is this? Lll. Igh. Tuh.",
+          "answer": "light",
+          "model": "Light."
+        },
+        {
+          "id": "w-igh-light-seg",
+          "kind": "segment",
+          "say": "Say each sound in light.",
+          "answer": "lll igh tuh",
+          "sounds": [
+            "l",
+            "igh",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Lll. Igh. Tuh."
+        },
+        {
+          "id": "w-igh-night-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in night?",
+          "answer": "igh",
+          "sounds": [
+            "igh"
+          ],
+          "model": "Igh."
+        },
+        {
+          "id": "w-igh-night-blend",
+          "kind": "blend",
+          "say": "What word is this? Nnn. Igh. Tuh.",
+          "answer": "night",
+          "model": "Night."
+        },
+        {
+          "id": "w-igh-night-seg",
+          "kind": "segment",
+          "say": "Say each sound in night.",
+          "answer": "nnn igh tuh",
+          "sounds": [
+            "n",
+            "igh",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Nnn. Igh. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "w-oa",
+      "name": "Vowel team oa",
+      "grade": "1st",
+      "pattern": "oa",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-oa-boat-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in boat?",
+          "answer": "oh",
+          "sounds": [
+            "oh"
+          ],
+          "model": "Oh."
+        },
+        {
+          "id": "w-oa-boat-blend",
+          "kind": "blend",
+          "say": "What word is this? Buh. Oh. Tuh.",
+          "answer": "boat",
+          "model": "Boat."
+        },
+        {
+          "id": "w-oa-boat-seg",
+          "kind": "segment",
+          "say": "Say each sound in boat.",
+          "answer": "buh oh tuh",
+          "sounds": [
+            "b",
+            "oh",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Buh. Oh. Tuh."
+        },
+        {
+          "id": "w-oa-coat-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in coat?",
+          "answer": "oh",
+          "sounds": [
+            "oh"
+          ],
+          "model": "Oh."
+        },
+        {
+          "id": "w-oa-coat-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Oh. Tuh.",
+          "answer": "coat",
+          "model": "Coat."
+        },
+        {
+          "id": "w-oa-coat-seg",
+          "kind": "segment",
+          "say": "Say each sound in coat.",
+          "answer": "kuh oh tuh",
+          "sounds": [
+            "k",
+            "oh",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Kuh. Oh. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "w-ow-long",
+      "name": "Vowel team ow as long o",
+      "grade": "1st",
+      "pattern": "ow-long",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-ow-long-snow-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in snow?",
+          "answer": "oh",
+          "sounds": [
+            "oh"
+          ],
+          "model": "Oh."
+        },
+        {
+          "id": "w-ow-long-snow-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Nnn. Oh.",
+          "answer": "snow",
+          "model": "Snow."
+        },
+        {
+          "id": "w-ow-long-snow-seg",
+          "kind": "segment",
+          "say": "Say each sound in snow.",
+          "answer": "sss nnn oh",
+          "sounds": [
+            "s",
+            "n",
+            "oh"
+          ],
+          "boxes": 3,
+          "model": "Sss. Nnn. Oh."
+        }
+      ]
+    },
+    {
+      "id": "w-ow",
+      "name": "Vowel team ow",
+      "grade": "1st",
+      "pattern": "ow",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-ow-cow-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in cow?",
+          "answer": "ow",
+          "sounds": [
+            "ow"
+          ],
+          "model": "Ow."
+        },
+        {
+          "id": "w-ow-cow-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Ow.",
+          "answer": "cow",
+          "model": "Cow."
+        },
+        {
+          "id": "w-ow-cow-seg",
+          "kind": "segment",
+          "say": "Say each sound in cow.",
+          "answer": "kuh ow",
+          "sounds": [
+            "k",
+            "ow"
+          ],
+          "boxes": 2,
+          "model": "Kuh. Ow."
+        }
+      ]
+    },
+    {
+      "id": "w-oo-long",
+      "name": "Vowel team oo as in moon",
+      "grade": "1st",
+      "pattern": "oo-long",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-oo-long-moon-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in moon?",
+          "answer": "oo",
+          "sounds": [
+            "oo"
+          ],
+          "model": "Oo."
+        },
+        {
+          "id": "w-oo-long-moon-blend",
+          "kind": "blend",
+          "say": "What word is this? Mmm. Oo. Nnn.",
+          "answer": "moon",
+          "model": "Moon."
+        },
+        {
+          "id": "w-oo-long-moon-seg",
+          "kind": "segment",
+          "say": "Say each sound in moon.",
+          "answer": "mmm oo nnn",
+          "sounds": [
+            "m",
+            "oo",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Mmm. Oo. Nnn."
+        }
+      ]
+    },
+    {
+      "id": "w-oo-short",
+      "name": "Vowel team oo as in book",
+      "grade": "1st",
+      "pattern": "oo-short",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-oo-short-book-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in book?",
+          "answer": "uu",
+          "sounds": [
+            "uu"
+          ],
+          "model": "Uu."
+        },
+        {
+          "id": "w-oo-short-book-blend",
+          "kind": "blend",
+          "say": "What word is this? Buh. Uu. Kuh.",
+          "answer": "book",
+          "model": "Book."
+        },
+        {
+          "id": "w-oo-short-book-seg",
+          "kind": "segment",
+          "say": "Say each sound in book.",
+          "answer": "buh uu kuh",
+          "sounds": [
+            "b",
+            "uu",
+            "k"
+          ],
+          "boxes": 3,
+          "model": "Buh. Uu. Kuh."
+        }
+      ]
+    },
+    {
+      "id": "w-ew",
+      "name": "Vowel team ew",
+      "grade": "1st",
+      "pattern": "ew",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-ew-new-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in new?",
+          "answer": "oo",
+          "sounds": [
+            "oo"
+          ],
+          "model": "Oo."
+        },
+        {
+          "id": "w-ew-new-blend",
+          "kind": "blend",
+          "say": "What word is this? Nnn. Oo.",
+          "answer": "new",
+          "model": "New."
+        },
+        {
+          "id": "w-ew-new-seg",
+          "kind": "segment",
+          "say": "Say each sound in new.",
+          "answer": "nnn oo",
+          "sounds": [
+            "n",
+            "oo"
+          ],
+          "boxes": 2,
+          "model": "Nnn. Oo."
+        },
+        {
+          "id": "w-ew-grew-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in grew?",
+          "answer": "oo",
+          "sounds": [
+            "oo"
+          ],
+          "model": "Oo."
+        },
+        {
+          "id": "w-ew-grew-blend",
+          "kind": "blend",
+          "say": "What word is this? Guh. Rrr. Oo.",
+          "answer": "grew",
+          "model": "Grew."
+        },
+        {
+          "id": "w-ew-grew-seg",
+          "kind": "segment",
+          "say": "Say each sound in grew.",
+          "answer": "guh rrr oo",
+          "sounds": [
+            "g",
+            "r",
+            "oo"
+          ],
+          "boxes": 3,
+          "model": "Guh. Rrr. Oo."
+        }
+      ]
+    },
+    {
+      "id": "w-oi",
+      "name": "Vowel team oi",
+      "grade": "1st",
+      "pattern": "oi",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-oi-coin-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in coin?",
+          "answer": "oi",
+          "sounds": [
+            "oi"
+          ],
+          "model": "Oi."
+        },
+        {
+          "id": "w-oi-coin-blend",
+          "kind": "blend",
+          "say": "What word is this? Kuh. Oi. Nnn.",
+          "answer": "coin",
+          "model": "Coin."
+        },
+        {
+          "id": "w-oi-coin-seg",
+          "kind": "segment",
+          "say": "Say each sound in coin.",
+          "answer": "kuh oi nnn",
+          "sounds": [
+            "k",
+            "oi",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Kuh. Oi. Nnn."
+        },
+        {
+          "id": "w-oi-point-iso",
+          "kind": "isolate",
+          "say": "What is the vowel sound in the middle of point?",
+          "answer": "oi",
+          "sounds": [
+            "oi"
+          ],
+          "model": "Oi."
+        },
+        {
+          "id": "w-oi-point-blend",
+          "kind": "blend",
+          "say": "What word is this? Puh. Oi. Nnn. Tuh.",
+          "answer": "point",
+          "model": "Point."
+        },
+        {
+          "id": "w-oi-point-seg",
+          "kind": "segment",
+          "say": "Say each sound in point.",
+          "answer": "puh oi nnn tuh",
+          "sounds": [
+            "p",
+            "oi",
+            "n",
+            "t"
+          ],
+          "boxes": 4,
+          "model": "Puh. Oi. Nnn. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "w-oy",
+      "name": "Vowel team oy",
+      "grade": "1st",
+      "pattern": "oy",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-oy-toy-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in toy?",
+          "answer": "oi",
+          "sounds": [
+            "oi"
+          ],
+          "model": "Oi."
+        },
+        {
+          "id": "w-oy-toy-blend",
+          "kind": "blend",
+          "say": "What word is this? Tuh. Oi.",
+          "answer": "toy",
+          "model": "Toy."
+        },
+        {
+          "id": "w-oy-toy-seg",
+          "kind": "segment",
+          "say": "Say each sound in toy.",
+          "answer": "tuh oi",
+          "sounds": [
+            "t",
+            "oi"
+          ],
+          "boxes": 2,
+          "model": "Tuh. Oi."
+        },
+        {
+          "id": "w-oy-boy-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in boy?",
+          "answer": "oi",
+          "sounds": [
+            "oi"
+          ],
+          "model": "Oi."
+        },
+        {
+          "id": "w-oy-boy-blend",
+          "kind": "blend",
+          "say": "What word is this? Buh. Oi.",
+          "answer": "boy",
+          "model": "Boy."
+        },
+        {
+          "id": "w-oy-boy-seg",
+          "kind": "segment",
+          "say": "Say each sound in boy.",
+          "answer": "buh oi",
+          "sounds": [
+            "b",
+            "oi"
+          ],
+          "boxes": 2,
+          "model": "Buh. Oi."
+        }
+      ]
+    },
+    {
+      "id": "w-ou",
+      "name": "Vowel team ou",
+      "grade": "1st",
+      "pattern": "ou",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-ou-out-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in out?",
+          "answer": "ow",
+          "sounds": [
+            "ow"
+          ],
+          "model": "Ow."
+        },
+        {
+          "id": "w-ou-out-blend",
+          "kind": "blend",
+          "say": "What word is this? Ow. Tuh.",
+          "answer": "out",
+          "model": "Out."
+        },
+        {
+          "id": "w-ou-out-seg",
+          "kind": "segment",
+          "say": "Say each sound in out.",
+          "answer": "ow tuh",
+          "sounds": [
+            "ow",
+            "t"
+          ],
+          "boxes": 2,
+          "model": "Ow. Tuh."
+        },
+        {
+          "id": "w-ou-house-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in house?",
+          "answer": "ow",
+          "sounds": [
+            "ow"
+          ],
+          "model": "Ow."
+        },
+        {
+          "id": "w-ou-house-blend",
+          "kind": "blend",
+          "say": "What word is this? Huh. Ow. Sss.",
+          "answer": "house",
+          "model": "House."
+        },
+        {
+          "id": "w-ou-house-seg",
+          "kind": "segment",
+          "say": "Say each sound in house.",
+          "answer": "huh ow sss",
+          "sounds": [
+            "h",
+            "ow",
+            "s"
+          ],
+          "boxes": 3,
+          "model": "Huh. Ow. Sss."
+        }
+      ]
+    },
+    {
+      "id": "w-aw",
+      "name": "Vowel team aw",
+      "grade": "1st",
+      "pattern": "aw",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-aw-jaw-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in jaw?",
+          "answer": "aw",
+          "sounds": [
+            "aw"
+          ],
+          "model": "Aw."
+        },
+        {
+          "id": "w-aw-jaw-blend",
+          "kind": "blend",
+          "say": "What word is this? Juh. Aw.",
+          "answer": "jaw",
+          "model": "Jaw."
+        },
+        {
+          "id": "w-aw-jaw-seg",
+          "kind": "segment",
+          "say": "Say each sound in jaw.",
+          "answer": "juh aw",
+          "sounds": [
+            "j",
+            "aw"
+          ],
+          "boxes": 2,
+          "model": "Juh. Aw."
+        },
+        {
+          "id": "w-aw-lawn-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in lawn?",
+          "answer": "aw",
+          "sounds": [
+            "aw"
+          ],
+          "model": "Aw."
+        },
+        {
+          "id": "w-aw-lawn-blend",
+          "kind": "blend",
+          "say": "What word is this? Lll. Aw. Nnn.",
+          "answer": "lawn",
+          "model": "Lawn."
+        },
+        {
+          "id": "w-aw-lawn-seg",
+          "kind": "segment",
+          "say": "Say each sound in lawn.",
+          "answer": "lll aw nnn",
+          "sounds": [
+            "l",
+            "aw",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Lll. Aw. Nnn."
+        }
+      ]
+    },
+    {
+      "id": "w-au",
+      "name": "Vowel team au",
+      "grade": "1st",
+      "pattern": "au",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "w-au-sauce-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in sauce?",
+          "answer": "aw",
+          "sounds": [
+            "aw"
+          ],
+          "model": "Aw."
+        },
+        {
+          "id": "w-au-sauce-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Aw. Sss.",
+          "answer": "sauce",
+          "model": "Sauce."
+        },
+        {
+          "id": "w-au-sauce-seg",
+          "kind": "segment",
+          "say": "Say each sound in sauce.",
+          "answer": "sss aw sss",
+          "sounds": [
+            "s",
+            "aw",
+            "s"
+          ],
+          "boxes": 3,
+          "model": "Sss. Aw. Sss."
+        },
+        {
+          "id": "w-au-autumn-iso",
+          "kind": "isolate",
+          "say": "What is the first sound in autumn?",
+          "answer": "aw",
+          "sounds": [
+            "aw"
+          ],
+          "model": "Aw."
+        },
+        {
+          "id": "w-au-autumn-blend",
+          "kind": "blend",
+          "say": "What word is this? Aw. Tuh. Uh. Mmm.",
+          "answer": "autumn",
+          "model": "Autumn."
+        },
+        {
+          "id": "w-au-autumn-seg",
+          "kind": "segment",
+          "say": "Say each sound in autumn.",
+          "answer": "aw tuh uh mmm",
+          "sounds": [
+            "aw",
+            "t",
+            "u",
+            "m"
+          ],
+          "boxes": 4,
+          "model": "Aw. Tuh. Uh. Mmm."
+        }
+      ]
+    },
+    {
+      "id": "r-ar",
+      "name": "R-controlled ar",
+      "grade": "1st",
+      "pattern": "ar",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "r-ar-star-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in star?",
+          "answer": "ar",
+          "sounds": [
+            "ar"
+          ],
+          "model": "Ar."
+        },
+        {
+          "id": "r-ar-star-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Tuh. Ar.",
+          "answer": "star",
+          "model": "Star."
+        },
+        {
+          "id": "r-ar-star-seg",
+          "kind": "segment",
+          "say": "Say each sound in star.",
+          "answer": "sss tuh ar",
+          "sounds": [
+            "s",
+            "t",
+            "ar"
+          ],
+          "boxes": 3,
+          "model": "Sss. Tuh. Ar."
+        },
+        {
+          "id": "r-ar-park-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in park?",
+          "answer": "ar",
+          "sounds": [
+            "ar"
+          ],
+          "model": "Ar."
+        },
+        {
+          "id": "r-ar-park-blend",
+          "kind": "blend",
+          "say": "What word is this? Puh. Ar. Kuh.",
+          "answer": "park",
+          "model": "Park."
+        },
+        {
+          "id": "r-ar-park-seg",
+          "kind": "segment",
+          "say": "Say each sound in park.",
+          "answer": "puh ar kuh",
+          "sounds": [
+            "p",
+            "ar",
+            "k"
+          ],
+          "boxes": 3,
+          "model": "Puh. Ar. Kuh."
+        }
+      ]
+    },
+    {
+      "id": "r-er",
+      "name": "R-controlled er",
+      "grade": "1st",
+      "pattern": "er",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "r-er-her-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in her?",
+          "answer": "er",
+          "sounds": [
+            "er"
+          ],
+          "model": "Er."
+        },
+        {
+          "id": "r-er-her-blend",
+          "kind": "blend",
+          "say": "What word is this? Huh. Er.",
+          "answer": "her",
+          "model": "Her."
+        },
+        {
+          "id": "r-er-her-seg",
+          "kind": "segment",
+          "say": "Say each sound in her.",
+          "answer": "huh er",
+          "sounds": [
+            "h",
+            "er"
+          ],
+          "boxes": 2,
+          "model": "Huh. Er."
+        },
+        {
+          "id": "r-er-sister-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in sister?",
+          "answer": "er",
+          "sounds": [
+            "er"
+          ],
+          "model": "Er."
+        },
+        {
+          "id": "r-er-sister-blend",
+          "kind": "blend",
+          "say": "What word is this? Sss. Ih. Sss. Tuh. Er.",
+          "answer": "sister",
+          "model": "Sister."
+        },
+        {
+          "id": "r-er-sister-seg",
+          "kind": "segment",
+          "say": "Say each sound in sister.",
+          "answer": "sss ih sss tuh er",
+          "sounds": [
+            "s",
+            "i",
+            "s",
+            "t",
+            "er"
+          ],
+          "boxes": 5,
+          "model": "Sss. Ih. Sss. Tuh. Er."
+        }
+      ]
+    },
+    {
+      "id": "r-ir",
+      "name": "R-controlled ir",
+      "grade": "1st",
+      "pattern": "ir",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "r-ir-bird-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in bird?",
+          "answer": "er",
+          "sounds": [
+            "er"
+          ],
+          "model": "Er."
+        },
+        {
+          "id": "r-ir-bird-blend",
+          "kind": "blend",
+          "say": "What word is this? Buh. Er. Duh.",
+          "answer": "bird",
+          "model": "Bird."
+        },
+        {
+          "id": "r-ir-bird-seg",
+          "kind": "segment",
+          "say": "Say each sound in bird.",
+          "answer": "buh er duh",
+          "sounds": [
+            "b",
+            "er",
+            "d"
+          ],
+          "boxes": 3,
+          "model": "Buh. Er. Duh."
+        },
+        {
+          "id": "r-ir-girl-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in girl?",
+          "answer": "er",
+          "sounds": [
+            "er"
+          ],
+          "model": "Er."
+        },
+        {
+          "id": "r-ir-girl-blend",
+          "kind": "blend",
+          "say": "What word is this? Guh. Er. Lll.",
+          "answer": "girl",
+          "model": "Girl."
+        },
+        {
+          "id": "r-ir-girl-seg",
+          "kind": "segment",
+          "say": "Say each sound in girl.",
+          "answer": "guh er lll",
+          "sounds": [
+            "g",
+            "er",
+            "l"
+          ],
+          "boxes": 3,
+          "model": "Guh. Er. Lll."
+        }
+      ]
+    },
+    {
+      "id": "r-or",
+      "name": "R-controlled or",
+      "grade": "1st",
+      "pattern": "or",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "r-or-for-iso",
+          "kind": "isolate",
+          "say": "What is the last sound in for?",
+          "answer": "or",
+          "sounds": [
+            "or"
+          ],
+          "model": "Or."
+        },
+        {
+          "id": "r-or-for-blend",
+          "kind": "blend",
+          "say": "What word is this? Fff. Or.",
+          "answer": "for",
+          "model": "For."
+        },
+        {
+          "id": "r-or-for-seg",
+          "kind": "segment",
+          "say": "Say each sound in for.",
+          "answer": "fff or",
+          "sounds": [
+            "f",
+            "or"
+          ],
+          "boxes": 2,
+          "model": "Fff. Or."
+        },
+        {
+          "id": "r-or-short-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in short?",
+          "answer": "or",
+          "sounds": [
+            "or"
+          ],
+          "model": "Or."
+        },
+        {
+          "id": "r-or-short-blend",
+          "kind": "blend",
+          "say": "What word is this? Shh. Or. Tuh.",
+          "answer": "short",
+          "model": "Short."
+        },
+        {
+          "id": "r-or-short-seg",
+          "kind": "segment",
+          "say": "Say each sound in short.",
+          "answer": "shh or tuh",
+          "sounds": [
+            "sh",
+            "or",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Shh. Or. Tuh."
+        }
+      ]
+    },
+    {
+      "id": "r-ur",
+      "name": "R-controlled ur",
+      "grade": "1st",
+      "pattern": "ur",
+      "elkonin": true,
+      "items": [
+        {
+          "id": "r-ur-turn-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in turn?",
+          "answer": "er",
+          "sounds": [
+            "er"
+          ],
+          "model": "Er."
+        },
+        {
+          "id": "r-ur-turn-blend",
+          "kind": "blend",
+          "say": "What word is this? Tuh. Er. Nnn.",
+          "answer": "turn",
+          "model": "Turn."
+        },
+        {
+          "id": "r-ur-turn-seg",
+          "kind": "segment",
+          "say": "Say each sound in turn.",
+          "answer": "tuh er nnn",
+          "sounds": [
+            "t",
+            "er",
+            "n"
+          ],
+          "boxes": 3,
+          "model": "Tuh. Er. Nnn."
+        },
+        {
+          "id": "r-ur-hurt-iso",
+          "kind": "isolate",
+          "say": "What is the middle sound in hurt?",
+          "answer": "er",
+          "sounds": [
+            "er"
+          ],
+          "model": "Er."
+        },
+        {
+          "id": "r-ur-hurt-blend",
+          "kind": "blend",
+          "say": "What word is this? Huh. Er. Tuh.",
+          "answer": "hurt",
+          "model": "Hurt."
+        },
+        {
+          "id": "r-ur-hurt-seg",
+          "kind": "segment",
+          "say": "Say each sound in hurt.",
+          "answer": "huh er tuh",
+          "sounds": [
+            "h",
+            "er",
+            "t"
+          ],
+          "boxes": 3,
+          "model": "Huh. Er. Tuh."
         }
       ]
     },
@@ -781,5 +6394,10 @@
         }
       ]
     }
-  ]
+  ],
+  "legacyBands": {
+    "IS": "c-b",
+    "BL": "b-bl",
+    "PS": "w-ai"
+  }
 }

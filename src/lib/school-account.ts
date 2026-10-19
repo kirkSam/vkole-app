@@ -12,7 +12,7 @@ import { normalizeAccountEmail, sameAccount } from "./account-scope.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, startBandForGrade, type SightBand } from "./vkole/constants.ts";
 import { cardFromAccount as spCardFromAccount, isSpBand, letterView, spCard, type SpBand } from "./vkole/spelling/items.ts";
-import { cardFromAccount as paCardFromAccount, isPaBand, type PaBand } from "./vkole/phonemic-awareness/items.ts";
+import { cardFromAccount as paCardFromAccount, migratePaBand, type PaBand } from "./vkole/phonemic-awareness/items.ts";
 import { sightCard } from "./vkole/sight-words/words.ts";
 
 /**
@@ -633,7 +633,10 @@ function savedPaBand(row: Record<string, unknown>): PaBand | undefined {
   const nested = asRecord(row.pa);
   const candidates = [row.band, nested?.band, row.levelCode, nested?.levelCode];
   for (const value of candidates) {
-    if (typeof value === "string" && isPaBand(value)) return value;
+    if (typeof value === "string") {
+      const band = migratePaBand(value);
+      if (band) return band;
+    }
   }
   return undefined;
 }

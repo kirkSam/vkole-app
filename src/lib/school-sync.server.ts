@@ -23,7 +23,7 @@ import { isSightBand } from "@/lib/vkole/constants";
 import { spAccountLevel } from "@/lib/vkole/spelling/level";
 import { isSpBand, letterView } from "@/lib/vkole/spelling/items";
 import { paAccountLevel } from "@/lib/vkole/phonemic-awareness/level";
-import { cardFromAccount as paCardFromAccount, isPaBand } from "@/lib/vkole/phonemic-awareness/items";
+import { cardFromAccount as paCardFromAccount, migratePaBand } from "@/lib/vkole/phonemic-awareness/items";
 import { swAccountLevel } from "@/lib/vkole/sight-words/level";
 import { cardFromAccount } from "@/lib/vkole/sight-words/words";
 
@@ -235,7 +235,7 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Lev
       const card = paCardFromAccount(
         {
           grade,
-          band: isPaBand(row.standard_code) ? row.standard_code : undefined,
+          band: migratePaBand(row.standard_code),
           index,
           word: row.current_prompt,
         },

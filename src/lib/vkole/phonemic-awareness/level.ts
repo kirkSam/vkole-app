@@ -1,5 +1,5 @@
 import type { EngineLevel } from "@/lib/school-account";
-import { cardFromAccount, isPaBand, paCard, type PaBand } from "./items.ts";
+import { cardFromAccount, migratePaBand, paCard, type PaBand } from "./items.ts";
 
 export function paAccountLevel(
   remote: EngineLevel | undefined,
@@ -21,13 +21,11 @@ export function paAccountLevel(
 ): EngineLevel {
   const name = local.name.trim() || remote?.name || "";
   const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "") || "student";
-  const band: PaBand = isPaBand(local.band)
-    ? local.band
-    : isPaBand(remote?.band)
-      ? remote.band
-      : isPaBand(remote?.levelCode)
-        ? remote.levelCode
-        : cardFromAccount({ grade: local.grade, age: local.age }, local.grade).band;
+  const band: PaBand =
+    migratePaBand(local.band) ??
+    migratePaBand(remote?.band) ??
+    migratePaBand(remote?.levelCode) ??
+    cardFromAccount({ grade: local.grade, age: local.age }, local.grade).band;
   const card = paCard(band, local.index, local.grade);
   const earned = Math.round(local.earnedGrade);
   const level: EngineLevel = {
