@@ -229,11 +229,14 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Lev
       continue;
     }
     if (row.subject === "pa") {
+      const step = row.standard_step;
+      const parsedStep = step == null || step === "" ? Number.NaN : Number(step);
+      const index = Number.isInteger(parsedStep) && parsedStep >= 0 ? parsedStep : undefined;
       const card = paCardFromAccount(
         {
           grade,
           band: isPaBand(row.standard_code) ? row.standard_code : undefined,
-          index: Math.max(0, Math.round(Number(row.standard_step) || 0)),
+          index,
           word: row.current_prompt,
         },
         grade,
