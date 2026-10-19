@@ -5,6 +5,7 @@ import { phonemeSpeak, type PaItem } from "./items.ts";
  * Accept the answer, any `also` phrase, a phoneme sequence from `sounds`,
  * or, for a rhyme-production item, a word that ends with `rime` and is not the cue.
  * Repeated letters collapse on both sides, so n, nn, nnn, and nnnn are the same sound.
+ * Doubled vowel teams stay doubled: oo matches ooo, and it does not match short o.
  * Letter names (en, ess) and a schwa release (nuh) count. The prompt's word may
  * sit in front of the sound. A different sound does not match.
  */
@@ -27,9 +28,14 @@ const LETTER_NAME: Record<string, readonly string[]> = {
   m: ["em"],
   n: ["en"],
   l: ["el"],
-  r: ["ar"],
   h: ["aitch"],
   sh: ["esh"],
+  j: ["jay"],
+  v: ["vee"],
+  z: ["zee"],
+  y: ["wye"],
+  ks: ["ex"],
+  kw: ["cue"],
 };
 
 /** Continuants a recognizer writes with a schwa. Stops already have this in phonemeSpeak. */
@@ -41,21 +47,42 @@ const SCHWA_RELEASE: Record<string, readonly string[]> = {
   l: ["luh"],
   r: ["ruh"],
   sh: ["shuh"],
+  ch: ["chuh"],
+  th: ["thuh"],
+  ng: ["nguh"],
+  v: ["vuh"],
+  z: ["zuh"],
 };
 
-function collapseRepeats(token: string): string {
-  return token.replace(/(.)\1+/g, "$1");
+/** ee, oo, and uu are phonemes. A stretch may add letters, and it may not turn them into e, o, or u. */
+const PROTECTED_VOWEL = new Set(["ee", "oo", "uu"]);
+
+function normalizeSoundToken(token: string): string {
+  let out = "";
+  for (let i = 0; i < token.length; ) {
+    const ch = token[i] ?? "";
+    let j = i + 1;
+    while (j < token.length && token[j] === ch) j += 1;
+    const run = j - i;
+    out += "aeiou".includes(ch) ? ch.repeat(Math.min(run, 2)) : ch;
+    i = j;
+  }
+  return out;
 }
 
-function collapsedTokens(value: string): string[] {
-  return speechTokens(value).map(collapseRepeats);
+function loosenUnprotected(token: string): string {
+  return normalizeSoundToken(token).replace(/([aeiou])\1+/g, (run) => (PROTECTED_VOWEL.has(run) ? run : run[0] ?? ""));
+}
+
+function soundTokens(value: string): string[] {
+  return speechTokens(value).map(loosenUnprotected);
 }
 
 /** Neighboring copies of one stretched sound become a single token. */
 function collapseTokenRuns(tokens: readonly string[]): string[] {
   const out: string[] = [];
   for (const token of tokens) {
-    const collapsed = collapseRepeats(token);
+    const collapsed = loosenUnprotected(token);
     if (!collapsed) continue;
     if (out[out.length - 1] === collapsed) continue;
     out.push(collapsed);
@@ -66,12 +93,12 @@ function collapseTokenRuns(tokens: readonly string[]): string[] {
 function addForm(accepted: Set<string>, form: string) {
   for (const token of speechTokens(form)) {
     accepted.add(token);
-    accepted.add(collapseRepeats(token));
+    accepted.add(loosenUnprotected(token));
   }
   const compact = compactSpeech(form);
   if (compact) {
     accepted.add(compact);
-    accepted.add(collapseRepeats(compact));
+    accepted.add(loosenUnprotected(compact));
   }
 }
 
@@ -101,10 +128,10 @@ function hasRun(heard: readonly string[], target: readonly string[]): boolean {
 
 /** The answer and `also` list, after repeated letters are collapsed on both sides. */
 function stretchedAnswerMatches(expected: string, heard: string, also: readonly string[]): boolean {
-  const heardTokens = collapsedTokens(heard);
+  const heardTokens = soundTokens(heard);
   if (heardTokens.length === 0) return false;
   for (const candidate of [expected, ...also]) {
-    const target = collapsedTokens(candidate);
+    const target = soundTokens(candidate);
     if (target.length === 0) continue;
     if (sameTokens(heardTokens, target)) return true;
     if (target.length > 1 && hasRun(heardTokens, target)) return true;

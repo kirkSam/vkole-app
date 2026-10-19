@@ -16,7 +16,7 @@ import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycl
 import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
 import { applyLetterAnswer, letterMoveNote, letterView, normalizeLetterProgress } from "@/lib/vkole/spelling/items";
 import { savedSpellingReport, spellingStatsFromEvents, writeSpellingReport } from "@/lib/vkole/spelling/report";
-import { cardFromAccount as paCardFromAccount, isPaBand, nextAfterAnswer, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
+import { cardFromAccount as paCardFromAccount, migratePaBand, nextAfterAnswer, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
 import { cardFromAccount, nextCard, startCard } from "@/lib/vkole/sight-words/words";
 import { isSightBand } from "@/lib/vkole/constants";
 
@@ -674,7 +674,7 @@ export const markPhonemic = createServerFn({ method: "POST" })
       {
         grade: current.level,
         age: current.age,
-        band: isPaBand(current.standardCode) ? current.standardCode : undefined,
+        band: migratePaBand(current.standardCode),
         index: current.standardStep,
       },
       current.level,

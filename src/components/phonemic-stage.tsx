@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PA_ADVANCE_MS, PA_MAX_SHOW_MS, itemAt, isPaBand, type PaBand } from "@/lib/vkole/phonemic-awareness/items";
+import { PA_ADVANCE_MS, PA_MAX_SHOW_MS, itemAt, migratePaBand, type PaBand } from "@/lib/vkole/phonemic-awareness/items";
 import { judgePaSpoken } from "@/lib/vkole/phonemic-awareness/match";
 import { speechTokens } from "@/lib/vkole/sight-words/match";
 
@@ -65,7 +65,7 @@ export function PhonemicStage({
   index?: number;
   onDone: (outcome: Outcome) => void;
 }) {
-  const resolved: PaBand = isPaBand(band) ? band : "WA";
+  const resolved: PaBand = migratePaBand(band) ?? "WA";
   const item = itemAt(resolved, index);
   const [ready, setReady] = useState(false);
   const [unsupported, setUnsupported] = useState(false);

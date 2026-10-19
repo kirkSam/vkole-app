@@ -11,9 +11,9 @@ export const PA_ROUND_SIZE = lists.roundSize;
 export const PA_NOTE =
   "The computer speaks a prompt. The child answers out loud. Nothing on the screen has to be read. A correct answer is silent, then the next prompt after 2 seconds. A wrong answer, or 20 seconds of silence, speaks the correct answer, waits 2 seconds, and moves on. The microphone listens only while a prompt is waiting for an answer. It does not record or save the sound. Two correct answers in a row move up one band. Two misses in a row move down one band. The grade number stays.";
 
-export const PA_BANDS = ["WA", "RH", "SY", "OR", "IS", "BL", "PS", "PD"] as const;
+export const PA_BANDS: readonly string[] = (lists.bands as { id?: string }[]).map((band) => band.id ?? "").filter((id) => id.length > 0);
 
-export type PaBand = (typeof PA_BANDS)[number];
+export type PaBand = string;
 
 export type PaItem = {
   id: string;
@@ -62,7 +62,16 @@ const NO_ALSO: string[] = [];
 const NO_SOUNDS: string[] = [];
 
 export function isPaBand(value: string | undefined | null): value is PaBand {
-  return !!value && (PA_BANDS as readonly string[]).includes(value);
+  return !!value && PA_BANDS.includes(value);
+}
+
+const LEGACY_BANDS = lists.legacyBands as Record<string, string>;
+
+/** Saved IS, BL, and PS from the earlier 8-band list become the new levels. */
+export function migratePaBand(value: string | null | undefined): PaBand | undefined {
+  if (!value) return undefined;
+  const mapped = LEGACY_BANDS[value] ?? value;
+  return isPaBand(mapped) ? mapped : undefined;
 }
 
 export function bandMeta(band: PaBand): { name: string; label: string; count: number } {
@@ -108,7 +117,7 @@ export function paCard(band: PaBand, index: number, grade: number): PaCard {
 
 /**
  * Age 4 starts at word awareness. Age 5 starts at rhyme. Those ages win over the grade.
- * Grade 1 starts at first and final sound. Grade 2 and above start at deletion and substitution.
+ * Grade 1 starts at the first consonant level. Grade 2 and above start at deletion and substitution.
  * Anything younger than that, with no age of 4 or 5, starts at word awareness.
  */
 export function startBand(input: { age?: number | null; grade?: number | null }): PaBand {
@@ -165,7 +174,7 @@ export function cardFromAccount(
   const raw = input?.grade ?? fallbackGrade;
   const rounded = Math.round(Number(raw));
   const grade = Number.isFinite(rounded) ? rounded : 0;
-  const saved = isPaBand(input?.band) ? input.band : isPaBand(input?.levelCode) ? input.levelCode : undefined;
+  const saved = migratePaBand(input?.band) ?? migratePaBand(input?.levelCode);
   const band = saved ?? startBand({ age: input?.age, grade: Number.isFinite(rounded) ? rounded : Number.NaN });
   const explicit = saved ? finiteIndex(input?.index) : undefined;
   let index = 0;
@@ -186,8 +195,8 @@ export type PaMove = "up" | "down" | "stay";
 /**
  * Two correct answers in a row move up one band. Two misses in a row move down one band.
  * One miss stays. The first band does not move down. The last band does not move up.
- * The grade number stays. The next item is the next one in the band, or the first item of the new band.
- * A band is all 8 items. The index wraps only after each of them has been used.
+ * The grade number stays. The next item is the next one in the level, or the first item of the new level.
+ * A level is its whole list, whether that is 3 items, 6, or 8. The index wraps only after each of them has been used.
  * roundSize is the website review window and is not a cap on this cycle.
  */
 export function nextAfterAnswer(
