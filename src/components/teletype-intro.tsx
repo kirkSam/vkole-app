@@ -163,7 +163,7 @@ export function TeletypeIntro({
             onClick={onContinue}
             className="inline-flex min-h-11 min-w-11 items-center justify-center px-3 text-sm text-[#e6c65c]"
           >
-            LEARN MORE
+            Skip
           </button>
         </div>
       </div>
