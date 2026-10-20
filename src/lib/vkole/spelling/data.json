@@ -101,11 +101,20 @@
     ],
     "M": [
       "em",
+      "emm",
       "um",
-      "emm"
+      "im",
+      "am",
+      "them",
+      "him"
     ],
     "N": [
-      "en"
+      "en",
+      "enn",
+      "in",
+      "and",
+      "an",
+      "end"
     ],
     "O": [
       "oh"
@@ -117,7 +126,10 @@
     "Q": [
       "cue",
       "queue",
-      "kew"
+      "kyu",
+      "kew",
+      "cute",
+      "que"
     ],
     "R": [
       "ar",
@@ -439,8 +451,12 @@
           "answer": "M",
           "also": [
             "em",
+            "emm",
             "um",
-            "emm"
+            "im",
+            "am",
+            "them",
+            "him"
           ],
           "letter": "L",
           "model": "M"
@@ -452,7 +468,12 @@
           "show": "What letter comes next?",
           "answer": "N",
           "also": [
-            "en"
+            "en",
+            "enn",
+            "in",
+            "and",
+            "an",
+            "end"
           ],
           "letter": "M",
           "model": "N"
@@ -491,7 +512,10 @@
           "also": [
             "cue",
             "queue",
-            "kew"
+            "kyu",
+            "kew",
+            "cute",
+            "que"
           ],
           "letter": "P",
           "model": "Q"
@@ -758,8 +782,12 @@
           "answer": "M",
           "also": [
             "em",
+            "emm",
             "um",
-            "emm"
+            "im",
+            "am",
+            "them",
+            "him"
           ],
           "letter": "L",
           "model": "M"
@@ -771,7 +799,12 @@
           "show": "What letter comes after M?",
           "answer": "N",
           "also": [
-            "en"
+            "en",
+            "enn",
+            "in",
+            "and",
+            "an",
+            "end"
           ],
           "letter": "M",
           "model": "N"
@@ -810,7 +843,10 @@
           "also": [
             "cue",
             "queue",
-            "kew"
+            "kyu",
+            "kew",
+            "cute",
+            "que"
           ],
           "letter": "P",
           "model": "Q"
@@ -1089,8 +1125,12 @@
           "answer": "M",
           "also": [
             "em",
+            "emm",
             "um",
-            "emm"
+            "im",
+            "am",
+            "them",
+            "him"
           ],
           "letter": "M",
           "model": "M"
@@ -1102,7 +1142,12 @@
           "show": "What letter is this?",
           "answer": "N",
           "also": [
-            "en"
+            "en",
+            "enn",
+            "in",
+            "and",
+            "an",
+            "end"
           ],
           "letter": "N",
           "model": "N"
@@ -1141,7 +1186,10 @@
           "also": [
             "cue",
             "queue",
-            "kew"
+            "kyu",
+            "kew",
+            "cute",
+            "que"
           ],
           "letter": "Q",
           "model": "Q"
