@@ -63,10 +63,11 @@ export function judgeSpellingSpoken(
 /**
  * Any alternative that names the letter is correct, even when a higher-ranked guess is wrong.
  * A result counts as a miss only when it is finished, some alternative has real words, and none match.
+ * Confidence and length are not inputs. A one-letter transcript is a real answer.
  */
 export function judgeSpellingAlternatives(
   answer: string,
-  alternatives: readonly { transcript?: string; final?: boolean }[],
+  alternatives: readonly { transcript?: string; final?: boolean; confidence?: number }[],
   also: readonly string[] = [],
 ): "correct" | "miss" | "wait" {
   let finishedSpeech = false;
@@ -77,6 +78,51 @@ export function judgeSpellingAlternatives(
     if (final && speechTokens(transcript).length > 0) finishedSpeech = true;
   }
   return finishedSpeech ? "miss" : "wait";
+}
+
+/** Phrases to bias the recognizer toward this letter. The letter itself is included. */
+export function spellingBiasPhrases(answer: string, also: readonly string[] = []): string[] {
+  const phrases: string[] = [];
+  const seen = new Set<string>();
+  const add = (value: string) => {
+    const clean = value.replace(/\s+/g, " ").trim().toLowerCase();
+    if (!clean || seen.has(clean)) return;
+    seen.add(clean);
+    phrases.push(clean);
+  };
+  add(answer);
+  for (const alias of aliasList(answer, also)) add(alias);
+  return phrases;
+}
+
+/** JSGF grammar for browsers that still accept SpeechGrammarList. Empty when there is nothing to hint. */
+export function spellingGrammar(answer: string, also: readonly string[] = []): string {
+  const parts = spellingBiasPhrases(answer, also).filter((phrase) => /^[a-z]+(?: [a-z]+)*$/.test(phrase));
+  if (parts.length === 0) return "";
+  return `#JSGF V1.0; grammar letter; public <answer> = ${parts.join(" | ")} ;`;
+}
+
+/**
+ * The line shown after a try.
+ * A matching alternative is preferred, then the first transcript that has words.
+ * Punctuation-only and empty results are "I didn't hear anything".
+ */
+export function describeSpellingHear(
+  answer: string,
+  alternatives: readonly { transcript?: string; final?: boolean; confidence?: number }[],
+  also: readonly string[] = [],
+): { judgment: "correct" | "miss" | "wait"; status: string } {
+  const judgment = judgeSpellingAlternatives(answer, alternatives, also);
+  let matched = "";
+  let top = "";
+  for (const alternative of alternatives) {
+    const text = (alternative.transcript ?? "").replace(/\s+/g, " ").trim();
+    if (speechTokens(text).length === 0) continue;
+    if (!top) top = text;
+    if (!matched && spellingSpokenMatches(answer, text, also)) matched = text;
+  }
+  const spoken = judgment === "correct" ? matched || top : top;
+  return { judgment, status: spoken ? `I heard: ${spoken}` : "I didn't hear anything" };
 }
 
 /** These recognition failures mean the mic did not hear a usable answer. They are not a miss. */

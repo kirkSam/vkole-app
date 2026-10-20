@@ -1,4 +1,5 @@
 import lists from "./data.json" with { type: "json" };
+import { spokenFormsForLetter } from "./match.ts";
 
 export const SPELLING_ENGINE = "sp" as const;
 
@@ -123,13 +124,19 @@ export function bandMeta(band: SpBand): { name: string; label: string; count: nu
 }
 
 function asItem(raw: RawItem | undefined): SpItem {
+  const answer = raw?.answer ?? "";
+  const listed = Array.isArray(raw?.also) ? raw.also : NO_ALSO;
+  const also = [...listed];
+  for (const form of spokenFormsForLetter(answer)) {
+    if (!also.some((item) => item.toLowerCase() === form.toLowerCase())) also.push(form);
+  }
   return {
     id: raw?.id ?? "",
     kind: raw?.kind ?? "",
     say: raw?.say ?? "",
     show: raw?.show ?? "",
-    answer: raw?.answer ?? "",
-    also: Array.isArray(raw?.also) ? raw.also : NO_ALSO,
+    answer,
+    also,
     letter: raw?.letter ?? "",
     model: raw?.model ?? raw?.answer ?? "",
   };

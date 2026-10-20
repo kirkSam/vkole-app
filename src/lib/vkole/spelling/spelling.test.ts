@@ -31,7 +31,14 @@ import {
   spellingStartSecondsLeft,
   startCard,
 } from "./items.ts";
-import { judgeSpellingAlternatives, judgeSpellingSpoken, recognitionErrorRelistens, spellingSpokenMatches } from "./match.ts";
+import {
+  describeSpellingHear,
+  judgeSpellingAlternatives,
+  judgeSpellingSpoken,
+  recognitionErrorRelistens,
+  spellingGrammar,
+  spellingSpokenMatches,
+} from "./match.ts";
 import lists from "./data.json" with { type: "json" };
 
 const stageFile = fileURLToPath(new URL("../../../components/spelling-stage.tsx", import.meta.url));
@@ -338,6 +345,52 @@ describe("spoken spelling answers", () => {
     assert.equal(recognitionErrorRelistens("not-allowed"), false);
     assert.equal(recognitionErrorRelistens("service-not-allowed"), false);
   });
+
+  it("accepts M, N, and Q from every alternative, including a one-letter transcript", () => {
+    const accepted: Record<string, string[]> = {
+      M: ["M", "m", "m.", "em", "emm", "um", "im", "am", "them", "him"],
+      N: ["N", "n", "n.", "en", "enn", "in", "and", "an", "end"],
+      Q: ["Q", "q", "q.", "cue", "queue", "kyu", "kew", "cute", "que"],
+    };
+    for (const [letter, forms] of Object.entries(accepted)) {
+      for (const form of forms) {
+        assert.equal(spellingSpokenMatches(letter, form, []), true, `${form} should match ${letter}`);
+        const heard = describeSpellingHear(letter, [{ transcript: form, final: true, confidence: 0 }]);
+        assert.equal(heard.judgment, "correct", form);
+        assert.equal(heard.status, `I heard: ${form}`);
+      }
+    }
+    assert.equal(spellingSpokenMatches("Q", "you", []), false);
+    assert.equal(spellingSpokenMatches("M", "en", []), false);
+    assert.equal(spellingSpokenMatches("N", "em", []), false);
+    assert.equal(spellingSpokenMatches("U", "you", []), true);
+    const lower = describeSpellingHear("N", [
+      { transcript: "the", final: true },
+      { transcript: "enn", final: true, confidence: 0.1 },
+    ]);
+    assert.equal(lower.judgment, "correct");
+    assert.equal(lower.status, "I heard: enn");
+    assert.equal(describeSpellingHear("M", [{ transcript: "and", final: true }]).judgment, "miss");
+    assert.equal(describeSpellingHear("M", [{ transcript: "and", final: true }]).status, "I heard: and");
+    assert.equal(describeSpellingHear("Q", [{ transcript: "", final: true }, { transcript: ".", final: true }]).status, "I didn't hear anything");
+    assert.equal(describeSpellingHear("Q", [{ transcript: "", final: true }, { transcript: ".", final: true }]).judgment, "wait");
+    const nameM = itemAt("LK", 0);
+    let letterM = nameM;
+    for (let index = 0; index < 80 && letterM.id !== "lk-name-m"; index += 1) letterM = itemAt("LK", index);
+    assert.equal(letterM.id, "lk-name-m");
+    assert.equal(letterM.also.includes("him"), true);
+    assert.equal(letterM.also.includes("them"), true);
+    assert.equal(spellingGrammar("Q").includes("kyu"), true);
+    assert.equal(spellingGrammar("Q").includes("you"), false);
+    assert.equal(spellingGrammar("M").includes("em"), true);
+    assert.equal(spellingGrammar("N").includes("and"), true);
+    const stage = readFileSync(stageFile, "utf8");
+    assert.equal(stage.includes("maxAlternatives = 8"), true);
+    assert.equal(stage.includes("interimResults = true"), true);
+    assert.equal(stage.includes("applyLetterGrammar"), true);
+    assert.equal(stage.includes("I didn't hear anything"), true);
+    assert.equal(stage.includes("I heard:"), true);
+  });
 });
 
 describe("spelling start", () => {
@@ -355,7 +408,7 @@ describe("spelling start", () => {
     assert.equal(stage.includes("SPELLING_RECOGNIZER_RESTART_MS"), true);
     assert.equal(SPELLING_RECOGNIZER_RESTART_MS > 0, true);
     assert.equal(stage.includes("recognitionErrorRelistens"), true);
-    assert.equal(stage.includes("judgeSpellingAlternatives"), true);
+    assert.equal(stage.includes("describeSpellingHear"), true);
     assert.match(stage, /scheduleRestart/);
     const noSpeech = stage.slice(stage.indexOf("rec.onerror"), stage.indexOf("rec.onend"));
     assert.equal(noSpeech.includes("recognitionErrorRelistens"), true);
