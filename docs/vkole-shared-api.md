@@ -12,7 +12,7 @@ The school website is the account book. The app calls `https://www.dotheimpossib
 | `POST /api/account/forgot-password/confirm` | `{ email, code, newPassword }` returns `{ message: "Password updated" }` |
 | `GET /api/account/family` | bearer token, returns `{ family }` |
 | `PATCH /api/account/family` | bearer token. A new child is `{ student: { name, startingGrade, age? } }`. `startingGrade` is 1–12. `{ studentName }` alone is ignored. `{ student: { name } }` without a grade is refused: `Enter a starting grade from 1 to 12.` |
-| `POST /api/account/family` | bearer token, `{ levels, clock, seen }`, returns `{ family }` |
+| `POST /api/account/family` | bearer token, `{ levels, clock, seenQuestions }`, returns `{ family }` |
 
 Level keys are `m`, `ela`, `ss`, `gen`, `sg`, `sw`, `pa`, `mg`, and `sp`. Alphabet progress is `levels.sp`. This app does not call `/api/vkole/password-reset`.
 
@@ -22,7 +22,7 @@ The password is the typed password with trailing newlines removed. It is not tri
 
 `VKOLE_MASTER_EMAIL`, or `kirksamalpha@dotheimpossible.ai` when that variable is empty, is never on a free week and never has to pay. Register, sign-in, and the family read for that email return `access: "open"` and do not send a finished free week.
 
-A family save sends each engine object the app has, including alphabet on `sp` and a stored `mg` level when one was read. `seen` is the last 400 questions, `{ "key", "text" }`. `clock.seconds` is the shared day clock, capped at 2.5 hours.
+A family save sends each engine object the app has, including alphabet on `sp` and a stored `mg` level when one was read. `seenQuestions` is the last 400 questions, `{ "prompt" }`, using the text the child saw. The website builds the practice-sheet key from that text. `clock.seconds` is the shared day clock, capped at 2.5 hours.
 
 Errors are JSON `{ "error": "..." }` and are shown as sent. Those sentences include `No account for this email`, `Invalid email or password`, `Account already exists`, and token errors.
 

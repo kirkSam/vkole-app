@@ -6,7 +6,7 @@ import { schoolMiddleware } from "@/lib/school-middleware";
 import { isSchoolAccountId, schoolAccessDecision } from "@/lib/school-account";
 import { isSubject, SUBJECTS, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { moveRung, stepName, stepSentence } from "@/lib/cc-steps";
-import { fillSheet, rememberPrompt, seenKeys } from "@/lib/next-sheet";
+import { fillSheet, practicePromptText, rememberPrompt, seenKeys } from "@/lib/next-sheet";
 import { capVkoleGrade } from "@/lib/vkole-cap";
 import { getSql, type Sql } from "@/lib/db";
 import { childAccess } from "@/lib/subscription";
@@ -304,6 +304,7 @@ export const setClimbLevel = createServerFn({ method: "POST" })
             updated_at = now()
         where id = ${data.id} and user_id = ${context.userId}
       `;
+      await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sp", { letter: view.letter }));
       return selectOwned(sql, context.userId, data.id);
     }
     if (current.subject === "pa") {
@@ -332,6 +333,7 @@ export const setClimbLevel = createServerFn({ method: "POST" })
             updated_at = now()
         where id = ${data.id} and user_id = ${context.userId}
       `;
+      await rememberPrompt(sql, context.userId, current.childName, practicePromptText("pa", { say: heldCard.say }));
       return selectOwned(sql, context.userId, data.id);
     }
     if (current.subject === "sw") {
@@ -357,6 +359,7 @@ export const setClimbLevel = createServerFn({ method: "POST" })
             updated_at = now()
         where id = ${data.id} and user_id = ${context.userId}
       `;
+      await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sw", { word: card.word }));
       return selectOwned(sql, context.userId, data.id);
     }
     const step = level === held && data.direction === "up" ? Math.min(2, Math.max(0, current.standardStep ?? 0)) : 0;
@@ -592,6 +595,8 @@ export const markSightWord = createServerFn({ method: "POST" })
         })}
       )
     `;
+    await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sw", { word }));
+    await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sw", { word: next.word }));
     return selectOwned(sql, context.userId, data.id);
   });
 
@@ -658,6 +663,8 @@ export const markSpelling = createServerFn({ method: "POST" })
         })}
       )
     `;
+    await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sp", { letter: asked.letter }));
+    await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sp", { letter: next.letter }));
     return selectOwned(sql, context.userId, data.id);
   });
 
@@ -749,6 +756,8 @@ export const markPhonemic = createServerFn({ method: "POST" })
         })}
       )
     `;
+    await rememberPrompt(sql, context.userId, current.childName, practicePromptText("pa", { say: place.say }));
+    await rememberPrompt(sql, context.userId, current.childName, practicePromptText("pa", { say: prompt.stem }));
     return selectOwned(sql, context.userId, data.id);
   });
 
