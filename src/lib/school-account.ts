@@ -11,7 +11,7 @@
 import { normalizeAccountEmail, sameAccount } from "./account-scope.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, SIGHT_WORD_BANDS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
-import { cardFromAccount as spCardFromAccount, isSpBand, letterView, SPELLING_BANDS, spCard, type SpBand } from "./vkole/spelling/items.ts";
+import { bandMeta, cardFromAccount as spCardFromAccount, isSpBand, letterView, SPELLING_BANDS, spCard, type SpBand } from "./vkole/spelling/items.ts";
 import { cardFromAccount as paCardFromAccount, migratePaBand, PA_BANDS, type PaBand } from "./vkole/phonemic-awareness/items.ts";
 import { sightCard } from "./vkole/sight-words/words.ts";
 
@@ -437,10 +437,11 @@ function plainSpWord(word: string | undefined): string {
   return (word ?? "").trim().toLowerCase().replace(/’/g, "'");
 }
 
-/** 0 is A. A prompt id such as lk-next-m or lk-cue-5-m still names its letter. */
+/** Item index. A prompt id such as lk-next-m or lk-cue-5-m still names its letter when no index is stored. */
 function alphabetIndex(level: Pick<EngineLevel, "index" | "word">): number {
+  const count = Math.max(1, bandMeta("LK").count);
   const index = level.index;
-  if (typeof index === "number" && Number.isInteger(index)) return Math.min(25, Math.max(0, index));
+  if (typeof index === "number" && Number.isInteger(index)) return Math.min(count - 1, Math.max(0, index));
   const word = plainSpWord(level.word);
   if (word === "lk-first") return 0;
   if (/^[a-z]$/.test(word)) return word.charCodeAt(0) - 97;
@@ -464,7 +465,8 @@ export function toWebsiteSpLevel(level: EngineLevel): EngineLevel {
     return { ...level, grade, step: 0, band: bandRaw, word: wordRaw, levelCode: bandRaw };
   }
   const index = alphabetIndex(level);
-  const letter = "abcdefghijklmnopqrstuvwxyz"[index] ?? "a";
+  const answer = letterView({ index, silence: 0, wrong: 0 }).answer;
+  const letter = (answer || "abcdefghijklmnopqrstuvwxyz"[Math.min(25, index)] || "a").toLowerCase();
   return { ...level, grade, step: 0, band: "cvc", index, word: letter, levelCode: "cvc" };
 }
 
@@ -504,8 +506,9 @@ function asSpLevel(row: Record<string, unknown>, level: EngineLevel): EngineLeve
     alphabetAt != null
       ? "LK"
       : (saved ?? spCardFromAccount({ grade: Number.isFinite(rounded) ? rounded : Number.NaN }, level.grade).band);
-  let index = saved ? (asIndex(row.index) ?? (nested ? asIndex(nested.index) : undefined) ?? 0) : 0;
-  if (alphabetAt != null) index = alphabetAt;
+  const explicit = asIndex(row.index) ?? (nested ? asIndex(nested.index) : undefined);
+  let index = explicit ?? 0;
+  if (alphabetAt != null && explicit == null) index = alphabetAt;
   if (saved && alphabetAt == null && asIndex(row.index) == null && !(nested && asIndex(nested.index) != null) && storedWord) {
     const found = spCardFromAccount({ grade: level.grade, band, word: storedWord }, level.grade);
     if (found.id === storedWord) index = found.index;

@@ -57,7 +57,9 @@
   ],
   "letterNames": {
     "A": [
-      "ay"
+      "ay",
+      "eh",
+      "hey"
     ],
     "B": [
       "bee",
@@ -299,7 +301,9 @@
           "show": "Your turn! What is the first letter of the alphabet?",
           "answer": "A",
           "also": [
-            "ay"
+            "ay",
+            "eh",
+            "hey"
           ],
           "letter": "",
           "model": "A"
@@ -973,7 +977,9 @@
           "show": "What letter is this?",
           "answer": "A",
           "also": [
-            "ay"
+            "ay",
+            "eh",
+            "hey"
           ],
           "letter": "A",
           "model": "A"
