@@ -6,6 +6,7 @@ import { schoolMiddleware } from "@/lib/school-middleware";
 import { isSchoolAccountId } from "@/lib/school-account";
 import { TRIAL_MS } from "@/lib/academic-email";
 import { dealQuestion } from "@/lib/question-history";
+import { practicePromptText, rememberPrompt } from "@/lib/next-sheet";
 import { isSubject, type SubjectId } from "@/lib/climb-rules";
 import { cardFromAccount as spCardFromAccount, letterView } from "@/lib/vkole/spelling/items";
 import { cardFromAccount as paCardFromAccount, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
@@ -161,10 +162,12 @@ async function seedPrompt(sql: Sql, userId: string, id: string, subject: Subject
   const storedIndex = Number(stored?.standard_step) || 0;
   let stepIndex: number | null = null;
   let item: { id: string; stem: string; answer: string; aliases: string[]; standard: string; note: string };
+  let practice = "";
   if (subject === "sw") {
     const card = cardFromAccount({ grade: storedGrade, band: stored?.standard_code, index: storedIndex }, grade);
     stepIndex = card.index;
     item = sightPrompt(card.band, card.index);
+    practice = practicePromptText("sw", { word: item.stem });
   } else if (subject === "sp") {
     const card = spCardFromAccount({ grade: storedGrade, band: stored?.standard_code, index: storedIndex }, grade);
     const view = letterView({ index: storedIndex, silence: 0, wrong: 0 });
@@ -177,6 +180,7 @@ async function seedPrompt(sql: Sql, userId: string, id: string, subject: Subject
       standard: card.band,
       note: view.name,
     };
+    practice = practicePromptText("sp", { letter: view.letter });
   } else if (subject === "pa") {
     const card = paCardFromAccount(
       { grade: storedGrade, age: storedAge, band: stored?.standard_code, index: storedIndex },
@@ -184,9 +188,11 @@ async function seedPrompt(sql: Sql, userId: string, id: string, subject: Subject
     );
     stepIndex = card.index;
     item = paPrompt(card.band, card.index, storedGrade);
+    practice = practicePromptText("pa", { say: item.stem });
   } else {
     item = await dealQuestion(sql, userId, childName, subject, grade, 0);
   }
+  if (practice) await rememberPrompt(sql, userId, childName, practice);
   await sql`
     update climbs
     set start_grade = coalesce(start_grade, ${grade}),
@@ -326,6 +332,14 @@ export const enterEngine = createServerFn({ method: "POST" })
           : phonemic
             ? paPrompt(phonemic.band, phonemic.index, grade)
             : await dealQuestion(sql, context.userId, data.firstName.trim(), data.subject, grade, step);
+      const practice = sight
+        ? practicePromptText("sw", { word: item.stem })
+        : spellingView
+          ? practicePromptText("sp", { letter: spellingView.letter })
+          : phonemic
+            ? practicePromptText("pa", { say: item.stem })
+            : "";
+      if (practice) await rememberPrompt(sql, context.userId, data.firstName.trim(), practice);
       level = grade;
       await sql`alter table climbs add column if not exists registration_email text`;
       const prior = await sql<{ email: string | null }>`

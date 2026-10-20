@@ -245,7 +245,8 @@ export type AccountSession = {
 export type FamilyWrite = {
   levels: Partial<Record<LevelKey, EngineLevel>>;
   clock: { seconds: number };
-  seen: SeenQuestion[];
+  /** The website rebuilds its practice-sheet key from this prompt text. */
+  seenQuestions: { prompt: string }[];
   /** Set on the first child-name save. The website ignores a bare studentName field. */
   student?: { name: string; age: number | null; startingGrade: number | null };
 };
@@ -977,7 +978,16 @@ export function decideStudent(studentName: string | null | undefined, typedFirst
   return "extra";
 }
 
-/** Body for POST /api/account/family. Levels include spelling on `sp`. */
+const POOL_VARIANT_ID = /^(m|ela|ss|gen|sg):\d+:\d+:\d+$/;
+
+/** The displayed prompt. A pool variant id is not a prompt. */
+function seenWirePrompt(item: { key?: string; text?: string }): string {
+  const text = (item.text ?? "").replace(/\s+/g, " ").trim();
+  if (!text || POOL_VARIANT_ID.test(text)) return "";
+  return text;
+}
+
+/** Body for POST /api/account/family. Levels include alphabet on `sp`. */
 export function schoolWriteBody(
   level: Partial<Record<LevelKey, EngineLevel>>,
   localClock: number,
@@ -985,15 +995,15 @@ export function schoolWriteBody(
   seen: SeenQuestion[],
   student?: { name: string; age?: number | null; startingGrade?: number | null },
 ): FamilyWrite {
-  const unique: SeenQuestion[] = [];
-  const keys = new Set<string>();
+  const seenQuestions: { prompt: string }[] = [];
+  const prompts = new Set<string>();
   for (const item of seen) {
-    const key = item.key.trim();
-    const text = item.text.trim();
-    if (!key || keys.has(key)) continue;
-    keys.add(key);
-    unique.push({ key, text: text || key });
-    if (unique.length >= 400) break;
+    const prompt = seenWirePrompt(item);
+    const dedupe = prompt.toLowerCase();
+    if (!prompt || prompts.has(dedupe)) continue;
+    prompts.add(dedupe);
+    seenQuestions.push({ prompt });
+    if (seenQuestions.length >= 400) break;
   }
   const levels: FamilyWrite["levels"] = { ...level };
   if (levels.sp) levels.sp = toWebsiteSpLevel(levels.sp);
@@ -1003,7 +1013,7 @@ export function schoolWriteBody(
   return {
     levels,
     clock: { seconds: clockToWrite(localClock, remoteClock) },
-    seen: unique,
+    seenQuestions,
     ...(name
       ? {
           student: {

@@ -225,6 +225,92 @@ export async function seenKeys(sql: Sql, userId: string, childName: string): Pro
   return new Set(rows.map((row) => row.prompt_key));
 }
 
+const POOL_VARIANT_ID = /^(m|ela|ss|gen|sg):\d+:\d+:\d+$/;
+
+/**
+ * Text the website uses as a practice-sheet key.
+ * Sight words use the word, phonemic awareness the spoken line,
+ * Math Game the generator prompt, and alphabet the bare letter.
+ */
+export function practicePromptText(
+  subject: string,
+  fields: { word?: string; say?: string; letter?: string; question?: string; prompt?: string },
+): string {
+  const clean = (value: string | undefined) => (value ?? "").replace(/\s+/g, " ").trim();
+  if (subject === "sw") return clean(fields.word) || clean(fields.question);
+  if (subject === "pa") return clean(fields.say) || clean(fields.question);
+  if (subject === "mg") return clean(fields.prompt) || clean(fields.question);
+  if (subject === "sp") {
+    const letter = clean(fields.letter);
+    return /^[A-Za-z]$/.test(letter) ? letter.toUpperCase() : "";
+  }
+  const question = clean(fields.question) || clean(fields.prompt);
+  if (!question || POOL_VARIANT_ID.test(question)) return "";
+  return question;
+}
+
+/** Prompt text from one saved answer. A pool variant id is not a prompt. */
+export function practicePromptFromDetail(subject: string, detail: string): string {
+  let row: Record<string, unknown> | null = null;
+  try {
+    const parsed = JSON.parse(detail) as unknown;
+    if (parsed && typeof parsed === "object") row = parsed as Record<string, unknown>;
+  } catch {
+    row = null;
+  }
+  if (!row) return practicePromptText(subject, { question: detail });
+  const text = (key: string) => (typeof row?.[key] === "string" ? String(row[key]) : "");
+  return practicePromptText(subject, {
+    word: text("word"),
+    say: text("say"),
+    letter: text("letter"),
+    question: text("question"),
+    prompt: text("prompt"),
+  });
+}
+
+/** The prompt to send. Stored variant ids are not prompts. */
+export function seenWirePrompt(item: { key?: string; text?: string }): string {
+  const text = (item.text ?? "").replace(/\s+/g, " ").trim();
+  if (!text || POOL_VARIANT_ID.test(text)) return "";
+  return text;
+}
+
+/**
+ * Newest local prompts, up to 400. Stored rows come first by time, then
+ * answer history, so the first sync still carries past play.
+ */
+export function mergeLocalSeen(
+  stored: { at?: unknown; key?: string; text?: string }[],
+  events: { at?: unknown; subject: string; detail: string }[],
+): { key: string; text: string }[] {
+  const rows: { at: number; text: string }[] = [];
+  const stamp = (value: unknown) => {
+    if (value instanceof Date) return value.getTime();
+    const parsed = Date.parse(String(value ?? ""));
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+  for (const row of stored) {
+    const text = seenWirePrompt({ key: row.key, text: row.text });
+    if (text) rows.push({ at: stamp(row.at), text });
+  }
+  for (const event of events) {
+    const text = practicePromptFromDetail(event.subject, event.detail);
+    if (text) rows.push({ at: stamp(event.at), text });
+  }
+  rows.sort((a, b) => b.at - a.at);
+  const unique: { key: string; text: string }[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const dedupe = row.text.toLowerCase();
+    if (seen.has(dedupe)) continue;
+    seen.add(dedupe);
+    unique.push({ key: dedupe, text: row.text });
+    if (unique.length >= MEMORY) break;
+  }
+  return unique;
+}
+
 export async function rememberPrompt(sql: Sql, userId: string, childName: string, prompt: string, variantId?: string) {
   const key = variantId?.trim() || questionKey(prompt);
   if (!key) return;

@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { mergeLocalSeen, practicePromptFromDetail, practicePromptText } from "./next-sheet.ts";
 import {
   CLOCK_LIMIT_SECONDS,
   SCHOOL_OFFLINE_MESSAGE,
@@ -133,14 +134,19 @@ describe("clock and seen writes", () => {
     assert.equal(clockToWrite(Number.NaN, 12.9), 12);
   });
 
-  it("sends the higher clock and unique seen questions", () => {
+  it("sends the higher clock and the displayed prompt, not the pool variant id", () => {
     const body = schoolWriteBody({ m: { grade: 2, step: 0 }, sp: { grade: 1, step: 0, band: "LK", index: 0 } }, 100, 40, [
-      { key: "m:1:0:0", text: "stem" },
-      { key: "m:1:0:0", text: "other" },
-      { key: "", text: "blank" },
+      { key: "m:1:0:0", text: "What is 2 + 2?" },
+      { key: "m:1:0:1", text: "What is 2 + 2?" },
+      { key: "m:1:0:2", text: "" },
+      { key: "", text: "m:2:0:0" },
+      { key: "sw:PP:1", text: "the" },
     ]);
     assert.equal(body.clock.seconds, 100);
-    assert.deepEqual(body.seen, [{ key: "m:1:0:0", text: "stem" }]);
+    assert.deepEqual(body.seenQuestions, [{ prompt: "What is 2 + 2?" }, { prompt: "the" }]);
+    assert.equal("seen" in body, false);
+    assert.equal(JSON.stringify(body).includes("m:1:0:0"), false);
+    assert.equal(JSON.stringify(body).includes("m:2:0:0"), false);
     assert.equal(body.levels.sp?.band, "cvc");
     assert.equal(body.levels.sp?.word, "a");
     assert.equal(body.levels.sp?.grade, 1);
@@ -148,6 +154,44 @@ describe("clock and seen writes", () => {
     assert.equal("id" in body, false);
     const enrolled = schoolWriteBody({ m: { grade: 2, step: 0 } }, 0, 0, [], { name: "Ada", age: 8, startingGrade: 2 });
     assert.deepEqual(enrolled.student, { name: "Ada", age: 8, startingGrade: 2 });
+    const many = Array.from({ length: 401 }, (_, index) => ({ key: `m:1:0:${index}`, text: `Prompt ${index}` }));
+    assert.equal(schoolWriteBody({}, 0, 0, many).seenQuestions.length, 400);
+  });
+
+  it("keeps website practice-sheet text for sight words, phonemic lines, math game, and alphabet letters", () => {
+    assert.equal(practicePromptText("sw", { word: "the", question: "sw:PP:0" }), "the");
+    assert.equal(practicePromptText("pa", { say: "How many words do you hear? The cat sat." }), "How many words do you hear? The cat sat.");
+    assert.equal(practicePromptText("mg", { prompt: "3 + 4 = ?" }), "3 + 4 = ?");
+    assert.equal(
+      practicePromptText("sp", { letter: "b", question: "What letter comes next?" }),
+      "B",
+    );
+    assert.equal(practicePromptFromDetail("sp", JSON.stringify({ question: "Your turn! What is the first letter of the alphabet?", letter: "A" })), "A");
+    assert.equal(practicePromptFromDetail("sw", JSON.stringify({ word: "said", question: "said" })), "said");
+    const firstSync = mergeLocalSeen(
+      [{ at: "2026-10-01T00:00:00.000Z", key: "m:1:0:0", text: "" }],
+      [
+        { at: "2026-10-02T00:00:00.000Z", subject: "sw", detail: JSON.stringify({ word: "the" }) },
+        { at: "2026-10-03T00:00:00.000Z", subject: "pa", detail: JSON.stringify({ question: "Say the first sound in sun." }) },
+        { at: "2026-10-04T00:00:00.000Z", subject: "mg", detail: JSON.stringify({ prompt: "2 + 2 = ?" }) },
+        { at: "2026-10-05T00:00:00.000Z", subject: "sp", detail: JSON.stringify({ question: "What letter comes next?", letter: "C" }) },
+        { at: "2026-10-05T00:00:00.000Z", subject: "sp", detail: JSON.stringify({ question: "What letter comes next?", letter: "C" }) },
+      ],
+    );
+    assert.deepEqual(
+      firstSync.map((item) => item.text),
+      ["C", "2 + 2 = ?", "Say the first sound in sun.", "the"],
+    );
+    const capped = mergeLocalSeen(
+      [],
+      Array.from({ length: 401 }, (_, index) => ({
+        at: new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString(),
+        subject: "mg",
+        detail: JSON.stringify({ prompt: `Item ${index}` }),
+      })),
+    );
+    assert.equal(capped.length, 400);
+    assert.equal(capped[0]?.text, "Item 400");
   });
 });
 
@@ -408,8 +452,13 @@ describe("server calls", () => {
           assert.equal(body.levels.sp.word, "c");
           assert.equal(body.levels.sp.grade, 1);
           assert.equal(body.levels.mg.grade, 3);
+          assert.deepEqual(body.seenQuestions, [{ prompt: "t" }]);
+          assert.equal(body.seen, undefined);
+          assert.equal(JSON.stringify(body).includes("m:1:0:0"), false);
           assert.equal(String(input).includes("/api/vkole/"), false);
-          return jsonResponse(200, session("a@b.co", { levels: body.levels, clock: body.clock, seen: body.seen }));
+          assert.equal(String(input).includes("resend"), false);
+          assert.equal(String(input).includes("gmail"), false);
+          return jsonResponse(200, session("a@b.co", { levels: body.levels, clock: body.clock, seenQuestions: body.seenQuestions }));
         },
       },
     );

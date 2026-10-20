@@ -26,6 +26,7 @@ import { paAccountLevel } from "@/lib/vkole/phonemic-awareness/level";
 import { cardFromAccount as paCardFromAccount, migratePaBand } from "@/lib/vkole/phonemic-awareness/items";
 import { swAccountLevel } from "@/lib/vkole/sight-words/level";
 import { cardFromAccount } from "@/lib/vkole/sight-words/words";
+import { ensureSeen, mergeLocalSeen } from "@/lib/next-sheet";
 
 const LOGIN_CLOCK = "login";
 
@@ -333,14 +334,26 @@ async function collectClock(sql: Sql, userId: string): Promise<number> {
 }
 
 async function collectSeen(sql: Sql, userId: string): Promise<Array<{ key: string; text: string }>> {
-  const rows = await sql<{ prompt_key: string; prompt_text: string | null }>`
-    select prompt_key, prompt_text
+  await ensureSeen(sql);
+  await sql`alter table seen_prompts add column if not exists prompt_text text`;
+  const stored = await sql<{ prompt_key: string; prompt_text: string | null; seen_at: unknown }>`
+    select prompt_key, prompt_text, seen_at
     from seen_prompts
     where user_id = ${userId}
     order by seen_at desc
     limit 400
   `;
-  return rows.map((row) => ({ key: row.prompt_key, text: row.prompt_text?.trim() || row.prompt_key }));
+  const events = await sql<{ subject: string; detail: string; created_at: unknown }>`
+    select subject, detail, created_at
+    from climb_events
+    where user_id = ${userId}
+    order by created_at desc
+    limit 400
+  `;
+  return mergeLocalSeen(
+    stored.map((row) => ({ at: row.seen_at, key: row.prompt_key, text: row.prompt_text ?? "" })),
+    events.map((row) => ({ at: row.created_at, subject: row.subject, detail: row.detail })),
+  );
 }
 
 export async function pullSchoolAccount(sql: Sql, userId: string): Promise<SchoolProfile> {

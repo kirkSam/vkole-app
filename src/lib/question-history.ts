@@ -1,6 +1,6 @@
 import type { Sql } from "@/lib/db";
 import type { SubjectId } from "@/lib/climb-rules";
-import { ensureSeen, questionKey, rememberPrompt } from "@/lib/next-sheet";
+import { ensureSeen, practicePromptText, questionKey, rememberPrompt } from "@/lib/next-sheet";
 import {
   type BagState,
   type PoolQuestion,
@@ -101,15 +101,21 @@ export async function dealQuestion(
   if (subject === "sw") {
     const { startBandForGrade } = await import("./vkole/constants.ts");
     const { sightPrompt } = await import("./vkole/sight-words/words.ts");
-    return sightPrompt(startBandForGrade(grade), Math.max(0, Math.round(step) || 0));
+    const prompt = sightPrompt(startBandForGrade(grade), Math.max(0, Math.round(step) || 0));
+    await rememberPrompt(sql, userId, childName, practicePromptText("sw", { word: prompt.stem }));
+    return prompt;
   }
   if (subject === "sp") {
     const { spellingPrompt, startBand } = await import("./vkole/spelling/items.ts");
-    return spellingPrompt(startBand(), Math.max(0, Math.round(step) || 0), grade);
+    const prompt = spellingPrompt(startBand(), Math.max(0, Math.round(step) || 0), grade);
+    await rememberPrompt(sql, userId, childName, practicePromptText("sp", { letter: prompt.answer }));
+    return prompt;
   }
   if (subject === "pa") {
     const { paPrompt, startBand } = await import("./vkole/phonemic-awareness/items.ts");
-    return paPrompt(startBand({ grade }), Math.max(0, Math.round(step) || 0), grade);
+    const prompt = paPrompt(startBand({ grade }), Math.max(0, Math.round(step) || 0), grade);
+    await rememberPrompt(sql, userId, childName, practicePromptText("pa", { say: prompt.stem }));
+    return prompt;
   }
   await ensureQuestionMemory(sql);
   const level = Math.min(12, Math.max(1, Math.round(grade)));
@@ -152,6 +158,7 @@ export async function dealQuestion(
     values (${userId}, ${name}, ${key}, ${remaining})
     on conflict (user_id, child_key, pool_key) do update set remaining = ${remaining}
   `;
-  await rememberPrompt(sql, userId, childName, question.stem, question.id);
+  const shown = subject === "m" ? practicePromptText("mg", { prompt: question.stem }) : question.stem;
+  await rememberPrompt(sql, userId, childName, shown || question.stem, question.id);
   return question;
 }
