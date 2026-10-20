@@ -9,6 +9,7 @@
  */
 
 import { normalizeAccountEmail, sameAccount } from "./account-scope.ts";
+import { DAY_LIMIT_SECONDS } from "./day-clock-math.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, SIGHT_WORD_BANDS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
 import { cardFromAccount as spCardFromAccount, isSpBand, letterView, SPELLING_BANDS, spCard, type SpBand } from "./vkole/spelling/items.ts";
@@ -135,7 +136,8 @@ export const SCHOOL_WAIT_MESSAGE =
 export const SCHOOL_ACCOUNT_GONE_MESSAGE =
   "This account is no longer on the school website. Sign in again after it is opened there.";
 
-export const CLOCK_LIMIT_SECONDS = 9000;
+/** Default day cap. A `clock.limit` from the website replaces this for that account. */
+export const CLOCK_LIMIT_SECONDS = DAY_LIMIT_SECONDS;
 
 export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg", "sw", "sp", "pa"] as const;
 export type EngineId = (typeof ENGINE_IDS)[number];
@@ -218,6 +220,8 @@ export type SchoolProfile = {
   clockSeconds: number;
   seen: SeenQuestion[];
   plan: "month" | "year" | null;
+  /** Day cap in seconds. The website clock limit wins; otherwise this is 8 hours. */
+  clockLimit?: number;
   /** Missing or non-boolean website values stay false. */
   officePurchased: boolean;
   /** A single path segment, or null when the website sent nothing usable. */
@@ -273,9 +277,19 @@ export function schoolScreen(message: string): "offline" | "legacy" | "separate"
   return null;
 }
 
-export function clockToWrite(localSeconds: number, remoteSeconds: number): number {
+export function clockToWrite(localSeconds: number, remoteSeconds: number, limit = CLOCK_LIMIT_SECONDS): number {
+  const cap = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : CLOCK_LIMIT_SECONDS;
   const value = Math.max(0, Math.floor(localSeconds) || 0, Math.floor(remoteSeconds) || 0);
-  return Math.min(CLOCK_LIMIT_SECONDS, value);
+  return Math.min(cap, value);
+}
+
+/** Seconds in a website clock payload. `limit` is preferred. Missing or unusable values stay at 8 hours. */
+export function clockLimitFrom(clock: unknown): number {
+  const row = asRecord(clock);
+  const raw = row?.limit ?? row?.limitSeconds ?? row?.maxSeconds ?? row?.dayLimit;
+  const n = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() ? Number(raw) : Number.NaN;
+  if (!Number.isFinite(n) || n <= 0) return CLOCK_LIMIT_SECONDS;
+  return Math.floor(n);
 }
 
 export function isLevelKey(value: string): value is LevelKey {
@@ -908,9 +922,11 @@ export function parseSchoolProfile(body: unknown, knownEmail?: string): { id: st
   const freeWeekStart = typeof freeRaw === "string" && !Number.isNaN(Date.parse(freeRaw)) ? new Date(freeRaw).toISOString() : null;
   const clockRow = asRecord(family.clock);
   const clockNumber = typeof family.clock === "number" ? family.clock : undefined;
+  const clockLimit = clockLimitFrom(clockRow ?? family.clock);
   const clockSeconds = clockToWrite(
     Number(family.clockSeconds ?? clockNumber ?? clockRow?.seconds ?? clockRow?.usedSeconds ?? 0),
     0,
+    clockLimit,
   );
   const plan = asPlan(family.subscription ?? family.plan);
   return {
@@ -921,6 +937,7 @@ export function parseSchoolProfile(body: unknown, knownEmail?: string): { id: st
       level,
       freeWeekStart,
       clockSeconds,
+      clockLimit,
       seen: asSeen(family.seen ?? family.seenQuestions),
       plan,
       officePurchased: family.officePurchased === true,
@@ -1082,7 +1099,7 @@ export function profileKeepingProgress(stored: StoredSchoolProgress | null | und
     studentName: incoming.studentName.trim() || stored?.studentName?.trim() || "",
     level: keptLevels(stored?.level ?? {}, incoming.level),
     freeWeekStart: incoming.freeWeekStart ?? stored?.freeWeekStart ?? null,
-    clockSeconds: Math.max(0, incoming.clockSeconds || 0, stored?.clockSeconds || 0),
+    clockSeconds: clockToWrite(incoming.clockSeconds || 0, stored?.clockSeconds || 0, incoming.clockLimit),
     plan: incoming.plan ?? stored?.plan ?? null,
   };
 }
@@ -1133,6 +1150,7 @@ export function schoolWriteBody(
   remoteClock: number,
   seen: SeenQuestion[],
   student?: { name: string; age?: number | null; startingGrade?: number | null },
+  limit = CLOCK_LIMIT_SECONDS,
 ): FamilyWrite {
   const seenQuestions: { prompt: string }[] = [];
   const prompts = new Set<string>();
@@ -1151,7 +1169,7 @@ export function schoolWriteBody(
   const starting = student?.startingGrade;
   return {
     levels,
-    clock: { seconds: clockToWrite(localClock, remoteClock) },
+    clock: { seconds: clockToWrite(localClock, remoteClock, limit) },
     seenQuestions,
     ...(name
       ? {

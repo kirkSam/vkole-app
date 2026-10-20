@@ -1,14 +1,14 @@
 import { APP_NAME, SCHOOL_EMAIL } from "@/lib/brand";
 
-/** One clock for the login. Midnight is Pacific, not the device clock. */
-export const DAY_LIMIT_SECONDS = 150 * 60;
+/** One day clock per student, shared by that student's engines. Midnight is Pacific, not the device clock. */
+export const DAY_LIMIT_SECONDS = 8 * 60 * 60;
 export const IDLE_STOP_SECONDS = 5 * 60;
 export const PACIFIC = "America/Los_Angeles";
 
 export const VKOLE_RULES = [
   `${APP_NAME} uses one short call to grade the answer and write the next question. Price stays: one week free, then $9.00 USD plus tax a month, or $79.00 USD plus tax a year. It auto-renews until cancelled by email at ${SCHOOL_EMAIL}.`,
-  "Access: the engines share one clock of 2.5 hours for the login each day. Another child does not add another 2.5 hours. Used time never goes past 2.5 hours. It resets at midnight Pacific time.",
-  "Five minutes with no pointer press or key press stops the clock. Those later minutes are not added. The student password starts the clock again. Time already used stays. Leaving one engine does not stop the clock. The other engines stay open. After 2.5 hours the engines stay closed until midnight Pacific time.",
+  "Access: each student has 8 hours a day. That student's engines share the clock. Used time never goes past 8 hours. It resets at midnight Pacific time.",
+  "Five minutes with no pointer press or key press stops the clock. Those later minutes are not added. The student password starts the clock again. Time already used stays. Leaving one engine does not stop the clock. The other engines stay open. After 8 hours the engines stay closed until midnight Pacific time.",
 ].join("\n\n");
 
 export type ClockProjection = {
@@ -54,11 +54,13 @@ export function projectClock(
   row:
     { used_seconds?: number | string | null; last_tick_at?: unknown; armed?: unknown } | undefined,
   now = Date.now(),
+  limit = DAY_LIMIT_SECONDS,
 ): ClockProjection {
+  const cap = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : DAY_LIMIT_SECONDS;
   if (!row) {
     return {
       used: 0,
-      remaining: DAY_LIMIT_SECONDS,
+      remaining: cap,
       closed: false,
       armed: false,
       idleStopped: false,
@@ -77,8 +79,8 @@ export function projectClock(
       used += gap;
     }
   }
-  used = Math.min(DAY_LIMIT_SECONDS, Math.floor(used));
-  const closed = used >= DAY_LIMIT_SECONDS;
+  used = Math.min(cap, Math.floor(used));
+  const closed = used >= cap;
   if (closed) armed = false;
-  return { used, remaining: DAY_LIMIT_SECONDS - used, closed, armed, idleStopped };
+  return { used, remaining: cap - used, closed, armed, idleStopped };
 }

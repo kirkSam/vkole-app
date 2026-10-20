@@ -1,5 +1,5 @@
 import type { Sql } from "@/lib/db";
-import { localDayKey, PACIFIC, projectClock } from "@/lib/day-clock-math";
+import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC, projectClock } from "@/lib/day-clock-math";
 import {
   ENGINE_IDS,
   SCHOOL_ACCOUNT_GONE_MESSAGE,
@@ -352,14 +352,14 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Lev
   return level;
 }
 
-async function collectClock(sql: Sql, userId: string): Promise<number> {
+async function collectClock(sql: Sql, userId: string, limit = DAY_LIMIT_SECONDS): Promise<number> {
   const day = localDayKey(PACIFIC);
   const rows = await sql<{ used_seconds: number | string | null; last_tick_at: unknown; armed: unknown }>`
     select used_seconds, last_tick_at, armed
     from day_clocks
     where user_id = ${userId} and child_key = ${LOGIN_CLOCK} and day_key = ${day}
   `;
-  return projectClock(rows[0]).used;
+  return projectClock(rows[0], Date.now(), limit).used;
 }
 
 async function collectSeen(sql: Sql, userId: string): Promise<Array<{ key: string; text: string }>> {
@@ -430,7 +430,8 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
   if ((mirror?.access ?? "closed") !== "open") return;
   const remoteLevel = mirror?.level ?? {};
   const level = keptLevels(remoteLevel, await collectLevel(sql, userId, remoteLevel));
-  const localClock = await collectClock(sql, userId);
+  const clockLimit = mirror?.clockLimit && mirror.clockLimit > 0 ? mirror.clockLimit : DAY_LIMIT_SECONDS;
+  const localClock = await collectClock(sql, userId, clockLimit);
   const seen = await collectSeen(sql, userId);
   const named = await sql<{ child_name: string; age: number | string | null; start_grade: number | string | null }>`
     select child_name, age, start_grade from climbs
@@ -448,6 +449,7 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
     mirror?.clockSeconds ?? 0,
     seen,
     studentName ? { name: studentName, age, startingGrade } : undefined,
+    clockLimit,
   );
   await writeSchoolAccount(userId, body, grant ? { token: grant.token, expiresAt: grant.expiresAt } : undefined);
   const next: SchoolProfile = {
@@ -456,6 +458,7 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
     level,
     freeWeekStart: mirror?.freeWeekStart ?? null,
     clockSeconds: body.clock.seconds,
+    clockLimit,
     seen,
     plan: mirror?.plan ?? null,
     officePurchased: mirror?.officePurchased === true,

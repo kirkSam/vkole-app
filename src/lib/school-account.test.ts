@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { DAY_LIMIT_SECONDS, projectClock } from "./day-clock-math.ts";
 import { mergeLocalSeen, practicePromptFromDetail, practicePromptText } from "./next-sheet.ts";
 import {
   CLOCK_LIMIT_SECONDS,
@@ -10,6 +11,7 @@ import {
   SCHOOL_WAIT_MESSAGE,
   WEBSITE_ERRORS_NOT_EXTRA,
   accountTokenExpired,
+  clockLimitFrom,
   clockToWrite,
   decideStudent,
   DEFAULT_WEBSITE_MASTER_EMAIL,
@@ -129,12 +131,40 @@ describe("school profile", () => {
 });
 
 describe("clock and seen writes", () => {
-  it("never decreases the clock and keeps it between 0 and 9000", () => {
+  it("never decreases the clock and keeps it between 0 and 8 hours", () => {
+    assert.equal(CLOCK_LIMIT_SECONDS, 28800);
+    assert.equal(DAY_LIMIT_SECONDS, 28800);
     assert.equal(clockToWrite(10, 50), 50);
     assert.equal(clockToWrite(80, 50), 80);
     assert.equal(clockToWrite(-5, -1), 0);
     assert.equal(clockToWrite(CLOCK_LIMIT_SECONDS + 1, 10), CLOCK_LIMIT_SECONDS);
     assert.equal(clockToWrite(Number.NaN, 12.9), 12);
+    assert.equal(clockToWrite(20000, 0, 10000), 10000);
+    const open = projectClock({ used_seconds: 9000, armed: 0 }, Date.now());
+    assert.equal(open.closed, false);
+    assert.equal(open.remaining, 28800 - 9000);
+    const shut = projectClock({ used_seconds: 28800, armed: 1 }, Date.now());
+    assert.equal(shut.closed, true);
+    assert.equal(shut.remaining, 0);
+    const website = projectClock({ used_seconds: 5000, armed: 0 }, Date.now(), 4000);
+    assert.equal(website.used, 4000);
+    assert.equal(website.closed, true);
+  });
+
+  it("prefers a clock limit from the website and otherwise uses 8 hours", () => {
+    assert.equal(clockLimitFrom({ seconds: 10 }), 28800);
+    assert.equal(clockLimitFrom({ seconds: 10, limit: 12000 }), 12000);
+    assert.equal(clockLimitFrom({ limitSeconds: "14400" }), 14400);
+    const capped = parseSchoolProfile({
+      family: { email: "a@b.co", access: "open", clock: { seconds: 40000, limit: 10000 } },
+    });
+    assert.equal(capped?.profile.clockLimit, 10000);
+    assert.equal(capped?.profile.clockSeconds, 10000);
+    const plain = parseSchoolProfile({
+      family: { email: "a@b.co", access: "open", clock: { seconds: 90 } },
+    });
+    assert.equal(plain?.profile.clockLimit, 28800);
+    assert.equal(plain?.profile.clockSeconds, 90);
   });
 
   it("sends the higher clock and the displayed prompt, not the pool variant id", () => {

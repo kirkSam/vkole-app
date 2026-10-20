@@ -1,11 +1,12 @@
 import type { Sql } from "@/lib/db";
 import type { EngineLevel, LevelKey, SchoolProfile } from "@/lib/school-account";
-import { LEVEL_KEYS, normalizeEngineLevel } from "@/lib/school-account";
+import { CLOCK_LIMIT_SECONDS, LEVEL_KEYS, normalizeEngineLevel } from "@/lib/school-account";
 
 export type SchoolMirror = {
   access: "open" | "closed";
   freeWeekStart: string | null;
   clockSeconds: number;
+  clockLimit: number;
   studentName: string;
   plan: "month" | "year" | null;
   level: Partial<Record<LevelKey, EngineLevel>>;
@@ -24,6 +25,7 @@ type MirrorRow = {
   access: string;
   free_week_start: unknown;
   clock_seconds: number | string | null;
+  clock_limit?: number | string | null;
   student_name: string | null;
   plan: string | null;
   levels: string | null;
@@ -50,6 +52,7 @@ export async function ensureSchoolMirror(sql: Sql): Promise<void> {
   await sql`alter table school_mirror add column if not exists office_slug text`;
   await sql`alter table school_mirror add column if not exists account_token text`;
   await sql`alter table school_mirror add column if not exists token_expires_at timestamptz`;
+  await sql`alter table school_mirror add column if not exists clock_limit integer not null default 28800`;
 }
 
 function parseLevels(raw: string | null): Partial<Record<LevelKey, EngineLevel>> {
@@ -70,7 +73,7 @@ function parseLevels(raw: string | null): Partial<Record<LevelKey, EngineLevel>>
 export async function readSchoolMirror(sql: Sql, userId: string): Promise<SchoolMirror | null> {
   await ensureSchoolMirror(sql);
   const rows = await sql<MirrorRow>`
-    select access, free_week_start, clock_seconds, student_name, plan, levels, last_push_at,
+    select access, free_week_start, clock_seconds, clock_limit, student_name, plan, levels, last_push_at,
       office_purchased, office_slug
     from school_mirror
     where user_id = ${userId}
@@ -82,6 +85,7 @@ export async function readSchoolMirror(sql: Sql, userId: string): Promise<School
     access: row.access === "open" ? "open" : "closed",
     freeWeekStart: row.free_week_start ? new Date(String(row.free_week_start)).toISOString() : null,
     clockSeconds: Math.max(0, Number(row.clock_seconds) || 0),
+    clockLimit: Math.floor(Number(row.clock_limit)) > 0 ? Math.floor(Number(row.clock_limit)) : CLOCK_LIMIT_SECONDS,
     studentName: row.student_name?.trim() ?? "",
     plan,
     level: parseLevels(row.levels),
@@ -95,7 +99,7 @@ export async function saveSchoolMirror(sql: Sql, userId: string, profile: School
   await ensureSchoolMirror(sql);
   await sql`
     insert into school_mirror (
-      user_id, access, free_week_start, clock_seconds, student_name, plan, levels, last_push_at,
+      user_id, access, free_week_start, clock_seconds, clock_limit, student_name, plan, levels, last_push_at,
       office_purchased, office_slug, updated_at
     )
     values (
@@ -103,6 +107,7 @@ export async function saveSchoolMirror(sql: Sql, userId: string, profile: School
       ${profile.access},
       ${profile.freeWeekStart},
       ${profile.clockSeconds},
+      ${profile.clockLimit && profile.clockLimit > 0 ? Math.floor(profile.clockLimit) : CLOCK_LIMIT_SECONDS},
       ${profile.studentName || null},
       ${profile.plan},
       ${JSON.stringify(profile.level)},
@@ -115,6 +120,7 @@ export async function saveSchoolMirror(sql: Sql, userId: string, profile: School
     set access = excluded.access,
         free_week_start = excluded.free_week_start,
         clock_seconds = excluded.clock_seconds,
+        clock_limit = excluded.clock_limit,
         student_name = excluded.student_name,
         plan = excluded.plan,
         levels = excluded.levels,

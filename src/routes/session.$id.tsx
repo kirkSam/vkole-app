@@ -463,7 +463,7 @@ function SessionPage() {
       {climb.subject === "sg" ? <p className="mt-2 text-sm text-muted">{SG_STAGE_NOTE}</p> : null}
       <SchoolPath />
       {!closure && clock?.closed ? (
-        <p className="mt-5 text-ink">The 2.5 hours for this login are used. The engines open again at midnight Pacific time.</p>
+        <p className="mt-5 text-ink">The 8 hours for this student are used. The engines open again at midnight Pacific time.</p>
       ) : null}
       {!closure && clock && !clock.armed && !clock.closed ? (
         <form
