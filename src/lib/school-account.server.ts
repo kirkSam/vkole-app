@@ -19,6 +19,7 @@ import {
   isWebsiteMasterEmail,
   parseAccountSession,
   parseSchoolProfile,
+  rotatedGrant,
   schoolFailureMessage,
   schoolPassword,
   websiteErrorText,
@@ -54,6 +55,10 @@ type CallDeps = {
   token?: string;
   expiresAt?: string;
   now?: number;
+  /** An open engine may still present an expired token. A 401 must not end that sitting. */
+  engineActive?: boolean;
+  /** A family response that carries a new token. The caller stores it with no sign-in screen. */
+  onGrant?: (grant: { token: string; expiresAt: string }) => void;
 };
 
 function offline(): SchoolCallError {
@@ -167,14 +172,21 @@ async function clearStoredGrant(email: string): Promise<void> {
   }
 }
 
+function noteRotatedGrant(body: unknown, deps?: CallDeps): void {
+  const grant = rotatedGrant(body);
+  if (grant) deps?.onGrant?.(grant);
+}
+
 async function tokenFor(email: string, deps?: CallDeps): Promise<string> {
   if (deps?.expiresAt && accountTokenExpired(deps.expiresAt, deps.now)) {
+    if (deps.engineActive && deps.token) return deps.token;
     if (!deps.token) await clearStoredGrant(email);
     throw signInAgain();
   }
   if (deps?.token) return deps.token;
   const grant = await storedGrant(email);
   if (!grant || accountTokenExpired(grant.expiresAt, deps?.now)) {
+    if (deps?.engineActive && grant?.token) return grant.token;
     await clearStoredGrant(email);
     throw signInAgain();
   }
@@ -250,11 +262,12 @@ export async function readSchoolAccount(id: string, deps?: CallDeps): Promise<Sc
   try {
     body = await callSchool("GET", PATHS.family, undefined, { ...deps, token });
   } catch (err) {
-    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token) {
+    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
       await clearStoredGrant(email);
     }
     throw err;
   }
+  noteRotatedGrant(body, deps);
   const parsed = parseSchoolProfile(body, email);
   if (!parsed) throw new SchoolCallError("rejected", "The school website did not open the account.");
   return masterProfile(email, parsed.profile);
@@ -285,11 +298,12 @@ export async function saveSchoolStudent(
   try {
     response = await callSchool("PATCH", PATHS.family, { student }, { ...deps, token });
   } catch (err) {
-    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token) {
+    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
       await clearStoredGrant(email);
     }
     throw err;
   }
+  noteRotatedGrant(response, deps);
   const parsed = parseSchoolProfile(response, email);
   const saved = parsed ? masterProfile(email, parsed.profile) : null;
   if (!saved?.studentName) {
@@ -306,11 +320,12 @@ export async function writeSchoolAccount(id: string, body: FamilyWrite, deps?: C
   try {
     response = await callSchool("POST", PATHS.family, body, { ...deps, token });
   } catch (err) {
-    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token) {
+    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
       await clearStoredGrant(email);
     }
     throw err;
   }
+  noteRotatedGrant(response, deps);
   const parsed = parseSchoolProfile(response, email);
   return parsed ? masterProfile(email, parsed.profile) : null;
 }

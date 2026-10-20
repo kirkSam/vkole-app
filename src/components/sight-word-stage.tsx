@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { holdEngineAudio, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { SIGHT_WORD_ADVANCE_MS, SIGHT_WORD_MAX_SHOW_MS } from "@/lib/vkole/constants";
 import { judgeSpoken, speechTokens } from "@/lib/vkole/sight-words/match";
 import { entryFor } from "@/lib/vkole/sight-words/words";
@@ -37,19 +38,33 @@ function colorFor(word: string): string {
   return WORD_COLORS[n % WORD_COLORS.length] ?? WORD_COLORS[0]!;
 }
 
-function speakWord(word: string, done: () => void) {
-  if (typeof window === "undefined" || !window.speechSynthesis) {
+function speakWord(word: string, done: () => void): () => void {
+  if (typeof window === "undefined" || !window.speechSynthesis || !word.trim()) {
+    noteEngineActivity();
     done();
-    return;
+    return () => {};
   }
+  const release = holdEngineAudio();
   let finished = false;
   const finish = () => {
     if (finished) return;
     finished = true;
     window.clearTimeout(cap);
+    release();
     done();
   };
   const cap = window.setTimeout(finish, 8000);
+  const stop = () => {
+    if (finished) return;
+    finished = true;
+    window.clearTimeout(cap);
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      /* already quiet */
+    }
+    release();
+  };
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(word);
   utter.lang = "en-US";
@@ -57,6 +72,7 @@ function speakWord(word: string, done: () => void) {
   utter.onend = finish;
   utter.onerror = finish;
   window.speechSynthesis.speak(utter);
+  return stop;
 }
 
 export function SightWordStage({
@@ -94,8 +110,17 @@ export function SightWordStage({
     setPhase("show");
   }, [word]);
 
+  useEffect(() => {
+    noteEngineActivity();
+  }, [phase, word]);
+
   const entry = entryFor(band, index, word);
   const listening = ready && !unsupported && allowed && phase === "show";
+
+  useEffect(() => {
+    if (!listening) return;
+    return holdEngineMic();
+  }, [listening]);
 
   useEffect(() => {
     if (!ready || phase !== "show" || (!listening && !unsupported)) return;
@@ -134,6 +159,7 @@ export function SightWordStage({
         rec.continuous = true;
         rec.interimResults = true;
         rec.onresult = (event) => {
+          noteEngineActivity();
           const start = event.resultIndex ?? 0;
           for (let i = start; i < event.results.length; i += 1) {
             const result = event.results[i];
@@ -152,6 +178,7 @@ export function SightWordStage({
           if (event.error === "not-allowed" || event.error === "service-not-allowed") setUnsupported(true);
         };
         rec.onend = () => {
+          noteEngineActivity();
           if (!live || settled.current || !rec) return;
           try {
             rec.start();

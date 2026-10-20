@@ -385,17 +385,25 @@ async function collectSeen(sql: Sql, userId: string): Promise<Array<{ key: strin
   );
 }
 
-export async function pullSchoolAccount(sql: Sql, userId: string): Promise<SchoolProfile> {
+export async function pullSchoolAccount(sql: Sql, userId: string, opts?: { engineActive?: boolean }): Promise<SchoolProfile> {
   const grant = await readAccountGrant(sql, userId);
   if (!grant) throw new SchoolCallError("unauthorized", "Sign in again.");
-  const profile = await readSchoolAccount(userId, { token: grant.token, expiresAt: grant.expiresAt });
+  let spun: { token: string; expiresAt: string } | null = null;
+  const profile = await readSchoolAccount(userId, {
+    token: grant.token,
+    expiresAt: grant.expiresAt,
+    engineActive: opts?.engineActive === true,
+    onGrant: (next) => {
+      spun = next;
+    },
+  });
   const mirror = await readSchoolMirror(sql, userId);
   if (clearsLocalProgress(profile, mirror)) {
     const { clearFreshLocalRows } = await import("./account-purge.server.ts");
     await clearFreshLocalRows(sql, userId);
   }
   const kept = await applyProfile(sql, userId, profile);
-  await saveAccountGrant(sql, userId, grant);
+  await saveAccountGrant(sql, userId, spun ?? grant);
   return kept;
 }
 
@@ -443,6 +451,7 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
   const age = named[0]?.age == null ? null : Number(named[0].age);
   const startingGrade = named[0]?.start_grade == null ? null : Number(named[0].start_grade);
   const grant = await readAccountGrant(sql, userId);
+  let spun: { token: string; expiresAt: string } | null = null;
   const body = schoolWriteBody(
     level,
     localClock,
@@ -451,7 +460,20 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
     studentName ? { name: studentName, age, startingGrade } : undefined,
     clockLimit,
   );
-  await writeSchoolAccount(userId, body, grant ? { token: grant.token, expiresAt: grant.expiresAt } : undefined);
+  await writeSchoolAccount(
+    userId,
+    body,
+    grant
+      ? {
+          token: grant.token,
+          expiresAt: grant.expiresAt,
+          onGrant: (next) => {
+            spun = next;
+          },
+        }
+      : undefined,
+  );
+  if (spun) await saveAccountGrant(sql, userId, spun);
   const next: SchoolProfile = {
     access: mirror?.access ?? "closed",
     studentName: studentName || mirror?.studentName || "",
@@ -467,7 +489,45 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
   await saveSchoolMirror(sql, userId, next, true);
 }
 
-export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>): Promise<T> {
+/**
+ * Pull, run the local handler, then push.
+ * An unauthorized website token ends the app session only when no engine is open.
+ * During a sitting the local handler still runs, and the stored grant is left in place.
+ */
+export async function runWithSchoolBook<T>(opts: {
+  engineActive: boolean;
+  pull: () => Promise<unknown>;
+  run: () => Promise<T>;
+  push: () => Promise<unknown>;
+  endSession: (message: string) => Promise<Error>;
+  onAccountGone: (err: SchoolCallError) => Promise<never>;
+}): Promise<T> {
+  try {
+    await opts.pull();
+  } catch (err) {
+    if (err instanceof SchoolCallError && err.reason === "unauthorized") {
+      if (opts.engineActive) return opts.run();
+      throw await opts.endSession(err.message);
+    }
+    if (err instanceof SchoolCallError && (err.reason === "unknown" || err.reason === "gone")) {
+      return opts.onAccountGone(err);
+    }
+    throw err;
+  }
+  const result = await opts.run();
+  try {
+    await opts.push();
+  } catch (err) {
+    if (err instanceof SchoolCallError && err.reason === "unauthorized") {
+      if (opts.engineActive) return result;
+      throw await opts.endSession(err.message);
+    }
+    throw err;
+  }
+  return result;
+}
+
+export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>, opts?: { engineActive?: boolean }): Promise<T> {
   const { separateSignIn } = await import("@/lib/school-session.server");
   const kind = await separateSignIn(userId);
   if (kind === "dev") return run();
@@ -475,13 +535,14 @@ export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>
   if (kind !== "school") throw new Error(SCHOOL_SEPARATE_MESSAGE);
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
-  try {
-    await pullSchoolAccount(sql, userId);
-  } catch (err) {
-    if (err instanceof SchoolCallError && err.reason === "unauthorized") {
-      throw await endWebsiteSession(sql, userId, err.message);
-    }
-    if (err instanceof SchoolCallError && (err.reason === "unknown" || err.reason === "gone")) {
+  const engineActive = opts?.engineActive === true;
+  return runWithSchoolBook({
+    engineActive,
+    pull: () => pullSchoolAccount(sql, userId, { engineActive }),
+    run,
+    push: () => pushSchoolAccount(sql, userId),
+    endSession: (message) => endWebsiteSession(sql, userId, message),
+    onAccountGone: async () => {
       try {
         const { expireLocalSignInCookies, forgetLocalAccount } = await import("./account-purge.server.ts");
         await forgetLocalAccount(sql, userId);
@@ -490,19 +551,8 @@ export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>
         throw new Error(SCHOOL_OFFLINE_MESSAGE);
       }
       throw new Error(SCHOOL_ACCOUNT_GONE_MESSAGE);
-    }
-    throw err;
-  }
-  const result = await run();
-  try {
-    await pushSchoolAccount(sql, userId);
-  } catch (err) {
-    if (err instanceof SchoolCallError && err.reason === "unauthorized") {
-      throw await endWebsiteSession(sql, userId, err.message);
-    }
-    throw err;
-  }
-  return result;
+    },
+  });
 }
 
 async function endWebsiteSession(sql: Sql, userId: string, website: string): Promise<Error> {

@@ -1,6 +1,6 @@
 # VKOLE shared account API
 
-The school website is the account book. The app calls `https://www.dotheimpossible.ai/api/account/*` from its own server. No cookies. Sign-in and register return `{ token, expiresAt, family }`. Family reads and saves send `Authorization: Bearer`. The token lasts 12 hours and is not refreshed. A 401 clears the stored token and returns the parent to sign-in. The browser never sends `X-Vkole-Secret`. The account id is the lowercase parent email.
+The school website is the account book. The app calls `https://www.dotheimpossible.ai/api/account/*` from its own server. No cookies. Sign-in and register return `{ token, expiresAt, family }`. Family reads and saves send `Authorization: Bearer`. The token lasts 12 hours. There is no refresh URL. A family response that includes `token` and `expiresAt` replaces the stored grant with no sign-in screen. Outside an engine, a 401 clears the stored token and returns the parent to sign-in. During an open engine, a 401 or an expired grant does not end the app session or the sitting; the local answer is kept and the next call tries the website again. The browser never sends `X-Vkole-Secret`. The account id is the lowercase parent email.
 
 `POST /api/vkole/purge` on this app still accepts `X-Vkole-Secret` or a signed-in admin email. That header is not sent to the website.
 
