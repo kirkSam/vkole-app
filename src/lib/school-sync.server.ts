@@ -1,4 +1,4 @@
-import { getSql, type Sql } from "@/lib/db";
+import type { Sql } from "@/lib/db";
 import { localDayKey, PACIFIC, projectClock } from "@/lib/day-clock-math";
 import {
   ENGINE_IDS,
@@ -6,7 +6,10 @@ import {
   SCHOOL_LEGACY_MESSAGE,
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_SEPARATE_MESSAGE,
-  isFreshSchoolProfile,
+  clearsLocalProgress,
+  keptEngineLevel,
+  keptLevels,
+  profileKeepingProgress,
   schoolWriteBody,
   sgAccountLevel,
   type AccountSession,
@@ -17,7 +20,6 @@ import {
 } from "@/lib/school-account";
 import { readSchoolAccount, SchoolCallError, writeSchoolAccount } from "@/lib/school-account.server";
 import { readAccountGrant, readSchoolMirror, saveAccountGrant, saveSchoolMirror } from "@/lib/school-mirror.server";
-import { separateSignIn } from "@/lib/school-session.server";
 import { masteryFromDetails, richerMastery } from "@/lib/vkole-singapore-report";
 import { isSightBand } from "@/lib/vkole/constants";
 import { spAccountLevel } from "@/lib/vkole/spelling/level";
@@ -34,9 +36,14 @@ function rowTime(value: unknown): string {
   return String(value ?? "");
 }
 
-async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): Promise<void> {
+async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): Promise<SchoolProfile> {
   const mirror = await readSchoolMirror(sql, userId);
-  const name = profile.studentName.trim() || "student";
+  const kept = profileKeepingProgress(mirror, profile);
+  if (Object.keys(kept.level).length === 0) {
+    const fromClimbs = await collectLevel(sql, userId, {});
+    if (Object.keys(fromClimbs).length > 0) kept.level = fromClimbs;
+  }
+  const name = kept.studentName.trim() || profile.studentName.trim() || "student";
   const key = name.toLowerCase();
   if (profile.freeWeekStart) {
     await sql`
@@ -46,14 +53,24 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
       set started_at = excluded.started_at
     `;
   }
-  const localLevels = await sql<{ subject: string; updated_at: unknown }>`
-    select subject, updated_at from climbs where user_id = ${userId}
+  const locked = profile.access !== "open";
+  const localLevels = await sql<{
+    subject: string;
+    updated_at: unknown;
+    level: number | string;
+    standard_step: number | string | null;
+    standard_code: string | null;
+  }>`
+    select subject, updated_at, level, standard_step, standard_code from climbs where user_id = ${userId}
   `;
   const pushedAt = mirror?.lastPushAt ? new Date(mirror.lastPushAt).getTime() : null;
   for (const engine of ENGINE_IDS) {
+    if (locked) continue;
     const level = profile.level[engine];
     if (!level) continue;
+    if (keptEngineLevel(engine, mirror?.level[engine], level) !== level) continue;
     const local = localLevels.find((row) => row.subject === engine);
+    if (local && keptEngineLevel(engine, climbPlace(local), level) !== level) continue;
     const localAt = local ? new Date(String(rowTime(local.updated_at))).getTime() : 0;
     if (pushedAt != null && local && localAt > pushedAt) continue;
     if (engine === "sp" && level.band && level.band !== "LK") continue;
@@ -152,7 +169,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
     `;
   }
   const day = localDayKey(PACIFIC);
-  const clockSeconds = profile.clockSeconds;
+  const clockSeconds = kept.clockSeconds;
   if (clockSeconds > 0) {
     await sql`
       insert into day_clocks (user_id, child_key, day_key, used_seconds, last_tick_at, armed, time_zone)
@@ -173,7 +190,19 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
       end
     `;
   }
-  await saveSchoolMirror(sql, userId, profile, false);
+  await saveSchoolMirror(sql, userId, kept, false);
+  return kept;
+}
+
+/** The place stored on a climb row, used so a starter payload cannot walk it backward. */
+function climbPlace(row: {
+  level: number | string;
+  standard_step: number | string | null;
+  standard_code: string | null;
+}): EngineLevel {
+  const step = Math.max(0, Math.round(Number(row.standard_step) || 0));
+  const band = row.standard_code?.trim() || undefined;
+  return { grade: Math.round(Number(row.level) || 0), step, index: step, ...(band ? { band } : {}) };
 }
 
 async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<LevelKey, EngineLevel>>) {
@@ -360,13 +389,14 @@ export async function pullSchoolAccount(sql: Sql, userId: string): Promise<Schoo
   const grant = await readAccountGrant(sql, userId);
   if (!grant) throw new SchoolCallError("unauthorized", "Sign in again.");
   const profile = await readSchoolAccount(userId, { token: grant.token, expiresAt: grant.expiresAt });
-  if (isFreshSchoolProfile(profile)) {
-    const { clearFreshLocalRows } = await import("./account-purge.server");
+  const mirror = await readSchoolMirror(sql, userId);
+  if (clearsLocalProgress(profile, mirror)) {
+    const { clearFreshLocalRows } = await import("./account-purge.server.ts");
     await clearFreshLocalRows(sql, userId);
   }
-  await applyProfile(sql, userId, profile);
+  const kept = await applyProfile(sql, userId, profile);
   await saveAccountGrant(sql, userId, grant);
-  return profile;
+  return kept;
 }
 
 /**
@@ -374,6 +404,7 @@ export async function pullSchoolAccount(sql: Sql, userId: string): Promise<Schoo
  * mirror from GET /api/account/family. The child-name save uses that same token.
  */
 export async function rememberAccountSession(session: AccountSession): Promise<SchoolProfile> {
+  const { getSql } = await import("@/lib/db");
   const sql = await getSql();
   await saveAccountGrant(sql, session.id, { token: session.token, expiresAt: session.expiresAt });
   let profile = session.profile;
@@ -382,14 +413,23 @@ export async function rememberAccountSession(session: AccountSession): Promise<S
   } catch (err) {
     if (err instanceof SchoolCallError && (err.reason === "unauthorized" || err.reason === "gone")) throw err;
   }
-  await saveSchoolMirror(sql, session.id, profile, false);
-  return profile;
+  const mirror = await readSchoolMirror(sql, session.id);
+  const kept = profileKeepingProgress(mirror, profile);
+  if (Object.keys(kept.level).length === 0) {
+    const fromClimbs = await collectLevel(sql, session.id, {});
+    if (Object.keys(fromClimbs).length > 0) kept.level = fromClimbs;
+  }
+  await saveSchoolMirror(sql, session.id, kept, false);
+  return kept;
 }
 
 export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void> {
   const mirror = await readSchoolMirror(sql, userId);
+  // A locked family is not playing. Posting now would send an empty or starter
+  // book over the levels the website already saved.
+  if ((mirror?.access ?? "closed") !== "open") return;
   const remoteLevel = mirror?.level ?? {};
-  const level = await collectLevel(sql, userId, remoteLevel);
+  const level = keptLevels(remoteLevel, await collectLevel(sql, userId, remoteLevel));
   const localClock = await collectClock(sql, userId);
   const seen = await collectSeen(sql, userId);
   const named = await sql<{ child_name: string; age: number | string | null; start_grade: number | string | null }>`
@@ -425,10 +465,12 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
 }
 
 export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>): Promise<T> {
+  const { separateSignIn } = await import("@/lib/school-session.server");
   const kind = await separateSignIn(userId);
   if (kind === "dev") return run();
   if (kind === "legacy") throw new Error(SCHOOL_LEGACY_MESSAGE);
   if (kind !== "school") throw new Error(SCHOOL_SEPARATE_MESSAGE);
+  const { getSql } = await import("@/lib/db");
   const sql = await getSql();
   try {
     await pullSchoolAccount(sql, userId);
@@ -438,7 +480,7 @@ export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>
     }
     if (err instanceof SchoolCallError && (err.reason === "unknown" || err.reason === "gone")) {
       try {
-        const { expireLocalSignInCookies, forgetLocalAccount } = await import("./account-purge.server");
+        const { expireLocalSignInCookies, forgetLocalAccount } = await import("./account-purge.server.ts");
         await forgetLocalAccount(sql, userId);
         await expireLocalSignInCookies();
       } catch {
@@ -461,10 +503,10 @@ export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>
 }
 
 async function endWebsiteSession(sql: Sql, userId: string, website: string): Promise<Error> {
-  const { signInAgainError } = await import("./account-purge");
+  const { signInAgainError } = await import("./account-purge.ts");
   try {
-    const { expireLocalSignInCookies } = await import("./account-purge.server");
-    const { clearAccountGrant } = await import("./school-mirror.server");
+    const { expireLocalSignInCookies } = await import("./account-purge.server.ts");
+    const { clearAccountGrant } = await import("./school-mirror.server.ts");
     await clearAccountGrant(sql, userId);
     await expireLocalSignInCookies();
   } catch {
