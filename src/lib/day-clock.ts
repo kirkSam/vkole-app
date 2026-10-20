@@ -3,7 +3,7 @@ import { z } from "zod";
 import { childAccess, rollRenewals } from "@/lib/subscription";
 import { getSql, type Sql } from "@/lib/db";
 import { schoolMiddleware } from "@/lib/school-middleware";
-import { isSchoolAccountId } from "@/lib/school-account";
+import { CLOCK_LIMIT_SECONDS, isSchoolAccountId } from "@/lib/school-account";
 import { TRIAL_MS } from "@/lib/academic-email";
 import { dealQuestion } from "@/lib/question-history";
 import { practicePromptText, rememberPrompt } from "@/lib/next-sheet";
@@ -11,7 +11,7 @@ import { isSubject, type SubjectId } from "@/lib/climb-rules";
 import { cardFromAccount as spCardFromAccount, letterView } from "@/lib/vkole/spelling/items";
 import { cardFromAccount as paCardFromAccount, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
 import { cardFromAccount, sightPrompt } from "@/lib/vkole/sight-words/words";
-import { localDayKey, PACIFIC, projectClock, type ClockProjection } from "@/lib/day-clock-math";
+import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC, projectClock, type ClockProjection } from "@/lib/day-clock-math";
 import type { ClockFace } from "@/components/vkole-rules";
 
 type ClockRow = {
@@ -56,10 +56,17 @@ async function writeRow(
   `;
 }
 
+async function dayLimit(sql: Sql, userId: string): Promise<number> {
+  if (!isSchoolAccountId(userId)) return DAY_LIMIT_SECONDS;
+  const { readSchoolMirror } = await import("@/lib/school-mirror.server");
+  const mirror = await readSchoolMirror(sql, userId);
+  return mirror?.clockLimit && mirror.clockLimit > 0 ? mirror.clockLimit : CLOCK_LIMIT_SECONDS;
+}
+
 async function observe(sql: Sql, userId: string) {
   const day = localDayKey(PACIFIC);
   const row = await readRow(sql, userId, LOGIN_CLOCK, day);
-  const projected = projectClock(row);
+  const projected = projectClock(row, Date.now(), await dayLimit(sql, userId));
   const storedArmed = row?.armed === true || row?.armed === 1 || row?.armed === "1" || row?.armed === "t";
   if (row && storedArmed && !projected.armed) {
     await writeRow(sql, userId, LOGIN_CLOCK, day, projected.used, false, null, PACIFIC);

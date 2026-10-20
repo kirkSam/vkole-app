@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { formatClock, VKOLE_RULES } from "@/lib/day-clock-math";
+import { DAY_LIMIT_SECONDS, formatClock, VKOLE_RULES } from "@/lib/day-clock-math";
 
 export type ClockFace = {
   childName: string;
@@ -23,7 +23,7 @@ function LiveTime({ seconds, ticking }: { seconds: number; ticking: boolean }) {
 }
 
 export function VkoleRules({ clocks, child = false }: { clocks: ClockFace[]; child?: boolean }) {
-  const shown = clocks.length > 0 ? clocks : [{ childName: "Each student", remainingSeconds: 150 * 60, closed: false, armed: false }];
+  const shown = clocks.length > 0 ? clocks : [{ childName: "Each student", remainingSeconds: DAY_LIMIT_SECONDS, closed: false, armed: false }];
   const rules = child ? VKOLE_RULES.split("\n\n").slice(1).join("\n\n") : VKOLE_RULES;
   return (
     <section className="rounded-2xl border border-line bg-surface p-4">
