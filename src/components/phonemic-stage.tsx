@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { holdEngineAudio, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { PA_ADVANCE_MS, PA_MAX_SHOW_MS, itemAt, migratePaBand, type PaBand } from "@/lib/vkole/phonemic-awareness/items";
 import { judgePaSpoken } from "@/lib/vkole/phonemic-awareness/match";
 import { speechTokens } from "@/lib/vkole/sight-words/match";
@@ -34,19 +35,33 @@ function canSpeak(): boolean {
   return typeof window !== "undefined" && !!window.speechSynthesis;
 }
 
-function speakLine(line: string, done: () => void) {
-  if (!canSpeak()) {
+function speakLine(line: string, done: () => void): () => void {
+  if (!canSpeak() || !line.trim()) {
+    noteEngineActivity();
     done();
-    return;
+    return () => {};
   }
+  const release = holdEngineAudio();
   let finished = false;
   const finish = () => {
     if (finished) return;
     finished = true;
     window.clearTimeout(cap);
+    release();
     done();
   };
   const cap = window.setTimeout(finish, 20000);
+  const stop = () => {
+    if (finished) return;
+    finished = true;
+    window.clearTimeout(cap);
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      /* already quiet */
+    }
+    release();
+  };
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(line);
   utter.lang = "en-US";
@@ -54,6 +69,7 @@ function speakLine(line: string, done: () => void) {
   utter.onend = finish;
   utter.onerror = finish;
   window.speechSynthesis.speak(utter);
+  return stop;
 }
 
 export function PhonemicStage({
@@ -95,18 +111,28 @@ export function PhonemicStage({
     setPhase("prompt");
   }, [item.id]);
 
+  useEffect(() => {
+    noteEngineActivity();
+  }, [phase, item.id]);
+
   // The microphone is on only while the child should answer. It stays off while the prompt or the model is spoken.
   const listening = ready && !unsupported && allowed && phase === "listen";
   const waiting = ready && (unsupported || allowed) && (phase === "prompt" || phase === "listen");
 
   useEffect(() => {
+    if (!listening) return;
+    return holdEngineMic();
+  }, [listening]);
+
+  useEffect(() => {
     if (!ready || !waiting || phase !== "prompt") return;
     let live = true;
-    speakLine(item.say, () => {
+    const stop = speakLine(item.say, () => {
       if (live) setPhase("listen");
     });
     return () => {
       live = false;
+      stop();
       if (typeof window !== "undefined") window.speechSynthesis?.cancel();
     };
   }, [item.say, phase, ready, waiting]);
@@ -149,6 +175,7 @@ export function PhonemicStage({
         rec.continuous = true;
         rec.interimResults = true;
         rec.onresult = (event) => {
+          noteEngineActivity();
           const start = event.resultIndex ?? 0;
           for (let i = start; i < event.results.length; i += 1) {
             const result = event.results[i];
@@ -167,6 +194,7 @@ export function PhonemicStage({
           if (event.error === "not-allowed" || event.error === "service-not-allowed") setUnsupported(true);
         };
         rec.onend = () => {
+          noteEngineActivity();
           if (!live || settled.current || !rec) return;
           try {
             rec.start();

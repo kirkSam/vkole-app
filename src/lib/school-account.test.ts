@@ -23,6 +23,7 @@ import {
   isWebsiteMasterEmail,
   officeOffer,
   parseSchoolProfile,
+  rotatedGrant,
   schoolAccessDecision,
   schoolFailureMessage,
   schoolPassword,
@@ -593,6 +594,51 @@ describe("server calls", () => {
         }),
       (err: unknown) => err instanceof SchoolCallError && err.reason === "unauthorized" && err.message === "Token expired",
     );
+  });
+
+  it("tries an expired token during an engine and stores a replacement with no sign-in", async () => {
+    assert.equal(rotatedGrant({ token: "next-token", expiresAt: "2099-01-01T00:00:00.000Z" })?.token, "next-token");
+    assert.equal(rotatedGrant({ family: { email: "ada@school.test" } }), null);
+    assert.equal(rotatedGrant({ token: "next-token" }), null);
+    let authorization = "";
+    let replaced = "";
+    const profile = await readSchoolAccount("ada@school.test", {
+      token: "old-token",
+      expiresAt: "2020-01-01T00:00:00.000Z",
+      now: Date.parse("2026-10-20T00:00:00.000Z"),
+      engineActive: true,
+      fetch: async (_input, init) => {
+        authorization = new Headers(init?.headers).get("authorization") ?? "";
+        return jsonResponse(200, {
+          token: "next-token",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          family: { email: "ada@school.test", access: "open", studentName: "Ada" },
+        });
+      },
+      onGrant: (grant) => {
+        replaced = grant.token;
+        assert.equal(grant.expiresAt, "2099-01-01T00:00:00.000Z");
+      },
+    });
+    assert.equal(authorization, "Bearer old-token");
+    assert.equal(replaced, "next-token");
+    assert.equal(profile.studentName, "Ada");
+    let granted = false;
+    await assert.rejects(
+      () =>
+        readSchoolAccount("ada@school.test", {
+          token: "old-token",
+          expiresAt: "2020-01-01T00:00:00.000Z",
+          now: Date.parse("2026-10-20T00:00:00.000Z"),
+          engineActive: true,
+          fetch: async () => jsonResponse(401, { error: "Token expired" }),
+          onGrant: () => {
+            granted = true;
+          },
+        }),
+      (err: unknown) => err instanceof SchoolCallError && err.reason === "unauthorized" && err.message === "Token expired",
+    );
+    assert.equal(granted, false);
   });
 
   it("does not open the dotted operator session for an ordinary parent sign-in", async () => {

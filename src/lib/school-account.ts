@@ -296,7 +296,11 @@ export function isLevelKey(value: string): value is LevelKey {
   return (LEVEL_KEYS as readonly string[]).includes(value);
 }
 
-/** The website token lasts 12 hours and is not refreshed. Past `expiresAt`, it is done. */
+/**
+ * The website token lasts 12 hours. There is no refresh URL.
+ * Past `expiresAt`, an ordinary call stops. An open engine still sends the token.
+ * A later family response may carry a replacement, which is stored with no sign-in screen.
+ */
 export function accountTokenExpired(expiresAt: string, now = Date.now()): boolean {
   const at = Date.parse(expiresAt);
   return Number.isNaN(at) || at <= now;
@@ -947,6 +951,16 @@ export function parseSchoolProfile(body: unknown, knownEmail?: string): { id: st
       officeSlug: officeSlugOf(family.officeSlug),
     },
   };
+}
+
+/** A family or sign-in body that includes a replacement token. Missing either field is not a grant. */
+export function rotatedGrant(body: unknown): { token: string; expiresAt: string } | null {
+  const root = asRecord(body);
+  if (!root) return null;
+  const token = typeof root.token === "string" ? root.token.trim() : "";
+  const expiresAt = expiresAtOf(root.expiresAt);
+  if (!token || !expiresAt) return null;
+  return { token, expiresAt };
 }
 
 /** Sign-in and register: token, expiresAt, and family. A missing token is not a session. */

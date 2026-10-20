@@ -12,6 +12,7 @@ import {
   spellingPromptStartsListen,
   spellingStartSecondsLeft,
 } from "@/lib/vkole/spelling/items";
+import { holdEngineAudio, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { describeSpellingHear, recognitionErrorRelistens, spellingGrammar } from "@/lib/vkole/spelling/match";
 
 const MIC_KEY = "vkole-sp-mic";
@@ -79,9 +80,11 @@ function canSpeak(): boolean {
 
 function speakLine(line: string, done: () => void): () => void {
   if (!canSpeak() || !line.trim()) {
+    noteEngineActivity();
     done();
     return () => {};
   }
+  const release = holdEngineAudio();
   let finished = false;
   let kick = 0;
   let startTimer = 0;
@@ -97,6 +100,7 @@ function speakLine(line: string, done: () => void): () => void {
     } catch {
       /* A stuck speech queue must not swallow the callback that opens the microphone. */
     }
+    release();
     done();
   };
   const cap = window.setTimeout(finish, 8000);
@@ -107,6 +111,7 @@ function speakLine(line: string, done: () => void): () => void {
     window.clearInterval(kick);
     window.clearTimeout(startTimer);
     synth.cancel();
+    release();
   };
   pendingSpeech?.();
   pendingSpeech = stop;
@@ -194,6 +199,10 @@ export function SpellingStage({
   }, []);
 
   useEffect(() => {
+    noteEngineActivity();
+  }, [phase, token]);
+
+  useEffect(() => {
     if (seen.current === token) return;
     seen.current = token;
     setHeardNote("");
@@ -226,6 +235,7 @@ export function SpellingStage({
     setSongIndex(0);
     const timer = window.setInterval(() => {
       ticks += 1;
+      noteEngineActivity();
       const frame = letterAtSongTime(ticks * SPELLING_LETTER_MS);
       if (!live) return;
       if (frame.done) {
@@ -247,6 +257,11 @@ export function SpellingStage({
 
   const listening = ready && !unsupported && allowed && micListensDuring(phase);
   const canScore = ready && phase === "listen" && (unsupported || allowed);
+
+  useEffect(() => {
+    if (!listening) return;
+    return holdEngineMic();
+  }, [listening]);
 
   useEffect(() => {
     if (!ready || phase !== "prompt") return;
@@ -341,6 +356,7 @@ export function SpellingStage({
         rec.maxAlternatives = 8;
         applyLetterGrammar(rec, viewRef.current.answer, viewRef.current.also);
         rec.onresult = (event) => {
+          noteEngineActivity();
           if (decided) return;
           const start = event.resultIndex ?? 0;
           const current = viewRef.current;
@@ -389,6 +405,7 @@ export function SpellingStage({
           if (recognitionErrorRelistens(event.error)) return;
         };
         rec.onend = () => {
+          noteEngineActivity();
           if (!live || settled.current || decided || !rec) return;
           scheduleRestart();
         };

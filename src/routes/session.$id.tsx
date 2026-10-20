@@ -5,6 +5,7 @@ import { APP_NAME } from "@/lib/brand";
 import { TrialFinished } from "@/components/trial-finished";
 import { EngineRail, PageSkeleton, Shell } from "@/components/shell";
 import { endReasonSentence, formatOnline, IDLE_MS, type EndReason } from "@/lib/academic-email";
+import { ENGINE_ACTIVITY_EVENT, engineIsBusy, inactivityDue, markEngineSession, noteEngineActivity } from "@/lib/engine-activity";
 import { GRADES, levelLabel, subjectMeta } from "@/lib/climb-rules";
 import { stepName } from "@/lib/cc-steps";
 import {
@@ -190,6 +191,13 @@ function SessionPage() {
   }, [onlineAt, closure]);
 
   useEffect(() => {
+    markEngineSession(true);
+    return () => {
+      markEngineSession(false);
+    };
+  }, []);
+
+  useEffect(() => {
     const leaving = pendingLeave;
     if (leaving && leaving.id === climbId) {
       leaving.cancel();
@@ -247,8 +255,15 @@ function SessionPage() {
     };
     finishRef.current = finish;
 
-    const mark = () => {
+    const stamp = () => {
       last = Date.now();
+    };
+    const mark = () => {
+      stamp();
+      noteEngineActivity(last);
+    };
+    const onEngine = () => {
+      stamp();
     };
     opened = beginSitting({ data: { id: climbId } })
       .then((row) => {
@@ -261,27 +276,36 @@ function SessionPage() {
 
     const names = ["pointerdown", "keydown", "touchstart"] as const;
     for (const name of names) window.addEventListener(name, mark, { passive: true });
+    window.addEventListener(ENGINE_ACTIVITY_EVENT, onEngine);
     const poll = window.setInterval(() => {
-      if (Date.now() - last >= IDLE_MS) finish("inactivity");
+      if (inactivityDue(last, Date.now(), engineIsBusy(), IDLE_MS)) finish("inactivity");
     }, 5000);
     const beat = window.setInterval(() => {
-      if (last > lastSent && Date.now() - last < IDLE_MS) {
+      if (engineIsBusy()) stamp();
+      if (last > lastSent && !inactivityDue(last, Date.now(), false, IDLE_MS)) {
         lastSent = last;
-        void touchSitting({ data: { id: climbId } });
-        void beatStudentClock({ data: { id: climbId, timeZone: deviceTimeZone() } }).then((next) => {
-          if (stopped) return;
-          setClock(next);
-          if (next.closed) finish("logout");
-          else if (!next.armed) finish("inactivity");
-        });
+        void touchSitting({ data: { id: climbId } }).catch(() => undefined);
+        void beatStudentClock({ data: { id: climbId, timeZone: deviceTimeZone() } })
+          .then((next) => {
+            if (stopped) return;
+            if (next.closed) {
+              setClock(next);
+              finish("logout");
+              return;
+            }
+            if (!next.armed && engineIsBusy()) return;
+            setClock(next);
+            if (!next.armed) finish("inactivity");
+          })
+          .catch(() => undefined);
       }
     }, 5000);
     const onVisible = () => {
       if (document.visibilityState === "hidden") {
-        void touchSitting({ data: { id: climbId } });
+        void touchSitting({ data: { id: climbId } }).catch(() => undefined);
         return;
       }
-      if (Date.now() - last >= IDLE_MS) finish("inactivity");
+      if (inactivityDue(last, Date.now(), engineIsBusy(), IDLE_MS)) finish("inactivity");
     };
     document.addEventListener("visibilitychange", onVisible);
 
@@ -290,6 +314,7 @@ function SessionPage() {
       window.clearInterval(poll);
       window.clearInterval(beat);
       for (const name of names) window.removeEventListener(name, mark);
+      window.removeEventListener(ENGINE_ACTIVITY_EVENT, onEngine);
       document.removeEventListener("visibilitychange", onVisible);
       if (closing.current) return;
       const timer = window.setTimeout(() => finish("logout"), 500);
@@ -334,6 +359,7 @@ function SessionPage() {
 
   async function submitAnswer(event: FormEvent) {
     event.preventDefault();
+    noteEngineActivity();
     if (!climb || pendingAnswer || climb.awaitingNext) return;
     const given = answer.trim();
     if (!given) return;
@@ -354,6 +380,7 @@ function SessionPage() {
   }
 
   async function revealNext() {
+    noteEngineActivity();
     if (!climb) return;
     setError("");
     try {
@@ -557,6 +584,7 @@ function SessionPage() {
             band={climb.standardCode}
             index={climb.standardStep}
             onDone={(outcome) => {
+              noteEngineActivity();
               if (pendingAnswer) return;
               setPendingAnswer(true);
               setError("");
@@ -576,8 +604,12 @@ function SessionPage() {
             silence={climb.correctAtLevel}
             wrong={climb.incorrectStreak}
             skipSong={songDone}
-            onSongDone={() => setSongDone(true)}
+            onSongDone={() => {
+              noteEngineActivity();
+              setSongDone(true);
+            }}
             onDone={(outcome) => {
+              noteEngineActivity();
               if (pendingAnswer) return;
               setPendingAnswer(true);
               setError("");
@@ -596,6 +628,7 @@ function SessionPage() {
             band={climb.standardCode}
             index={climb.standardStep}
             onDone={(outcome) => {
+              noteEngineActivity();
               if (pendingAnswer) return;
               setPendingAnswer(true);
               setError("");

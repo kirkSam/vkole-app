@@ -8,11 +8,12 @@ import { authMiddleware } from "@/lib/auth/middleware";
 export const schoolMiddleware = createMiddleware({ type: "function" })
   .middleware([authMiddleware])
   .client(async ({ next }) => {
+    const { appSessionOnWebsiteUnauthorized, engineSessionActive } = await import("./engine-activity");
     try {
-      return await next();
+      return await next({ sendContext: { engineActive: engineSessionActive() } });
     } catch (err) {
       const { isAccountGoneError, isSignInAgainError, leaveForSignIn, leaveStaleSignIn } = await import("./account-purge");
-      if (isSignInAgainError(err)) {
+      if (isSignInAgainError(err) && appSessionOnWebsiteUnauthorized(engineSessionActive()) === "sign-in") {
         const message = err instanceof Error ? err.message : "";
         await leaveForSignIn(message);
       } else if (isAccountGoneError(err)) {
@@ -23,5 +24,6 @@ export const schoolMiddleware = createMiddleware({ type: "function" })
   })
   .server(async ({ next, context }) => {
     const { withSchoolAccount } = await import("./school-sync.server");
-    return withSchoolAccount(context.userId, () => next());
+    const engineActive = (context as { engineActive?: boolean }).engineActive === true;
+    return withSchoolAccount(context.userId, () => next(), { engineActive });
   });
