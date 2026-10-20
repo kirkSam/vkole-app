@@ -9,6 +9,7 @@ import {
   letterColors,
   letterView,
   micListensDuring,
+  spellingPromptStartsListen,
   spellingStartSecondsLeft,
 } from "@/lib/vkole/spelling/items";
 import { describeSpellingHear, recognitionErrorRelistens, spellingGrammar } from "@/lib/vkole/spelling/match";
@@ -91,7 +92,11 @@ function speakLine(line: string, done: () => void): () => void {
     window.clearTimeout(cap);
     window.clearInterval(kick);
     window.clearTimeout(startTimer);
-    synth.cancel();
+    try {
+      synth.cancel();
+    } catch {
+      /* A stuck speech queue must not swallow the callback that opens the microphone. */
+    }
     done();
   };
   const cap = window.setTimeout(finish, 8000);
@@ -115,7 +120,11 @@ function speakLine(line: string, done: () => void): () => void {
   utter.onerror = finish;
   startTimer = window.setTimeout(() => {
     if (finished) return;
-    if (synth.paused) synth.resume();
+    try {
+      if (synth.paused || synth.speaking) synth.resume();
+    } catch {
+      /* resume is best-effort after a long run of letters */
+    }
     synth.speak(utter);
   }, 40);
   kick = window.setInterval(() => {
@@ -242,11 +251,21 @@ export function SpellingStage({
   useEffect(() => {
     if (!ready || phase !== "prompt") return;
     let live = true;
-    const stop = speakLine(view.say, () => {
+    const listen = () => {
       if (live) setPhase("listen");
-    });
+    };
+    // A missing letter on screen is not a reason to wait. A blank line opens the mic now.
+    if (spellingPromptStartsListen(view.say) === "now") {
+      listen();
+      return () => {
+        live = false;
+      };
+    }
+    const stop = speakLine(view.say, listen);
+    const backup = window.setTimeout(listen, 8000);
     return () => {
       live = false;
+      window.clearTimeout(backup);
       stop();
     };
   }, [token, view.say, phase, ready]);

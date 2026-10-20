@@ -28,6 +28,7 @@ import {
   micListensDuring,
   openingPrompt,
   reviewChangesPerSecond,
+  spellingPromptStartsListen,
   spellingStartSecondsLeft,
   startCard,
 } from "./items.ts";
@@ -182,8 +183,49 @@ describe("letter answer flow", () => {
     const fromCue = applyLetterAnswer({ ...g, wrong: 1 }, "correct");
     assert.deepEqual(fromCue, { index: g.index + 1, silence: 0, wrong: 0 });
     const wrapped = applyLetterAnswer({ index: 25, silence: 0, wrong: 0 }, "correct");
-    assert.equal(wrapped.index, 0);
-    assert.equal(letterView(wrapped).answer, "A");
+    assert.equal(wrapped.index, 26);
+    assert.equal(letterView(wrapped).id, "lk-after-a");
+    assert.equal(letterView(wrapped).answer, "B");
+    assert.equal(letterView(wrapped).shown, "A");
+  });
+
+  it("enters the memory exercise at A with no letter on screen, then continues", () => {
+    let index = 0;
+    while (itemAt("LK", index).kind !== "letter-name" && index < bandMeta("LK").count) index += 1;
+    const at = applyLetterAnswer({ index: index - 1, silence: 0, wrong: 0 }, "correct");
+    const view = letterView(at);
+    assert.equal(itemAt("LK", index - 1).kind, "letter-after");
+    assert.equal(view.id, "lk-name-a");
+    assert.equal(view.kind, "ask");
+    assert.equal(view.answer, "A");
+    assert.equal(view.letter, "A");
+    assert.equal(view.shown, "");
+    assert.equal(view.say.trim().length > 0, true);
+    assert.equal(spellingSpokenMatches(view.answer, "A", view.also), true);
+    assert.equal(spellingSpokenMatches(view.answer, "a", view.also), true);
+    assert.equal(spellingSpokenMatches(view.answer, "ay", view.also), true);
+    assert.equal(spellingSpokenMatches(view.answer, "eh", view.also), true);
+    assert.equal(spellingSpokenMatches(view.answer, "hey", view.also), true);
+    assert.equal(spellingSpokenMatches(view.answer, "a.", view.also), true);
+    assert.equal(spellingPromptStartsListen(""), "now");
+    assert.equal(spellingPromptStartsListen("   "), "now");
+    assert.equal(spellingPromptStartsListen(view.say), "after-speech");
+    assert.equal(micListensDuring("listen"), true);
+    const stayed = applyLetterAnswer(applyLetterAnswer(at, "timeout"), "timeout");
+    assert.equal(letterView(stayed).id, "lk-name-a");
+    assert.equal(letterView(stayed).shown, "");
+    const next = letterView(applyLetterAnswer(at, "correct"));
+    assert.equal(next.id, "lk-name-b");
+    assert.equal(next.answer, "B");
+    assert.equal(next.shown, "");
+    const last = bandMeta("LK").count - 1;
+    assert.equal(letterView({ index: last, silence: 0, wrong: 0 }).id, "lk-name-z");
+    assert.equal(applyLetterAnswer({ index: last, silence: 0, wrong: 0 }, "correct").index, 0);
+    const stage = readFileSync(stageFile, "utf8");
+    const promptEffect = stage.slice(stage.indexOf('phase !== "prompt"'), stage.indexOf("if (!canScore)"));
+    assert.equal(promptEffect.includes("spellingPromptStartsListen"), true);
+    assert.equal(promptEffect.includes('setPhase("listen")'), true);
+    assert.equal(promptEffect.includes("view.shown"), false);
   });
 
   it("shows the same letter again after one silence", () => {
@@ -502,8 +544,9 @@ describe("level.sp", () => {
         email: "ada@family.test", level: { sp: { grade: 5, levelCode: "LK", index: 51 } } },
     });
     assert.equal(kept?.profile.level.sp?.band, "LK");
-    assert.equal(kept?.profile.level.sp?.index, 25);
-    assert.equal(kept?.profile.level.sp?.word, letterView({ index: 25, silence: 0, wrong: 0 }).id);
+    assert.equal(kept?.profile.level.sp?.index, 51);
+    assert.equal(kept?.profile.level.sp?.word, "lk-name-a");
+    assert.equal(letterView({ index: 51, silence: 0, wrong: 0 }).shown, "");
     const mid = parseSchoolProfile({
       family: {
         email: "ada@family.test", level: { sp: { grade: 2, band: "LK", index: 12 } } },

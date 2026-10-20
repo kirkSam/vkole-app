@@ -112,6 +112,15 @@ export function micListensDuring(phase: string): boolean {
   return phase === "listen";
 }
 
+/**
+ * A blank spoken line is already finished.
+ * Waiting on the speech queue for it never opens the microphone,
+ * which is how a card with no letter on screen stays stuck.
+ */
+export function spellingPromptStartsListen(say: string): "now" | "after-speech" {
+  return say.trim() ? "after-speech" : "now";
+}
+
 export function bandMeta(band: SpBand): { name: string; label: string; count: number; kinds: string[]; note: string } {
   const row = BANDS.find((entry) => entry.id === band);
   return {
@@ -232,12 +241,11 @@ export type LetterView = {
 type FlowSilence = { times?: number; action?: string; letters?: number };
 type FlowWrong = { times?: number; action?: string; letters?: number; letter?: string };
 
-/** The letter the student should say. 0 is A. Counts that pass A stop at A. */
+/** Item index in letter knowledge. 0 is the first card. The last card and 0 are the walls. */
 export function clampLetterIndex(index: number): number {
-  const letters = alphabet();
-  const floor = Math.max(0, letters.indexOf(lists.answerFlow.clamp));
-  const at = Number.isInteger(index) ? index : floor;
-  return Math.min(letters.length - 1, Math.max(floor, at));
+  const count = Math.max(1, bandMeta("LK").count);
+  const at = Number.isInteger(index) ? index : 0;
+  return Math.min(count - 1, Math.max(0, at));
 }
 
 export function normalizeLetterProgress(input: Partial<LetterProgress> | null | undefined): LetterProgress {
@@ -248,10 +256,27 @@ export function normalizeLetterProgress(input: Partial<LetterProgress> | null | 
   };
 }
 
-function cueLetters(index: number, count: number): string[] {
+function exerciseGroup(kind: string | undefined): string {
+  if (kind === "first-letter" || kind === "next-letter") return "sequence";
+  return kind || "sequence";
+}
+
+/** A step backward stays inside the current exercise, so the memory round does not fall back to A. */
+function retreatIndex(index: number, count: number): number {
+  const items = bandItems("LK");
+  let start = clampLetterIndex(index);
+  const group = exerciseGroup(items[start]?.kind);
+  while (start > 0 && exerciseGroup(items[start - 1]?.kind) === group) start -= 1;
+  const step = Math.max(0, Math.trunc(count) || 0);
+  return Math.max(start, index - step);
+}
+
+function cueForLetter(letter: string, count: number): string[] {
   const letters = alphabet();
-  const start = Math.max(0, index - Math.max(0, Math.trunc(count) || 0));
-  return letters.slice(start, index);
+  const at = letters.indexOf(letter);
+  if (at <= 0) return [];
+  const start = Math.max(0, at - Math.max(0, Math.trunc(count) || 0));
+  return letters.slice(start, at);
 }
 
 /**
@@ -261,11 +286,10 @@ function cueLetters(index: number, count: number): string[] {
  */
 export function applyLetterAnswer(input: LetterProgress, outcome: LetterOutcome): LetterProgress {
   const state = normalizeLetterProgress(input);
-  const letters = alphabet();
   if (outcome === "correct") {
-    const next = state.index + 1;
-    const wrapped = next >= letters.length ? Math.max(0, letters.indexOf(lists.answerFlow.afterLast)) : next;
-    return { index: clampLetterIndex(wrapped), silence: 0, wrong: 0 };
+    const count = Math.max(1, bandMeta("LK").count);
+    const next = state.index + 1 >= count ? 0 : state.index + 1;
+    return { index: next, silence: 0, wrong: 0 };
   }
   const silenceRules = lists.answerFlow.silence as FlowSilence[];
   const wrongRules = lists.answerFlow.wrong as FlowWrong[];
@@ -273,27 +297,28 @@ export function applyLetterAnswer(input: LetterProgress, outcome: LetterOutcome)
     const step = state.wrong + 1;
     const rule = wrongRules.find((row) => row.times === step) ?? wrongRules[wrongRules.length - 1];
     if (rule?.action === "back") {
-      return { index: clampLetterIndex(state.index - (rule.letters ?? 1)), silence: 0, wrong: 0 };
+      return { index: retreatIndex(state.index, rule.letters ?? 1), silence: 0, wrong: 0 };
     }
     return { index: state.index, silence: 0, wrong: step };
   }
   const times = state.silence + 1;
   const rule = silenceRules.find((row) => row.times === times) ?? silenceRules[silenceRules.length - 1];
   if (!rule || rule.action === "repeat") return { index: state.index, silence: times, wrong: 0 };
-  return { index: clampLetterIndex(state.index - (rule.letters ?? 3)), silence: 0, wrong: 0 };
+  return { index: retreatIndex(state.index, rule.letters ?? 3), silence: 0, wrong: 0 };
 }
 
 /** What the student sees and says for the current letter, including the prior-letter cue after a miss. */
 export function letterView(input: LetterProgress): LetterView {
   const progress = normalizeLetterProgress(input);
   const letters = alphabet();
-  const letter = letters[progress.index] ?? "A";
   const meta = bandMeta("LK");
   const item = itemAt("LK", progress.index);
+  const letter = (item.answer || letters[progress.index] || "A").trim().toUpperCase() || "A";
+  const answer = item.answer || letter;
   if (progress.wrong > 0) {
     const cueRules = (lists.answerFlow.wrong as FlowWrong[]).filter((row) => row.action === "cue");
     const rule = [...cueRules].reverse().find((row) => (row.times ?? 1) <= progress.wrong) ?? cueRules[0];
-    const cue = cueLetters(progress.index, rule?.letters ?? 0);
+    const cue = cueForLetter(letter, rule?.letters ?? 0);
     if (cue.length > 0) {
       return {
         id: `lk-cue-${cue.length}-${letter.toLowerCase()}`,
@@ -305,7 +330,7 @@ export function letterView(input: LetterProgress): LetterView {
         cue,
         say: cue.join(lists.answerFlow.cueSayJoin),
         show: cue.join(lists.answerFlow.cueShowJoin),
-        answer: item.answer || letter,
+        answer,
         also: item.also,
         shown: "",
         band: "LK",
@@ -323,9 +348,9 @@ export function letterView(input: LetterProgress): LetterView {
     cue: [],
     say: item.say,
     show: item.show,
-    answer: item.answer || letter,
+    answer,
     also: item.also,
-    shown: item.letter,
+    shown: item.kind === "letter-name" ? "" : item.letter,
     band: "LK",
     name: meta.name,
   };
