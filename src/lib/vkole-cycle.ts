@@ -10,7 +10,7 @@ const SUBJECT_NAME: Record<SubjectId, string> = {
   gen: "General",
   sg: "Singapore mathematics",
   sw: "Sight words",
-  sp: "Spelling",
+  sp: "Alphabet",
   pa: "Phonemic awareness",
 };
 

@@ -66,7 +66,7 @@ const GEN: Record<number, readonly string[]> = {
 
 const SW_STEP = ["sight words", "sight words", "sight words"] as const;
 
-const SP_STEP = ["spelling", "spelling", "spelling"] as const;
+const SP_STEP = ["alphabet", "alphabet", "alphabet"] as const;
 
 const SP: Record<number, readonly string[]> = {
   1: SP_STEP,

@@ -388,7 +388,7 @@ export const recordAnswer = createServerFn({ method: "POST" })
     const sql = await getSql();
     const current = await selectOwned(sql, context.userId, data.id);
     if (current.subject === "sw") throw new Error("Sight words are marked from the microphone.");
-    if (current.subject === "sp") throw new Error("Spelling is marked from the microphone.");
+    if (current.subject === "sp") throw new Error("Alphabet is marked from the microphone.");
     if (current.subject === "pa") throw new Error("Phonemic awareness is marked from the microphone.");
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
     if (current.awaitingNext) return { status: "saved" as const, climb: current };
@@ -602,7 +602,7 @@ export const markSpelling = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const current = await selectOwned(sql, context.userId, data.id);
-    if (current.subject !== "sp") throw new Error("This session is not spelling.");
+    if (current.subject !== "sp") throw new Error("This session is not alphabet.");
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
     const before = normalizeLetterProgress({
       index: current.standardStep,
@@ -645,7 +645,7 @@ export const markSpelling = createServerFn({ method: "POST" })
         ${current.age}, ${correct}, ${current.level}, ${current.level},
         ${JSON.stringify({
           correct,
-          engine: "VKOLE/Spelling",
+          engine: `VKOLE/${subjectMeta(current.subject).code}`,
           code: asked.band,
           label: asked.name,
           grade: String(current.level),

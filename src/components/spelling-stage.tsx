@@ -343,13 +343,13 @@ export function SpellingStage({
     setAllowed(true);
   }
 
-  if (!ready) return <p className="mt-6 text-sm text-muted">VKOLE/Spelling ZPD</p>;
+  if (!ready) return <p className="mt-6 text-sm text-muted">VKOLE/Alphabet ZPD</p>;
 
   if (phase === "gate") {
     const swatch = colors[0];
     const letter = letters[0] ?? "A";
     return (
-      <section className="sp-review" style={{ background: swatch?.background }} aria-label="Start spelling">
+      <section className="sp-review" style={{ background: swatch?.background }} aria-label="Start alphabet">
         <p className="sp-letter font-display" style={{ color: swatch?.letter }}>
           {letter}
         </p>

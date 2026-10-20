@@ -1,6 +1,6 @@
 # VKOLE/ZPD - Space XSI Integrated Learning Engine
 
-The learning app for one student. Eight engines share one registration: VKOLE/M, VKOLE Singapore, VKOLE Sight Words, VKOLE/Spelling ZPD, VKOLE/PA ZPD, VKOLE/ELA, VKOLE/SS, and VKOLE/gen.
+The learning app for one student. Eight engines share one registration: VKOLE/M, VKOLE Singapore, VKOLE Sight Words, VKOLE/Alphabet ZPD, VKOLE/PA ZPD, VKOLE/ELA, VKOLE/SS, and VKOLE/gen.
 
 This repository is the application source. It does not contain secret keys or passwords. Set those by name in the environment. See `.env.example`.
 
@@ -86,7 +86,7 @@ npm run db:migrate
 | Service | What it is for | Name to set |
 |---|---|---|
 | Postgres | Accounts, students, levels, mail record | `DATABASE_URL` |
-| xAI API | Grade one answer, write the next question, and write the spelling parent report | `XAI_API_KEY` |
+| xAI API | Grade one answer, write the next question, and write the alphabet parent report | `XAI_API_KEY` |
 | Gmail SMTP | Parent progress reports, password codes, registration notices | `GMAIL_APP_PASSWORD` or `VKOLE_MAIL_SECRET` |
 | Better Auth | This app's session cookie after the school website accepts the password | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` |
 | School website | Parent account, password, level, free week, clock, seen questions, and access. Account calls use the bearer token from sign-in, not a shared secret. | none for `/api/account/*` |

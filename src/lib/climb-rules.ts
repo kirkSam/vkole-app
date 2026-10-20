@@ -41,8 +41,8 @@ export const SUBJECTS = [
   },
   {
     id: "sp",
-    code: "Spelling",
-    name: "Spelling",
+    code: "Alphabet",
+    name: "Alphabet",
     lede: "The alphabet plays one letter at a time. Then a question is spoken and shown. The microphone listens only while that question is waiting for an answer, and it does not record or save the sound. A correct answer shows a Happy Face, then the next letter. Silence tries the same letter once, then steps back. A miss shows the earlier letters, and three misses start again at A.",
   },
   {
@@ -76,7 +76,7 @@ export function subjectMeta(id: SubjectId) {
   return found;
 }
 
-/** App nav button. Singapore and Sight Words have no slash. Spelling uses VKOLE/Spelling ZPD. Phonemic awareness uses VKOLE/Phonemic Awareness ZPD. */
+/** App nav button. Singapore and Sight Words have no slash. Alphabet uses VKOLE/Alphabet ZPD. Phonemic awareness uses VKOLE/Phonemic Awareness ZPD. */
 const ENGINE_NAV_LABEL: Record<SubjectId, string> = {
   m: "VKOLE/M ZPD",
   ela: "VKOLE/ELA ZPD",
@@ -84,7 +84,7 @@ const ENGINE_NAV_LABEL: Record<SubjectId, string> = {
   gen: "VKOLE/gen ZPD",
   sg: "VKOLE Singapore ZPD",
   sw: "VKOLE Sight Words ZPD",
-  sp: "VKOLE/Spelling ZPD",
+  sp: "VKOLE/Alphabet ZPD",
   pa: "VKOLE/Phonemic Awareness ZPD",
 };
 
@@ -96,7 +96,7 @@ const ENGINE_PICK_LABEL: Record<SubjectId, string> = {
   gen: "General ZPD",
   sg: "Singapore ZPD",
   sw: "Sight Words ZPD",
-  sp: "Spelling ZPD",
+  sp: "Alphabet ZPD",
   pa: "Phonemic Awareness ZPD",
 };
 
