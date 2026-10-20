@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import {
   SPELLING_HAPPY_FACE_MS,
   SPELLING_LETTER_MS,
+  SPELLING_RECOGNIZER_RESTART_MS,
   SPELLING_RESPONSE_MS,
   alphabet,
   letterAtSongTime,
   letterColors,
   letterView,
   micListensDuring,
+  spellingStartSecondsLeft,
 } from "@/lib/vkole/spelling/items";
-import { judgeSpellingSpoken } from "@/lib/vkole/spelling/match";
+import { judgeSpellingAlternatives, recognitionErrorRelistens } from "@/lib/vkole/spelling/match";
 
 const MIC_KEY = "vkole-sp-mic";
 
@@ -28,7 +30,9 @@ type SpeechListener = {
 };
 
 type Outcome = "correct" | "miss" | "timeout";
-type Phase = "song" | "prompt" | "listen" | "happy";
+type Phase = "gate" | "song" | "prompt" | "listen" | "happy";
+
+let pendingSpeech: (() => void) | null = null;
 
 function recognitionCtor(): (new () => SpeechListener) | null {
   if (typeof window === "undefined") return null;
@@ -43,26 +47,52 @@ function canSpeak(): boolean {
   return typeof window !== "undefined" && !!window.speechSynthesis;
 }
 
-function speakLine(line: string, done: () => void) {
+function speakLine(line: string, done: () => void): () => void {
   if (!canSpeak() || !line.trim()) {
     done();
-    return;
+    return () => {};
   }
   let finished = false;
+  let kick = 0;
+  let startTimer = 0;
+  const synth = window.speechSynthesis;
   const finish = () => {
     if (finished) return;
     finished = true;
     window.clearTimeout(cap);
+    window.clearInterval(kick);
+    window.clearTimeout(startTimer);
+    synth.cancel();
     done();
   };
   const cap = window.setTimeout(finish, 8000);
-  window.speechSynthesis.cancel();
+  const stop = () => {
+    if (finished) return;
+    finished = true;
+    window.clearTimeout(cap);
+    window.clearInterval(kick);
+    window.clearTimeout(startTimer);
+    synth.cancel();
+  };
+  pendingSpeech?.();
+  pendingSpeech = stop;
+  // cancel() and speak() in the same turn drops the utterance. Chrome also pauses the queue
+  // after a run of letters, which is the stall that showed up around G and then recovered.
+  synth.cancel();
   const utter = new SpeechSynthesisUtterance(line);
   utter.lang = "en-US";
   utter.rate = 0.95;
   utter.onend = finish;
   utter.onerror = finish;
-  window.speechSynthesis.speak(utter);
+  startTimer = window.setTimeout(() => {
+    if (finished) return;
+    if (synth.paused) synth.resume();
+    synth.speak(utter);
+  }, 40);
+  kick = window.setInterval(() => {
+    if (!finished && synth.paused) synth.resume();
+  }, 1000);
+  return stop;
 }
 
 function HappyFace() {
@@ -98,14 +128,16 @@ export function SpellingStage({
   const [ready, setReady] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
   const [allowed, setAllowed] = useState(false);
-  const [phase, setPhase] = useState<Phase>(skipSong ? "prompt" : "song");
+  const [phase, setPhase] = useState<Phase>(skipSong ? "prompt" : "gate");
   const [songIndex, setSongIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(SPELLING_RESPONSE_MS / 1000);
+  const [startIn, setStartIn] = useState(spellingStartSecondsLeft(0));
   const onDoneRef = useRef(onDone);
   const onSongDoneRef = useRef(onSongDone);
   const viewRef = useRef(view);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
   const advanceRef = useRef(0);
+  const began = useRef(skipSong);
   const seen = useRef(token);
   onDoneRef.current = onDone;
   onSongDoneRef.current = onSongDone;
@@ -125,33 +157,51 @@ export function SpellingStage({
   useEffect(() => {
     if (seen.current === token) return;
     seen.current = token;
-    setPhase((current) => (current === "song" ? current : "prompt"));
+    setPhase((current) => (current === "song" || current === "gate" ? current : "prompt"));
   }, [token]);
+
+  function begin() {
+    if (began.current) return;
+    began.current = true;
+    setPhase(skipSong ? "prompt" : "song");
+  }
+
+  useEffect(() => {
+    if (!ready || phase !== "gate") return;
+    const startedAt = performance.now();
+    setStartIn(spellingStartSecondsLeft(0));
+    const timer = window.setInterval(() => {
+      const left = spellingStartSecondsLeft(performance.now() - startedAt);
+      setStartIn((current) => (current === left ? current : left));
+      if (left <= 0) begin();
+    }, 200);
+    return () => window.clearInterval(timer);
+  }, [ready, phase, skipSong]);
 
   useEffect(() => {
     if (phase !== "song") return;
     let live = true;
     let ticks = 0;
+    let stopLine = speakLine(letters[0] ?? "A", () => {});
     setSongIndex(0);
-    speakLine(letters[0] ?? "A", () => {});
     const timer = window.setInterval(() => {
       ticks += 1;
       const frame = letterAtSongTime(ticks * SPELLING_LETTER_MS);
       if (!live) return;
       if (frame.done) {
         window.clearInterval(timer);
-        window.speechSynthesis?.cancel();
+        stopLine();
         onSongDoneRef.current?.();
         setPhase("prompt");
         return;
       }
       setSongIndex(frame.index);
-      speakLine(frame.letter, () => {});
+      stopLine = speakLine(frame.letter, () => {});
     }, SPELLING_LETTER_MS);
     return () => {
       live = false;
       window.clearInterval(timer);
-      window.speechSynthesis?.cancel();
+      stopLine();
     };
   }, [letters, phase]);
 
@@ -161,12 +211,12 @@ export function SpellingStage({
   useEffect(() => {
     if (!ready || phase !== "prompt") return;
     let live = true;
-    speakLine(view.say, () => {
+    const stop = speakLine(view.say, () => {
       if (live) setPhase("listen");
     });
     return () => {
       live = false;
-      window.speechSynthesis?.cancel();
+      stop();
     };
   }, [token, view.say, phase, ready]);
 
@@ -175,17 +225,34 @@ export function SpellingStage({
     let live = true;
     const settled = { current: false };
     let rec: SpeechListener | null = null;
+    let restartTimer = 0;
+    const deadline = performance.now() + SPELLING_RESPONSE_MS;
     setSecondsLeft(SPELLING_RESPONSE_MS / 1000);
     const timer = window.setTimeout(() => finishRef.current("timeout"), SPELLING_RESPONSE_MS);
     const ticker = window.setInterval(() => {
-      setSecondsLeft((left) => (left > 0 ? left - 1 : 0));
-    }, 1000);
+      const left = Math.max(0, Math.ceil((deadline - performance.now()) / 1000));
+      setSecondsLeft((current) => (current === left ? current : left));
+    }, 250);
+
+    const scheduleRestart = () => {
+      if (!live || settled.current || !rec) return;
+      window.clearTimeout(restartTimer);
+      restartTimer = window.setTimeout(() => {
+        if (!live || settled.current || !rec) return;
+        try {
+          rec.start();
+        } catch {
+          scheduleRestart();
+        }
+      }, SPELLING_RECOGNIZER_RESTART_MS);
+    };
 
     finishRef.current = (outcome: Outcome) => {
       if (!live || settled.current) return;
       settled.current = true;
       window.clearTimeout(timer);
       window.clearInterval(ticker);
+      window.clearTimeout(restartTimer);
       try {
         rec?.abort();
       } catch {
@@ -211,34 +278,38 @@ export function SpellingStage({
         rec.onresult = (event) => {
           const start = event.resultIndex ?? 0;
           const current = viewRef.current;
+          let miss = false;
           for (let i = start; i < event.results.length; i += 1) {
             const result = event.results[i];
             if (!result) continue;
+            const alternatives: { transcript: string; final: boolean }[] = [];
             for (let j = 0; j < result.length; j += 1) {
-              const transcript = result[j]?.transcript ?? "";
-              if (transcript.trim().length === 0) continue;
-              const judged = judgeSpellingSpoken(current.answer, transcript, Boolean(result.isFinal), current.also);
-              if (judged === "wait") continue;
-              finishRef.current(judged);
+              alternatives.push({ transcript: result[j]?.transcript ?? "", final: Boolean(result.isFinal) });
+            }
+            const judged = judgeSpellingAlternatives(current.answer, alternatives, current.also);
+            if (judged === "correct") {
+              finishRef.current("correct");
               return;
             }
+            if (judged === "miss") miss = true;
           }
+          if (miss) finishRef.current("miss");
         };
         rec.onerror = (event) => {
-          if (event.error === "not-allowed" || event.error === "service-not-allowed") setUnsupported(true);
+          if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+            setUnsupported(true);
+            return;
+          }
+          if (recognitionErrorRelistens(event.error)) return;
         };
         rec.onend = () => {
           if (!live || settled.current || !rec) return;
-          try {
-            rec.start();
-          } catch {
-            /* start races with abort */
-          }
+          scheduleRestart();
         };
         try {
           rec.start();
         } catch {
-          setUnsupported(true);
+          scheduleRestart();
         }
       }
     }
@@ -247,6 +318,7 @@ export function SpellingStage({
       live = false;
       window.clearTimeout(timer);
       window.clearInterval(ticker);
+      window.clearTimeout(restartTimer);
       try {
         rec?.abort();
       } catch {
@@ -272,6 +344,24 @@ export function SpellingStage({
   }
 
   if (!ready) return <p className="mt-6 text-sm text-muted">VKOLE/Spelling ZPD</p>;
+
+  if (phase === "gate") {
+    const swatch = colors[0];
+    const letter = letters[0] ?? "A";
+    return (
+      <section className="sp-review" style={{ background: swatch?.background }} aria-label="Start spelling">
+        <p className="sp-letter font-display" style={{ color: swatch?.letter }}>
+          {letter}
+        </p>
+        <button type="button" onClick={begin} className="mt-4 min-h-11 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
+          START
+        </button>
+        <p className="mt-3 text-center text-sm text-muted">
+          {startIn === 1 ? "Starts in 1 second" : `Starts in ${startIn} seconds`}
+        </p>
+      </section>
+    );
+  }
 
   if (phase === "song") {
     const swatch = colors[songIndex] ?? colors[0];
