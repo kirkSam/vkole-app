@@ -258,6 +258,11 @@ type WorkItem = {
   note: string;
 };
 
+/** Older sittings stored the display name VKOLE/Spelling. Parents now see Alphabet. */
+function shownEngine(value: string): string {
+  return value === "VKOLE/Spelling" ? "VKOLE/Alphabet" : value;
+}
+
 function readWork(event: ReportEvent, engine: string): WorkItem {
   try {
     const row = JSON.parse(event.detail) as Partial<WorkItem>;
@@ -265,7 +270,7 @@ function readWork(event: ReportEvent, engine: string): WorkItem {
       const answer = clean(String(row.answer ?? ""));
       return {
         correct: typeof row.correct === "boolean" ? row.correct : event.correct ?? null,
-        engine: clean(row.engine || engine),
+        engine: shownEngine(clean(row.engine || engine)),
         code: clean(row.code || ""),
         label: clean(row.label || ""),
         grade: clean(row.grade || String(event.levelAfter)),
@@ -279,7 +284,7 @@ function readWork(event: ReportEvent, engine: string): WorkItem {
   }
   return {
     correct: event.correct ?? null,
-    engine,
+    engine: shownEngine(engine),
     code: "",
     label: "",
     grade: String(event.levelAfter),
@@ -291,7 +296,7 @@ function readWork(event: ReportEvent, engine: string): WorkItem {
 
 function standardLine(item: WorkItem): string {
   if (!item.code) return "";
-  return item.engine === "VKOLE/Spelling" || item.engine === "VKOLE/PA" ? `Band: ${item.code}` : `Common Core: ${item.code}`;
+  return item.engine === "VKOLE/Alphabet" || item.engine === "VKOLE/PA" ? `Band: ${item.code}` : `Common Core: ${item.code}`;
 }
 
 function workText(index: number, item: WorkItem): string {
@@ -348,7 +353,7 @@ function reportHtml(input: {
           const lines = [
             item.engine ? `<div><strong>Engine:</strong> ${esc(item.engine)}</div>` : "",
             item.code
-              ? `<div><strong>${item.engine === "VKOLE/Spelling" || item.engine === "VKOLE/PA" ? "Band" : "Common Core"}:</strong> ${esc(item.code)}</div>`
+              ? `<div><strong>${item.engine === "VKOLE/Alphabet" || item.engine === "VKOLE/PA" ? "Band" : "Common Core"}:</strong> ${esc(item.code)}</div>`
               : "",
             item.label ? `<div><strong>Level:</strong> ${esc(item.label)}</div>` : "",
             `<div><strong>Grade:</strong> ${esc(item.grade)}</div>`,

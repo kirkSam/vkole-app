@@ -14,7 +14,7 @@ The school website is the account book. The app calls `https://www.dotheimpossib
 | `PATCH /api/account/family` | bearer token. A new child is `{ student: { name, startingGrade, age? } }`. `startingGrade` is 1–12. `{ studentName }` alone is ignored. `{ student: { name } }` without a grade is refused: `Enter a starting grade from 1 to 12.` |
 | `POST /api/account/family` | bearer token, `{ levels, clock, seen }`, returns `{ family }` |
 
-Level keys are `m`, `ela`, `ss`, `gen`, `sg`, `sw`, `pa`, `mg`, and `sp`. Spelling progress is `levels.sp`. This app does not call `/api/vkole/password-reset`.
+Level keys are `m`, `ela`, `ss`, `gen`, `sg`, `sw`, `pa`, `mg`, and `sp`. Alphabet progress is `levels.sp`. This app does not call `/api/vkole/password-reset`.
 
 The account id is the email after trimming and lowercasing. Dots in the address stay. Register and sign-in both send that lowercase id. Sign-in tries the typed spelling only when the lowercase id is unknown.
 
@@ -22,7 +22,7 @@ The password is the typed password with trailing newlines removed. It is not tri
 
 `VKOLE_MASTER_EMAIL`, or `kirksamalpha@dotheimpossible.ai` when that variable is empty, is never on a free week and never has to pay. Register, sign-in, and the family read for that email return `access: "open"` and do not send a finished free week.
 
-A family save sends each engine object the app has, including spelling on `sp` and a stored `mg` level when one was read. `seen` is the last 400 questions, `{ "key", "text" }`. `clock.seconds` is the shared day clock, capped at 2.5 hours.
+A family save sends each engine object the app has, including alphabet on `sp` and a stored `mg` level when one was read. `seen` is the last 400 questions, `{ "key", "text" }`. `clock.seconds` is the shared day clock, capped at 2.5 hours.
 
 Errors are JSON `{ "error": "..." }` and are shown as sent. Those sentences include `No account for this email`, `Invalid email or password`, `Account already exists`, and token errors.
 
@@ -112,7 +112,7 @@ The microphone listens only while a word is on the screen. Audio is not recorded
 
 ## level.sp
 
-Spelling. The key is `sp`. The letters, timings, question bands, and spoken names are in `src/lib/vkole/spelling/data.json`. That file is the canonical copy. The website copies it byte for byte.
+Alphabet. The key is `sp`. The letters, timings, question bands, and spoken names are in `src/lib/vkole/spelling/data.json`. That file is the canonical copy. The website copies it byte for byte.
 
 The engine still tracks letter knowledge internally as band `LK` and a prompt id such as `lk-next-m`. A family save does not send that shape. The website drops an unknown band, refuses a grade outside 1-12, and keeps a word only when it is lowercase letters with at most one apostrophe. Alphabet progress is therefore saved as band `cvc` and `word` set to the current letter.
 
@@ -160,7 +160,7 @@ Opening the engine plays the alphabet from A to Z, one letter every 1.5 seconds 
 
 A correct spoken answer shows a Happy Face for 2 seconds, then the next letter. The 5 second window is a maximum: a spoken answer is taken as soon as it is heard. The first 5 seconds of silence shows the same letter again. A second silence goes back 3 letters and continues from there. A wrong answer shows the 3 prior letters and speaks them, then waits up to 5 seconds. Another wrong answer or silence shows and speaks the 5 prior letters. One more wrong answer or silence starts again at A. A count that would pass A stops at A. The microphone listens only while a question is waiting for an answer. Audio is not recorded and is not saved. Adult override buttons are Correct and Miss.
 
-At the end of a spelling sitting, the server writes a short parent report of 3 to 5 sentences. The section is labeled `Report written by Space XSI (Grok)`. The call uses `XAI_API_KEY` on the server, one call for that sitting, and sends only that student's letter stats. It does not send another family's name or any audio. If the key is missing or the call fails, the same section uses a local template. The report is shown to that parent and is included only in that account's progress email.
+At the end of an alphabet sitting, the server writes a short parent report of 3 to 5 sentences. The section is labeled `Report written by Space XSI (Grok)`. The call uses `XAI_API_KEY` on the server, one call for that sitting, and sends only that student's letter stats. It does not send another family's name or any audio. If the key is missing or the call fails, the same section uses a local template. The report is shown to that parent and is included only in that account's progress email.
 
 ## level.pa
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { academicLetter, parentLogoutLetter, trialState } from "../../academic-email.ts";
 import { engineNavLabel, enginePickLabel } from "../../climb-rules.ts";
 import { parseSchoolProfile, schoolWriteBody } from "../../school-account.ts";
 import { spAccountLevel } from "./level.ts";
@@ -87,14 +88,20 @@ describe("spelling timing", () => {
     assert.match(stage, /if \(outcome === "correct"\) \{[\s\S]*SPELLING_HAPPY_FACE_MS[\s\S]*return;\s*\}\s*onDoneRef\.current\(outcome\);/);
     assert.equal(stage.includes("micListensDuring"), true);
     assert.equal(stage.includes('aria-label="Happy Face"'), true);
+    assert.equal(stage.includes("VKOLE/Alphabet ZPD"), true);
+    assert.equal(stage.includes('aria-label="Start alphabet"'), true);
+    assert.equal(stage.includes("VKOLE/Spelling"), false);
+    assert.equal(stage.includes("Start spelling"), false);
   });
 });
 
 describe("letter knowledge sequence", () => {
   it("starts with the spoken first-letter prompt, then next letter, letter after X, and letter names", () => {
-    assert.equal(engineNavLabel("sp"), "VKOLE/Spelling ZPD");
+    assert.equal(engineNavLabel("sp"), "VKOLE/Alphabet ZPD");
     assert.equal(engineNavLabel("sp"), lists.navLabel);
-    assert.equal(enginePickLabel("sp"), "Spelling ZPD");
+    assert.equal(enginePickLabel("sp"), "Alphabet ZPD");
+    assert.equal(lists.name, "VKOLE/Alphabet ZPD");
+    assert.equal(lists.pickLabel, "Alphabet ZPD");
     assert.deepEqual(SPELLING_BANDS, ["LK", "LS", "CVC", "DOLCH", "FRY"]);
     assert.deepEqual(filledBands(), ["LK"]);
     assert.deepEqual(
@@ -526,5 +533,50 @@ describe("level.sp", () => {
     assert.equal(kept.levels.sp?.band, "blends");
     assert.equal(kept.levels.sp?.word, "bl");
     assert.match(kept.levels.sp?.word ?? "", wordRule);
+  });
+
+  it("shows Alphabet to parents, including a sitting stored as VKOLE/Spelling", () => {
+    const letter = academicLetter({
+      firstName: "Ada",
+      age: 6,
+      subject: "sp",
+      level: 1,
+      standardCode: "LK",
+      standardLabel: "The letter A",
+      asked: 1,
+      rightCount: 1,
+      parentEmail: "ada@family.test",
+      trial: trialState("2026-10-01T00:00:00.000Z"),
+      events: [
+        {
+          at: "2026-10-01T00:00:00.000Z",
+          levelAfter: 1,
+          correct: true,
+          detail: JSON.stringify({
+            question: "A",
+            answer: "A",
+            note: "Heard.",
+            correct: true,
+            engine: "VKOLE/Spelling",
+            code: "LK",
+            label: "The letter A",
+            grade: "1",
+          }),
+        },
+      ],
+    });
+    assert.match(letter.body, /Engine: VKOLE\/Alphabet/);
+    assert.equal(letter.body.includes("VKOLE/Spelling"), false);
+    assert.match(letter.body, /Band: LK/);
+    assert.equal(letter.body.includes("Common Core"), false);
+    assert.match(letter.html, />VKOLE\/Alphabet</);
+    assert.match(letter.html, /<strong>Band:<\/strong> LK/);
+    const logout = parentLogoutLetter({
+      parentName: "Ada Parent",
+      parentEmail: "ada@family.test",
+      children: [{ firstName: "Ada", apps: [{ subject: "sp", level: 1, earnedLevel: 1, onlineSeconds: 12, loggedIn: true }] }],
+    });
+    assert.match(logout.body, /VKOLE\/Alphabet/);
+    assert.equal(logout.body.includes("Spelling"), false);
   });
 });
