@@ -13,8 +13,11 @@ import {
   clockToWrite,
   decideStudent,
   DEFAULT_WEBSITE_MASTER_EMAIL,
+  clearsLocalProgress,
   failureKind,
   isFreshSchoolProfile,
+  keptLevels,
+  profileKeepingProgress,
   isWebsiteMasterEmail,
   officeOffer,
   parseSchoolProfile,
@@ -202,6 +205,10 @@ describe("website errors", () => {
     assert.equal(failureKind(404, { error: "not found" }), "unknown");
     assert.equal(failureKind(410, { error: "account gone" }), "gone");
     assert.equal(failureKind(404, { code: "account_deleted" }), "gone");
+    assert.equal(failureKind(410, { error: "the account was removed" }), "gone");
+    assert.equal(failureKind(403, { error: "subscription removed" }), "rejected");
+    assert.equal(failureKind(403, { error: "free week deleted" }), "rejected");
+    assert.equal(failureKind(402, { message: "trial ended" }), "rejected");
     assert.equal(failureKind(401, { message: "password" }), "password");
     assert.equal(failureKind(409, { message: "already exists" }), "exists");
     assert.equal(failureKind(500, {}), "offline");
@@ -873,5 +880,62 @@ describe("master access", () => {
     });
     assert.equal(notMaster.fullAccess, false);
     assert.equal(notMaster.showTrialPage, true);
+  });
+});
+
+describe("progress after a lapse", () => {
+  const stored = {
+    studentName: "Ada",
+    level: {
+      m: { grade: 4, step: 2 },
+      sp: { grade: 1, step: 0, band: "LK", index: 12, word: "lk-next-m" },
+      sw: { grade: 3, step: 0, band: "F-6", index: 4, word: "enough" },
+    },
+    freeWeekStart: "2026-01-01T00:00:00.000Z",
+    clockSeconds: 120,
+    plan: "month" as const,
+  };
+
+  it("does not treat a closed family as a new account", () => {
+    const lapsed = { ...freshProfile, access: "closed" as const };
+    assert.equal(isFreshSchoolProfile(lapsed), true);
+    assert.equal(clearsLocalProgress(lapsed), false);
+    assert.equal(clearsLocalProgress(lapsed, stored), false);
+    assert.equal(clearsLocalProgress(freshProfile), true);
+    assert.equal(clearsLocalProgress(freshProfile, stored), false);
+    assert.equal(clearsLocalProgress({ ...freshProfile, studentName: "Ada" }), false);
+  });
+
+  it("keeps the further level and the saved student when the website sends an empty or starter book", () => {
+    const kept = keptLevels(stored.level, {
+      m: { grade: 1, step: 0 },
+      sp: { grade: 1, step: 0 },
+      sw: { grade: 1, step: 0, band: "D-PP", index: 0 },
+    });
+    assert.equal(kept.m?.grade, 4);
+    assert.equal(kept.m?.step, 2);
+    assert.equal(kept.sp?.index, 12);
+    assert.equal(kept.sw?.band, "F-6");
+    assert.equal(keptLevels(stored.level, {}).m?.grade, 4);
+    assert.equal(keptLevels(stored.level, { m: { grade: 6, step: 0 } }).m?.grade, 6);
+    const profile = profileKeepingProgress(stored, {
+      ...freshProfile,
+      access: "closed",
+      clockSeconds: 0,
+      seen: [],
+    });
+    assert.equal(profile.access, "closed");
+    assert.equal(profile.studentName, "Ada");
+    assert.equal(profile.level.m?.grade, 4);
+    assert.equal(profile.level.sp?.word, "lk-next-m");
+    assert.equal(profile.clockSeconds, 120);
+    assert.equal(profile.freeWeekStart, stored.freeWeekStart);
+    assert.equal(profile.plan, "month");
+    assert.equal(schoolAccessDecision({
+      email: "parent@example.com",
+      access: profile.access,
+      freeWeekStart: profile.freeWeekStart,
+      now: Date.parse("2026-10-20T00:00:00.000Z"),
+    }).blocked, true);
   });
 });

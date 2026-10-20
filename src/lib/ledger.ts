@@ -21,14 +21,18 @@ async function emailFor(sql: Sql, userId: string): Promise<string> {
   return email;
 }
 
-/** A fresh website account wins over leftover local climbs and login rows. */
+/**
+ * A brand-new open website account wins over leftover local climbs and login rows.
+ * A closed family, or one that already has a saved student or level, keeps them.
+ */
 async function trustFreshWebsite(sql: Sql, userId: string): Promise<void> {
   if (!isSchoolAccountId(userId)) return;
   try {
-    const { isFreshSchoolProfile } = await import("@/lib/school-account");
+    const { clearsLocalProgress } = await import("@/lib/school-account");
     const { readSchoolAccount } = await import("@/lib/school-account.server");
+    const { readSchoolMirror } = await import("@/lib/school-mirror.server");
     const profile = await readSchoolAccount(userId);
-    if (!isFreshSchoolProfile(profile)) return;
+    if (!clearsLocalProgress(profile, await readSchoolMirror(sql, userId))) return;
     const { clearFreshLocalRows } = await import("@/lib/account-purge.server");
     await clearFreshLocalRows(sql, userId);
   } catch {

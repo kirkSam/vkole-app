@@ -10,9 +10,9 @@
 
 import { normalizeAccountEmail, sameAccount } from "./account-scope.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
-import { BAND_LABELS, isSightBand, startBandForGrade, type SightBand } from "./vkole/constants.ts";
-import { cardFromAccount as spCardFromAccount, isSpBand, letterView, spCard, type SpBand } from "./vkole/spelling/items.ts";
-import { cardFromAccount as paCardFromAccount, migratePaBand, type PaBand } from "./vkole/phonemic-awareness/items.ts";
+import { BAND_LABELS, isSightBand, SIGHT_WORD_BANDS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
+import { cardFromAccount as spCardFromAccount, isSpBand, letterView, SPELLING_BANDS, spCard, type SpBand } from "./vkole/spelling/items.ts";
+import { cardFromAccount as paCardFromAccount, migratePaBand, PA_BANDS, type PaBand } from "./vkole/phonemic-awareness/items.ts";
 import { sightCard } from "./vkole/sight-words/words.ts";
 
 /**
@@ -943,9 +943,148 @@ export function parseAccountSession(body: unknown, knownEmail?: string): Account
 /**
  * A brand-new website account has an empty student name and no engines.
  * Local climbs and login rows are not part of that check.
+ * A closed family can look the same after a lapse. That is not a new account.
  */
 export function isFreshSchoolProfile(profile: Pick<SchoolProfile, "studentName" | "level">): boolean {
   return profile.studentName.trim().length === 0 && Object.keys(profile.level).length === 0;
+}
+
+/** Progress already stored for this family. A lapse read must not throw it away. */
+export type StoredSchoolProgress = {
+  studentName?: string;
+  level?: Partial<Record<LevelKey, EngineLevel>>;
+  freeWeekStart?: string | null;
+  clockSeconds?: number;
+  plan?: "month" | "year" | null;
+};
+
+/**
+ * Local climbs, seen prompts, and history are cleared only for a brand-new
+ * open account that has never stored a student or an engine.
+ * A closed family is a finished free week or a lapsed subscription. It keeps
+ * its place even when the website omits the student and the levels.
+ */
+export function clearsLocalProgress(
+  profile: Pick<SchoolProfile, "access" | "studentName" | "level">,
+  stored?: StoredSchoolProgress | null,
+): boolean {
+  if (profile.access !== "open") return false;
+  if (!isFreshSchoolProfile(profile)) return false;
+  if ((stored?.studentName ?? "").trim()) return false;
+  if (stored?.level && Object.keys(stored.level).length > 0) return false;
+  return true;
+}
+
+function bandRank(engine: LevelKey, band: string | undefined): number {
+  const id = (band ?? "").trim();
+  if (!id) return 0;
+  if (engine === "sw") {
+    const at = (SIGHT_WORD_BANDS as readonly string[]).indexOf(id);
+    return at < 0 ? 0 : at;
+  }
+  if (engine === "pa") {
+    const at = PA_BANDS.indexOf(id);
+    return at < 0 ? 0 : at;
+  }
+  if (engine === "sp") {
+    const local = (SPELLING_BANDS as readonly string[]).indexOf(id);
+    if (local >= 0) return local;
+    const website = (WEBSITE_SP_BANDS as readonly string[]).indexOf(id.toLowerCase());
+    return website < 0 ? 0 : website + SPELLING_BANDS.length;
+  }
+  return 0;
+}
+
+/** Alphabet letters share one rank. A later spelling band stays ahead of them. */
+function alphabetPlace(level: EngineLevel): number | null {
+  const band = (level.band ?? level.levelCode ?? "").trim().toLowerCase();
+  if (!band || band === "lk" || band === "ls") return alphabetIndex(level);
+  if (band !== "cvc") return null;
+  const word = plainSpWord(level.word);
+  if (word.length <= 1 || word.startsWith("lk-")) return alphabetIndex(level);
+  return null;
+}
+
+function levelWork(level: EngineLevel): number {
+  let asked = 0;
+  const mastery = level.mastery;
+  if (mastery) {
+    for (const tally of Object.values(mastery.strands)) asked += tally?.asked ?? 0;
+    for (const tally of Object.values(mastery.heuristics)) asked += tally?.asked ?? 0;
+  }
+  return (
+    Math.max(0, Math.round(Number(level.reached) || 0)) +
+    Math.max(0, Math.round(Number(level.missed) || 0)) +
+    Math.max(0, Math.round(Number(level.streak) || 0)) +
+    Math.max(0, Math.round(Number(level.missStreak) || 0)) +
+    asked
+  );
+}
+
+/** Grade, then band, then item, then how much work is on the record. */
+function progressTuple(engine: LevelKey, level: EngineLevel): [number, number, number, number] {
+  const grade = Math.min(12, Math.max(0, Math.round(Number(level.grade) || 0)));
+  const letter = engine === "sp" ? alphabetPlace(level) : null;
+  const band = letter == null ? bandRank(engine, level.band || level.levelCode) : 0;
+  const pos =
+    letter == null
+      ? Math.max(0, Math.round(Number(level.index) || 0), Math.round(Number(level.step) || 0))
+      : letter;
+  return [grade, band, pos, levelWork(level)];
+}
+
+function notBehind(engine: LevelKey, incoming: EngineLevel, stored: EngineLevel): boolean {
+  const next = progressTuple(engine, incoming);
+  const prev = progressTuple(engine, stored);
+  for (let i = 0; i < next.length; i += 1) {
+    if (next[i] !== prev[i]) return next[i] > prev[i];
+  }
+  return true;
+}
+
+/**
+ * Keep the further engine record.
+ * An empty level and a starter level do not replace one that has moved.
+ * An equal record keeps the incoming fields.
+ */
+export function keptEngineLevel(
+  engine: LevelKey,
+  stored: EngineLevel | undefined,
+  incoming: EngineLevel | undefined,
+): EngineLevel | undefined {
+  if (!incoming) return stored;
+  if (!stored) return incoming;
+  return notBehind(engine, incoming, stored) ? incoming : stored;
+}
+
+/** Union of saved engines. A missing or earlier incoming engine leaves the stored one. */
+export function keptLevels(
+  stored: Partial<Record<LevelKey, EngineLevel>>,
+  incoming: Partial<Record<LevelKey, EngineLevel>>,
+): Partial<Record<LevelKey, EngineLevel>> {
+  const level: Partial<Record<LevelKey, EngineLevel>> = { ...stored };
+  for (const key of LEVEL_KEYS) {
+    const next = keptEngineLevel(key, stored[key], incoming[key]);
+    if (next) level[key] = next;
+  }
+  return level;
+}
+
+/**
+ * The family to store after a read.
+ * Access follows the website, so a lapse still locks the engines.
+ * The student, the levels, the free-week start, the clock, and the plan
+ * stay when the website sends an empty or earlier value.
+ */
+export function profileKeepingProgress(stored: StoredSchoolProgress | null | undefined, incoming: SchoolProfile): SchoolProfile {
+  return {
+    ...incoming,
+    studentName: incoming.studentName.trim() || stored?.studentName?.trim() || "",
+    level: keptLevels(stored?.level ?? {}, incoming.level),
+    freeWeekStart: incoming.freeWeekStart ?? stored?.freeWeekStart ?? null,
+    clockSeconds: Math.max(0, incoming.clockSeconds || 0, stored?.clockSeconds || 0),
+    plan: incoming.plan ?? stored?.plan ?? null,
+  };
 }
 
 /**
@@ -1039,21 +1178,24 @@ export function schoolFailureMessage(signing: boolean, reason: SchoolFailure, sp
   return "The school website did not accept that request.";
 }
 
+/**
+ * A deleted website account. A lapsed subscription can say "removed" or
+ * "deleted" without the account itself being gone, and that must not match.
+ */
+function accountIsGone(text: string): boolean {
+  return (
+    /account[\s_-]*(is[\s_-]+)?(gone|deleted|removed)/.test(text) ||
+    /account[\s_-]+was[\s_-]+(gone|deleted|removed)/.test(text)
+  );
+}
+
 export function failureKind(status: number, body: unknown): SchoolFailure {
   if (status === 429) return "wait";
   const row = asRecord(body);
   const text = `${row?.error ?? ""} ${row?.message ?? ""} ${row?.code ?? ""}`.toLowerCase();
   if (row?.wait === true || text.includes("too many") || text.includes("rate")) return "wait";
   if (text.includes("already") || text.includes("exists")) return "exists";
-  if (
-    status === 410 ||
-    text.includes("account gone") ||
-    text.includes("account_gone") ||
-    text.includes("deleted") ||
-    text.includes("removed")
-  ) {
-    return "gone";
-  }
+  if (status === 410 || accountIsGone(text)) return "gone";
   if (status === 401) {
     if (text.includes("password") || (text.includes("invalid") && text.includes("email"))) return "password";
     return "unauthorized";

@@ -4,7 +4,7 @@ import {
   SCHOOL_ACCOUNT_GONE_MESSAGE,
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_WAIT_MESSAGE,
-  isFreshSchoolProfile,
+  clearsLocalProgress,
   type SchoolFailure,
 } from "@/lib/school-account";
 
@@ -48,10 +48,12 @@ export const schoolSignUp = createServerFn({ method: "POST" })
     const { openSchoolSession } = await import("./school-session.server");
     try {
       const account = await registerSchoolAccount(data);
-      if (isFreshSchoolProfile(account.profile)) {
+      const { getSql } = await import("./db");
+      const sql = await getSql();
+      const { readSchoolMirror } = await import("./school-mirror.server");
+      if (clearsLocalProgress(account.profile, await readSchoolMirror(sql, account.id))) {
         const { forgetLocalAccount } = await import("./account-purge.server");
-        const { getSql } = await import("./db");
-        await forgetLocalAccount(await getSql(), account.id);
+        await forgetLocalAccount(sql, account.id);
       }
       const { rememberAccountSession } = await import("./school-sync.server");
       const profile = await rememberAccountSession(account);
@@ -71,10 +73,12 @@ export const schoolSignIn = createServerFn({ method: "POST" })
     const { websiteSignInRefusal } = await import("./school-account");
     try {
       const account = await signInSchoolAccount({ email: data.email, password: data.password });
-      if (isFreshSchoolProfile(account.profile)) {
+      const { getSql } = await import("./db");
+      const sql = await getSql();
+      const { readSchoolMirror } = await import("./school-mirror.server");
+      if (clearsLocalProgress(account.profile, await readSchoolMirror(sql, account.id))) {
         const { forgetLocalAccount } = await import("./account-purge.server");
-        const { getSql } = await import("./db");
-        await forgetLocalAccount(await getSql(), account.id);
+        await forgetLocalAccount(sql, account.id);
       }
       const { rememberAccountSession } = await import("./school-sync.server");
       const profile = await rememberAccountSession(account);
