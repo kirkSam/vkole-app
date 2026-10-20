@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { IDLE_MS, academicLetter, parentLogoutLetter, trialState, type AppTime, type EndReason, type ReportEvent } from "@/lib/academic-email";
+import { reportLine } from "@/lib/session-report";
 import { schoolMiddleware } from "@/lib/school-middleware";
 import { isSchoolAccountId, schoolAccessDecision } from "@/lib/school-account";
 import { isSubject, SUBJECTS, subjectMeta, type SubjectId } from "@/lib/climb-rules";
@@ -961,16 +962,18 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(facts.email)) {
     return { ...empty, error: "The registration email is not a working address.", spellingReport };
   }
+  const mastery = await singaporeMastery(sql, userId, climbId, climb.subject);
+  const reportLabel = climb.subject === "sp" || climb.subject === "pa" ? climb.standardLabel : levelTitle(climb.subject, climb.level, climb.standardStep);
   const letter = academicLetter({
     firstName: climb.childName,
     age: climb.age ?? 0,
     subject: climb.subject,
     level: climb.level,
-    mastery: await singaporeMastery(sql, userId, climbId, climb.subject),
+    mastery,
     performanceLevel: climb.performanceLevel,
     startGrade: climb.startGrade,
     standardCode: climb.standardCode,
-    standardLabel: climb.subject === "sp" || climb.subject === "pa" ? climb.standardLabel : levelTitle(climb.subject, climb.level, climb.standardStep),
+    standardLabel: reportLabel,
     asked: reportEvents.length,
     rightCount: reportEvents.filter((event) => event.correct).length,
     parentEmail: facts.email,
@@ -982,6 +985,32 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     session: { reason, sittingSeconds: sittingSecondsValue, totalSeconds: climb.onlineSeconds },
     spellingReport,
   });
+  try {
+    const { postSessionEndReport } = await import("@/lib/session-report.server");
+    await postSessionEndReport(
+      {
+        name: climb.childName,
+        email: facts.email,
+        engine: `VKOLE/${subjectMeta(climb.subject).code}`,
+        subject: climb.subject,
+        startedAt: Date.parse(startedAt),
+        untimed: true,
+        startingGrade: climb.startGrade ?? climb.level,
+        grade: climb.level,
+        code: climb.standardCode,
+        label: reportLabel,
+        reached: reportEvents.filter((event) => event.correct).length,
+        missed: reportEvents.filter((event) => !event.correct).length,
+        trialEndsAt: Date.parse(climb.endsAt),
+        lines: reportEvents.map((event) => reportLine(event)),
+        sheet: climb.subject === "gen" ? (built?.prompts ?? []) : [],
+        ...(climb.subject === "sg" && mastery ? { masteryText: mastery } : {}),
+      },
+      { userId },
+    );
+  } catch {
+    /* The progress letter still sends if the website report is refused. */
+  }
   let sent = false;
   let error = "";
   try {
