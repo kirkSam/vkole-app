@@ -8,8 +8,25 @@ export const SPELLING_HAPPY_FACE_MS = lists.answerFlow.happyFaceMs;
 export const SPELLING_RESPONSE_MS = lists.answerFlow.responseMs;
 export const SPELLING_MAX_CHANGES_PER_SECOND = lists.maxChangesPerSecond;
 
+/** The opening waits this long, then starts on its own if START was not pressed. */
+export const SPELLING_START_MS = 30_000;
+
+/**
+ * Chrome ends a SpeechRecognition session often, and start() in that same turn throws.
+ * A short pause lets the next listen begin on the same letter.
+ */
+export const SPELLING_RECOGNIZER_RESTART_MS = 250;
+
 export const SPELLING_NOTE =
-  "The alphabet plays once when this engine opens, one letter every 1.5 seconds. Then a question is spoken and shown. The microphone listens only while that question is waiting for an answer, and it does not record or save the sound. A correct answer shows a Happy Face for 2 seconds, then the next letter, and a fast answer moves on as soon as it is heard. Five seconds of silence shows the same letter again. A second silence goes back 3 letters. A miss shows and speaks the 3 earlier letters, then the 5 earlier letters, and then starts again at A.";
+  "The alphabet plays once when this engine opens, one letter every 1.5 seconds. Then a question is spoken and shown. The microphone listens only while that question is waiting for an answer, and it does not record or save the sound. A correct answer shows a Happy Face for 2 seconds, then the next letter, and a fast answer moves on as soon as it is heard. Five seconds of silence shows the same letter again. A second silence goes back 3 letters. A miss shows and speaks the 3 earlier letters. A second miss steps back one letter. A miss never sends the alphabet back to A.";
+
+/** Whole seconds left before the alphabet starts itself. 0 means start now. */
+export function spellingStartSecondsLeft(elapsedMs: number): number {
+  const elapsed = Number.isFinite(elapsedMs) && elapsedMs > 0 ? elapsedMs : 0;
+  const left = SPELLING_START_MS - elapsed;
+  if (left <= 0) return 0;
+  return Math.ceil(left / 1000);
+}
 
 export const SPELLING_BANDS = ["LK", "LS", "CVC", "DOLCH", "FRY"] as const;
 
@@ -231,8 +248,9 @@ function cueLetters(index: number, count: number): string[] {
 }
 
 /**
- * Letter-phase answers. The rules, including 3 and 5, come from `answerFlow` in the data file.
- * A spoken answer is applied at once. Silence uses the response window, then this same step.
+ * Letter-phase answers. The rules come from `answerFlow` in the data file.
+ * One miss stays on the letter. The second miss steps back by the small `back` count.
+ * A miss never restarts at A. Silence is its own count and is never stored as a miss.
  */
 export function applyLetterAnswer(input: LetterProgress, outcome: LetterOutcome): LetterProgress {
   const state = normalizeLetterProgress(input);
@@ -244,11 +262,11 @@ export function applyLetterAnswer(input: LetterProgress, outcome: LetterOutcome)
   }
   const silenceRules = lists.answerFlow.silence as FlowSilence[];
   const wrongRules = lists.answerFlow.wrong as FlowWrong[];
-  if (outcome === "miss" || state.wrong > 0) {
+  if (outcome === "miss") {
     const step = state.wrong + 1;
     const rule = wrongRules.find((row) => row.times === step) ?? wrongRules[wrongRules.length - 1];
-    if (!rule || rule.action === "restart") {
-      return { index: clampLetterIndex(letters.indexOf(rule?.letter ?? lists.answerFlow.clamp)), silence: 0, wrong: 0 };
+    if (rule?.action === "back") {
+      return { index: clampLetterIndex(state.index - (rule.letters ?? 1)), silence: 0, wrong: 0 };
     }
     return { index: state.index, silence: 0, wrong: step };
   }
@@ -258,7 +276,7 @@ export function applyLetterAnswer(input: LetterProgress, outcome: LetterOutcome)
   return { index: clampLetterIndex(state.index - (rule.letters ?? 3)), silence: 0, wrong: 0 };
 }
 
-/** What the student sees and says for the current letter, including a 3-letter or 5-letter cue. */
+/** What the student sees and says for the current letter, including the prior-letter cue after a miss. */
 export function letterView(input: LetterProgress): LetterView {
   const progress = normalizeLetterProgress(input);
   const letters = alphabet();
@@ -266,7 +284,8 @@ export function letterView(input: LetterProgress): LetterView {
   const meta = bandMeta("LK");
   const item = itemAt("LK", progress.index);
   if (progress.wrong > 0) {
-    const rule = (lists.answerFlow.wrong as FlowWrong[]).find((row) => row.times === progress.wrong && row.action === "cue");
+    const cueRules = (lists.answerFlow.wrong as FlowWrong[]).filter((row) => row.action === "cue");
+    const rule = [...cueRules].reverse().find((row) => (row.times ?? 1) <= progress.wrong) ?? cueRules[0];
     const cue = cueLetters(progress.index, rule?.letters ?? 0);
     if (cue.length > 0) {
       return {
@@ -307,9 +326,9 @@ export function letterView(input: LetterProgress): LetterView {
 
 export function letterMoveNote(before: LetterProgress, outcome: LetterOutcome, after: LetterProgress): string {
   if (outcome === "correct") return "Heard.";
+  if (outcome === "timeout" && after.index < before.index) return "No answer. The sequence goes back.";
   if (outcome === "timeout" && after.silence > before.silence) return "No answer. The same letter stays.";
-  if (outcome === "timeout" && before.wrong === 0 && after.index < before.index) return "No answer. The sequence goes back.";
-  if (before.wrong > 0 && after.wrong === 0 && after.index === 0) return "Not yet. The alphabet starts again at A.";
+  if (outcome === "miss" && after.index < before.index) return "Not yet. One letter back.";
   if (after.wrong > before.wrong) return "Not yet. The earlier letters are the prompt.";
   if (outcome === "timeout") return "No answer.";
   return "Not yet.";

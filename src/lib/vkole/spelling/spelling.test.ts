@@ -11,8 +11,10 @@ import {
   SPELLING_HAPPY_FACE_MS,
   SPELLING_LETTER_MS,
   SPELLING_MAX_CHANGES_PER_SECOND,
+  SPELLING_RECOGNIZER_RESTART_MS,
   SPELLING_RESPONSE_MS,
   SPELLING_SONG_MS,
+  SPELLING_START_MS,
   alphabet,
   applyLetterAnswer,
   bandMeta,
@@ -25,9 +27,10 @@ import {
   micListensDuring,
   openingPrompt,
   reviewChangesPerSecond,
+  spellingStartSecondsLeft,
   startCard,
 } from "./items.ts";
-import { judgeSpellingSpoken, spellingSpokenMatches } from "./match.ts";
+import { judgeSpellingAlternatives, judgeSpellingSpoken, recognitionErrorRelistens, spellingSpokenMatches } from "./match.ts";
 import lists from "./data.json" with { type: "json" };
 
 const stageFile = fileURLToPath(new URL("../../../components/spelling-stage.tsx", import.meta.url));
@@ -135,10 +138,9 @@ describe("letter knowledge sequence", () => {
     assert.equal(lists.answerFlow.silence[1]?.letters, 3);
     assert.equal(lists.answerFlow.wrong[0]?.action, "cue");
     assert.equal(lists.answerFlow.wrong[0]?.letters, 3);
-    assert.equal(lists.answerFlow.wrong[1]?.action, "cue");
-    assert.equal(lists.answerFlow.wrong[1]?.letters, 5);
-    assert.equal(lists.answerFlow.wrong[2]?.action, "restart");
-    assert.equal(lists.answerFlow.wrong[2]?.letter, "A");
+    assert.equal(lists.answerFlow.wrong[1]?.action, "back");
+    assert.equal(lists.answerFlow.wrong[1]?.letters, 1);
+    assert.equal(lists.answerFlow.wrong.some((row) => row.action === "restart"), false);
     assert.equal(lists.answerFlow.clamp, "A");
   });
 
@@ -215,33 +217,35 @@ describe("letter answer flow", () => {
     assert.equal(atA.answer, "A");
   });
 
-  it("shows and speaks the 5 prior letters after another wrong answer or silence", () => {
-    const cue3 = applyLetterAnswer(g, "miss");
-    const cue5 = applyLetterAnswer(cue3, "miss");
-    assert.equal(cue5.wrong, 2);
-    assert.equal(cue5.index, g.index);
-    const view = letterView(cue5);
-    assert.equal(view.kind, "cue");
-    assert.deepEqual(view.cue, ["B", "C", "D", "E", "F"]);
-    assert.equal(view.show, "B C D E F");
-    assert.equal(view.say, "B, C, D, E, F");
-    assert.equal(view.answer, "G");
-    const fromSilence = letterView(applyLetterAnswer(cue3, "timeout"));
-    assert.deepEqual(fromSilence.cue, ["B", "C", "D", "E", "F"]);
-    assert.equal(fromSilence.answer, "G");
-  });
-
-  it("starts again at A after the 5-letter prompt is still wrong", () => {
-    const cue3 = applyLetterAnswer(g, "miss");
-    const cue5 = applyLetterAnswer(cue3, "miss");
-    const restart = applyLetterAnswer(cue5, "miss");
-    assert.deepEqual(restart, { index: 0, silence: 0, wrong: 0 });
-    const view = letterView(restart);
+  it("steps back one letter after a second miss, and a miss never returns to A", () => {
+    const cue = applyLetterAnswer(g, "miss");
+    const back = applyLetterAnswer(cue, "miss");
+    assert.deepEqual(back, { index: g.index - 1, silence: 0, wrong: 0 });
+    const view = letterView(back);
     assert.equal(view.kind, "ask");
-    assert.equal(view.answer, "A");
-    assert.equal(view.say, openingPrompt());
-    const fromSilence = applyLetterAnswer(cue5, "timeout");
-    assert.deepEqual(fromSilence, { index: 0, silence: 0, wrong: 0 });
+    assert.equal(view.answer, "F");
+    const fromM = { index: alphabet().indexOf("M"), silence: 0, wrong: 0 };
+    const stayed = applyLetterAnswer(fromM, "miss");
+    assert.equal(stayed.index, fromM.index);
+    assert.equal(stayed.wrong, 1);
+    assert.notEqual(letterView(stayed).answer, "A");
+    const stepped = applyLetterAnswer(stayed, "miss");
+    assert.equal(stepped.index, fromM.index - 1);
+    assert.equal(stepped.wrong, 0);
+    assert.notEqual(stepped.index, 0);
+    let chain = fromM;
+    for (let n = 0; n < 6; n += 1) chain = applyLetterAnswer(chain, "miss");
+    assert.equal(chain.index, fromM.index - 3);
+    assert.ok(chain.index > 0);
+    const atA = applyLetterAnswer({ index: 0, silence: 0, wrong: 1 }, "miss");
+    assert.equal(atA.index, 0);
+    const timed = applyLetterAnswer(cue, "timeout");
+    assert.deepEqual(timed, { index: g.index, silence: 1, wrong: 0 });
+    assert.equal(letterView(timed).kind, "ask");
+    assert.equal(letterView(timed).answer, "G");
+    const timedAgain = applyLetterAnswer(timed, "timeout");
+    assert.equal(timedAgain.index, g.index - 3);
+    assert.notEqual(timedAgain.index, 0);
   });
 });
 
@@ -266,10 +270,90 @@ describe("spoken spelling answers", () => {
     const nameZ = lists.bands[0]?.items.find((item) => item.id === "lk-name-z");
     assert.ok(nameZ);
     assert.equal(spellingSpokenMatches(nameZ.answer, "zed", nameZ.also), true);
-    assert.equal(judgeSpellingSpoken(first.answer, "", true, first.also), "miss");
+    assert.equal(judgeSpellingSpoken(first.answer, "", true, first.also), "wait");
+    assert.equal(judgeSpellingSpoken(first.answer, ".", true, first.also), "wait");
     assert.equal(judgeSpellingSpoken(first.answer, "be", false, first.also), "wait");
     assert.equal(judgeSpellingSpoken(first.answer, "ay", false, first.also), "correct");
     assert.equal(judgeSpellingSpoken(first.answer, "bee", true, first.also), "miss");
+  });
+
+  it("accepts the common spoken name of every letter, including M as em", () => {
+    const heard: Record<string, string[]> = {
+      A: ["a", "ay"],
+      B: ["bee", "be"],
+      C: ["see", "sea"],
+      D: ["dee"],
+      E: ["ee"],
+      F: ["ef", "eff"],
+      G: ["gee", "jee"],
+      H: ["aitch", "haitch"],
+      I: ["eye"],
+      J: ["jay"],
+      K: ["kay"],
+      L: ["el", "ell"],
+      M: ["m", "em", "um", "emm"],
+      N: ["en"],
+      O: ["oh"],
+      P: ["pee", "pea"],
+      Q: ["queue", "cue"],
+      R: ["are"],
+      S: ["ess"],
+      T: ["tea", "tee"],
+      U: ["you", "u"],
+      V: ["vee"],
+      W: ["double you", "double u"],
+      X: ["ex"],
+      Y: ["why"],
+      Z: ["zee", "zed"],
+    };
+    assert.equal(Object.keys(heard).length, 26);
+    for (const [letter, forms] of Object.entries(heard)) {
+      for (const form of forms) {
+        assert.equal(spellingSpokenMatches(letter, form, []), true, `${form} should match ${letter}`);
+        assert.equal(judgeSpellingSpoken(letter, form, true, []), "correct");
+      }
+    }
+    assert.equal(spellingSpokenMatches("M", "em", []), true);
+    assert.equal(spellingSpokenMatches("W", "u", []), false);
+    assert.equal(
+      judgeSpellingAlternatives("M", [
+        { transcript: "and", final: true },
+        { transcript: "em", final: true },
+      ]),
+      "correct",
+    );
+    assert.equal(judgeSpellingAlternatives("M", [{ transcript: "and", final: true }]), "miss");
+    assert.equal(judgeSpellingAlternatives("M", [{ transcript: "", final: true }, { transcript: ".", final: true }]), "wait");
+    assert.equal(judgeSpellingSpoken("M", "em", false, []), "correct");
+    assert.equal(recognitionErrorRelistens("no-speech"), true);
+    assert.equal(recognitionErrorRelistens("network"), true);
+    assert.equal(recognitionErrorRelistens("audio-capture"), true);
+    assert.equal(recognitionErrorRelistens("not-allowed"), false);
+    assert.equal(recognitionErrorRelistens("service-not-allowed"), false);
+  });
+});
+
+describe("spelling start", () => {
+  it("shows START and counts down 30 seconds before the alphabet begins", () => {
+    assert.equal(SPELLING_START_MS, 30000);
+    assert.equal(spellingStartSecondsLeft(0), 30);
+    assert.equal(spellingStartSecondsLeft(1000), 29);
+    assert.equal(spellingStartSecondsLeft(29001), 1);
+    assert.equal(spellingStartSecondsLeft(30000), 0);
+    assert.equal(spellingStartSecondsLeft(-5), 30);
+    const stage = readFileSync(stageFile, "utf8");
+    assert.match(stage, />\s*START\s*</);
+    assert.equal(stage.includes("Starts in"), true);
+    assert.equal(stage.includes("spellingStartSecondsLeft"), true);
+    assert.equal(stage.includes("SPELLING_RECOGNIZER_RESTART_MS"), true);
+    assert.equal(SPELLING_RECOGNIZER_RESTART_MS > 0, true);
+    assert.equal(stage.includes("recognitionErrorRelistens"), true);
+    assert.equal(stage.includes("judgeSpellingAlternatives"), true);
+    assert.match(stage, /scheduleRestart/);
+    const noSpeech = stage.slice(stage.indexOf("rec.onerror"), stage.indexOf("rec.onend"));
+    assert.equal(noSpeech.includes("recognitionErrorRelistens"), true);
+    assert.equal(noSpeech.includes('finishRef.current("miss")'), false);
+    assert.equal(noSpeech.includes('finishRef.current("timeout")'), false);
   });
 });
 

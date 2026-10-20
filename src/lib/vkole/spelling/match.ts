@@ -1,3 +1,4 @@
+import lists from "./data.json" with { type: "json" };
 import { compactSpeech, speechTokens, spokenMatches } from "../sight-words/match.ts";
 
 /**
@@ -6,7 +7,21 @@ import { compactSpeech, speechTokens, spokenMatches } from "../sight-words/match
  * A single-word alias matches as a token. A multi-word alias, such as
  * "double you", matches only as those words in a row, so a short piece
  * of it does not count as the whole letter.
+ * Letter names from the data file are always accepted, including when an
+ * item's own also-list is missing one of them.
  */
+
+const letterNames = lists.letterNames as Record<string, readonly string[]>;
+
+/** Spoken names for a letter, such as "em" for M. The letter itself is matched separately. */
+export function spokenFormsForLetter(answer: string): readonly string[] {
+  const letter = answer.trim().toUpperCase();
+  return letterNames[letter] ?? [];
+}
+
+function aliasList(answer: string, also: readonly string[]): string[] {
+  return [...also, ...spokenFormsForLetter(answer)];
+}
 
 function hasRun(heard: readonly string[], target: readonly string[]): boolean {
   for (let i = 0; i + target.length <= heard.length; i += 1) {
@@ -16,10 +31,11 @@ function hasRun(heard: readonly string[], target: readonly string[]): boolean {
 }
 
 export function spellingSpokenMatches(answer: string, heard: string, also: readonly string[] = []): boolean {
-  const singles = also.filter((alias) => speechTokens(alias).length <= 1);
+  const forms = aliasList(answer, also);
+  const singles = forms.filter((alias) => speechTokens(alias).length <= 1);
   if (spokenMatches(answer, heard, singles)) return true;
   const heardTokens = speechTokens(heard);
-  for (const alias of also) {
+  for (const alias of forms) {
     const tokens = speechTokens(alias);
     if (tokens.length < 2) continue;
     if (hasRun(heardTokens, tokens)) return true;
@@ -29,14 +45,48 @@ export function spellingSpokenMatches(answer: string, heard: string, also: reado
   return false;
 }
 
-/** An empty transcript misses. A live non-match waits. Only a finished non-match is a miss. */
+/**
+ * An empty or punctuation-only transcript waits. It is not a miss.
+ * A live non-match waits. Only a finished transcript that has real words and does not match is a miss.
+ */
 export function judgeSpellingSpoken(
   answer: string,
   heard: string,
   final: boolean,
   also: readonly string[] = [],
 ): "correct" | "miss" | "wait" {
-  if (speechTokens(heard).length === 0) return "miss";
+  if (speechTokens(heard).length === 0) return "wait";
   if (spellingSpokenMatches(answer, heard, also)) return "correct";
   return final ? "miss" : "wait";
+}
+
+/**
+ * Any alternative that names the letter is correct, even when a higher-ranked guess is wrong.
+ * A result counts as a miss only when it is finished, some alternative has real words, and none match.
+ */
+export function judgeSpellingAlternatives(
+  answer: string,
+  alternatives: readonly { transcript?: string; final?: boolean }[],
+  also: readonly string[] = [],
+): "correct" | "miss" | "wait" {
+  let finishedSpeech = false;
+  for (const alternative of alternatives) {
+    const transcript = alternative.transcript ?? "";
+    const final = Boolean(alternative.final);
+    if (spellingSpokenMatches(answer, transcript, also)) return "correct";
+    if (final && speechTokens(transcript).length > 0) finishedSpeech = true;
+  }
+  return finishedSpeech ? "miss" : "wait";
+}
+
+/** These recognition failures mean the mic did not hear a usable answer. They are not a miss. */
+export function recognitionErrorRelistens(error: string | undefined): boolean {
+  return (
+    error === "no-speech" ||
+    error === "audio-capture" ||
+    error === "network" ||
+    error === "aborted" ||
+    error === "bad-grammar" ||
+    error === "language-not-supported"
+  );
 }

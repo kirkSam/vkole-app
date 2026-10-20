@@ -23,8 +23,7 @@
     ],
     "wrong": [
       { "times": 1, "action": "cue", "letters": 3 },
-      { "times": 2, "action": "cue", "letters": 5 },
-      { "times": 3, "action": "restart", "letter": "A" }
+      { "times": 2, "action": "back", "letters": 1 }
     ]
   },
   "openingSay": "Your turn! What is the first letter of the alphabet?",
@@ -80,7 +79,8 @@
       "eff"
     ],
     "G": [
-      "gee"
+      "gee",
+      "jee"
     ],
     "H": [
       "aitch",
@@ -100,7 +100,9 @@
       "ell"
     ],
     "M": [
-      "em"
+      "em",
+      "um",
+      "emm"
     ],
     "N": [
       "en"
@@ -109,7 +111,8 @@
       "oh"
     ],
     "P": [
-      "pee"
+      "pee",
+      "pea"
     ],
     "Q": [
       "cue",
@@ -360,7 +363,8 @@
           "show": "What letter comes next?",
           "answer": "G",
           "also": [
-            "gee"
+            "gee",
+            "jee"
           ],
           "letter": "F",
           "model": "G"
@@ -434,7 +438,9 @@
           "show": "What letter comes next?",
           "answer": "M",
           "also": [
-            "em"
+            "em",
+            "um",
+            "emm"
           ],
           "letter": "L",
           "model": "M"
@@ -470,7 +476,8 @@
           "show": "What letter comes next?",
           "answer": "P",
           "also": [
-            "pee"
+            "pee",
+            "pea"
           ],
           "letter": "O",
           "model": "P"
@@ -675,7 +682,8 @@
           "show": "What letter comes after F?",
           "answer": "G",
           "also": [
-            "gee"
+            "gee",
+            "jee"
           ],
           "letter": "F",
           "model": "G"
@@ -749,7 +757,9 @@
           "show": "What letter comes after L?",
           "answer": "M",
           "also": [
-            "em"
+            "em",
+            "um",
+            "emm"
           ],
           "letter": "L",
           "model": "M"
@@ -785,7 +795,8 @@
           "show": "What letter comes after O?",
           "answer": "P",
           "also": [
-            "pee"
+            "pee",
+            "pea"
           ],
           "letter": "O",
           "model": "P"
@@ -1002,7 +1013,8 @@
           "show": "What letter is this?",
           "answer": "G",
           "also": [
-            "gee"
+            "gee",
+            "jee"
           ],
           "letter": "G",
           "model": "G"
@@ -1076,7 +1088,9 @@
           "show": "What letter is this?",
           "answer": "M",
           "also": [
-            "em"
+            "em",
+            "um",
+            "emm"
           ],
           "letter": "M",
           "model": "M"
@@ -1112,7 +1126,8 @@
           "show": "What letter is this?",
           "answer": "P",
           "also": [
-            "pee"
+            "pee",
+            "pea"
           ],
           "letter": "P",
           "model": "P"
