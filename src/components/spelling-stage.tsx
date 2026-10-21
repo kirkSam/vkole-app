@@ -870,7 +870,7 @@ export function SpellingStage({
           className="sp-type"
           type="text"
           inputMode="text"
-          autoCapitalize="none"
+          autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
           autoComplete="off"
