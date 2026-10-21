@@ -13,6 +13,7 @@ import {
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_ORIGIN,
   SCHOOL_WAIT_MESSAGE,
+  accountIdOf,
   accountTokenExpired,
   decideStudent,
   failureKind,
@@ -22,6 +23,7 @@ import {
   rotatedGrant,
   schoolFailureMessage,
   schoolPassword,
+  studentIndexOf,
   websiteErrorText,
   type AccountSession,
   type FamilyWrite,
@@ -33,6 +35,7 @@ const PATHS = {
   register: "/api/account/register",
   signIn: "/api/account/sign-in",
   family: "/api/account/family",
+  resendConfirmation: "/api/account/confirm-email/resend",
   sendCode: "/api/account/forgot-password/send-code",
   confirm: "/api/account/forgot-password/confirm",
 } as const;
@@ -55,6 +58,7 @@ type CallDeps = {
   token?: string;
   expiresAt?: string;
   now?: number;
+  studentIndex?: number;
   /** An open engine may still present an expired token. A 401 must not end that sitting. */
   engineActive?: boolean;
   /** A family response that carries a new token. The caller stores it with no sign-in screen. */
@@ -151,9 +155,18 @@ function masterProfile(email: string, profile: SchoolProfile): SchoolProfile {
 }
 
 function accountId(raw: string): string {
-  const email = normalizeAccountEmail(raw);
+  const email = normalizeAccountEmail(accountIdOf(raw));
   if (!email.includes("@")) throw new SchoolCallError("rejected", "Check the email and password and try again.");
   return email;
+}
+
+function familyPath(index: number): string {
+  return index > 1 ? `${PATHS.family}?studentIndex=${index}` : PATHS.family;
+}
+
+function withStudentIndex<T extends object>(body: T, index: number): T & { studentIndex?: number } {
+  if (!Number.isInteger(index) || index <= 1) return body;
+  return { ...body, studentIndex: index };
 }
 
 async function storedGrant(email: string): Promise<{ token: string; expiresAt: string } | null> {
@@ -194,14 +207,16 @@ async function tokenFor(email: string, deps?: CallDeps): Promise<string> {
 }
 
 export async function registerSchoolAccount(
-  input: { email: string; password: string; name: string; studentName?: string },
+  input: { email: string; password: string; name: string; studentName?: string; deviceId?: string },
   deps?: CallDeps,
 ): Promise<AccountSession> {
   const email = accountId(input.email);
   const password = schoolPassword(input.password);
   const studentName = input.studentName?.trim() ?? "";
-  const payload: { email: string; password: string; studentName?: string } = { email, password };
+  const deviceId = input.deviceId?.trim() ?? "";
+  const payload: { email: string; password: string; studentName?: string; deviceId?: string } = { email, password };
   if (studentName) payload.studentName = studentName;
+  if (deviceId) payload.deviceId = deviceId;
   const body = await callSchool("POST", PATHS.register, payload, deps);
   const session = parseAccountSession(body, email);
   if (!session || !sameAccount(session.id, email)) {
@@ -211,17 +226,23 @@ export async function registerSchoolAccount(
 }
 
 export async function signInSchoolAccount(
-  input: { email: string; password: string },
+  input: { email: string; password: string; deviceId?: string },
   deps?: CallDeps,
 ): Promise<AccountSession> {
   const forms = accountEmailForms(input.email);
   const id = forms[0];
   if (!id) throw new SchoolCallError("rejected", "Check the email and password and try again.");
   const password = schoolPassword(input.password);
+  const deviceId = input.deviceId?.trim() ?? "";
   let last: unknown = new SchoolCallError("rejected", "Email or password did not match.");
   for (const email of forms) {
     try {
-      const body = await callSchool("POST", PATHS.signIn, { email, password }, deps);
+      const body = await callSchool(
+        "POST",
+        PATHS.signIn,
+        deviceId ? { email, password, deviceId } : { email, password },
+        deps,
+      );
       const session = parseAccountSession(body, id);
       if (!session || !sameAccount(session.id, id)) {
         throw new SchoolCallError("rejected", "Email or password did not match.");
@@ -238,13 +259,14 @@ export async function signInSchoolAccount(
 /**
  * The student gate. Calls GET /api/account/family.
  * A failed read throws the website's own sentence and never comes back as `extra`.
- * An empty or missing student name is `new`. `extra` is only a different saved first name.
+ * An empty roster is `new`. A name already on the roster is `same`.
+ * A new name under the cap of 2 is `add`. A new name at the cap is `extra`.
  */
 export async function studentCheck(
   userId: string,
   typedFirstName: string,
   read: (id: string) => Promise<SchoolProfile> = readSchoolAccount,
-): Promise<"new" | "extra" | "same"> {
+): Promise<"new" | "extra" | "same" | "add"> {
   let profile: SchoolProfile;
   try {
     profile = await read(userId);
@@ -252,15 +274,18 @@ export async function studentCheck(
     const message = err instanceof Error ? err.message.trim() : "";
     throw new Error(message || "The school website did not accept that request.");
   }
-  return decideStudent(profile.studentName, typedFirstName);
+  const roster = profile.students?.length ? profile.students : profile.studentName ? [{ name: profile.studentName }] : [];
+  const cap = isWebsiteMasterEmail(userId, process.env.VKOLE_MASTER_EMAIL) ? Number.POSITIVE_INFINITY : 2;
+  return decideStudent(profile.studentName, typedFirstName, roster, cap);
 }
 
 export async function readSchoolAccount(id: string, deps?: CallDeps): Promise<SchoolProfile> {
   const email = accountId(id);
   const token = await tokenFor(email, deps);
+  const index = deps?.studentIndex ?? studentIndexOf(id);
   let body: unknown;
   try {
-    body = await callSchool("GET", PATHS.family, undefined, { ...deps, token });
+    body = await callSchool("GET", familyPath(index), undefined, { ...deps, token });
   } catch (err) {
     if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
       await clearStoredGrant(email);
@@ -281,7 +306,7 @@ export async function readSchoolAccount(id: string, deps?: CallDeps): Promise<Sc
  */
 export async function saveSchoolStudent(
   id: string,
-  input: { name: string; startingGrade: number; age?: number },
+  input: { name: string; startingGrade: number; age?: number; studentIndex?: number },
   deps?: CallDeps,
 ): Promise<SchoolProfile> {
   const email = accountId(id);
@@ -294,9 +319,10 @@ export async function saveSchoolStudent(
   const student: { name: string; startingGrade: number; age?: number } = { name, startingGrade };
   if (input.age != null && Number.isInteger(input.age)) student.age = input.age;
   const token = await tokenFor(email, deps);
+  const index = input.studentIndex ?? studentIndexOf(id);
   let response: unknown;
   try {
-    response = await callSchool("PATCH", PATHS.family, { student }, { ...deps, token });
+    response = await callSchool("PATCH", PATHS.family, withStudentIndex({ student }, index), { ...deps, token });
   } catch (err) {
     if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
       await clearStoredGrant(email);
@@ -316,9 +342,10 @@ export async function saveSchoolStudent(
 export async function writeSchoolAccount(id: string, body: FamilyWrite, deps?: CallDeps): Promise<SchoolProfile | null> {
   const email = accountId(id);
   const token = await tokenFor(email, deps);
+  const index = body.studentIndex ?? deps?.studentIndex ?? studentIndexOf(id);
   let response: unknown;
   try {
-    response = await callSchool("POST", PATHS.family, body, { ...deps, token });
+    response = await callSchool("POST", PATHS.family, withStudentIndex(body, index), { ...deps, token });
   } catch (err) {
     if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
       await clearStoredGrant(email);
@@ -328,6 +355,20 @@ export async function writeSchoolAccount(id: string, body: FamilyWrite, deps?: C
   noteRotatedGrant(response, deps);
   const parsed = parseSchoolProfile(response, email);
   return parsed ? masterProfile(email, parsed.profile) : null;
+}
+
+/** Ask the website to send the confirmation email again. The website sends that mail. */
+export async function resendConfirmationEmail(id: string, deps?: CallDeps): Promise<void> {
+  const email = accountId(id);
+  const token = await tokenFor(email, deps);
+  try {
+    await callSchool("POST", PATHS.resendConfirmation, {}, { ...deps, token });
+  } catch (err) {
+    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
+      await clearStoredGrant(email);
+    }
+    throw err;
+  }
 }
 
 /** Ask the website to email a reset code. The app does not send that code. */

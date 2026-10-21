@@ -6,7 +6,7 @@ import { SCHOOL_ENGINE_URL } from "@/lib/school-account";
 const LEAD =
   "What if you and your child could access a \"State of the Art\" learning engine, VKOLE/ZPD - the Space XSI Integrated Learning Engine? It is developed in conjunction with Space XSI and a team of educators dedicated to bringing applied Superintelligence to parents at an affordable cost. Additionally, what if your educational agent stored your child's levels, and gave you control of your child's levels to send you a private email report of your child's progress and achievements?";
 const CAN = "YOU CAN.";
-const PRICE = "FREE for a week, $79.00 USD + tax per YEAR or $9.00 USD + tax per month.";
+const PRICE = "FREE for a week, $79.00 USD + tax per YEAR or $9.00 USD + tax per month. 2 students per account.";
 const SPOKEN = `${LEAD} ${CAN} ${PRICE}`;
 
 /** Same milliseconds as the school site discover ticker: 1.5× its previous 39, 480, and 340. */
@@ -139,7 +139,7 @@ export function TeletypeIntro({
           target="_blank"
           rel="noopener noreferrer"
         >
-          $79.00 USD + tax a year for this student · Stripe Secure Pay
+          $79.00 USD + tax a year · 2 students per account · Stripe Secure Pay
         </a>
         <a
           className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
@@ -147,7 +147,7 @@ export function TeletypeIntro({
           target="_blank"
           rel="noopener noreferrer"
         >
-          $9.00 USD + tax a month for this student · Stripe Secure Pay
+          $9.00 USD + tax a month · 2 students per account · Stripe Secure Pay
         </a>
         <p className="mt-3 text-sm text-[#cfc6b8]">Pay on the school website. This app does not charge the card.</p>
         <div className="mt-4 flex items-center justify-between">

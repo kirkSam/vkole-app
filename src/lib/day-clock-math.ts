@@ -6,7 +6,7 @@ export const IDLE_STOP_SECONDS = 5 * 60;
 export const PACIFIC = "America/Los_Angeles";
 
 export const VKOLE_RULES = [
-  `${APP_NAME} uses one short call to grade the answer and write the next question. Price stays: one week free, then $9.00 USD plus tax a month, or $79.00 USD plus tax a year. It auto-renews until cancelled by email at ${SCHOOL_EMAIL}.`,
+  `${APP_NAME} uses one short call to grade the answer and write the next question. Price stays: one week free, then $9.00 USD plus tax a month, or $79.00 USD plus tax a year. 2 students per account. It auto-renews until cancelled by email at ${SCHOOL_EMAIL}.`,
   "Access: each student has 8 hours a day. That student's engines share the clock. Used time never goes past 8 hours. It resets at midnight Pacific time.",
   "Five minutes with no pointer press or key press stops the clock. Those later minutes are not added. The student password starts the clock again. Time already used stays. Leaving one engine does not stop the clock. The other engines stay open. After 8 hours the engines stay closed until midnight Pacific time.",
 ].join("\n\n");

@@ -1,16 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { schoolMiddleware } from "@/lib/school-middleware";
 import {
   SCHOOL_ACCOUNT_GONE_MESSAGE,
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_WAIT_MESSAGE,
+  THIRD_STUDENT_MESSAGE,
+  accountIdOf,
   clearsLocalProgress,
+  isWebsiteMasterEmail,
   type SchoolFailure,
 } from "@/lib/school-account";
 
 const credentials = z.object({
   email: z.string().trim().email().max(160),
   password: z.string().min(8).max(80),
+  deviceId: z.string().uuid().optional(),
 });
 
 const signUp = credentials.extend({
@@ -47,7 +52,12 @@ export const schoolSignUp = createServerFn({ method: "POST" })
     const { registerSchoolAccount, SchoolCallError } = await import("./school-account.server");
     const { openSchoolSession } = await import("./school-session.server");
     try {
-      const account = await registerSchoolAccount(data);
+      const account = await registerSchoolAccount({
+        email: data.email,
+        password: data.password,
+        name: data.name,
+        deviceId: data.deviceId,
+      });
       const { getSql } = await import("./db");
       const sql = await getSql();
       const { readSchoolMirror } = await import("./school-mirror.server");
@@ -72,7 +82,11 @@ export const schoolSignIn = createServerFn({ method: "POST" })
     const { openSchoolSession } = await import("./school-session.server");
     const { websiteSignInRefusal } = await import("./school-account");
     try {
-      const account = await signInSchoolAccount({ email: data.email, password: data.password });
+      const account = await signInSchoolAccount({
+        email: data.email,
+        password: data.password,
+        deviceId: data.deviceId,
+      });
       const { getSql } = await import("./db");
       const sql = await getSql();
       const { readSchoolMirror } = await import("./school-mirror.server");
@@ -104,6 +118,41 @@ export const schoolSignIn = createServerFn({ method: "POST" })
       }
       return failed("offline", SCHOOL_OFFLINE_MESSAGE);
     }
+  });
+
+export const resendSchoolConfirmation = createServerFn({ method: "POST" })
+  .middleware([schoolMiddleware])
+  .handler(async ({ context }) => {
+    const { resendConfirmationEmail, SchoolCallError } = await import("./school-account.server");
+    try {
+      await resendConfirmationEmail(accountIdOf(context.userId));
+      return { ok: true as const, message: "Look in your email for a new message." };
+    } catch (err) {
+      const message = err instanceof SchoolCallError ? err.message : "The email could not be sent. Try again.";
+      return { ok: false as const, message };
+    }
+  });
+
+export const switchSchoolStudent = createServerFn({ method: "POST" })
+  .validator((data: unknown) => {
+    const parsed = z.object({ index: z.number().int().min(1).max(99) }).safeParse(data);
+    if (!parsed.success) throw new Error("Pick a student.");
+    return parsed.data;
+  })
+  .middleware([schoolMiddleware])
+  .handler(async ({ context, data }) => {
+    const { getSql } = await import("./db");
+    const { readSchoolMirror, saveActiveStudentIndex } = await import("./school-mirror.server");
+    const sql = await getSql();
+    const account = accountIdOf(context.userId);
+    if (data.index > 2 && !isWebsiteMasterEmail(account, process.env.VKOLE_MASTER_EMAIL)) {
+      throw new Error(THIRD_STUDENT_MESSAGE);
+    }
+    const mirror = await readSchoolMirror(sql, context.userId);
+    const known = mirror?.students?.some((student) => student.index === data.index);
+    if (mirror?.students?.length && !known) throw new Error("That student is not on this account.");
+    await saveActiveStudentIndex(sql, account, data.index);
+    return { ok: true as const, index: data.index };
   });
 
 export const schoolPasswordReset = createServerFn({ method: "POST" })

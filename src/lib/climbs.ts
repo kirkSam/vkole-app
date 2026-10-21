@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { IDLE_MS, academicLetter, parentLogoutLetter, trialState, type AppTime, type EndReason, type ReportEvent } from "@/lib/academic-email";
+import { IDLE_MS, academicLetter, finishSendsReport, parentLogoutLetter, trialState, type AppTime, type EndReason, type ReportEvent } from "@/lib/academic-email";
 import { reportLine } from "@/lib/session-report";
 import { schoolMiddleware } from "@/lib/school-middleware";
-import { isSchoolAccountId, schoolAccessDecision } from "@/lib/school-account";
+import { accountIdOf, isSchoolAccountId, schoolAccessDecision, studentIndexOf, type FamilyStudent } from "@/lib/school-account";
 import { isSubject, SUBJECTS, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { moveRung, stepName, stepSentence } from "@/lib/cc-steps";
 import { fillSheet, practicePromptText, rememberPrompt, seenKeys } from "@/lib/next-sheet";
@@ -51,6 +51,10 @@ export type Climb = {
   blocked: boolean;
   /** The website master email. No trial countdown and no payment gate. */
   fullAccess: boolean;
+  /** The parent still needs to confirm the email. The payment lock stays separate. */
+  confirmEmail: boolean;
+  students: FamilyStudent[];
+  activeStudent: number;
   onlineSeconds: number;
 };
 
@@ -108,14 +112,18 @@ async function accountState(sql: Sql, userId: string) {
     const { readSchoolMirror } = await import("@/lib/school-mirror.server");
     const mirror = await readSchoolMirror(sql, userId);
     const decision = schoolAccessDecision({
-      email: userId,
+      email: accountIdOf(userId),
       access: mirror?.access ?? null,
       freeWeekStart: mirror?.freeWeekStart ?? null,
+      lockReason: mirror?.lockReason ?? "",
+      emailConfirmed: mirror?.emailConfirmed,
       masterRaw: process.env.VKOLE_MASTER_EMAIL,
     });
     const startedAt = decision.fullAccess
       ? new Date().toISOString()
-      : (mirror?.freeWeekStart ?? new Date(0).toISOString());
+      : decision.confirmEmail
+        ? (mirror?.freeWeekStart ?? new Date().toISOString())
+        : (mirror?.freeWeekStart ?? new Date(0).toISOString());
     const trial = trialState(startedAt);
     const office = {
       officePurchased: mirror?.officePurchased === true,
@@ -131,6 +139,9 @@ async function accountState(sql: Sql, userId: string) {
       plan: decision.fullAccess || mirror?.access === "open" ? (mirror?.plan ?? null) : null,
       renews: false,
       fullAccess: decision.fullAccess,
+      confirmEmail: decision.confirmEmail,
+      students: mirror?.students ?? [],
+      activeStudent: studentIndexOf(userId),
       ...office,
     };
   }
@@ -156,6 +167,9 @@ async function accountState(sql: Sql, userId: string) {
     officePurchased: false,
     officeSlug: null as string | null,
     fullAccess: false,
+    confirmEmail: false,
+    students: [] as FamilyStudent[],
+    activeStudent: 1,
   };
 }
 
@@ -214,9 +228,9 @@ export async function accountPasswordMatches(sql: Sql, userId: string, password:
   if (!isSchoolAccountId(userId)) return false;
   const { SchoolCallError, signInSchoolAccount } = await import("@/lib/school-account.server");
   try {
-    const session = await signInSchoolAccount({ email: userId, password });
+    const session = await signInSchoolAccount({ email: accountIdOf(userId), password });
     const { saveAccountGrant } = await import("@/lib/school-mirror.server");
-    await saveAccountGrant(sql, userId, { token: session.token, expiresAt: session.expiresAt }).catch(() => undefined);
+    await saveAccountGrant(sql, accountIdOf(userId), { token: session.token, expiresAt: session.expiresAt }).catch(() => undefined);
     return true;
   } catch (err) {
     if (err instanceof SchoolCallError && err.reason !== "offline" && err.reason !== "wait") return false;
@@ -249,8 +263,11 @@ export const listClimbs = createServerFn({ method: "GET" })
       subscribed: account.subscribed,
       plan: account.plan,
       renews: account.renews,
-      blocked: account.fullAccess ? false : account.expired && !account.subscribed,
+      blocked: account.fullAccess || account.confirmEmail ? false : account.expired && !account.subscribed,
       fullAccess: account.fullAccess,
+      confirmEmail: account.confirmEmail === true,
+      students: account.students,
+      activeStudent: account.activeStudent,
       officePurchased: account.officePurchased,
       officeSlug: account.officeSlug,
     };
@@ -882,8 +899,9 @@ export const revealNextQuestion = createServerFn({ method: "POST" })
   });
 
 async function parentEmail(sql: Sql, userId: string): Promise<string | null> {
-  const rows = await sql.query<{ email: string }>('select "email" from "user" where "id" = $1', [userId]);
-  return rows[0]?.email?.trim() || null;
+  const id = accountIdOf(userId);
+  const rows = await sql.query<{ email: string }>('select "email" from "user" where "id" = $1', [id]);
+  return rows[0]?.email?.trim() || (id.includes("@") ? id : null);
 }
 
 async function registrationFacts(sql: Sql, userId: string, childName: string) {
@@ -1179,7 +1197,7 @@ export const endChildSession = createServerFn({ method: "POST" })
       select count(*) as n from climb_events
       where climb_id = ${data.id} and user_id = ${context.userId} and created_at >= ${asIso(open.started_at)}
     `;
-    if (Number(checked[0]?.n ?? 0) < 1) {
+    if (!finishSendsReport(data.reason, Number(checked[0]?.n ?? 0))) {
       const closed = await closeSitting(sql, context.userId, data.id, data.reason);
       return { sent: false, recipient: "", reason: data.reason, sittingSeconds: closed?.seconds ?? 0, totalSeconds: climb.onlineSeconds + (closed?.seconds ?? 0), subject: "", body: "", error: "", sheetNote: "", spellingReport: "", alreadyClosed: false as const };
     }
@@ -1256,7 +1274,7 @@ export const notifyParentSignedOut = createServerFn({ method: "POST" })
   .middleware([schoolMiddleware])
   .handler(async ({ context }) => {
     const sql = await getSql();
-    const parents = await sql.query<{ name: string; email: string }>('select "name", "email" from "user" where "id" = $1', [context.userId]);
+    const parents = await sql.query<{ name: string; email: string }>('select "name", "email" from "user" where "id" = $1', [accountIdOf(context.userId)]);
     const parent = parents[0];
     const email = parent?.email?.trim() ?? "";
     const names = await sql<{ child_name: string }>`select distinct child_name from climbs where user_id = ${context.userId} order by child_name`;

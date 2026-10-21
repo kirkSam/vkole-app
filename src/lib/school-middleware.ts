@@ -23,7 +23,16 @@ export const schoolMiddleware = createMiddleware({ type: "function" })
     }
   })
   .server(async ({ next, context }) => {
+    let userId = context.userId;
+    const { accountIdOf, isSchoolAccountId, studentScopeId } = await import("./school-account");
+    const accountId = accountIdOf(userId);
+    if (isSchoolAccountId(accountId)) {
+      const { getSql } = await import("./db");
+      const { readActiveStudentIndex } = await import("./school-mirror.server");
+      const index = await readActiveStudentIndex(await getSql(), accountId);
+      userId = studentScopeId(accountId, index);
+    }
     const { withSchoolAccount } = await import("./school-sync.server");
     const engineActive = (context as { engineActive?: boolean }).engineActive === true;
-    return withSchoolAccount(context.userId, () => next(), { engineActive });
+    return withSchoolAccount(userId, () => next({ context: { userId, accountId } }), { engineActive });
   });

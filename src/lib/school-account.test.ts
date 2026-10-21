@@ -312,6 +312,18 @@ describe("student check", () => {
         studentName: "Ada",
         level: { m: { grade: 3, step: 0 } },
       })),
+      "add",
+    );
+    assert.equal(
+      await studentCheck("parent@example.com", "Cal", async () => ({
+        ...freshProfile,
+        studentName: "Ada",
+        students: [
+          { index: 1, name: "Ada", age: 8, startingGrade: 3 },
+          { index: 2, name: "Bea", age: 6, startingGrade: 1 },
+        ],
+        level: { m: { grade: 3, step: 0 } },
+      })),
       "extra",
     );
   });

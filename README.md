@@ -1,6 +1,6 @@
 # VKOLE/ZPD - Space XSI Integrated Learning Engine
 
-The learning app for one student. Eight engines share one registration: VKOLE/M, VKOLE Singapore, VKOLE Sight Words, VKOLE/Alphabet ZPD, VKOLE/PA ZPD, VKOLE/ELA, VKOLE/SS, and VKOLE/gen.
+The learning app. 2 students per account. Eight engines share one registration: VKOLE/M, VKOLE Singapore, VKOLE Sight Words, VKOLE/Alphabet ZPD, VKOLE/PA ZPD, VKOLE/ELA, VKOLE/SS, and VKOLE/gen.
 
 This repository is the application source. It does not contain secret keys or passwords. Set those by name in the environment. See `.env.example`.
 
@@ -30,11 +30,11 @@ This repository is the application source. It does not contain secret keys or pa
 
 The school website is the only account book. Parent email and password, the student level, the free week, the day clock, seen questions, and whether access is open live at https://www.dotheimpossible.ai. This app calls `/api/account/*` from its own server, with no cookies. Sign-in and register return a token that lasts 12 hours. That token and its `expiresAt` are stored on the same local row as the family mirror. Later reads and saves send `Authorization: Bearer`. The browser does not send `X-Vkole-Secret`. After a successful sign-in the app still sets its own HttpOnly session cookie, keyed to the lowercase parent email. A 401 from the website clears the stored token and returns the parent to sign-in.
 
-This app still keeps a copy of that sign-in and of the student record: Better Auth `user`, `session`, `account`, and `verification` rows; `climbs`, `app_trials`, and the related student tables (`climb_events`, `climb_sittings`, `academic_mail`, `app_subscriptions`, `parent_logins`, `payments`, `student_passwords`, `day_clocks`, `assignment_sheets`, `seen_prompts`, `question_bags`, `school_mirror`, `registrations`). The device does not use `localStorage` for an account. It does keep the session cookie, and `sessionStorage` holds the preview bearer token plus a few screen flags. None of that is deleted by the website's own wipe.
+This app still keeps a copy of that sign-in and of the student record: Better Auth `user`, `session`, `account`, and `verification` rows; `climbs`, `app_trials`, and the related student tables (`climb_events`, `climb_sittings`, `academic_mail`, `app_subscriptions`, `parent_logins`, `payments`, `student_passwords`, `day_clocks`, `assignment_sheets`, `seen_prompts`, `question_bags`, `school_mirror`, `registrations`). The device does not use `localStorage` for an account. It does keep one device id there. That id is sent when the parent registers or signs in, and it is never shown. The session cookie stays, and `sessionStorage` holds the preview bearer token plus a few screen flags. None of that is deleted by the website's own wipe.
 
 `POST /api/vkole/purge` deletes those rows and leaves the tables and the eight engines in place. The caller sends header `X-Vkole-Secret` (the shared secret) or is signed in as an email listed in `VKOLE_ADMIN_EMAILS`, and the JSON body `{ "confirm": "delete-all-accounts" }`. The response is counts only. That secret is still required for this purge route. It is not sent on account calls, and it must not be exposed to the browser (`VITE_` names are visible to the page). When a signed-in parent later opens the app and the website says that account is gone, this app deletes that parent's rows, expires the session cookie, and the browser drops the cached sign-in.
 
-Pay buttons open https://www.dotheimpossible.ai/engine. This app does not record a payment and does not charge the card. The prices shown are $9.00 USD plus tax a month, or $79.00 USD plus tax a year, for one student. Google and X stay separate from the school account.
+Pay buttons open https://www.dotheimpossible.ai/engine. This app does not record a payment and does not charge the card. The prices shown are $9.00 USD plus tax a month, or $79.00 USD plus tax a year. 2 students per account. Google and X stay separate from the school account.
 
 ## Install
 

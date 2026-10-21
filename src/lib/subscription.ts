@@ -19,6 +19,7 @@ export async function childAccess(
     if (isWebsiteMasterEmail(userId, process.env.VKOLE_MASTER_EMAIL)) return "open";
     const { readSchoolMirror } = await import("@/lib/school-mirror.server");
     const mirror = await readSchoolMirror(sql, userId);
+    if (mirror?.lockReason === "confirm-email" || mirror?.lockReason === "payment") return "ended";
     return mirror?.access === "open" ? "open" : "ended";
   }
   const trials = await sql<{ started_at: unknown }>`

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { accountsVisibleTo, mayAllowAppMail, normalizeAccountEmail } from "@/lib/account-scope";
 import { getSql, type Sql } from "@/lib/db";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { isSchoolAccountId } from "@/lib/school-account";
+import { accountIdOf, isSchoolAccountId } from "@/lib/school-account";
 
 /** The Gmail form is the mail operator. It is not a list of other families. */
 export function canAllowAppMail(email: string): boolean {
@@ -15,8 +15,9 @@ async function mailer() {
 }
 
 async function emailFor(sql: Sql, userId: string): Promise<string> {
-  const rows = await sql.query<{ email: string }>('select "email" from "user" where "id" = $1', [userId]);
-  const email = rows[0]?.email?.trim();
+  const id = accountIdOf(userId);
+  const rows = await sql.query<{ email: string }>('select "email" from "user" where "id" = $1', [id]);
+  const email = rows[0]?.email?.trim() || (id.includes("@") ? id : "");
   if (!email) throw new Error("This account has no email address.");
   return email;
 }

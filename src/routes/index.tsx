@@ -7,7 +7,9 @@ import { TeletypeIntro } from "@/components/teletype-intro";
 import { TrialFinished, type EndedReason, type StoppedBecause } from "@/components/trial-finished";
 import { SchoolAccountScreen } from "@/components/school-account-screen";
 import { StudentOffice } from "@/components/student-office";
-import { schoolScreen, SCHOOL_ENGINE_URL } from "@/lib/school-account";
+import { schoolScreen, SCHOOL_ENGINE_URL, THIRD_STUDENT_MESSAGE, TWO_STUDENTS_LINE, type FamilyStudent } from "@/lib/school-account";
+import { ConfirmEmailLock } from "@/components/confirm-email";
+import { StudentSwitcher } from "@/components/student-switcher";
 import { EnginePicks, PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
 import { SUBJECTS, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
@@ -110,6 +112,16 @@ function Home() {
         if (result.plan === "month" || result.plan === "year") {
           setEndedPlan(result.plan);
           setStopped(result.renews ? "unpaid" : "cancelled");
+        }
+        if (result.confirmEmail) {
+          setGate("open");
+          setUnpaid(false);
+          try {
+            sessionStorage.removeItem("vkole-unpaid");
+          } catch {
+            /* storage may be unavailable */
+          }
+          return;
         }
         if (result.fullAccess) {
           setGate("open");
@@ -247,6 +259,9 @@ function Home() {
 function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTrialSplash: () => void }) {
   const [climbs, setClimbs] = useState<Climb[] | null>(null);
   const [fullAccess, setFullAccess] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState(false);
+  const [students, setStudents] = useState<FamilyStudent[]>([]);
+  const [activeStudent, setActiveStudent] = useState(1);
   const [trialOver, setTrialOver] = useState(false);
   const [endedPlan, setEndedPlan] = useState<EndedReason>("trial");
   const [stopped, setStopped] = useState<StoppedBecause | undefined>(undefined);
@@ -324,7 +339,10 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
         if (!live) return;
         setClimbs(result.climbs);
         setFullAccess(result.fullAccess);
-        setTrialOver(result.fullAccess ? false : result.blocked);
+        setConfirmEmail(result.confirmEmail === true);
+        setStudents(result.students ?? []);
+        setActiveStudent(result.activeStudent ?? 1);
+        setTrialOver(result.fullAccess || result.confirmEmail ? false : result.blocked);
         if (result.plan === "month" || result.plan === "year") {
           setEndedPlan(result.plan);
           setStopped(result.renews ? "unpaid" : "cancelled");
@@ -362,6 +380,10 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
     };
   }, []);
 
+  if (confirmEmail) {
+    return <ConfirmEmailLock />;
+  }
+
   if (closedApp || trialOver) {
     return (
       <TrialFinished
@@ -393,14 +415,15 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       <h1 className="mt-1 font-display text-4xl text-ink">Eight climbs</h1>
       <p className="mt-3 text-muted">
         {fullAccess
-          ? 'This account is open. It is not on a free week and it is not asked to pay. Each student uses all eight engines. The engines share one clock of 8 hours for this student. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock, and the student password continues it. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration, and the other engines stay open.'
-          : 'The first sign-in starts a 7 day free trial for this registration. No credit card is required for those seven days. Only the email registration. Each student downloads the app and registers on that student’s own device. One registration is one student, and that student may use all eight engines. The engines share one clock of 8 hours for this student. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock, and the student password continues it. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the trial, the payment covers that student for a full month or a full year from the day of payment. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration, and the other engines stay open.'}
+          ? `This account is open. It is not on a free week and it is not asked to pay. ${TWO_STUDENTS_LINE}. Each student uses all eight engines. Each student has a clock of 8 hours. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock. The student password starts it again. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`
+          : `The free week is 168 hours. It starts when you confirm the email. No credit card is required for that week. ${TWO_STUDENTS_LINE}. Each student may use all eight engines. Each student has a clock of 8 hours. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock. The student password starts it again. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the free week, the payment covers the account for a full month or a full year from the day you pay. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`}
       </p>
       {account ? (
         <p className="mt-3 text-sm text-ink">
           This email is saved: {account.email}. Logins recorded: {account.loginCount}. Reports go only to this address.
         </p>
       ) : null}
+      <StudentSwitcher students={students} activeStudent={activeStudent} onSwitched={() => setRevision((value) => value + 1)} />
       {office && (office.purchased || !fullAccess) ? (
         <StudentOffice purchased={office.purchased} slug={office.slug} />
       ) : null}
@@ -553,7 +576,7 @@ function AppGate({
         return;
       }
       if (found.status === "extra") {
-        setError("This registration is for one student. Download the app on the other student’s device and register there.");
+        setError(THIRD_STUDENT_MESSAGE);
         setPending(false);
         return;
       }
@@ -728,7 +751,7 @@ function AppGate({
               className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
             />
           </label>
-          <p className="text-sm text-muted sm:col-span-2">The parent is already signed in. The starting grade is saved for this first name.</p>
+          <p className="text-sm text-muted sm:col-span-2">Type the age and a starting grade from 1 to 12. Then press the button below.</p>
         </div>
       ) : null}
       {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
