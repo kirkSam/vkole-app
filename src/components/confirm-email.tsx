@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Shell } from "@/components/shell";
+import { WebsiteVisit } from "@/components/website-visit";
 import { CONFIRM_EMAIL_TITLE } from "@/lib/school-account";
 import { resendSchoolConfirmation } from "@/lib/school-auth";
 
@@ -29,6 +30,7 @@ export function ConfirmEmailLock() {
         Send the email again
       </button>
       {note ? <p className="mt-3 text-base text-ink">{note}</p> : null}
+      <WebsiteVisit />
     </Shell>
   );
 }
