@@ -256,6 +256,29 @@ export function normalizeLetterProgress(input: Partial<LetterProgress> | null | 
   };
 }
 
+/**
+ * A showing exercise always puts one letter on the screen.
+ * The memory exercise is the only one that asks "What letter is this?" with the letter hidden.
+ * An empty `letter` on any other card uses the answer glyph, so a handoff cannot land on a blank card.
+ */
+export function letterOnScreen(kind: string, letter: string, answer: string): string {
+  if (kind === "letter-name") return "";
+  const listed = (letter || "").trim().toUpperCase();
+  if (/^[A-Z]$/.test(listed)) return listed;
+  const fallback = answer.trim().toUpperCase();
+  return /^[A-Z]$/.test(fallback) ? fallback : "";
+}
+
+/** 1 is the alphabet that shows each letter. 2 asks what comes after. 3 is memory and hides the letter. */
+export function letterExercise(index: number): 1 | 2 | 3 {
+  const kind = itemAt("LK", clampLetterIndex(index)).kind;
+  if (kind === "letter-name") return 3;
+  if (kind === "letter-after") return 2;
+  return 1;
+}
+
+export const MEMORY_LETTER_PROMPT = "What letter is this?";
+
 function exerciseGroup(kind: string | undefined): string {
   if (kind === "first-letter" || kind === "next-letter") return "sequence";
   return kind || "sequence";
@@ -350,7 +373,7 @@ export function letterView(input: LetterProgress): LetterView {
     show: item.show,
     answer,
     also: item.also,
-    shown: item.kind === "letter-name" ? "" : item.letter,
+    shown: letterOnScreen(item.kind, item.letter, answer),
     band: "LK",
     name: meta.name,
   };
