@@ -15,7 +15,7 @@ import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-histo
 import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
 import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
 import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
-import { applyLetterAnswer, letterMoveNote, letterView, migrateAlphabetIndex, normalizeLetterProgress, progressAfterSong } from "@/lib/vkole/spelling/items";
+import { applyLetterAnswer, formatCompletedExercises, jumpToExercise, letterExercise, letterMoveNote, letterView, normalizeCompletedExercises, normalizeLetterProgress, noteExerciseCompletion, progressAfterSong, resumeAlphabetPlace } from "@/lib/vkole/spelling/items";
 import { savedSpellingReport, spellingStatsFromEvents, writeSpellingReport } from "@/lib/vkole/spelling/report";
 import { cardFromAccount as paCardFromAccount, migratePaBand, nextAfterAnswer, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
 import { cardFromAccount, nextCard, startCard } from "@/lib/vkole/sight-words/words";
@@ -56,6 +56,8 @@ export type Climb = {
   students: FamilyStudent[];
   activeStudent: number;
   onlineSeconds: number;
+  /** Alphabet exercises finished in this flow. Other engines leave this empty. */
+  completedExercises: number[];
 };
 
 const idSchema = z.object({ id: z.string().trim().min(8).max(80) });
@@ -195,6 +197,7 @@ function toClimb(row: ClimbRow, account: Awaited<ReturnType<typeof accountState>
     lastFeedback: row.last_feedback ?? "",
     awaitingNext: flag(row.awaiting_next),
     onlineSeconds: Number(row.online_seconds ?? 0),
+    completedExercises: [],
     blocked,
     ...account,
   };
@@ -278,7 +281,56 @@ function alphabetItemId(questionId: string | null | undefined): string {
   return match?.[1] ?? "";
 }
 
-/** Old hidden-letter saves become exercise 4 before the student sees them. */
+let alphabetColumnReady: Promise<void> | null = null;
+
+export async function ensureAlphabetCompletedColumn(sql: Sql): Promise<void> {
+  if (!alphabetColumnReady) {
+    alphabetColumnReady = sql`alter table climbs add column if not exists alphabet_completed text not null default ''`.then(
+      () => undefined,
+      (err: unknown) => {
+        alphabetColumnReady = null;
+        throw err;
+      },
+    );
+  }
+  await alphabetColumnReady;
+}
+
+async function readAlphabetCompleted(sql: Sql, userId: string, id: string): Promise<number[]> {
+  await ensureAlphabetCompletedColumn(sql);
+  const rows = await sql<{ alphabet_completed: string | null }>`
+    select alphabet_completed from climbs where id = ${id} and user_id = ${userId}
+  `;
+  return normalizeCompletedExercises(rows[0]?.alphabet_completed);
+}
+
+async function writeAlphabetPlace(
+  sql: Sql,
+  userId: string,
+  id: string,
+  view: ReturnType<typeof letterView>,
+  completed: unknown,
+): Promise<void> {
+  await ensureAlphabetCompletedColumn(sql);
+  await sql`
+    update climbs
+    set standard_step = ${view.index},
+        correct_at_level = ${view.silence},
+        incorrect_streak = ${view.wrong},
+        standard_code = ${view.band},
+        standard_label = ${view.name},
+        current_prompt = ${view.show},
+        answer_key = ${view.answer},
+        answer_aliases = ${JSON.stringify(view.also)},
+        answer_note = ${view.name},
+        question_id = ${`sp:${view.band}:${view.id}:s${view.silence}:w${view.wrong}`},
+        alphabet_completed = ${formatCompletedExercises(completed)},
+        updated_at = now()
+    where id = ${id} and user_id = ${userId}
+  `;
+}
+
+/** Repair an old hidden-letter card before the student sees the saved record. Opening still starts at exercise 1. */
 async function migratedSpellingClimb(sql: Sql, userId: string, climb: Climb): Promise<Climb> {
   if (climb.subject !== "sp") return climb;
   const rows = await sql<{ question_id: string | null; current_prompt: string | null; standard_step: number | string | null }>`
@@ -288,25 +340,23 @@ async function migratedSpellingClimb(sql: Sql, userId: string, climb: Climb): Pr
   `;
   const row = rows[0];
   if (!row) return climb;
+  const completed = await readAlphabetCompleted(sql, userId, climb.id);
   const current = Number(row.standard_step ?? climb.standardStep);
-  const next = migrateAlphabetIndex({
+  const place = resumeAlphabetPlace({
     index: Number.isInteger(current) ? current : climb.standardStep,
     word: alphabetItemId(row.question_id),
     prompt: row.current_prompt ?? "",
+    silence: climb.correctAtLevel,
+    wrong: climb.incorrectStreak,
+    completedExercises: completed,
   });
-  if (next === climb.standardStep) return climb;
-  const view = letterView({ index: next, silence: climb.correctAtLevel, wrong: climb.incorrectStreak });
-  await sql`
-    update climbs
-    set standard_step = ${view.index},
-        current_prompt = ${view.show},
-        answer_key = ${view.answer},
-        answer_aliases = ${JSON.stringify(view.also)},
-        question_id = ${`sp:${view.band}:${view.id}:s${view.silence}:w${view.wrong}`},
-        updated_at = now()
-    where id = ${climb.id} and user_id = ${userId}
-  `;
-  return selectOwned(sql, userId, climb.id);
+  const same = place.index === climb.standardStep && place.silence === climb.correctAtLevel && place.wrong === climb.incorrectStreak;
+  if (!same) {
+    const view = letterView(place);
+    await writeAlphabetPlace(sql, userId, climb.id, view, completed);
+    return { ...(await selectOwned(sql, userId, climb.id)), completedExercises: completed };
+  }
+  return { ...climb, completedExercises: completed };
 }
 
 export const getClimb = createServerFn({ method: "POST" })
@@ -659,7 +709,7 @@ export const markSightWord = createServerFn({ method: "POST" })
 
 const spellingSchema = idSchema.extend({ outcome: z.enum(["correct", "miss", "timeout"]) });
 
-/** The song stays on a saved exercise 4 or 5 card. It never opens the old hidden-letter prompt. */
+/** The song opens the next exercise in order. It never opens the old hidden-letter prompt. */
 export const placeSpellingAfterSong = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
   .middleware([schoolMiddleware])
@@ -674,9 +724,15 @@ export const placeSpellingAfterSong = createServerFn({ method: "POST" })
       wrong: current.incorrectStreak,
     });
     const askedNow = letterView(before);
-    const after = progressAfterSong({ ...before, word: askedNow.id, prompt: current.currentPrompt });
+    const after = progressAfterSong({
+      ...before,
+      word: askedNow.id,
+      prompt: current.currentPrompt,
+      completedExercises: current.completedExercises,
+    });
     if (after.index === before.index && after.silence === before.silence && after.wrong === before.wrong) {
-      return selectOwned(sql, context.userId, data.id);
+      const saved = await selectOwned(sql, context.userId, data.id);
+      return { ...saved, completedExercises: current.completedExercises };
     }
     const next = letterView(after);
     await sql`
@@ -697,7 +753,27 @@ export const placeSpellingAfterSong = createServerFn({ method: "POST" })
           updated_at = now()
       where id = ${data.id} and user_id = ${context.userId}
     `;
-    return selectOwned(sql, context.userId, data.id);
+    const saved = await selectOwned(sql, context.userId, data.id);
+    return { ...saved, completedExercises: current.completedExercises };
+  });
+
+/** A numbered button opens that exercise. Exercise 1 is the song and has no card. */
+export const placeSpellingExercise = createServerFn({ method: "POST" })
+  .validator((data: unknown) =>
+    parse(idSchema.extend({ exercise: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5)]) }), data),
+  )
+  .middleware([schoolMiddleware])
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const current = await migratedSpellingClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
+    if (current.subject !== "sp") throw new Error("This session is not alphabet.");
+    if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
+    const place = jumpToExercise(data.exercise);
+    if (!place) return current;
+    const view = letterView(place);
+    await writeAlphabetPlace(sql, context.userId, data.id, view, current.completedExercises);
+    const saved = await selectOwned(sql, context.userId, data.id);
+    return { ...saved, completedExercises: current.completedExercises };
   });
 
 export const markSpelling = createServerFn({ method: "POST" })
@@ -717,6 +793,12 @@ export const markSpelling = createServerFn({ method: "POST" })
     const correct = data.outcome === "correct";
     const after = applyLetterAnswer(before, data.outcome);
     const next = letterView(after);
+    const completed = noteExerciseCompletion(
+      before.index,
+      after.index,
+      current.completedExercises,
+      correct && letterExercise(before.index) === 5,
+    );
     const earned = capVkoleGrade(Math.max(current.performanceLevel, current.level));
     const note = letterMoveNote(before, data.outcome, after);
     await sql`
@@ -736,6 +818,7 @@ export const markSpelling = createServerFn({ method: "POST" })
           answer_aliases = ${JSON.stringify(next.also)},
           answer_note = ${next.name},
           question_id = ${`sp:${next.band}:${next.id}:s${next.silence}:w${next.wrong}`},
+          alphabet_completed = ${formatCompletedExercises(completed)},
           next_prompt = '',
           last_feedback = ${note},
           awaiting_next = 0,
@@ -763,7 +846,8 @@ export const markSpelling = createServerFn({ method: "POST" })
     `;
     await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sp", { letter: asked.letter }));
     await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sp", { letter: next.letter }));
-    return selectOwned(sql, context.userId, data.id);
+    const saved = await selectOwned(sql, context.userId, data.id);
+    return { ...saved, completedExercises: completed };
   });
 
 const paSchema = idSchema.extend({ outcome: z.enum(["correct", "miss", "timeout"]) });

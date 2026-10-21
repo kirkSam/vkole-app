@@ -262,6 +262,55 @@
   transition: background-color 400ms ease;
 }
 
+.sp-jumps {
+  display: flex;
+  position: static;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  z-index: auto;
+}
+
+.sp-jumps button {
+  min-width: 2.35rem;
+  min-height: 2.35rem;
+  padding: 0 0.35rem;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #3d4a44;
+  cursor: pointer;
+}
+
+.sp-jumps button:nth-child(1) {
+  background: #d4f0ee;
+}
+
+.sp-jumps button:nth-child(2) {
+  background: #f8e3b0;
+}
+
+.sp-jumps button:nth-child(3) {
+  background: #f8dce8;
+}
+
+.sp-jumps button:nth-child(4) {
+  background: #e4dcf6;
+}
+
+.sp-jumps button:nth-child(5) {
+  background: #d9f3d4;
+}
+
+.sp-jumps button.is-current {
+  border-color: #1d2420;
+  color: #1d2420;
+}
+
 .sp-letter {
   font-size: clamp(6.5rem, 24vw, 12rem);
   line-height: 0.9;

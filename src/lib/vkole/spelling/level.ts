@@ -1,5 +1,5 @@
 import type { EngineLevel } from "@/lib/school-account";
-import { cardFromAccount, isSpBand, letterView, spCard, type SpBand } from "./items.ts";
+import { cardFromAccount, isSpBand, letterView, normalizeCompletedExercises, spCard, type SpBand } from "./items.ts";
 
 export function spAccountLevel(
   remote: EngineLevel | undefined,
@@ -15,6 +15,7 @@ export function spAccountLevel(
     startingGrade?: number;
     silence?: number;
     wrong?: number;
+    completedExercises?: unknown;
     updatedAt: number;
   },
 ): EngineLevel {
@@ -47,6 +48,10 @@ export function spAccountLevel(
     updatedAt: local.updatedAt,
     levelCode: card.band,
     levelLabel: view.name,
+    completedExercises: normalizeCompletedExercises([
+      ...normalizeCompletedExercises(local.completedExercises),
+      ...normalizeCompletedExercises(remote?.completedExercises),
+    ]),
   };
   const startingGrade = local.startingGrade ?? remote?.startingGrade;
   if (startingGrade != null) {

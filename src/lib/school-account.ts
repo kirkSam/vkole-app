@@ -13,7 +13,7 @@ import { levelFieldsForWebsite } from "./level-pair.ts";
 import { DAY_LIMIT_SECONDS } from "./day-clock-math.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, SIGHT_WORD_BANDS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
-import { bandMeta, cardFromAccount as spCardFromAccount, isSpBand, letterView, migrateAlphabetIndex, SPELLING_BANDS, spCard, type SpBand } from "./vkole/spelling/items.ts";
+import { bandMeta, cardFromAccount as spCardFromAccount, isSpBand, letterView, migrateAlphabetIndex, normalizeCompletedExercises, resumeAlphabetPlace, SPELLING_BANDS, spCard, type SpBand } from "./vkole/spelling/items.ts";
 import { cardFromAccount as paCardFromAccount, migratePaBand, PA_BANDS, type PaBand } from "./vkole/phonemic-awareness/items.ts";
 import { sightCard } from "./vkole/sight-words/words.ts";
 
@@ -295,6 +295,8 @@ export type EngineLevel = {
   working?: { grade: number; step: number; label?: string };
   /** Earned grade on the website. grade matches earnedGrade. */
   earned?: { grade: number };
+  /** Alphabet exercises finished in the five-exercise flow. 4 and 5 open only after 2 and 3 are listed. */
+  completedExercises?: number[];
 };
 
 export type SeenQuestion = { key: string; text: string };
@@ -657,10 +659,11 @@ function asSpLevel(row: Record<string, unknown>, level: EngineLevel): EngineLeve
   if (band === "LK") {
     index = migrateAlphabetIndex({ index: explicit ?? null, word: storedWord });
     if (alphabetAt != null && explicit == null) index = alphabetAt;
+    level.completedExercises = normalizeCompletedExercises(row.completedExercises ?? nested?.completedExercises);
   }
-  const card = spCard(band, index, level.grade);
   const silence = wholeNumber(row.streak) ?? (nested ? wholeNumber(nested.streak) : null) ?? 0;
   const wrong = wholeNumber(row.missStreak) ?? (nested ? wholeNumber(nested.missStreak) : null) ?? 0;
+  const card = spCard(band, index, level.grade);
   const view = card.band === "LK" ? letterView({ index: card.index, silence, wrong }) : null;
   level.step = 0;
   level.band = card.band;
@@ -1259,14 +1262,50 @@ function notBehind(engine: LevelKey, incoming: EngineLevel, stored: EngineLevel)
  * An empty level and a starter level do not replace one that has moved.
  * An equal record keeps the incoming fields.
  */
+function alphabetRecord(level: EngineLevel): boolean {
+  const band = (level.band ?? level.levelCode ?? "").trim().toLowerCase();
+  if (band === "lk" || band === "ls") return true;
+  if (band !== "cvc") return false;
+  const word = (level.word ?? "").trim().toLowerCase();
+  return word.length <= 1 || word.startsWith("lk-");
+}
+
+/** Keep a saved alphabet card on the account. The engine still opens at exercise 1. */
+function orderedAlphabetLevel(level: EngineLevel): EngineLevel {
+  if (!alphabetRecord(level)) return level;
+  const completed = normalizeCompletedExercises(level.completedExercises);
+  const place = resumeAlphabetPlace({
+    index: level.index,
+    word: level.word,
+    silence: level.streak,
+    wrong: level.missStreak,
+    completedExercises: completed,
+  });
+  const view = letterView(place);
+  return {
+    ...level,
+    index: view.index,
+    word: view.id,
+    streak: view.silence,
+    missStreak: view.wrong,
+    completedExercises: completed,
+  };
+}
+
 export function keptEngineLevel(
   engine: LevelKey,
   stored: EngineLevel | undefined,
   incoming: EngineLevel | undefined,
 ): EngineLevel | undefined {
-  if (!incoming) return stored;
-  if (!stored) return incoming;
-  return notBehind(engine, incoming, stored) ? incoming : stored;
+  if (!incoming) return engine === "sp" && stored ? orderedAlphabetLevel(stored) : stored;
+  if (!stored) return engine === "sp" ? orderedAlphabetLevel(incoming) : incoming;
+  const chosen = notBehind(engine, incoming, stored) ? incoming : stored;
+  if (engine !== "sp") return chosen;
+  const completed = normalizeCompletedExercises([
+    ...(stored.completedExercises ?? []),
+    ...(incoming.completedExercises ?? []),
+  ]);
+  return orderedAlphabetLevel({ ...chosen, completedExercises: completed });
 }
 
 /** Union of saved engines. A missing or earlier incoming engine leaves the stored one. */
