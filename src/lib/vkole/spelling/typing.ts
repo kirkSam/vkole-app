@@ -1,7 +1,13 @@
 import { alphabet } from "./items.ts";
 
-/** Shown and spoken when the typed key is wrong, or when 5 seconds pass with no correct key. */
+/** Shown and spoken when the typed key is a different letter, or when 5 seconds pass with no correct key. */
 export const TYPING_TRY_AGAIN = "Try again";
+
+/** Shown and spoken when the letter is right and a capital was needed. */
+export const TYPING_CAPITAL_LINE = "Use a capital letter. Hold Shift or press Caps Lock.";
+
+/** Shown and spoken when the letter is right and a small letter was needed. */
+export const TYPING_SMALL_LINE = "Use a small letter. Let go of Shift or turn off Caps Lock.";
 
 /** How long exercise 6 waits for the correct key before it asks again. */
 export const TYPING_WAIT_MS = 5000;
@@ -26,16 +32,26 @@ export function typingShown(place: TypingPlace): string {
   return place.letterCase === "lower" ? upper.toLowerCase() : upper;
 }
 
+/** The reminder for a right letter in the wrong case. A capital card and a small-letter card use different lines. */
+export function typingCaseLine(shown: string): string {
+  return /^[A-Z]$/.test(shown.trim()) ? TYPING_CAPITAL_LINE : TYPING_SMALL_LINE;
+}
+
+export type TypingJudgment = "correct" | "wrong" | "case" | "ignore";
+
 /**
  * One typed key. The case has to match the letter on the card.
  * A capital card accepts only the capital key. A small-letter card accepts only the small key.
- * An empty field is ignored. The other case is wrong and stays on this letter.
+ * The same letter in the other case is `case` and stays on this letter.
+ * An empty field is ignored. A different letter is wrong.
  */
-export function judgeTypingKey(shown: string, raw: string): "correct" | "wrong" | "ignore" {
+export function judgeTypingKey(shown: string, raw: string): TypingJudgment {
   const chars = [...raw].filter((char) => char.trim() !== "");
   const key = chars[chars.length - 1] ?? "";
   if (!key) return "ignore";
-  if (key === shown.trim()) return "correct";
+  const want = shown.trim();
+  if (key === want) return "correct";
+  if (key.toLowerCase() === want.toLowerCase() && key.toLowerCase() !== key.toUpperCase()) return "case";
   return "wrong";
 }
 

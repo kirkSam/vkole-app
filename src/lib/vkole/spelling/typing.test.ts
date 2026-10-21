@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { alphabet, noteExerciseCompletion, rememberCompletedExercise } from "./items.ts";
-import { TYPING_TRY_AGAIN, TYPING_WAIT_MS, advanceTyping, judgeTypingKey, typingShown, typingStart } from "./typing.ts";
+import {
+  TYPING_CAPITAL_LINE,
+  TYPING_SMALL_LINE,
+  TYPING_TRY_AGAIN,
+  TYPING_WAIT_MS,
+  advanceTyping,
+  judgeTypingKey,
+  typingCaseLine,
+  typingShown,
+  typingStart,
+} from "./typing.ts";
 
 describe("alphabet exercise 6 typing", () => {
   it("types every capital letter, then every small letter, and rejects the other case", () => {
@@ -16,7 +26,8 @@ describe("alphabet exercise 6 typing", () => {
       assert.equal(judgeTypingKey(shown, shown), "correct");
       const otherCase = shown === shown.toLowerCase() ? shown.toUpperCase() : shown.toLowerCase();
       assert.notEqual(otherCase, shown);
-      assert.equal(judgeTypingKey(shown, otherCase), "wrong");
+      assert.equal(judgeTypingKey(shown, otherCase), "case");
+      assert.equal(typingCaseLine(shown), shown === shown.toUpperCase() ? TYPING_CAPITAL_LINE : TYPING_SMALL_LINE);
       const other = shown.toLowerCase() === "a" ? "b" : "a";
       assert.equal(judgeTypingKey(shown, other), "wrong");
       assert.equal(judgeTypingKey(shown, ""), "ignore");
@@ -41,20 +52,31 @@ describe("alphabet exercise 6 typing", () => {
     assert.equal(stayed.done, false);
   });
 
-  it("counts the wrong case as a miss and stays on that letter", () => {
+  it("reminds the student about Shift when the letter is right and the case is wrong", () => {
+    assert.equal(TYPING_CAPITAL_LINE, "Use a capital letter. Hold Shift or press Caps Lock.");
+    assert.equal(TYPING_SMALL_LINE, "Use a small letter. Let go of Shift or turn off Caps Lock.");
     const capital = typingStart();
     assert.equal(typingShown(capital), "A");
-    assert.equal(judgeTypingKey(typingShown(capital), "a"), "wrong");
+    assert.equal(judgeTypingKey(typingShown(capital), "a"), "case");
+    assert.equal(typingCaseLine(typingShown(capital)), TYPING_CAPITAL_LINE);
     assert.equal(judgeTypingKey(typingShown(capital), "A"), "correct");
+    assert.equal(judgeTypingKey(typingShown(capital), "b"), "wrong");
     assert.equal(typingShown(capital), "A");
     const small = { index: 0, letterCase: "lower" as const };
     assert.equal(typingShown(small), "a");
-    assert.equal(judgeTypingKey(typingShown(small), "A"), "wrong");
+    assert.equal(judgeTypingKey(typingShown(small), "A"), "case");
+    assert.equal(typingCaseLine(typingShown(small)), TYPING_SMALL_LINE);
     assert.equal(judgeTypingKey(typingShown(small), "a"), "correct");
+    assert.equal(judgeTypingKey(typingShown(small), "B"), "wrong");
     assert.equal(typingShown(small), "a");
     for (const letter of alphabet()) {
-      assert.equal(judgeTypingKey(letter, letter.toLowerCase()), "wrong");
-      assert.equal(judgeTypingKey(letter.toLowerCase(), letter), "wrong");
+      assert.equal(judgeTypingKey(letter, letter.toLowerCase()), "case");
+      assert.equal(typingCaseLine(letter), TYPING_CAPITAL_LINE);
+      assert.equal(judgeTypingKey(letter.toLowerCase(), letter), "case");
+      assert.equal(typingCaseLine(letter.toLowerCase()), TYPING_SMALL_LINE);
+      const other = letter === "A" ? "B" : "A";
+      assert.equal(judgeTypingKey(letter, other), "wrong");
+      assert.equal(judgeTypingKey(letter.toLowerCase(), other.toLowerCase()), "wrong");
     }
   });
 

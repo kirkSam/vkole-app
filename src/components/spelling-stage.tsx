@@ -23,7 +23,7 @@ import {
 import { holdEngineAudio, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { describeSpellingHear, recognitionErrorRelistens, spellingGrammar } from "@/lib/vkole/spelling/match";
 import { celebrationFrame, GOOD_JOB_LINE, reciteHear, SPELLING_CELEBRATION_MS } from "@/lib/vkole/spelling/recite";
-import { advanceTyping, judgeTypingKey, TYPING_TRY_AGAIN, TYPING_WAIT_MS, typingShown, typingStart, type TypingPlace } from "@/lib/vkole/spelling/typing";
+import { advanceTyping, judgeTypingKey, TYPING_TRY_AGAIN, TYPING_WAIT_MS, typingCaseLine, typingShown, typingStart, type TypingPlace } from "@/lib/vkole/spelling/typing";
 
 const MIC_KEY = "vkole-sp-mic";
 
@@ -304,7 +304,8 @@ export function SpellingStage({
   function takeTyped(raw: string) {
     setTypeDraft("");
     if (phase !== "type" || typedDone.current) return;
-    const judgment = judgeTypingKey(typingShown(typing), raw);
+    const shown = typingShown(typing);
+    const judgment = judgeTypingKey(shown, raw);
     if (judgment === "ignore") return;
     if (judgment === "correct") {
       const next = advanceTyping(typing);
@@ -318,8 +319,9 @@ export function SpellingStage({
       setTyping(next.place);
       return;
     }
-    setTypeNote(TYPING_TRY_AGAIN);
-    speakLine(TYPING_TRY_AGAIN, () => {});
+    const line = judgment === "case" ? typingCaseLine(shown) : TYPING_TRY_AGAIN;
+    setTypeNote(line);
+    speakLine(line, () => {});
     setTypeNudge((value) => value + 1);
   }
 

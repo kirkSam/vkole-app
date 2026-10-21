@@ -164,6 +164,8 @@ describe("alphabet exercise buttons", () => {
     const typed = stage.slice(stage.indexOf("function takeTyped"), stage.indexOf("function noteHeard"));
     assert.equal(typed.includes('onDoneRef.current("correct")'), true);
     assert.equal(typed.includes("TYPING_TRY_AGAIN"), true);
+    assert.equal(typed.includes("typingCaseLine"), true);
+    assert.equal(typed.includes('judgment === "case"'), true);
     const jumpCss = css.slice(css.indexOf(".sp-jumps {"), css.indexOf(".sp-letter {"));
     assert.equal(jumpCss.includes("position: static"), true);
     assert.equal(jumpCss.includes("position: absolute"), false);
