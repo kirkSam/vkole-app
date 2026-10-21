@@ -18,6 +18,7 @@ import {
 } from "@/lib/vkole/spelling/items";
 import { holdEngineAudio, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { describeSpellingHear, recognitionErrorRelistens, spellingGrammar } from "@/lib/vkole/spelling/match";
+import { celebrationFrame, GOOD_JOB_LINE, reciteHear, SPELLING_CELEBRATION_MS } from "@/lib/vkole/spelling/recite";
 
 const MIC_KEY = "vkole-sp-mic";
 
@@ -65,7 +66,18 @@ function applyLetterGrammar(rec: SpeechListener, answer: string, also: readonly 
 }
 
 type Outcome = "correct" | "miss" | "timeout";
-type Phase = "gate" | "song" | "prompt" | "listen" | "happy";
+type Phase = "gate" | "song" | "prompt" | "listen" | "happy" | "good-job" | "celebrate";
+
+const CONFETTI = [
+  { left: "6%", bottom: "8%", delay: "0s", color: "#f6c945", size: "0.85rem" },
+  { left: "18%", bottom: "22%", delay: "0.2s", color: "#ef6f6c", size: "0.55rem" },
+  { left: "30%", bottom: "4%", delay: "0.45s", color: "#4c9be8", size: "0.7rem" },
+  { left: "44%", bottom: "18%", delay: "0.1s", color: "#67b26f", size: "0.6rem" },
+  { left: "56%", bottom: "6%", delay: "0.35s", color: "#f6c945", size: "0.95rem" },
+  { left: "68%", bottom: "24%", delay: "0.55s", color: "#b07be0", size: "0.5rem" },
+  { left: "80%", bottom: "10%", delay: "0.15s", color: "#ef6f6c", size: "0.75rem" },
+  { left: "90%", bottom: "20%", delay: "0.4s", color: "#4c9be8", size: "0.6rem" },
+];
 
 let pendingSpeech: (() => void) | null = null;
 
@@ -173,7 +185,10 @@ export function SpellingStage({
   onDone: (outcome: Outcome) => void;
 }) {
   const [afterSong, setAfterSong] = useState(false);
-  const view = letterView(afterSong ? progressAfterSong({ index, silence, wrong }) : { index, silence, wrong });
+  const saved = letterView({ index, silence, wrong });
+  const view = letterView(
+    afterSong ? progressAfterSong({ index, silence, wrong, word: saved.id, prompt: saved.say }) : { index, silence, wrong },
+  );
   const token = `${view.id}:${view.silence}:${view.wrong}`;
   const letters = alphabet();
   const colors = letterColors();
@@ -192,6 +207,7 @@ export function SpellingStage({
   const viewRef = useRef(view);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
   const advanceRef = useRef(0);
+  const reciteRef = useRef(0);
   const began = useRef(skipSong);
   const seen = useRef(token);
   onDoneRef.current = onDone;
@@ -230,6 +246,7 @@ export function SpellingStage({
     seen.current = token;
     heardRef.current = "";
     setHeardNote("");
+    reciteRef.current = 0;
     setPhase((current) => (current === "song" || current === "gate" ? current : "prompt"));
   }, [token]);
 
@@ -347,6 +364,7 @@ export function SpellingStage({
 
   useEffect(() => {
     if (!canScore) return;
+    if (viewRef.current.exercise === 5) return;
     let live = true;
     const settled = { current: false };
     let rec: SpeechListener | null = null;
@@ -506,6 +524,143 @@ export function SpellingStage({
   }, [canScore, token, listening]);
 
   useEffect(() => {
+    if (!canScore || viewRef.current.exercise !== 5) return;
+    let live = true;
+    let rec: SpeechListener | null = null;
+    let restartTimer = 0;
+    const scheduleRestart = () => {
+      if (!live || !rec) return;
+      window.clearTimeout(restartTimer);
+      restartTimer = window.setTimeout(() => {
+        if (!live || !rec) return;
+        try {
+          rec.start();
+        } catch {
+          scheduleRestart();
+        }
+      }, SPELLING_RECOGNIZER_RESTART_MS);
+    };
+    const celebrate = () => {
+      if (!live) return;
+      live = false;
+      window.clearTimeout(restartTimer);
+      try {
+        rec?.abort();
+      } catch {
+        /* already stopped */
+      }
+      setPhase("good-job");
+    };
+    finishRef.current = (outcome: Outcome) => {
+      if (!live) return;
+      if (outcome === "correct") {
+        celebrate();
+        return;
+      }
+      reciteRef.current = 0;
+      noteHeard("");
+    };
+    if (listening) {
+      const Ctor = recognitionCtor();
+      if (Ctor) {
+        rec = new Ctor();
+        rec.lang = "en-US";
+        rec.continuous = true;
+        rec.interimResults = true;
+        rec.maxAlternatives = 8;
+        applyLetterGrammar(rec, "A", []);
+        rec.onresult = (event) => {
+          noteEngineActivity();
+          if (!live) return;
+          const start = event.resultIndex ?? 0;
+          const say = viewRef.current.say;
+          let next = reciteRef.current;
+          for (let i = start; i < event.results.length; i += 1) {
+            const result = event.results[i];
+            if (!result) continue;
+            let bestNext = next;
+            let bestStatus = "";
+            for (let j = 0; j < result.length; j += 1) {
+              const row = result[j];
+              const heard = reciteHear({ next }, row?.transcript ?? "", say);
+              if (heard.next > bestNext) {
+                bestNext = heard.next;
+                bestStatus = heard.status;
+              } else if (heard.next === bestNext && !bestStatus) bestStatus = heard.status;
+            }
+            if (bestNext > next) {
+              next = bestNext;
+              noteHeard(`I heard: ${alphabet().slice(0, next).join(" ")}`);
+            } else if (bestStatus.startsWith("I heard:") && !heardRef.current.startsWith("I heard:")) {
+              noteHeard(bestStatus);
+            }
+          }
+          reciteRef.current = next;
+          if (next >= alphabet().length) celebrate();
+        };
+        rec.onerror = (event) => {
+          if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+            setUnsupported(true);
+            return;
+          }
+          if (recognitionErrorRelistens(event.error)) {
+            scheduleRestart();
+          }
+        };
+        rec.onend = () => {
+          noteEngineActivity();
+          if (!live || !rec) return;
+          scheduleRestart();
+        };
+        try {
+          rec.start();
+        } catch {
+          scheduleRestart();
+        }
+      }
+    }
+    return () => {
+      live = false;
+      window.clearTimeout(restartTimer);
+      try {
+        rec?.abort();
+      } catch {
+        /* already stopped */
+      }
+    };
+  }, [canScore, token, listening]);
+
+  useEffect(() => {
+    if (phase !== "good-job") return;
+    let live = true;
+    const stop = speakLine(GOOD_JOB_LINE, () => {
+      if (live) setPhase("celebrate");
+    });
+    return () => {
+      live = false;
+      stop();
+    };
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "celebrate") return;
+    let live = true;
+    const started = performance.now();
+    const finish = (elapsed: number) => {
+      if (!live || celebrationFrame(elapsed) !== "done") return;
+      live = false;
+      onDoneRef.current("correct");
+    };
+    const timer = window.setInterval(() => finish(performance.now() - started), 100);
+    const backup = window.setTimeout(() => finish(SPELLING_CELEBRATION_MS), SPELLING_CELEBRATION_MS);
+    return () => {
+      live = false;
+      window.clearInterval(timer);
+      window.clearTimeout(backup);
+    };
+  }, [phase]);
+
+  useEffect(() => {
     return () => {
       window.clearTimeout(advanceRef.current);
       if (typeof window !== "undefined") window.speechSynthesis?.cancel();
@@ -528,6 +683,7 @@ export function SpellingStage({
     const letter = letters[0] ?? "A";
     return (
       <section className="sp-review" style={{ background: swatch?.background }} aria-label="Start alphabet">
+        <p className="text-center text-base font-semibold text-ink">Exercise 1</p>
         <p className="sp-letter font-display" style={{ color: swatch?.letter }}>
           {letter}
         </p>
@@ -546,6 +702,7 @@ export function SpellingStage({
     const letter = letters[songIndex] ?? "A";
     return (
       <section className="sp-review" style={{ background: swatch?.background }} aria-label="Alphabet song">
+        <p className="text-center text-base font-semibold text-ink">Exercise 1</p>
         <p className="sp-letter font-display" style={{ color: swatch?.letter }}>
           {letter}
         </p>
@@ -553,17 +710,51 @@ export function SpellingStage({
     );
   }
 
-  const shownSwatch = view.shown ? colors[letters.indexOf(view.shown)] : undefined;
+  const shownSwatch = view.shown ? colors[letters.indexOf(view.shown.toUpperCase())] : undefined;
+  const pairSwatch = colors[letters.indexOf(view.letter)] ?? colors[0];
   const needsMic = phase === "listen" && !unsupported && !allowed;
   const background = view.kind === "ask" && shownSwatch ? shownSwatch.background : undefined;
+  const status = phase === "prompt" ? "Speaking" : phase === "listen" ? "Listening" : phase === "good-job" || phase === "celebrate" ? "Good job" : "Happy Face";
 
   return (
     <section className="sp-review" style={background ? { background } : undefined} aria-live="polite">
-      <p className="text-center text-xs tracking-wide text-muted uppercase">
-        {phase === "prompt" ? "Speaking" : phase === "listen" ? "Listening" : "Happy Face"}
-      </p>
-      {phase === "happy" ? (
-        <HappyFace />
+      <p className="text-center text-base font-semibold text-ink">Exercise {view.exercise}</p>
+      <p className="text-center text-xs tracking-wide text-muted uppercase">{status}</p>
+      {phase === "celebrate" ? (
+        <div className="sp-celebrate" aria-label={GOOD_JOB_LINE}>
+          <p className="sp-prompt">{GOOD_JOB_LINE}</p>
+          <div className="sp-confetti" aria-hidden="true">
+            {CONFETTI.map((piece) => (
+              <span
+                key={`${piece.left}-${piece.delay}`}
+                className="sp-star"
+                style={{
+                  left: piece.left,
+                  bottom: piece.bottom,
+                  animationDelay: piece.delay,
+                  background: piece.color,
+                  width: piece.size,
+                  height: piece.size,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      ) : phase === "good-job" ? (
+        <p className="sp-prompt">{GOOD_JOB_LINE}</p>
+      ) : phase === "happy" ? (
+        <>
+          {view.pair ? (
+            <div className="sp-pair" aria-label={view.pair}>
+              {view.pair.split(" ").map((glyph) => (
+                <p key={glyph} className="sp-letter font-display" style={{ color: pairSwatch?.letter }}>
+                  {glyph}
+                </p>
+              ))}
+            </div>
+          ) : null}
+          <HappyFace />
+        </>
       ) : view.kind === "cue" ? (
         <div className="sp-cue" aria-label={view.show}>
           {view.cue.map((glyph) => {
@@ -585,7 +776,9 @@ export function SpellingStage({
           <p className="sp-prompt">{view.show}</p>
         </>
       )}
-      {phase === "listen" && !needsMic ? <p className="mt-3 text-center text-sm text-muted">{secondsLeft} seconds</p> : null}
+      {phase === "listen" && !needsMic && view.exercise !== 5 ? (
+        <p className="mt-3 text-center text-sm text-muted">{secondsLeft} seconds</p>
+      ) : null}
       {(heardNote || heard) && (phase === "prompt" || phase === "listen" || phase === "happy") ? (
         <p className="mt-2 text-center text-sm text-ink" role="status">
           {heardNote || heard}

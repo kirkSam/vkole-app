@@ -30,6 +30,7 @@ import {
   letterOnScreen,
   letterView,
   MEMORY_LETTER_PROMPT,
+  migrateAlphabetIndex,
   micOpensAfterPrompt,
   progressAfterSong,
   promptPlayedLongEnough,
@@ -50,6 +51,7 @@ import {
   spellingGrammar,
   spellingSpokenMatches,
 } from "./match.ts";
+import { celebrationFrame, GOOD_JOB_LINE, reciteHear, RECITE_PROMPT, SPELLING_CELEBRATION_MS } from "./recite.ts";
 import lists from "./data.json" with { type: "json" };
 
 const stageFile = fileURLToPath(new URL("../../../components/spelling-stage.tsx", import.meta.url));
@@ -114,7 +116,7 @@ describe("spelling timing", () => {
 });
 
 describe("letter knowledge sequence", () => {
-  it("starts with the spoken first-letter prompt, then next letter, letter after X, and letter names", () => {
+  it("starts with the spoken first-letter prompt, then capital letters, small letters, recall, and reciting", () => {
     assert.equal(engineNavLabel("sp"), "VKOLE/Alphabet ZPD");
     assert.equal(engineNavLabel("sp"), lists.navLabel);
     assert.equal(enginePickLabel("sp"), "Alphabet ZPD");
@@ -131,7 +133,7 @@ describe("letter knowledge sequence", () => {
     assert.equal(bandMeta("DOLCH").count, 0);
     assert.equal(bandMeta("FRY").count, 0);
     assert.equal(bandMeta("LK").name, "Letter knowledge");
-    assert.equal(bandMeta("LK").count, 77);
+    assert.equal(bandMeta("LK").count, 79);
     const first = itemAt("LK", 0);
     assert.equal(first.id, "lk-first");
     assert.equal(first.kind, "first-letter");
@@ -145,16 +147,19 @@ describe("letter knowledge sequence", () => {
     assert.equal(nextB.letter, "A");
     assert.equal(nextB.answer, "B");
     assert.equal(nextB.say, "What letter comes next?");
-    const afterX = lists.bands[0]?.items.find((item) => item.id === "lk-after-x");
-    assert.equal(afterX?.kind, "letter-after");
-    assert.equal(afterX?.say, "What letter comes after X?");
-    assert.equal(afterX?.show, "What letter comes after X?");
-    assert.equal(afterX?.answer, "Y");
-    const nameM = lists.bands[0]?.items.find((item) => item.id === "lk-name-m");
-    assert.equal(nameM?.kind, "letter-name");
-    assert.equal(nameM?.say, "What letter is this?");
-    assert.equal(nameM?.letter, "M");
-    assert.equal(nameM?.answer, "M");
+    const lowerA = lists.bands[0]?.items.find((item) => item.id === "lk-lower-a");
+    assert.equal(lowerA?.kind, "lower-letter");
+    assert.equal(lowerA?.letter, "a");
+    assert.equal(lowerA?.answer, "A");
+    const recallA = lists.bands[0]?.items.find((item) => item.id === "lk-recall-a");
+    assert.equal(recallA?.kind, "recall");
+    assert.equal(recallA?.say, "What is the first letter of the alphabet?");
+    assert.equal(recallA?.letter, "");
+    assert.equal(recallA?.answer, "A");
+    const recite = lists.bands[0]?.items.find((item) => item.id === "lk-recite");
+    assert.equal(recite?.kind, "recite");
+    assert.equal(recite?.say, RECITE_PROMPT);
+    assert.equal(recite?.answer, "Z");
     assert.equal(startCard(1).id, "lk-first");
     assert.equal(lists.micRecords, false);
     assert.equal(lists.answerFlow.correct.action, "next");
@@ -194,23 +199,27 @@ describe("letter answer flow", () => {
     assert.deepEqual(fromCue, { index: g.index + 1, silence: 0, wrong: 0 });
     const wrapped = applyLetterAnswer({ index: 25, silence: 0, wrong: 0 }, "correct");
     assert.equal(wrapped.index, 26);
-    assert.equal(letterView(wrapped).id, "lk-after-a");
-    assert.equal(letterView(wrapped).answer, "B");
-    assert.equal(letterView(wrapped).shown, "A");
+    assert.equal(letterView(wrapped).id, "lk-lower-a");
+    assert.equal(letterView(wrapped).answer, "A");
+    assert.equal(letterView(wrapped).shown, "a");
+    assert.equal(letterView(wrapped).exercise, 3);
   });
 
-  it("enters the memory exercise at A with no letter on screen, then continues", () => {
+  it("enters recall at A with nothing on screen, then shows both letters after a correct answer", () => {
     let index = 0;
-    while (itemAt("LK", index).kind !== "letter-name" && index < bandMeta("LK").count) index += 1;
+    while (itemAt("LK", index).kind !== "recall" && index < bandMeta("LK").count) index += 1;
     const at = applyLetterAnswer({ index: index - 1, silence: 0, wrong: 0 }, "correct");
     const view = letterView(at);
-    assert.equal(itemAt("LK", index - 1).kind, "letter-after");
-    assert.equal(view.id, "lk-name-a");
+    assert.equal(itemAt("LK", index - 1).id, "lk-lower-z");
+    assert.equal(view.id, "lk-recall-a");
+    assert.equal(view.exercise, 4);
     assert.equal(view.kind, "ask");
     assert.equal(view.answer, "A");
     assert.equal(view.letter, "A");
     assert.equal(view.shown, "");
-    assert.equal(view.say.trim().length > 0, true);
+    assert.equal(view.pair, "A a");
+    assert.equal(view.say, "What is the first letter of the alphabet?");
+    assert.notEqual(view.say, MEMORY_LETTER_PROMPT);
     assert.equal(spellingSpokenMatches(view.answer, "A", view.also), true);
     assert.equal(spellingSpokenMatches(view.answer, "a", view.also), true);
     assert.equal(spellingSpokenMatches(view.answer, "ay", view.also), true);
@@ -222,15 +231,20 @@ describe("letter answer flow", () => {
     assert.equal(spellingPromptStartsListen(view.say), "after-speech");
     assert.equal(micListensDuring("listen"), true);
     const stayed = applyLetterAnswer(applyLetterAnswer(at, "timeout"), "timeout");
-    assert.equal(letterView(stayed).id, "lk-name-a");
+    assert.equal(letterView(stayed).id, "lk-recall-a");
     assert.equal(letterView(stayed).shown, "");
     const next = letterView(applyLetterAnswer(at, "correct"));
-    assert.equal(next.id, "lk-name-b");
+    assert.equal(next.id, "lk-recall-b");
     assert.equal(next.answer, "B");
     assert.equal(next.shown, "");
-    const last = bandMeta("LK").count - 1;
-    assert.equal(letterView({ index: last, silence: 0, wrong: 0 }).id, "lk-name-z");
-    assert.equal(applyLetterAnswer({ index: last, silence: 0, wrong: 0 }, "correct").index, 0);
+    assert.equal(next.pair, "B b");
+    assert.equal(next.say, "What letter comes next?");
+    const lastRecall = bandMeta("LK").count - 2;
+    assert.equal(letterView({ index: lastRecall, silence: 0, wrong: 0 }).id, "lk-recall-z");
+    const recited = applyLetterAnswer({ index: lastRecall, silence: 0, wrong: 0 }, "correct");
+    assert.equal(letterView(recited).id, "lk-recite");
+    assert.equal(letterView(recited).exercise, 5);
+    assert.equal(applyLetterAnswer(recited, "correct").index, recited.index);
     const stage = readFileSync(stageFile, "utf8");
     const promptEffect = stage.slice(stage.indexOf('phase !== "prompt"'), stage.indexOf("if (!canScore)"));
     assert.equal(promptEffect.includes("spellingPromptStartsListen"), true);
@@ -238,80 +252,84 @@ describe("letter answer flow", () => {
     assert.equal(promptEffect.includes("view.shown"), false);
   });
 
-  it("keeps a letter on screen across every exercise handoff, and hides it only for memory", () => {
+  it("walks exercise 2 into 3, 4, and 5, and the song never opens a blank memory prompt", () => {
     const count = bandMeta("LK").count;
-    const lastOf = (exercise: 1 | 2 | 3) => {
+    const lastOf = (exercise: 2 | 3 | 4 | 5) => {
       let index = 0;
       for (let i = 0; i < count; i += 1) if (letterExercise(i) === exercise) index = i;
       return index;
     };
-    const end1 = lastOf(1);
-    const into2 = letterView(applyLetterAnswer({ index: end1, silence: 0, wrong: 0 }, "correct"));
-    assert.equal(letterExercise(end1), 1);
-    assert.equal(letterExercise(into2.index), 2);
-    assert.equal(into2.id, "lk-after-a");
-    assert.equal(into2.shown, "A");
-    assert.notEqual(into2.say, MEMORY_LETTER_PROMPT);
-
     const end2 = lastOf(2);
     const into3 = letterView(applyLetterAnswer({ index: end2, silence: 0, wrong: 0 }, "correct"));
-    assert.equal(itemAt("LK", end2).id, "lk-after-y");
+    assert.equal(letterExercise(end2), 2);
+    assert.equal(itemAt("LK", end2).id, "lk-next-z");
+    assert.equal(into3.id, "lk-lower-a");
     assert.equal(letterExercise(into3.index), 3);
-    assert.equal(into3.id, "lk-name-a");
-    assert.equal(into3.shown, "");
-    assert.equal(into3.say, MEMORY_LETTER_PROMPT);
+    assert.equal(into3.shown, "a");
+    assert.equal(into3.answer, "A");
+    assert.notEqual(into3.say, MEMORY_LETTER_PROMPT);
 
     const end3 = lastOf(3);
-    const restarted = applyLetterAnswer({ index: end3, silence: 0, wrong: 0 }, "correct");
-    const restart = letterView(restarted);
-    assert.equal(itemAt("LK", end3).id, "lk-name-z");
-    assert.equal(restart.index, 0);
-    assert.equal(letterExercise(restart.index), 1);
-    assert.equal(restart.shown, "A");
-    assert.notEqual(restart.say, MEMORY_LETTER_PROMPT);
-    const continued = letterView(applyLetterAnswer(restarted, "correct"));
-    assert.equal(continued.id, "lk-next-b");
-    assert.equal(continued.shown, "A");
-    assert.equal(letterExercise(continued.index), 1);
-    assert.notEqual(continued.say, MEMORY_LETTER_PROMPT);
+    const into4 = letterView(applyLetterAnswer({ index: end3, silence: 0, wrong: 0 }, "correct"));
+    assert.equal(itemAt("LK", end3).id, "lk-lower-z");
+    assert.equal(letterExercise(into4.index), 4);
+    assert.equal(into4.id, "lk-recall-a");
+    assert.equal(into4.shown, "");
+    assert.equal(into4.pair, "A a");
+    assert.equal(into4.say, "What is the first letter of the alphabet?");
+    assert.notEqual(into4.say, MEMORY_LETTER_PROMPT);
+
+    const end4 = lastOf(4);
+    const into5 = letterView(applyLetterAnswer({ index: end4, silence: 0, wrong: 0 }, "correct"));
+    assert.equal(itemAt("LK", end4).id, "lk-recall-z");
+    assert.equal(into5.id, "lk-recite");
+    assert.equal(letterExercise(into5.index), 5);
+    assert.equal(into5.shown, "");
+    assert.equal(into5.say, RECITE_PROMPT);
+    assert.equal(applyLetterAnswer({ index: into5.index, silence: 0, wrong: 0 }, "correct").index, into5.index);
 
     const afterSong = letterView({ index: 0, silence: 0, wrong: 0 });
     assert.equal(afterSong.shown, "A");
     assert.equal(afterSong.say, openingPrompt());
+    assert.equal(afterSong.exercise, 2);
     assert.notEqual(afterSong.say, MEMORY_LETTER_PROMPT);
     assert.equal(letterOnScreen("first-letter", "", "A"), "A");
-    assert.equal(letterOnScreen("letter-after", "", "Y"), "Y");
-    assert.equal(letterOnScreen("letter-name", "M", "M"), "");
+    assert.equal(letterOnScreen("lower-next", "a", "B"), "a");
+    assert.equal(letterOnScreen("lower-next", "", "B"), "b");
+    assert.equal(letterOnScreen("recall", "A", "A"), "");
+    assert.equal(letterOnScreen("recite", "", "Z"), "");
 
     const sung = songSpokenLines();
     assert.deepEqual(sung, alphabet());
-    const memoryAt = lastOf(3);
-    const afterMemory = letterView(progressAfterSong({ index: memoryAt, silence: 2, wrong: 1 }));
-    assert.equal(afterMemory.index, 0);
-    assert.equal(afterMemory.shown, "A");
-    assert.equal(afterMemory.say, openingPrompt());
-    assert.notEqual(afterMemory.say, MEMORY_LETTER_PROMPT);
-    const afterShowing = letterView(progressAfterSong({ index: end1, silence: 1, wrong: 0 }));
-    assert.equal(afterShowing.index, end1);
+    const keptRecall = letterView(progressAfterSong({ index: into4.index, silence: 2, wrong: 1, word: into4.id }));
+    assert.equal(keptRecall.id, "lk-recall-a");
+    assert.equal(keptRecall.shown, "");
+    assert.equal(keptRecall.say, "What is the first letter of the alphabet?");
+    assert.notEqual(keptRecall.say, MEMORY_LETTER_PROMPT);
+    const keptRecite = letterView(progressAfterSong({ index: into5.index, silence: 1, wrong: 1, word: into5.id }));
+    assert.equal(keptRecite.id, "lk-recite");
+    assert.equal(keptRecite.say, RECITE_PROMPT);
+    assert.equal(progressAfterSong({ index: into5.index, silence: 1, wrong: 1, word: into5.id }).silence, 0);
+    const afterShowing = letterView(progressAfterSong({ index: end2, silence: 1, wrong: 0, word: itemAt("LK", end2).id }));
+    assert.equal(afterShowing.index, end2);
     assert.match(afterShowing.shown, /^[A-Z]$/);
-    assert.notEqual(afterShowing.say, MEMORY_LETTER_PROMPT);
-    const afterSecond = letterView(progressAfterSong({ index: end2, silence: 0, wrong: 0 }));
-    assert.equal(letterExercise(afterSecond.index), 2);
-    assert.match(afterSecond.shown, /^[A-Z]$/);
-    assert.notEqual(afterSecond.say, MEMORY_LETTER_PROMPT);
+    assert.equal(letterExercise(afterShowing.index), 2);
+    const afterLower = letterView(progressAfterSong({ index: end3, silence: 0, wrong: 0, word: "lk-lower-z" }));
+    assert.equal(afterLower.id, "lk-lower-z");
+    assert.match(afterLower.shown, /^[a-z]$/);
+    assert.notEqual(afterLower.say, MEMORY_LETTER_PROMPT);
     const stage = readFileSync(stageFile, "utf8");
     assert.equal(stage.includes("progressAfterSong"), true);
     assert.equal(stage.includes("setAfterSong(true)"), true);
+    assert.equal(stage.includes("Exercise 1"), true);
+    assert.equal(stage.includes("Exercise {view.exercise}"), true);
 
     for (let index = 0; index < count; index += 1) {
       const view = letterView({ index, silence: 0, wrong: 0 });
-      if (letterExercise(index) === 3) {
-        assert.equal(view.shown, "");
-        assert.equal(view.say, MEMORY_LETTER_PROMPT);
-      } else {
-        assert.match(view.shown, /^[A-Z]$/);
-        assert.notEqual(view.say, MEMORY_LETTER_PROMPT);
-      }
+      assert.notEqual(view.say, MEMORY_LETTER_PROMPT);
+      if (view.exercise === 2) assert.match(view.shown, /^[A-Z]$/);
+      if (view.exercise === 3) assert.match(view.shown, /^[a-z]$/);
+      if (view.exercise === 4 || view.exercise === 5) assert.equal(view.shown, "");
     }
   });
 
@@ -405,15 +423,15 @@ describe("spoken spelling answers", () => {
     const nextB = itemAt("LK", 1);
     assert.equal(spellingSpokenMatches(nextB.answer, "bee", nextB.also), true);
     assert.equal(spellingSpokenMatches(nextB.answer, "be", nextB.also), true);
-    const nameW = lists.bands[0]?.items.find((item) => item.id === "lk-name-w");
+    const nameW = lists.bands[0]?.items.find((item) => item.id === "lk-next-w");
     assert.ok(nameW);
     assert.equal(spellingSpokenMatches(nameW.answer, "double you", nameW.also), true);
     assert.equal(spellingSpokenMatches(nameW.answer, "double u", nameW.also), true);
     assert.equal(spellingSpokenMatches(nameW.answer, "u", nameW.also), false);
-    const nameY = lists.bands[0]?.items.find((item) => item.id === "lk-name-y");
+    const nameY = lists.bands[0]?.items.find((item) => item.id === "lk-next-y");
     assert.ok(nameY);
     assert.equal(spellingSpokenMatches(nameY.answer, "why", nameY.also), true);
-    const nameZ = lists.bands[0]?.items.find((item) => item.id === "lk-name-z");
+    const nameZ = lists.bands[0]?.items.find((item) => item.id === "lk-next-z");
     assert.ok(nameZ);
     assert.equal(spellingSpokenMatches(nameZ.answer, "zed", nameZ.also), true);
     assert.equal(judgeSpellingSpoken(first.answer, "", true, first.also), "wait");
@@ -506,10 +524,8 @@ describe("spoken spelling answers", () => {
     assert.equal(describeSpellingHear("M", [{ transcript: "and", final: true }]).status, "I heard: and");
     assert.equal(describeSpellingHear("Q", [{ transcript: "", final: true }, { transcript: ".", final: true }]).status, "I didn't hear anything");
     assert.equal(describeSpellingHear("Q", [{ transcript: "", final: true }, { transcript: ".", final: true }]).judgment, "wait");
-    const nameM = itemAt("LK", 0);
-    let letterM = nameM;
-    for (let index = 0; index < 80 && letterM.id !== "lk-name-m"; index += 1) letterM = itemAt("LK", index);
-    assert.equal(letterM.id, "lk-name-m");
+    const letterM = itemAt("LK", 12);
+    assert.equal(letterM.id, "lk-next-m");
     assert.equal(letterM.also.includes("him"), true);
     assert.equal(letterM.also.includes("them"), true);
     assert.equal(spellingGrammar("Q").includes("kyu"), true);
@@ -622,12 +638,14 @@ describe("exercise 2 next letter", () => {
     assert.equal(landed.answer, "G");
     assert.equal(landed.say, prompt);
 
-    const afterA = itemAt("LK", 26);
-    assert.equal(afterA.id, "lk-after-a");
-    assert.equal(judgeSpellingSpoken(afterA.answer, afterA.say, true, afterA.also, afterA.say), "wait");
-    assert.equal(judgeSpellingSpoken(afterA.answer, "A", true, afterA.also, afterA.say), "wait");
-    assert.equal(judgeSpellingSpoken(afterA.answer, "ay", true, afterA.also, afterA.say), "miss");
-    assert.equal(judgeSpellingSpoken(afterA.answer, "B", true, afterA.also, afterA.say), "correct");
+    const lowerA = itemAt("LK", 26);
+    assert.equal(lowerA.id, "lk-lower-a");
+    assert.equal(lowerA.letter, "a");
+    assert.equal(judgeSpellingSpoken(lowerA.answer, lowerA.say, true, lowerA.also, lowerA.say), "wait");
+    assert.equal(judgeSpellingSpoken(lowerA.answer, "A", true, lowerA.also, lowerA.say), "correct");
+    assert.equal(judgeSpellingSpoken(lowerA.answer, "ay", true, lowerA.also, lowerA.say), "correct");
+    assert.equal(judgeSpellingSpoken(lowerA.answer, "eh", true, lowerA.also, lowerA.say), "correct");
+    assert.equal(judgeSpellingSpoken(lowerA.answer, "B", true, lowerA.also, lowerA.say), "miss");
 
     const stage = readFileSync(stageFile, "utf8");
     const promptEffect = stage.slice(stage.indexOf('phase !== "prompt"'), stage.indexOf("if (!canScore)"));
@@ -721,6 +739,99 @@ describe("exercise 2 next letter", () => {
   });
 });
 
+describe("alphabet exercises 3, 4, and 5", () => {
+  it("keeps a miss inside the small-letter exercise and inside recall", () => {
+    const lower = applyLetterAnswer(applyLetterAnswer({ index: 26, silence: 0, wrong: 0 }, "miss"), "miss");
+    assert.equal(lower.index, 26);
+    assert.equal(letterExercise(lower.index), 3);
+    assert.equal(letterView(lower).shown, "a");
+    const recallAt = letterView({ index: 0, silence: 0, wrong: 0 });
+    let index = 0;
+    while (itemAt("LK", index).id !== "lk-recall-a") index += 1;
+    const recall = applyLetterAnswer(applyLetterAnswer({ index, silence: 0, wrong: 0 }, "miss"), "miss");
+    assert.equal(recall.index, index);
+    assert.equal(letterExercise(recall.index), 4);
+    assert.notEqual(recall.index, 0);
+    assert.equal(recallAt.exercise, 2);
+    let lowerM = 0;
+    while (itemAt("LK", lowerM).id !== "lk-lower-m") lowerM += 1;
+    const smallM = itemAt("LK", lowerM);
+    assert.equal(spellingSpokenMatches(smallM.answer, "em", smallM.also), true);
+    assert.equal(spellingSpokenMatches(smallM.answer, "him", smallM.also), true);
+    assert.equal(judgeSpellingSpoken(smallM.answer, "the", true, smallM.also, smallM.say), "miss");
+  });
+
+  it("moves an old hidden-letter save to exercise 4 and leaves a new card where it is", () => {
+    const recallA = migrateAlphabetIndex({ index: 51 });
+    assert.equal(letterView({ index: recallA, silence: 0, wrong: 0 }).id, "lk-recall-a");
+    assert.equal(letterView({ index: recallA, silence: 0, wrong: 0 }).shown, "");
+    assert.equal(letterView({ index: recallA, silence: 0, wrong: 0 }).say, "What is the first letter of the alphabet?");
+    const recallM = migrateAlphabetIndex({ index: 63, word: "m" });
+    assert.equal(letterView({ index: recallM, silence: 0, wrong: 0 }).id, "lk-recall-m");
+    assert.equal(migrateAlphabetIndex({ word: "lk-name-m" }), recallM);
+    assert.equal(migrateAlphabetIndex({ index: 51, prompt: MEMORY_LETTER_PROMPT }), recallA);
+    const lowerZ = migrateAlphabetIndex({ index: 51, word: "z" });
+    assert.equal(letterView({ index: lowerZ, silence: 0, wrong: 0 }).id, "lk-lower-z");
+    assert.equal(letterView({ index: lowerZ, silence: 0, wrong: 0 }).shown, "y");
+    const keptRecall = migrateAlphabetIndex({ index: 52, word: "a" });
+    assert.equal(letterView({ index: keptRecall, silence: 0, wrong: 0 }).id, "lk-recall-a");
+    const fromAfter = migrateAlphabetIndex({ word: "lk-after-a" });
+    assert.equal(letterView({ index: fromAfter, silence: 0, wrong: 0 }).id, "lk-lower-a");
+    const sung = progressAfterSong({ index: 63, silence: 2, wrong: 1, prompt: MEMORY_LETTER_PROMPT });
+    assert.equal(itemAt("LK", sung.index).id, "lk-recall-m");
+    const opened = letterView({ index: sung.index, silence: 0, wrong: 0 });
+    assert.equal(opened.id, "lk-recall-m");
+    assert.notEqual(opened.say, MEMORY_LETTER_PROMPT);
+    const stayed = letterView(progressAfterSong({ index: 51, silence: 0, wrong: 0, word: "lk-lower-z" }));
+    assert.equal(stayed.id, "lk-lower-z");
+    assert.notEqual(stayed.say, MEMORY_LETTER_PROMPT);
+  });
+
+  it("tracks a recited alphabet through chunks, names, and pauses, then celebrates for 5 seconds", () => {
+    assert.equal(SPELLING_CELEBRATION_MS, 5000);
+    assert.equal(celebrationFrame(0), "celebrate");
+    assert.equal(celebrationFrame(4999), "celebrate");
+    assert.equal(celebrationFrame(5000), "done");
+    assert.equal(celebrationFrame(5001), "done");
+    assert.equal(GOOD_JOB_LINE, "Good job!");
+    const chunk = reciteHear({ next: 0 }, "ay bee see", RECITE_PROMPT);
+    assert.equal(chunk.next, 3);
+    assert.deepEqual(chunk.accepted, ["A", "B", "C"]);
+    assert.equal(chunk.status, "I heard: A B C");
+    const named = reciteHear({ next: 3 }, "the", RECITE_PROMPT);
+    assert.equal(named.next, 4);
+    assert.deepEqual(named.accepted, ["D"]);
+    const tea = reciteHear({ next: 3 }, "tea", RECITE_PROMPT);
+    assert.equal(tea.next, 3);
+    assert.deepEqual(tea.accepted, []);
+    const quiet = reciteHear({ next: 5 }, "", RECITE_PROMPT);
+    assert.equal(quiet.next, 5);
+    assert.equal(quiet.status, "I didn't hear anything");
+    const skipped = reciteHear({ next: 0 }, "c", RECITE_PROMPT);
+    assert.equal(skipped.next, 0);
+    const partial = reciteHear({ next: 0 }, "A B D", RECITE_PROMPT);
+    assert.equal(partial.next, 2);
+    assert.deepEqual(partial.accepted, ["A", "B"]);
+    const continued = reciteHear({ next: partial.next }, "see", RECITE_PROMPT);
+    assert.equal(continued.next, 3);
+    const w = reciteHear({ next: alphabet().indexOf("W") }, "double you", RECITE_PROMPT);
+    assert.equal(w.next, alphabet().indexOf("W") + 1);
+    assert.deepEqual(w.accepted, ["W"]);
+    const done = reciteHear({ next: 25 }, "zed", RECITE_PROMPT);
+    assert.equal(done.next, 26);
+    const stage = readFileSync(stageFile, "utf8");
+    assert.equal(stage.includes("celebrationFrame"), true);
+    assert.equal(stage.includes("SPELLING_CELEBRATION_MS"), true);
+    assert.equal(stage.includes("reciteHear"), true);
+    assert.equal(stage.includes("sp-celebrate"), true);
+    assert.equal(stage.includes(GOOD_JOB_LINE) || stage.includes("GOOD_JOB_LINE"), true);
+    assert.equal(stage.includes('viewRef.current.exercise === 5'), true);
+    const session = readFileSync(fileURLToPath(new URL("../../../routes/session.$id.tsx", import.meta.url)), "utf8");
+    assert.equal(session.includes('letterExercise(answered) === 5'), true);
+    assert.equal(session.includes('finishRef.current("finished")'), true);
+  });
+});
+
 describe("level.sp", () => {
   it("reads and writes only this account's spelling band", () => {
     const parsed = parseSchoolProfile({
@@ -806,9 +917,12 @@ describe("level.sp", () => {
         email: "ada@family.test", level: { sp: { grade: 5, levelCode: "LK", index: 51 } } },
     });
     assert.equal(kept?.profile.level.sp?.band, "LK");
-    assert.equal(kept?.profile.level.sp?.index, 51);
-    assert.equal(kept?.profile.level.sp?.word, "lk-name-a");
-    assert.equal(letterView({ index: 51, silence: 0, wrong: 0 }).shown, "");
+    const recalled = letterView({ index: kept?.profile.level.sp?.index ?? 0, silence: 0, wrong: 0 });
+    assert.equal(recalled.id, "lk-recall-a");
+    assert.equal(kept?.profile.level.sp?.word, "lk-recall-a");
+    assert.equal(recalled.shown, "");
+    assert.equal(recalled.say, "What is the first letter of the alphabet?");
+    assert.notEqual(recalled.say, MEMORY_LETTER_PROMPT);
     const mid = parseSchoolProfile({
       family: {
         email: "ada@family.test", level: { sp: { grade: 2, band: "LK", index: 12 } } },

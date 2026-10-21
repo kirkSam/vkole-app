@@ -29,7 +29,7 @@ import { GRADING_PAUSE_MESSAGE, NO_REPLY_MESSAGE } from "@/lib/grading-pause";
 import { showAsSpaceXsi } from "@/lib/space-xsi";
 import { VKOLE_MOVEMENT } from "@/lib/vkole-cap";
 import { SIGHT_WORD_NOTE } from "@/lib/vkole/constants";
-import { SPELLING_NOTE } from "@/lib/vkole/spelling/items";
+import { letterExercise, SPELLING_NOTE } from "@/lib/vkole/spelling/items";
 import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
 import { PA_NOTE } from "@/lib/vkole/phonemic-awareness/items";
 import { PhonemicStage } from "@/components/phonemic-stage";
@@ -622,10 +622,14 @@ function SessionPage() {
             onDone={(outcome) => {
               noteEngineActivity();
               if (pendingAnswer) return;
+              const answered = climb.standardStep;
               setPendingAnswer(true);
               setError("");
               void markSpelling({ data: { id: climb.id, outcome } })
-                .then((row) => setClimb(row))
+                .then((row) => {
+                  setClimb(row);
+                  if (outcome === "correct" && letterExercise(answered) === 5) finishRef.current("finished");
+                })
                 .catch((err: unknown) => {
                   setError(err instanceof Error ? err.message : "Could not save that answer.");
                   setSpellingRound((round) => round + 1);

@@ -296,6 +296,53 @@
   height: auto;
 }
 
+.sp-pair {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.35em;
+}
+
+.sp-pair .sp-letter {
+  font-size: clamp(4.5rem, 18vw, 9rem);
+}
+
+.sp-celebrate {
+  position: relative;
+  display: flex;
+  min-height: 16rem;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.sp-confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sp-star {
+  position: absolute;
+  border-radius: 50%;
+  animation: sp-rise 1.6s ease-in infinite;
+}
+
+@keyframes sp-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(1.5rem) scale(0.6);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-9rem) scale(1);
+  }
+}
+
 .pa-box {
   width: 2.75rem;
   height: 2.75rem;
