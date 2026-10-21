@@ -8,9 +8,11 @@ import {
   alphabet,
   letterAtSongTime,
   letterColors,
+  earlyHandoffMiss,
   letterView,
   progressAfterSong,
   micListensDuring,
+  promptPlayedLongEnough,
   spellingPromptStartsListen,
   spellingStartSecondsLeft,
 } from "@/lib/vkole/spelling/items";
@@ -292,19 +294,36 @@ export function SpellingStage({
     let gapTimer = 0;
     let backup = 0;
     let opened = false;
+    let attempts = 0;
+    let started = 0;
+    let stop = () => {};
     const listen = () => {
       if (!live || opened) return;
       opened = true;
       window.clearTimeout(backup);
+      window.clearTimeout(gapTimer);
       gapTimer = window.setTimeout(() => {
         if (live) setPhase("listen");
       }, SPELLING_LISTEN_GAP_MS);
+    };
+    const beginSpeak = () => {
+      if (!live || opened) return;
+      stop();
+      attempts += 1;
+      started = performance.now();
+      stop = speakLine(view.say, afterSpeech);
     };
     const afterSpeech = () => {
       if (!live || opened) return;
       const synth = window.speechSynthesis;
       if (synth && (synth.speaking || synth.pending)) {
         gapTimer = window.setTimeout(afterSpeech, SPELLING_LISTEN_GAP_MS);
+        return;
+      }
+      // The first card after a handoff often ends the utterance immediately. Say it again
+      // before the microphone opens, or the mic scores the previous letter.
+      if (!promptPlayedLongEnough(performance.now() - started) && attempts < 3) {
+        gapTimer = window.setTimeout(beginSpeak, SPELLING_LISTEN_GAP_MS);
         return;
       }
       listen();
@@ -316,7 +335,7 @@ export function SpellingStage({
         live = false;
       };
     }
-    const stop = speakLine(view.say, afterSpeech);
+    beginSpeak();
     backup = window.setTimeout(listen, 8000);
     return () => {
       live = false;
@@ -333,7 +352,8 @@ export function SpellingStage({
     let rec: SpeechListener | null = null;
     let restartTimer = 0;
     let decided = false;
-    const deadline = performance.now() + SPELLING_RESPONSE_MS;
+    const listenStarted = performance.now();
+    const deadline = listenStarted + SPELLING_RESPONSE_MS;
     setSecondsLeft(SPELLING_RESPONSE_MS / 1000);
     const timer = window.setTimeout(() => {
       if (decided) return;
@@ -344,9 +364,7 @@ export function SpellingStage({
       } catch {
         /* already stopped */
       }
-      advanceRef.current = window.setTimeout(() => {
-        if (live) finishRef.current("timeout");
-      }, HEARD_HOLD_MS);
+      if (live) finishRef.current("timeout");
     }, SPELLING_RESPONSE_MS);
     const ticker = window.setInterval(() => {
       const left = Math.max(0, Math.ceil((deadline - performance.now()) / 1000));
@@ -412,6 +430,7 @@ export function SpellingStage({
               alternatives.push({ transcript: row.transcript ?? "", final: Boolean(result.isFinal) });
             }
             const heard = describeSpellingHear(current.answer, alternatives, current.also, current.say);
+            if (earlyHandoffMiss(performance.now() - listenStarted, heard.judgment)) continue;
             if (heard.status.startsWith("I heard:")) noteHeard(heard.status);
             if (heard.judgment === "correct") {
               decided = true;
@@ -440,7 +459,21 @@ export function SpellingStage({
             setUnsupported(true);
             return;
           }
-          if (event.error === "no-speech") noteSilence();
+          if (event.error === "no-speech") {
+            // Re-ask this same card. Restarting a recognizer that will not start again leaves the
+            // "I didn't hear anything" line on screen until a later silence steps back to A.
+            decided = true;
+            noteSilence();
+            window.clearTimeout(timer);
+            window.clearTimeout(restartTimer);
+            try {
+              rec?.abort();
+            } catch {
+              /* already stopped */
+            }
+            if (live) setPhase("prompt");
+            return;
+          }
           if (recognitionErrorRelistens(event.error)) {
             scheduleRestart();
             return;

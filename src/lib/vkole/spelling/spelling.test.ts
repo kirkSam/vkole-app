@@ -25,12 +25,15 @@ import {
   itemAt,
   letterAtSongTime,
   letterColors,
+  earlyHandoffMiss,
   letterExercise,
   letterOnScreen,
   letterView,
   MEMORY_LETTER_PROMPT,
   micOpensAfterPrompt,
   progressAfterSong,
+  promptPlayedLongEnough,
+  SPELLING_PROMPT_MIN_MS,
   songSpokenLines,
   micListensDuring,
   openingPrompt,
@@ -156,8 +159,8 @@ describe("letter knowledge sequence", () => {
     assert.equal(lists.micRecords, false);
     assert.equal(lists.answerFlow.correct.action, "next");
     assert.equal(lists.answerFlow.silence[0]?.action, "repeat");
-    assert.equal(lists.answerFlow.silence[1]?.action, "back");
-    assert.equal(lists.answerFlow.silence[1]?.letters, 3);
+    assert.equal(lists.answerFlow.silence[1]?.action, "repeat");
+    assert.equal(lists.answerFlow.silence.some((row) => row.action === "back"), false);
     assert.equal(lists.answerFlow.wrong[0]?.action, "cue");
     assert.equal(lists.answerFlow.wrong[0]?.letters, 3);
     assert.equal(lists.answerFlow.wrong[1]?.action, "back");
@@ -322,20 +325,22 @@ describe("letter answer flow", () => {
     assert.equal(view.say, "What letter comes next?");
   });
 
-  it("goes back 3 letters after a second silence, and clamps at A", () => {
+  it("asks the same letter again after silence, and never returns to A", () => {
     const once = applyLetterAnswer(g, "timeout");
-    const back = applyLetterAnswer(once, "timeout");
-    assert.equal(back.index, g.index - 3);
-    assert.equal(back.silence, 0);
-    assert.equal(back.wrong, 0);
-    const view = letterView(back);
+    const again = applyLetterAnswer(once, "timeout");
+    assert.equal(again.index, g.index);
+    assert.equal(again.silence, 2);
+    assert.equal(again.wrong, 0);
+    const view = letterView(again);
     assert.equal(view.kind, "ask");
-    assert.equal(view.answer, "D");
+    assert.equal(view.answer, "G");
+    assert.equal(view.shown, "F");
     const fromB = applyLetterAnswer({ index: alphabet().indexOf("B"), silence: 1, wrong: 0 }, "timeout");
-    assert.equal(fromB.index, 0);
-    assert.equal(letterView(fromB).answer, "A");
+    assert.equal(fromB.index, alphabet().indexOf("B"));
+    assert.notEqual(letterView(fromB).answer, "A");
     const fromC = applyLetterAnswer({ index: alphabet().indexOf("C"), silence: 1, wrong: 0 }, "timeout");
-    assert.equal(fromC.index, 0);
+    assert.equal(fromC.index, alphabet().indexOf("C"));
+    assert.notEqual(fromC.index, 0);
   });
 
   it("shows and speaks the 3 prior letters after a wrong answer", () => {
@@ -384,7 +389,8 @@ describe("letter answer flow", () => {
     assert.equal(letterView(timed).kind, "ask");
     assert.equal(letterView(timed).answer, "G");
     const timedAgain = applyLetterAnswer(timed, "timeout");
-    assert.equal(timedAgain.index, g.index - 3);
+    assert.equal(timedAgain.index, g.index);
+    assert.equal(timedAgain.silence, 2);
     assert.notEqual(timedAgain.index, 0);
   });
 });
@@ -422,7 +428,7 @@ describe("spoken spelling answers", () => {
       A: ["a", "ay"],
       B: ["bee", "be"],
       C: ["see", "sea"],
-      D: ["dee", "the"],
+      D: ["dee", "de", "d", "the"],
       E: ["e", "ee"],
       F: ["ef", "eff"],
       G: ["gee", "jee"],
@@ -634,6 +640,84 @@ describe("exercise 2 next letter", () => {
     assert.equal(session.includes("spellingHeard"), true);
     assert.equal(session.includes("onHeard={setSpellingHeard}"), true);
     assert.equal(session.includes("heard={spellingHeard}"), true);
+  });
+
+  it("replays shown A through D: a fumble, two good cards, then a didn't-hear stays on D", () => {
+    assert.equal(promptPlayedLongEnough(SPELLING_PROMPT_MIN_MS - 1), false);
+    assert.equal(promptPlayedLongEnough(SPELLING_PROMPT_MIN_MS), true);
+    assert.equal(earlyHandoffMiss(SPELLING_LISTEN_GAP_MS - 1, "miss"), true);
+    assert.equal(earlyHandoffMiss(SPELLING_LISTEN_GAP_MS, "miss"), false);
+    assert.equal(earlyHandoffMiss(0, "correct"), false);
+    assert.equal(spellingSpokenMatches("D", "dee", []), true);
+    assert.equal(spellingSpokenMatches("D", "de", []), true);
+    assert.equal(spellingSpokenMatches("D", "d", []), true);
+    assert.equal(spellingSpokenMatches("D", "the", []), true);
+    assert.equal(spellingSpokenMatches("D", "tea", []), false);
+    assert.equal(spellingSpokenMatches("T", "tea", []), true);
+    assert.equal(spellingSpokenMatches("A", "de", []), false);
+    assert.equal(spellingSpokenMatches("E", "de", []), false);
+    assert.equal(spellingSpokenMatches("T", "de", []), false);
+
+    const prompt = "What letter comes next?";
+    let state = { index: 1, silence: 0, wrong: 0 };
+    const shownA = letterView(state);
+    assert.equal(shownA.shown, "A");
+    assert.equal(shownA.answer, "B");
+    assert.equal(shownA.say, prompt);
+    assert.equal(judgeSpellingSpoken(shownA.answer, "A", true, shownA.also, shownA.say), "miss");
+    assert.equal(judgeSpellingSpoken(shownA.answer, "B", true, shownA.also, shownA.say), "correct");
+    const fumble = applyLetterAnswer(state, "miss");
+    assert.equal(fumble.index, shownA.index);
+    assert.equal(fumble.wrong, 1);
+    assert.equal(letterView(fumble).answer, "B");
+    state = applyLetterAnswer(fumble, "correct");
+
+    const shownB = letterView(state);
+    assert.equal(shownB.shown, "B");
+    assert.equal(shownB.answer, "C");
+    assert.equal(judgeSpellingSpoken(shownB.answer, "see", true, shownB.also, shownB.say), "correct");
+    state = applyLetterAnswer(state, "correct");
+
+    const shownC = letterView(state);
+    assert.equal(shownC.shown, "C");
+    assert.equal(shownC.answer, "D");
+    for (const said of ["dee", "de", "d", "the"]) {
+      assert.equal(judgeSpellingSpoken(shownC.answer, said, true, shownC.also, shownC.say), "correct", said);
+    }
+    assert.equal(judgeSpellingSpoken(shownC.answer, "tea", true, shownC.also, shownC.say), "miss");
+    state = applyLetterAnswer(state, "correct");
+
+    const shownD = letterView(state);
+    assert.equal(shownD.shown, "D");
+    assert.equal(shownD.answer, "E");
+    assert.equal(shownD.say, prompt);
+    const silent = describeSpellingHear(shownD.answer, [{ transcript: "", final: true }], shownD.also, shownD.say);
+    assert.equal(silent.judgment, "wait");
+    assert.equal(silent.status, "I didn't hear anything");
+    assert.equal(judgeSpellingSpoken(shownD.answer, prompt, true, shownD.also, shownD.say), "wait");
+    state = applyLetterAnswer(state, "timeout");
+    assert.equal(state.index, shownD.index);
+    assert.equal(letterView(state).shown, "D");
+    assert.equal(letterView(state).say, prompt);
+    state = applyLetterAnswer(state, "timeout");
+    const stayed = letterView(state);
+    assert.equal(stayed.shown, "D");
+    assert.equal(stayed.answer, "E");
+    assert.equal(stayed.index, shownD.index);
+    assert.notEqual(stayed.index, 0);
+    assert.notEqual(stayed.shown, "A");
+    assert.equal(state.silence, 2);
+
+    const stage = readFileSync(stageFile, "utf8");
+    const promptEffect = stage.slice(stage.indexOf('phase !== "prompt"'), stage.indexOf("if (!canScore)"));
+    assert.equal(promptEffect.includes("promptPlayedLongEnough"), true);
+    assert.equal(promptEffect.includes("attempts < 3"), true);
+    assert.equal(stage.includes("earlyHandoffMiss"), true);
+    const noSpeech = stage.slice(stage.indexOf("rec.onerror"), stage.indexOf("rec.onend"));
+    assert.equal(noSpeech.includes('setPhase("prompt")'), true);
+    assert.equal(noSpeech.includes("scheduleRestart()"), true);
+    assert.equal(noSpeech.includes('finishRef.current("timeout")'), false);
+    assert.equal(noSpeech.includes('finishRef.current("miss")'), false);
   });
 });
 

@@ -25,7 +25,7 @@ export const SPELLING_RECOGNIZER_RESTART_MS = 250;
 export const SPELLING_LISTEN_GAP_MS = 400;
 
 export const SPELLING_NOTE =
-  "The alphabet plays once when this engine opens, one letter every 1.5 seconds. Then a question is spoken and shown. The microphone listens only while that question is waiting for an answer, and it does not record or save the sound. A correct answer shows a Happy Face for 2 seconds, then the next letter, and a fast answer moves on as soon as it is heard. Five seconds of silence shows the same letter again. A second silence goes back 3 letters. A miss shows and speaks the 3 earlier letters. A second miss steps back one letter. A miss never sends the alphabet back to A.";
+  "The alphabet plays once when this engine opens, one letter every 1.5 seconds. Then a question is spoken and shown. The microphone listens only while that question is waiting for an answer, and it does not record or save the sound. A correct answer shows a Happy Face for 2 seconds, then the next letter, and a fast answer moves on as soon as it is heard. Five seconds of silence asks the same letter again. Silence never sends the alphabet back to A. A miss shows and speaks the 3 earlier letters. A second miss steps back one letter. A miss never sends the alphabet back to A.";
 
 /** Whole seconds left before the alphabet starts itself. 0 means start now. */
 export function spellingStartSecondsLeft(elapsedMs: number): number {
@@ -131,6 +131,26 @@ export function spellingPromptStartsListen(say: string): "now" | "after-speech" 
 export function micOpensAfterPrompt(speechEnded: boolean, sinceEndMs: number): boolean {
   const elapsed = Number.isFinite(sinceEndMs) ? sinceEndMs : 0;
   return speechEnded && elapsed >= SPELLING_LISTEN_GAP_MS;
+}
+
+/**
+ * Chrome drops a prompt when cancel() and the next speak overlap, which is the handoff
+ * onto the first "What letter comes next?" card. An end that fast means the line did not play.
+ */
+export const SPELLING_PROMPT_MIN_MS = 200;
+
+export function promptPlayedLongEnough(elapsedMs: number): boolean {
+  const elapsed = Number.isFinite(elapsedMs) ? elapsedMs : 0;
+  return elapsed >= SPELLING_PROMPT_MIN_MS;
+}
+
+/**
+ * A miss in the first moments of listening is the previous card or the prompt tail, not a new answer.
+ * A correct letter in that window still counts.
+ */
+export function earlyHandoffMiss(elapsedMs: number, judgment: "correct" | "miss" | "wait"): boolean {
+  const elapsed = Number.isFinite(elapsedMs) ? elapsedMs : 0;
+  return judgment === "miss" && elapsed < SPELLING_LISTEN_GAP_MS;
 }
 
 export function bandMeta(band: SpBand): { name: string; label: string; count: number; kinds: string[]; note: string } {
@@ -250,7 +270,6 @@ export type LetterView = {
   name: string;
 };
 
-type FlowSilence = { times?: number; action?: string; letters?: number };
 type FlowWrong = { times?: number; action?: string; letters?: number; letter?: string };
 
 /** Item index in letter knowledge. 0 is the first card. The last card and 0 are the walls. */
@@ -346,7 +365,7 @@ function cueForLetter(letter: string, count: number): string[] {
 /**
  * Letter-phase answers. The rules come from `answerFlow` in the data file.
  * One miss stays on the letter. The second miss steps back by the small `back` count.
- * A miss never restarts at A. Silence is its own count and is never stored as a miss.
+ * A miss never restarts at A. Silence asks the same card again and never moves the index.
  */
 export function applyLetterAnswer(input: LetterProgress, outcome: LetterOutcome): LetterProgress {
   const state = normalizeLetterProgress(input);
@@ -355,7 +374,6 @@ export function applyLetterAnswer(input: LetterProgress, outcome: LetterOutcome)
     const next = state.index + 1 >= count ? 0 : state.index + 1;
     return { index: next, silence: 0, wrong: 0 };
   }
-  const silenceRules = lists.answerFlow.silence as FlowSilence[];
   const wrongRules = lists.answerFlow.wrong as FlowWrong[];
   if (outcome === "miss") {
     const step = state.wrong + 1;
@@ -365,10 +383,9 @@ export function applyLetterAnswer(input: LetterProgress, outcome: LetterOutcome)
     }
     return { index: state.index, silence: 0, wrong: step };
   }
-  const times = state.silence + 1;
-  const rule = silenceRules.find((row) => row.times === times) ?? silenceRules[silenceRules.length - 1];
-  if (!rule || rule.action === "repeat") return { index: state.index, silence: times, wrong: 0 };
-  return { index: retreatIndex(state.index, rule.letters ?? 3), silence: 0, wrong: 0 };
+  // Silence re-asks this card. It must not step back: a second miss of speech on the D card
+  // used to land on the card that shows A.
+  return { index: state.index, silence: state.silence + 1, wrong: 0 };
 }
 
 /** What the student sees and says for the current letter, including the prior-letter cue after a miss. */
