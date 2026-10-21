@@ -145,6 +145,37 @@ export function promptPlayedLongEnough(elapsedMs: number): boolean {
 }
 
 /**
+ * After one speak of the prompt.
+ * "wait" while speech is still speaking or queued, so the mic stays shut.
+ * "again" when that speak was dropped or too short, up to 3 speaks.
+ * "listen" is the only step that may open the microphone.
+ */
+export function promptAfterSpeech(speechBusy: boolean, elapsedMs: number, attempts: number): "wait" | "again" | "listen" {
+  if (speechBusy) return "wait";
+  const tries = Number.isFinite(attempts) ? attempts : 0;
+  if (!promptPlayedLongEnough(elapsedMs) && tries < 3) return "again";
+  return "listen";
+}
+
+/**
+ * True while Alphabet is showing a letter.
+ * A blank recall card and the Good job screen are not a letter.
+ * Song, the start card, and typing always show one.
+ */
+export function alphabetLetterShowing(input: {
+  phase: string;
+  shown?: string;
+  pair?: string;
+  cue?: readonly string[];
+}): boolean {
+  if (input.phase === "good-job" || input.phase === "celebrate") return false;
+  if (input.phase === "gate" || input.phase === "song" || input.phase === "type") return true;
+  if ((input.shown ?? "").trim()) return true;
+  if (input.phase === "happy" && (input.pair ?? "").trim()) return true;
+  return (input.cue?.length ?? 0) > 0;
+}
+
+/**
  * A miss in the first moments of listening is the previous card or the prompt tail, not a new answer.
  * A correct letter in that window still counts.
  */

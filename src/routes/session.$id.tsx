@@ -120,7 +120,7 @@ function SessionPage() {
   const [spellingRound, setSpellingRound] = useState(0);
   const [spellingHeard, setSpellingHeard] = useState("");
   const [paRound, setPaRound] = useState(0);
-  const finishRef = useRef<(reason: EndReason) => void>(() => {});
+  const finishRef = useRef<(reason: EndReason, explicitLogout?: boolean) => void>(() => {});
 
   const userId = user?.id;
   const clockOpen = Boolean(clock?.armed && !clock.closed);
@@ -214,7 +214,7 @@ function SessionPage() {
     let lastSent = 0;
     let opened = Promise.resolve();
 
-    const finish = (reason: EndReason) => {
+    const finish = (reason: EndReason, explicitLogout = false) => {
       if (closing.current) return;
       closing.current = true;
       try {
@@ -224,7 +224,7 @@ function SessionPage() {
       }
       void opened
         .catch(() => undefined)
-        .then(() => endChildSession({ data: { id: climbId, reason } }))
+        .then(() => endChildSession({ data: { id: climbId, reason, explicitLogout } }))
         .then((result) => {
           const leaveThisEngine = reason !== "inactivity";
           if (!result || (result.alreadyClosed && !result.body && !result.spellingReport)) {
@@ -436,7 +436,7 @@ function SessionPage() {
           {closure ? null : (
             <button
               type="button"
-              onClick={() => finishRef.current("logout")}
+              onClick={() => finishRef.current("logout", true)}
               className="inline-flex min-h-11 items-center rounded-xl border border-line bg-surface px-4 text-sm text-ink"
             >
               Log out
