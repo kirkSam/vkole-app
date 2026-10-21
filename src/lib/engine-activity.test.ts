@@ -7,6 +7,7 @@ import {
   engineIdleMs,
   engineIsBusy,
   holdEngineAudio,
+  holdEngineLetter,
   holdEngineMic,
   inactivityDue,
   markEngineSession,
@@ -45,7 +46,21 @@ describe("engine activity keeps a sitting open", () => {
     mic();
     assert.equal(engineIsBusy(), false);
 
+    const letter = holdEngineLetter();
+    assert.equal(engineIsBusy(), true);
+    assert.equal(inactivityDue(start, start + IDLE_MS + 60_000, engineIsBusy(), IDLE_MS), false);
+    letter();
+    assert.equal(engineIsBusy(), false);
+    assert.equal(inactivityDue(start, start + IDLE_MS + 60_000, engineIsBusy(), IDLE_MS), true);
+    const duringLetter = holdEngineLetter();
+    const closedMic = holdEngineMic();
+    closedMic();
+    assert.equal(engineIsBusy(), true);
+    assert.equal(inactivityDue(start, start + IDLE_MS + 60_000, engineIsBusy(), IDLE_MS), false);
+    duringLetter();
+
     holdEngineMic();
+    holdEngineLetter();
     markEngineSession(false);
     assert.equal(engineIsBusy(), false);
     assert.equal(appSessionOnWebsiteUnauthorized(false), "sign-in");
@@ -146,6 +161,10 @@ describe("engine activity keeps a sitting open", () => {
       assert.match(stage, /holdEngineMic/);
       assert.match(stage, /noteEngineActivity/);
     }
+    assert.match(spelling, /holdEngineLetter/);
+    assert.match(spelling, /alphabetLetterShowing/);
+    assert.equal(phonemic.includes("holdEngineLetter"), false);
+    assert.equal(sight.includes("holdEngineLetter"), false);
     assert.match(middleware, /engineSessionActive\(\)/);
     assert.match(middleware, /appSessionOnWebsiteUnauthorized\(engineSessionActive\(\)\) === "sign-in"/);
   });

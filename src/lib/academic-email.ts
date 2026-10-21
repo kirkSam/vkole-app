@@ -40,6 +40,27 @@ export function finishSendsReport(reason: EndReason, eventCount: number): boolea
   return eventCount >= 1;
 }
 
+/**
+ * Whether this ending emails the parent.
+ * Alphabet emails only for Finished, completing exercise 6 (also Finished),
+ * and an explicit Log out that already has an answer.
+ * A 5-minute idle, the 8-hour clock, and leaving Alphabet do not email.
+ * Other engines keep finishSendsReport.
+ */
+export function parentProgressMail(input: {
+  subject: string;
+  reason: EndReason;
+  eventCount: number;
+  explicitLogout?: boolean;
+}): boolean {
+  if (input.subject === "sp") {
+    if (input.reason === "finished") return true;
+    if (input.reason === "logout" && input.explicitLogout) return input.eventCount >= 1;
+    return false;
+  }
+  return finishSendsReport(input.reason, input.eventCount);
+}
+
 export type AppTime = {
   subject: SubjectId;
   level: number | null;

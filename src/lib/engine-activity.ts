@@ -1,8 +1,9 @@
 /**
  * Engine work that does not look like a tap: speech, the microphone,
- * a song, an answer, or a move to the next prompt.
+ * a letter on screen, a song, an answer, or a move to the next prompt.
  * The sitting's idle clock listens for ENGINE_ACTIVITY_EVENT.
- * While audio is playing or the microphone is open, the sitting stays up.
+ * While audio is playing, the microphone is open, or Alphabet is showing
+ * a letter, the 5-minute idle stays off.
  */
 
 export const ENGINE_ACTIVITY_EVENT = "vkole-engine-activity";
@@ -10,6 +11,7 @@ export const ENGINE_ACTIVITY_EVENT = "vkole-engine-activity";
 let lastActivity = 0;
 let audioDepth = 0;
 let micDepth = 0;
+let letterDepth = 0;
 let sessionActive = false;
 
 function emit(): void {
@@ -61,8 +63,25 @@ export function holdEngineMic(): () => void {
   };
 }
 
+export function engineLetterShowing(on: boolean): void {
+  letterDepth = Math.max(0, letterDepth + (on ? 1 : -1));
+  if (on) noteEngineActivity();
+}
+
+/** A letter is on screen. Release once, when that letter leaves. The mic can be closed. */
+export function holdEngineLetter(): () => void {
+  engineLetterShowing(true);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    noteEngineActivity();
+    engineLetterShowing(false);
+  };
+}
+
 export function engineIsBusy(): boolean {
-  return audioDepth > 0 || micDepth > 0;
+  return audioDepth > 0 || micDepth > 0 || letterDepth > 0;
 }
 
 /** True while the engine page is on screen. A website 401 must not sign that sitting out. */
@@ -72,6 +91,7 @@ export function markEngineSession(active: boolean): void {
   else {
     audioDepth = 0;
     micDepth = 0;
+    letterDepth = 0;
   }
 }
 
@@ -81,7 +101,7 @@ export function engineSessionActive(): boolean {
 
 /**
  * A busy engine is not idle, even when the last tap is older than the limit.
- * `busy` is the microphone or audio, not a guess about the child.
+ * `busy` is the microphone, audio, or a letter on screen, not a guess about the child.
  */
 export function inactivityDue(last: number, now: number, busy: boolean, idleMs: number): boolean {
   if (busy) return false;
@@ -98,5 +118,6 @@ export function resetEngineActivity(): void {
   lastActivity = 0;
   audioDepth = 0;
   micDepth = 0;
+  letterDepth = 0;
   sessionActive = false;
 }

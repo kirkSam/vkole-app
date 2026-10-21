@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { IDLE_MS, academicLetter, finishSendsReport, parentLogoutLetter, trialState, type AppTime, type EndReason, type ReportEvent } from "@/lib/academic-email";
+import { IDLE_MS, academicLetter, parentLogoutLetter, parentProgressMail, trialState, type AppTime, type EndReason, type ReportEvent } from "@/lib/academic-email";
 import { reportLine } from "@/lib/session-report";
 import { schoolMiddleware } from "@/lib/school-middleware";
 import { accountIdOf, isSchoolAccountId, schoolAccessDecision, studentIndexOf, type FamilyStudent } from "@/lib/school-account";
@@ -62,7 +62,10 @@ export type Climb = {
 
 const idSchema = z.object({ id: z.string().trim().min(8).max(80) });
 const answerSchema = idSchema.extend({ answer: z.string().max(2000) });
-const endSchema = idSchema.extend({ reason: z.enum(["logout", "inactivity", "finished"]) });
+const endSchema = idSchema.extend({
+  reason: z.enum(["logout", "inactivity", "finished"]),
+  explicitLogout: z.boolean().optional(),
+});
 
 function parse<T>(schema: z.ZodType<T>, data: unknown): T {
   const parsed = schema.safeParse(data);
@@ -1304,7 +1307,14 @@ export const endChildSession = createServerFn({ method: "POST" })
       select count(*) as n from climb_events
       where climb_id = ${data.id} and user_id = ${context.userId} and created_at >= ${asIso(open.started_at)}
     `;
-    if (!finishSendsReport(data.reason, Number(checked[0]?.n ?? 0))) {
+    if (
+      !parentProgressMail({
+        subject: climb.subject,
+        reason: data.reason,
+        explicitLogout: data.explicitLogout === true,
+        eventCount: Number(checked[0]?.n ?? 0),
+      })
+    ) {
       const closed = await closeSitting(sql, context.userId, data.id, data.reason);
       return { sent: false, recipient: "", reason: data.reason, sittingSeconds: closed?.seconds ?? 0, totalSeconds: climb.onlineSeconds + (closed?.seconds ?? 0), subject: "", body: "", error: "", sheetNote: "", spellingReport: "", alreadyClosed: false as const };
     }

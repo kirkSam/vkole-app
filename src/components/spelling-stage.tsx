@@ -16,11 +16,12 @@ import {
   openingAlphabetExercise,
   micListensDuring,
   type AlphabetExercise,
-  promptPlayedLongEnough,
+  alphabetLetterShowing,
+  promptAfterSpeech,
   spellingPromptStartsListen,
   spellingStartSecondsLeft,
 } from "@/lib/vkole/spelling/items";
-import { holdEngineAudio, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
+import { holdEngineAudio, holdEngineLetter, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { describeSpellingHear, recognitionErrorRelistens, spellingGrammar } from "@/lib/vkole/spelling/match";
 import { celebrationFrame, GOOD_JOB_LINE, reciteHear, SPELLING_CELEBRATION_MS } from "@/lib/vkole/spelling/recite";
 import { advanceTyping, judgeTypingKey, TYPING_TRY_AGAIN, TYPING_WAIT_MS, typingCaseLine, typingShown, typingStart, type TypingPlace } from "@/lib/vkole/spelling/typing";
@@ -412,6 +413,12 @@ export function SpellingStage({
 
   const listening = ready && !unsupported && allowed && micListensDuring(phase);
   const canScore = ready && phase === "listen" && (unsupported || allowed);
+  const letterOnScreen = alphabetLetterShowing({ phase, shown: view.shown, pair: view.pair, cue: view.cue });
+
+  useEffect(() => {
+    if (!letterOnScreen) return;
+    return holdEngineLetter();
+  }, [letterOnScreen]);
 
   useEffect(() => {
     if (!listening) return;
@@ -427,8 +434,17 @@ export function SpellingStage({
     let attempts = 0;
     let started = 0;
     let stop = () => {};
+    const speechBusy = () => {
+      const synth = window.speechSynthesis;
+      return Boolean(synth && (synth.speaking || synth.pending));
+    };
     const listen = () => {
       if (!live || opened) return;
+      // The mic stays shut while speech is speaking or still queued.
+      if (speechBusy()) {
+        gapTimer = window.setTimeout(listen, SPELLING_LISTEN_GAP_MS);
+        return;
+      }
       opened = true;
       window.clearTimeout(backup);
       window.clearTimeout(gapTimer);
@@ -445,14 +461,14 @@ export function SpellingStage({
     };
     const afterSpeech = () => {
       if (!live || opened) return;
-      const synth = window.speechSynthesis;
-      if (synth && (synth.speaking || synth.pending)) {
+      // The first card after a handoff often ends the utterance immediately. Say it again
+      // before the microphone opens, or the mic scores the previous letter.
+      const step = promptAfterSpeech(speechBusy(), performance.now() - started, attempts);
+      if (step === "wait") {
         gapTimer = window.setTimeout(afterSpeech, SPELLING_LISTEN_GAP_MS);
         return;
       }
-      // The first card after a handoff often ends the utterance immediately. Say it again
-      // before the microphone opens, or the mic scores the previous letter.
-      if (!promptPlayedLongEnough(performance.now() - started) && attempts < 3) {
+      if (step === "again") {
         gapTimer = window.setTimeout(beginSpeak, SPELLING_LISTEN_GAP_MS);
         return;
       }

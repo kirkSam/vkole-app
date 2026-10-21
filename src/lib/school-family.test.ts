@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { finishSendsReport } from "./academic-email.ts";
+import { finishSendsReport, parentProgressMail } from "./academic-email.ts";
 import { SUBJECTS } from "./climb-rules.ts";
 import { levelFieldsForWebsite, readLevelPair } from "./level-pair.ts";
 import {
@@ -221,10 +221,39 @@ describe("two students and the website level shape", () => {
     const climbs = readFileSync(new URL("./climbs.ts", import.meta.url), "utf8");
     const clock = readFileSync(new URL("./day-clock.ts", import.meta.url), "utf8");
     assert.equal(session.includes('finishRef.current("finished")'), true);
+    assert.equal(session.includes('finishRef.current("logout", true)'), true);
+    assert.equal(session.includes('finish("logout", true)'), false);
     assert.equal(session.includes("Finished"), true);
     assert.equal(session.includes("Lower the working level. The earned level stays."), true);
     assert.equal(session.includes("Earned level"), true);
-    assert.equal(climbs.includes("finishSendsReport(data.reason"), true);
+    assert.equal(climbs.includes("parentProgressMail({"), true);
+    assert.equal(climbs.includes("explicitLogout: data.explicitLogout === true"), true);
     assert.equal(clock.includes('z.enum(["m", "ela", "ss", "gen", "sg", "sw", "sp", "pa"])'), true);
+  });
+
+  it("keeps the Alphabet parent email off for idle, the 8-hour clock, and leaving", async () => {
+    const sent: string[] = [];
+    const send = async (label: string) => {
+      sent.push(label);
+    };
+    const endings: { subject: string; reason: "logout" | "inactivity" | "finished"; explicitLogout: boolean; eventCount: number; label: string }[] = [
+      { subject: "sp", reason: "inactivity", explicitLogout: false, eventCount: 4, label: "idle" },
+      { subject: "sp", reason: "logout", explicitLogout: false, eventCount: 4, label: "eight-hour" },
+      { subject: "sp", reason: "logout", explicitLogout: false, eventCount: 4, label: "leaving" },
+      { subject: "sp", reason: "finished", explicitLogout: false, eventCount: 0, label: "finished" },
+      { subject: "sp", reason: "finished", explicitLogout: false, eventCount: 6, label: "exercise-6" },
+      { subject: "sp", reason: "logout", explicitLogout: true, eventCount: 2, label: "log-out" },
+      { subject: "sp", reason: "logout", explicitLogout: true, eventCount: 0, label: "empty-log-out" },
+      { subject: "m", reason: "inactivity", explicitLogout: false, eventCount: 1, label: "math-idle" },
+      { subject: "m", reason: "logout", explicitLogout: false, eventCount: 1, label: "math-leave" },
+    ];
+    for (const end of endings) {
+      if (parentProgressMail(end)) await send(end.label);
+    }
+    assert.deepEqual(sent, ["finished", "exercise-6", "log-out", "math-idle", "math-leave"]);
+    assert.equal(sent.includes("idle"), false);
+    assert.equal(sent.includes("eight-hour"), false);
+    assert.equal(sent.includes("leaving"), false);
+    assert.equal(sent.includes("empty-log-out"), false);
   });
 });
