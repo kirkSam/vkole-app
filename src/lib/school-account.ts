@@ -9,6 +9,7 @@
  */
 
 import { normalizeAccountEmail, sameAccount } from "./account-scope.ts";
+import { levelFieldsForWebsite } from "./level-pair.ts";
 import { DAY_LIMIT_SECONDS } from "./day-clock-math.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, SIGHT_WORD_BANDS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
@@ -39,9 +40,69 @@ export function websiteMasterEmail(raw?: string | null): string {
 }
 
 export function isWebsiteMasterEmail(email: string, raw?: string | null): boolean {
-  const id = normalizeAccountEmail(email);
+  const id = normalizeAccountEmail(accountIdOf(email));
   const master = normalizeAccountEmail(websiteMasterEmail(raw));
   return id.includes("@") && id === master;
+}
+
+/** Local rows for student 1 stay on the account email. Later students get their own key. */
+const STUDENT_MARK = "#student-";
+
+export function studentScopeId(accountId: string, index: number): string {
+  const account = accountIdOf(accountId);
+  const n = Math.round(index);
+  if (!Number.isInteger(n) || n <= 1) return account;
+  return `${account}${STUDENT_MARK}${n}`;
+}
+
+export function accountIdOf(scopeId: string): string {
+  const at = scopeId.indexOf(STUDENT_MARK);
+  return at < 0 ? scopeId : scopeId.slice(0, at);
+}
+
+export function studentIndexOf(scopeId: string): number {
+  const at = scopeId.indexOf(STUDENT_MARK);
+  if (at < 0) return 1;
+  const n = Number(scopeId.slice(at + STUDENT_MARK.length));
+  return Number.isInteger(n) && n >= 1 ? n : 1;
+}
+
+export const TWO_STUDENTS_LINE = "2 students per account";
+
+export const THIRD_STUDENT_MESSAGE =
+  "This account already has 2 students. A third child needs a separate registration.";
+
+export const CONFIRM_EMAIL_TITLE = "Check your email to start your free week";
+
+export type LockReason = "" | "confirm-email" | "payment";
+
+export type FamilyStudent = {
+  index: number;
+  name: string;
+  age: number | null;
+  startingGrade: number | null;
+};
+
+/** The next index when adding a child. Ordinary accounts stop at 2. The master account does not. */
+export function studentIndexToAdd(students: { index: number }[], master: boolean): number | null {
+  const indexes = students.map((student) => student.index).filter((index) => Number.isInteger(index) && index >= 1);
+  if (!indexes.includes(2)) return 2;
+  if (!master) return null;
+  return Math.max(2, ...indexes) + 1;
+}
+
+/** The roster index for a typed first name. Student 1 when the name is the only saved child. */
+export function indexForName(
+  profile: { studentName?: string | null; activeStudent?: number | null; students?: { index: number; name: string }[] },
+  typed: string,
+): number {
+  const key = typed.trim().toLowerCase();
+  const found = profile.students?.find((student) => student.name.trim().toLowerCase() === key);
+  if (found) return found.index;
+  if ((profile.studentName ?? "").trim().toLowerCase() === key) {
+    return profile.activeStudent && profile.activeStudent >= 1 ? profile.activeStudent : 1;
+  }
+  return 1;
 }
 
 export type SchoolAccessDecision = {
@@ -52,6 +113,8 @@ export type SchoolAccessDecision = {
   daysLeft: number | null;
   endsAt: string | null;
   showTrialPage: boolean;
+  /** The parent still has to confirm the email. This is not the payment lock. */
+  confirmEmail: boolean;
 };
 
 /**
@@ -63,6 +126,9 @@ export function schoolAccessDecision(input: {
   email: string;
   access: "open" | "closed" | null;
   freeWeekStart: string | null;
+  lockReason?: LockReason | null;
+  /** Missing means the email is already confirmed, so an old payload is not locked. */
+  emailConfirmed?: boolean | null;
   masterRaw?: string | null;
   now?: number;
 }): SchoolAccessDecision {
@@ -77,9 +143,24 @@ export function schoolAccessDecision(input: {
       daysLeft: null,
       endsAt: null,
       showTrialPage: false,
+      confirmEmail: false,
     };
   }
-  if (input.access !== "open") {
+  const needsConfirm =
+    input.lockReason === "confirm-email" || (input.emailConfirmed === false && input.lockReason !== "payment");
+  if (needsConfirm) {
+    return {
+      fullAccess: false,
+      expired: false,
+      subscribed: false,
+      blocked: true,
+      daysLeft: null,
+      endsAt: null,
+      showTrialPage: false,
+      confirmEmail: true,
+    };
+  }
+  if (input.lockReason === "payment" || input.access !== "open") {
     return {
       fullAccess: false,
       expired: true,
@@ -88,6 +169,7 @@ export function schoolAccessDecision(input: {
       daysLeft: 0,
       endsAt: week.endsAt,
       showTrialPage: true,
+      confirmEmail: false,
     };
   }
   const subscribed = week.expired;
@@ -100,6 +182,7 @@ export function schoolAccessDecision(input: {
     daysLeft: week.daysLeft,
     endsAt: week.endsAt,
     showTrialPage: blocked,
+    confirmEmail: false,
   };
 }
 
@@ -208,6 +291,10 @@ export type EngineLevel = {
   band?: string;
   index?: number;
   word?: string;
+  /** Working level on the website. grade and step match the top-level fields. */
+  working?: { grade: number; step: number; label?: string };
+  /** Earned grade on the website. grade matches earnedGrade. */
+  earned?: { grade: number };
 };
 
 export type SeenQuestion = { key: string; text: string };
@@ -226,6 +313,14 @@ export type SchoolProfile = {
   officePurchased: boolean;
   /** A single path segment, or null when the website sent nothing usable. */
   officeSlug: string | null;
+  /** The child this payload belongs to. Omitted on older rows, which are student 1. */
+  activeStudent?: number;
+  students?: FamilyStudent[];
+  /** Missing means confirmed, so an old family is not locked. */
+  emailConfirmed?: boolean;
+  confirmationExpiresAt?: string | null;
+  freeWeekGranted?: boolean;
+  lockReason?: LockReason;
 };
 
 export type SchoolFailure =
@@ -253,6 +348,8 @@ export type FamilyWrite = {
   seenQuestions: { prompt: string }[];
   /** Set on the first child-name save. The website ignores a bare studentName field. */
   student?: { name: string; age: number | null; startingGrade: number | null };
+  /** Omitted for student 1. Student 2 and later send this. */
+  studentIndex?: number;
 };
 
 /**
@@ -266,7 +363,8 @@ export function websiteSignInRefusal(reason: SchoolFailure, localRow: boolean): 
 }
 
 export function isSchoolAccountId(id: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id) && id === id.toLowerCase();
+  const email = accountIdOf(id);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email === email.toLowerCase();
 }
 
 export function schoolScreen(message: string): "offline" | "legacy" | "separate" | "wait" | null {
@@ -342,6 +440,31 @@ function asMastery(value: unknown): LevelMastery | undefined {
 function wholeNumber(value: unknown): number | null {
   const number = Number(value);
   return Number.isInteger(number) ? number : null;
+}
+
+/** Top-level grade is the working grade. working.grade is the fallback. */
+function workingGradeRaw(row: Record<string, unknown>): unknown {
+  const working = asRecord(row.working);
+  return row.grade ?? working?.grade ?? row.level;
+}
+
+/** earnedGrade is the earned grade. earned.grade is the fallback. */
+function earnedGradeFrom(row: Record<string, unknown>): number | null {
+  const direct = wholeNumber(row.earnedGrade);
+  if (direct != null) return direct;
+  const earned = asRecord(row.earned);
+  return earned ? wholeNumber(earned.grade) : null;
+}
+
+/** Put the website working and earned objects on a level that is about to be saved. */
+function publishLevel(level: EngineLevel): EngineLevel {
+  const fields = levelFieldsForWebsite(level);
+  const step = wholeNumber(level.step);
+  return {
+    ...level,
+    ...fields,
+    step: step != null && step >= 0 && step <= 2 ? step : fields.step,
+  };
 }
 
 function readFigure(value: unknown): SgFigure | undefined {
@@ -553,7 +676,7 @@ function asSpLevel(row: Record<string, unknown>, level: EngineLevel): EngineLeve
   if (id) level.id = id;
   if (name) level.name = name;
   if (enteredBy) level.enteredBy = enteredBy;
-  const earnedGrade = wholeNumber(row.earnedGrade);
+  const earnedGrade = earnedGradeFrom(row);
   const reached = wholeNumber(row.reached);
   const missed = wholeNumber(row.missed);
   const updatedAt = wholeNumber(row.updatedAt);
@@ -594,7 +717,7 @@ function keptWebsiteSp(
   if (name) level.name = name;
   if (enteredBy) level.enteredBy = enteredBy;
   if (levelLabel) level.levelLabel = levelLabel;
-  const earnedGrade = wholeNumber(row.earnedGrade);
+  const earnedGrade = earnedGradeFrom(row);
   const reached = wholeNumber(row.reached);
   const missed = wholeNumber(row.missed);
   const updatedAt = wholeNumber(row.updatedAt);
@@ -636,7 +759,7 @@ function asSightLevel(row: Record<string, unknown>, level: EngineLevel): EngineL
   if (id) level.id = id;
   if (name) level.name = name;
   if (enteredBy) level.enteredBy = enteredBy;
-  const earnedGrade = wholeNumber(row.earnedGrade);
+  const earnedGrade = earnedGradeFrom(row);
   const reached = wholeNumber(row.reached);
   const missed = wholeNumber(row.missed);
   const updatedAt = wholeNumber(row.updatedAt);
@@ -698,7 +821,7 @@ function asPaLevel(row: Record<string, unknown>, level: EngineLevel): EngineLeve
   if (id) level.id = id;
   if (name) level.name = name;
   if (enteredBy) level.enteredBy = enteredBy;
-  const earnedGrade = wholeNumber(row.earnedGrade);
+  const earnedGrade = earnedGradeFrom(row);
   const reached = wholeNumber(row.reached);
   const missed = wholeNumber(row.missed);
   const updatedAt = wholeNumber(row.updatedAt);
@@ -723,7 +846,7 @@ function asLevel(value: unknown, engine: LevelKey): EngineLevel | null {
     if (typeof value === "number") return asSpLevel({}, { grade: value, step: 0 });
     const row = asRecord(value);
     if (!row) return null;
-    const raw = row.grade ?? row.level;
+    const raw = workingGradeRaw(row);
     const grade = raw == null || raw === "" ? Number.NaN : Number(raw);
     return asSpLevel(row, { grade, step: 0 });
   }
@@ -731,7 +854,7 @@ function asLevel(value: unknown, engine: LevelKey): EngineLevel | null {
     if (typeof value === "number") return asPaLevel({}, { grade: value, step: 0 });
     const row = asRecord(value);
     if (!row) return null;
-    const raw = row.grade ?? row.level;
+    const raw = workingGradeRaw(row);
     const grade = raw == null || raw === "" ? Number.NaN : Number(raw);
     return asPaLevel(row, { grade, step: 0 });
   }
@@ -739,7 +862,7 @@ function asLevel(value: unknown, engine: LevelKey): EngineLevel | null {
     if (typeof value === "number") return asSightLevel({}, { grade: value, step: 0 });
     const row = asRecord(value);
     if (!row) return null;
-    const raw = row.grade ?? row.level;
+    const raw = workingGradeRaw(row);
     const grade = raw == null || raw === "" ? Number.NaN : Number(raw);
     return asSightLevel(row, { grade, step: 0 });
   }
@@ -749,12 +872,15 @@ function asLevel(value: unknown, engine: LevelKey): EngineLevel | null {
   }
   const row = asRecord(value);
   if (!row) return null;
-  const grade = Number(row.grade ?? row.level);
+  const working = asRecord(row.working);
+  const grade = Number(workingGradeRaw(row));
   if (!Number.isInteger(grade) || grade < 1 || grade > 12) return null;
   const level: EngineLevel = {
     grade,
-    step: asStep(row.step ?? row.stage ?? row.standardStep ?? 0),
+    step: asStep(row.step ?? working?.step ?? row.stage ?? row.standardStep ?? 0),
   };
+  const earnedGrade = earnedGradeFrom(row);
+  if (earnedGrade != null) level.earnedGrade = earnedGrade;
   if (engine !== "sg") return level;
   const id = copyText(row, "id");
   const name = copyText(row, "name");
@@ -766,8 +892,6 @@ function asLevel(value: unknown, engine: LevelKey): EngineLevel | null {
   if (id) level.id = id;
   if (name) level.name = name;
   if (enteredBy) level.enteredBy = enteredBy;
-  const earnedGrade = wholeNumber(row.earnedGrade);
-  if (earnedGrade != null) level.earnedGrade = earnedGrade;
   if (standardId) level.standardId = standardId;
   if (tier) level.tier = tier;
   if (typeof row.simple === "boolean") level.simple = row.simple;
@@ -905,6 +1029,45 @@ function expiresAtOf(value: unknown): string | null {
   return new Date(parsed).toISOString();
 }
 
+function asLockReason(value: unknown): LockReason {
+  if (value === "confirm-email" || value === "payment") return value;
+  return "";
+}
+
+function asOptionalInt(value: unknown, min: number, max: number): number | null {
+  const n = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : Number.NaN;
+  if (!Number.isInteger(n) || n < min || n > max) return null;
+  return n;
+}
+
+function asFamilyStudents(value: unknown, studentName: string): FamilyStudent[] {
+  if (!Array.isArray(value)) {
+    return studentName ? [{ index: 1, name: studentName, age: null, startingGrade: null }] : [];
+  }
+  const students: FamilyStudent[] = [];
+  for (const item of value) {
+    const row = asRecord(item);
+    if (!row) continue;
+    const index = asOptionalInt(row.index, 1, 99);
+    const name = String(row.name ?? "").trim();
+    if (!index || !name) continue;
+    students.push({
+      index,
+      name,
+      age: asOptionalInt(row.age, 1, 99),
+      startingGrade: asOptionalInt(row.startingGrade, 1, 12),
+    });
+  }
+  students.sort((a, b) => a.index - b.index);
+  if (students.length > 0) return students;
+  return studentName ? [{ index: 1, name: studentName, age: null, startingGrade: null }] : [];
+}
+
+function asActiveStudent(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(n) && n >= 1 ? n : 1;
+}
+
 /**
  * Read `{ family }` from a sign-in, register, or family response.
  * The old `{ ok, id, profile }` shape is not an account.
@@ -922,7 +1085,11 @@ export function parseSchoolProfile(body: unknown, knownEmail?: string): { id: st
     typeof student === "string"
       ? student.trim()
       : String(family.studentName ?? asRecord(student)?.name ?? "").trim();
-  const levelSource = asRecord(family.levels) ?? asRecord(family.level) ?? {};
+  const levelSource = {
+    ...(asRecord(family.progress) ?? {}),
+    ...(asRecord(family.level) ?? {}),
+    ...(asRecord(family.levels) ?? {}),
+  };
   const level: Partial<Record<LevelKey, EngineLevel>> = {};
   for (const [key, value] of Object.entries(levelSource)) {
     if (!isLevelKey(key)) continue;
@@ -953,6 +1120,12 @@ export function parseSchoolProfile(body: unknown, knownEmail?: string): { id: st
       plan,
       officePurchased: family.officePurchased === true,
       officeSlug: officeSlugOf(family.officeSlug),
+      activeStudent: asActiveStudent(family.activeStudent),
+      students: asFamilyStudents(family.students, studentName),
+      emailConfirmed: family.emailConfirmed === false ? false : true,
+      confirmationExpiresAt: expiresAtOf(family.confirmationExpiresAt),
+      freeWeekGranted: family.freeWeekGranted === true,
+      lockReason: asLockReason(family.lockReason),
     },
   };
 }
@@ -1003,9 +1176,10 @@ export type StoredSchoolProgress = {
  * its place even when the website omits the student and the levels.
  */
 export function clearsLocalProgress(
-  profile: Pick<SchoolProfile, "access" | "studentName" | "level">,
+  profile: Pick<SchoolProfile, "access" | "studentName" | "level"> & { lockReason?: LockReason | null },
   stored?: StoredSchoolProgress | null,
 ): boolean {
+  if (profile.lockReason === "confirm-email" || profile.lockReason === "payment") return false;
   if (profile.access !== "open") return false;
   if (!isFreshSchoolProfile(profile)) return false;
   if ((stored?.studentName ?? "").trim()) return false;
@@ -1148,11 +1322,24 @@ export function websiteErrorText(body: unknown): string {
  * is a different first name. `same` when the typed name is that student.
  * The parent name, the email, and any local child are not inputs.
  */
-export function decideStudent(studentName: string | null | undefined, typedFirstName: string): "new" | "extra" | "same" {
+export function decideStudent(
+  studentName: string | null | undefined,
+  typedFirstName: string,
+  roster?: { name: string }[],
+  cap = 2,
+): "new" | "extra" | "same" | "add" {
+  if (!roster) {
+    const enrolled = (studentName ?? "").trim();
+    if (!enrolled) return "new";
+    if (enrolled.toLowerCase() === typedFirstName.trim().toLowerCase()) return "same";
+    return "extra";
+  }
+  const names = roster.map((student) => student.name.trim()).filter(Boolean);
   const enrolled = (studentName ?? "").trim();
-  if (!enrolled) return "new";
-  if (enrolled.toLowerCase() === typedFirstName.trim().toLowerCase()) return "same";
-  return "extra";
+  if (enrolled && !names.some((name) => name.toLowerCase() === enrolled.toLowerCase())) names.unshift(enrolled);
+  if (names.length === 0) return "new";
+  if (names.some((name) => name.toLowerCase() === typedFirstName.trim().toLowerCase())) return "same";
+  return names.length < cap ? "add" : "extra";
 }
 
 const POOL_VARIANT_ID = /^(m|ela|ss|gen|sg):\d+:\d+:\d+$/;
@@ -1172,6 +1359,7 @@ export function schoolWriteBody(
   seen: SeenQuestion[],
   student?: { name: string; age?: number | null; startingGrade?: number | null },
   limit = CLOCK_LIMIT_SECONDS,
+  studentIndex?: number,
 ): FamilyWrite {
   const seenQuestions: { prompt: string }[] = [];
   const prompts = new Set<string>();
@@ -1185,9 +1373,14 @@ export function schoolWriteBody(
   }
   const levels: FamilyWrite["levels"] = { ...level };
   if (levels.sp) levels.sp = toWebsiteSpLevel(levels.sp);
+  for (const key of LEVEL_KEYS) {
+    const item = levels[key];
+    if (item) levels[key] = publishLevel(item);
+  }
   const name = student?.name.trim() ?? "";
   const age = student?.age;
   const starting = student?.startingGrade;
+  const index = Math.round(studentIndex ?? 1);
   return {
     levels,
     clock: { seconds: clockToWrite(localClock, remoteClock, limit) },
@@ -1201,6 +1394,7 @@ export function schoolWriteBody(
           },
         }
       : {}),
+    ...(Number.isInteger(index) && index > 1 ? { studentIndex: index } : {}),
   };
 }
 

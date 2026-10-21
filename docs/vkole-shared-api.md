@@ -6,15 +6,30 @@ The school website is the account book. The app calls `https://www.dotheimpossib
 
 | Path | Body |
 |---|---|
-| `POST /api/account/register` | `{ email, password, studentName? }` returns `{ token, expiresAt, family }` |
-| `POST /api/account/sign-in` | `{ email, password }` returns the same shape |
+| `POST /api/account/register` | `{ email, password, deviceId?, studentName? }` returns `{ token, expiresAt, family }`. The website sends the welcome email. |
+| `POST /api/account/sign-in` | `{ email, password, deviceId? }` returns the same shape |
 | `POST /api/account/forgot-password/send-code` | `{ email }` returns `{ message: "Code sent" }` |
 | `POST /api/account/forgot-password/confirm` | `{ email, code, newPassword }` returns `{ message: "Password updated" }` |
-| `GET /api/account/family` | bearer token, returns `{ family }` |
-| `PATCH /api/account/family` | bearer token. A new child is `{ student: { name, startingGrade, age? } }`. `startingGrade` is 1–12. `{ studentName }` alone is ignored. `{ student: { name } }` without a grade is refused: `Enter a starting grade from 1 to 12.` |
-| `POST /api/account/family` | bearer token, `{ levels, clock, seenQuestions }`, returns `{ family }` |
+| `POST /api/account/confirm-email/resend` | bearer token, body `{}` |
+| `GET /api/account/family` | bearer token. `?studentIndex=N` selects that child. Omitting it reads student 1. Returns `{ family }` |
+| `PATCH /api/account/family` | bearer token. A new child is `{ student: { name, startingGrade, age? } }`. `studentIndex` is sent for student 2 and later, and omitted for student 1. `startingGrade` is 1–12. `{ studentName }` alone is ignored. `{ student: { name } }` without a grade is refused: `Enter a starting grade from 1 to 12.` A third child on an ordinary account is refused: `This account already has 2 students. A third child needs a separate registration.` The master account has no cap. |
+| `POST /api/account/family` | bearer token, `{ levels, clock, seenQuestions, studentIndex? }`, returns `{ family }` |
 
-Level keys are `m`, `ela`, `ss`, `gen`, `sg`, `sw`, `pa`, `mg`, and `sp`. Alphabet progress is `levels.sp`. This app does not call `/api/vkole/password-reset`.
+`deviceId` is one random UUID stored on the install. It is sent on register and sign-in and is never shown.
+
+`family.students` is `[{ index, name, age, startingGrade }]`. `family.activeStudent` is the child this payload belongs to. `emailConfirmed`, `confirmationExpiresAt`, `freeWeekGranted`, and `lockReason` (`""`, `"confirm-email"`, `"payment"`) ride on the family. `lockReason` `"confirm-email"` locks the engines until the parent confirms. The free week is 168 hours and starts when the parent confirms the email. `"payment"` is the pay lock. A pilot login has `emailConfirmed: true` and `access: "open"`. Missing `emailConfirmed` stays confirmed so an older payload is not locked.
+
+The same level object is returned at `family.levels.<engine>`, `family.level.<engine>`, and `family.progress.<engine>`:
+
+```json
+{"grade":3,"step":2,"earnedGrade":6,"working":{"grade":3,"step":2,"label":"Grade 3"},"earned":{"grade":6}}
+```
+
+`grade` and `step` are the working level. Questions use them. `step` is 0, 1, or 2. `earnedGrade` is the earned grade. This app sends `earnedGrade` on every write that knows it. If `earnedGrade` is missing, the stored earned grade stays. `earned.grade` is the fallback when reading. Correct and missed answers move the earned grade by the same grade step. Parent buttons change only the working level. The button says `Lower the working level. The earned level stays.` Spoken engines keep the working place on `levelCode`, `band`, `index`, and `word`. `earnedGrade` is still the grade number. `step` stays 0 for those engines.
+
+Local climbs, seen prompts, the day clock, reports, and the family mirror are keyed by the account email plus `studentIndex`. Student 1 stays on the email. Student 2 uses that email with a `#student-2` suffix. The bearer token stays on the account row.
+
+Level keys are `m`, `ela`, `ss`, `gen`, `sg`, `sw`, `pa`, `mg`, and `sp`. Alphabet progress is `levels.sp`. This app does not call `/api/vkole/password-reset`. Pressing Finished on any of the eight engines posts the session-end report so the website can email the parent. That post still happens when the sitting has no answers. Logout and idle still wait for at least one answer.
 
 The account id is the email after trimming and lowercasing. Dots in the address stay. Register and sign-in both send that lowercase id. Sign-in tries the typed spelling only when the lowercase id is unknown.
 
@@ -30,7 +45,7 @@ Errors are JSON `{ "error": "..." }` and are shown as sent. Those sentences incl
 
 `m`, `ela`, `ss`, `gen`, `sg`, `sw`, `sp`, `pa`. The website also stores `mg`. This app keeps that level and sends it back. It does not add an engine screen for it.
 
-`m`, `ela`, `ss`, and `gen` store `{ "grade": 1-12, "step": 0|1|2 }`.
+`m`, `ela`, `ss`, and `gen` store the shared level object: working `grade` 1–12 and `step` 0, 1, or 2, plus `earnedGrade`, `working`, and `earned`.
 
 ## level.sg
 

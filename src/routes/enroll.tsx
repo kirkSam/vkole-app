@@ -7,7 +7,7 @@ export const Route = createFileRoute("/enroll")({ component: EnrollPage });
 
 const RECEIVES = [
   "All eight engines: mathematics, Singapore mathematics, sight words, alphabet, phonemic awareness, English language arts, history and social studies, and general study.",
-  "One registration is one student. Another student downloads the app to their own device and registers there.",
+  "2 students per account. A third child needs a separate registration.",
   "A record of each child’s work, emailed to the address given at registration when the child presses Finished or Log out on one engine, or after 5 minutes with no activity. The other engines stay open. Singapore mathematics adds a mastery report by strand.",
   "You may raise or lower the level a student is working on. The level that student has earned stays on the record.",
   "An eight-question assignment in each engine, answered online or printed.",
@@ -19,8 +19,8 @@ function EnrollPage() {
     <Shell>
       <p className="text-sm font-semibold tracking-wide text-accent uppercase">Parent</p>
       <h1 className="mt-1 font-display text-3xl leading-tight text-ink">{APP_NAME}</h1>
-      <p className="mt-2 text-sm text-muted">One week FREE.</p>
-      <p className="mt-4 font-display text-3xl text-ink">$9.00 USD + tax a month, or $79.00 USD + tax a year, for this student</p>
+      <p className="mt-2 text-sm text-muted">One week free. It is 168 hours. It starts when you confirm the email.</p>
+      <p className="mt-4 font-display text-3xl text-ink">$9.00 USD + tax a month, or $79.00 USD + tax a year. 2 students per account.</p>
       <p className="mt-3 text-muted">
         Paying opens the school website, where the card is charged. This app does not charge the card, and it does not store the card number.
       </p>
@@ -33,7 +33,7 @@ function EnrollPage() {
         ))}
       </ul>
       <p className="mt-6 text-sm text-muted">
-        This payment covers this student for a full month or a full year, starting the day you pay. Another student downloads the app and registers on that student’s own device. That registration has its own start date. When this student’s paid time ends, the engines close until you pay again. You may cancel before then. The student’s record stays.
+        This payment covers 2 students per account for a full month or a full year, starting the day you pay. A third child needs a separate registration. When the paid time ends, the engines close until you pay again. You may cancel before then. Each student’s record stays.
       </p>
       <a
         className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 text-base font-semibold text-[#1c1408]"
@@ -41,7 +41,7 @@ function EnrollPage() {
         target="_blank"
         rel="noopener noreferrer"
       >
-        $79.00 USD + tax a year for this student · Stripe Secure Pay
+        $79.00 USD + tax a year · 2 students per account · Stripe Secure Pay
       </a>
       <a
         className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 text-base font-semibold text-[#1c1408]"
@@ -49,7 +49,7 @@ function EnrollPage() {
         target="_blank"
         rel="noopener noreferrer"
       >
-        $9.00 USD + tax a month for this student · Stripe Secure Pay
+        $9.00 USD + tax a month · 2 students per account · Stripe Secure Pay
       </a>
       <p className="mt-3 text-sm text-muted">
         Paying opens the school website. This app does not mark the account paid, and it does not charge the card.

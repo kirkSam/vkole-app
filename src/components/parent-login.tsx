@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { schoolPasswordConfirm, schoolPasswordReset, schoolSignIn, schoolSignUp } from "@/lib/school-auth";
+import { readDeviceId } from "@/lib/device-id";
 import { schoolScreen } from "@/lib/school-account";
 import { SIGN_IN_AGAIN_NOTE } from "@/lib/account-purge";
 import { rememberAppSession } from "@/lib/auth/client";
@@ -110,8 +111,9 @@ export function ParentLogin({
         setNote("The new password is saved. Sign in with it.");
         return;
       }
+      const deviceId = readDeviceId();
       if (mode === "up") {
-        const res = await schoolSignUp({ data: { email: email.trim(), password, name: "Parent" } });
+        const res = await schoolSignUp({ data: { email: email.trim(), password, name: "Parent", ...(deviceId ? { deviceId } : {}) } });
         if (!res.ok) {
           setError(res.message);
           return;
@@ -119,7 +121,7 @@ export function ParentLogin({
         await enterApp(res.sessionToken);
         return;
       }
-      const res = await schoolSignIn({ data: { email: email.trim(), password } });
+      const res = await schoolSignIn({ data: { email: email.trim(), password, ...(deviceId ? { deviceId } : {}) } });
       if (!res.ok) {
         if (res.reason === "gone") {
           const { clearStaleSignIn } = await import("@/lib/account-purge");

@@ -34,6 +34,12 @@ export type ReportEvent = {
 
 export type EndReason = "logout" | "inactivity" | "finished";
 
+/** Finish always asks the website to email the parent. Logout and idle wait for at least one answer. */
+export function finishSendsReport(reason: EndReason, eventCount: number): boolean {
+  if (reason === "finished") return true;
+  return eventCount >= 1;
+}
+
 export type AppTime = {
   subject: SubjectId;
   level: number | null;
@@ -157,7 +163,7 @@ export function academicLetter(input: {
   const missed = work.some((item) => item.correct != null)
     ? work.filter((item) => item.correct === false).length
     : Math.max(0, input.asked - input.rightCount);
-  const registered = new Date(input.registeredAt || input.trial.startedAt);
+  const registered = new Date(input.trial.startedAt || input.registeredAt || 0);
   const freeEnd = new Date(registered.getTime() + TRIAL_MS);
   const when = freeEnd.toLocaleString("en-US", {
     weekday: "long",
@@ -169,8 +175,8 @@ export function academicLetter(input: {
     timeZone: "America/Los_Angeles",
   });
   const account = [
-    `The free week for ${name} ends ${when}. The free week is 168 hours from the moment that student was registered. Another student does not move it.`,
-    `After the free week, the price is $9.00 USD plus tax a month, or $79.00 USD plus tax a year. It auto-renews until cancelled by email at ${SCHOOL_EMAIL}.`,
+    `The free week for ${name} ends ${when}. The free week is 168 hours. It starts when you confirm the email. Another student does not move it.`,
+    `After the free week, the price is $9.00 USD plus tax a month, or $79.00 USD plus tax a year. 2 students per account. It auto-renews until cancelled by email at ${SCHOOL_EMAIL}.`,
     "The level and the free week follow the account's login. This email is the same report on a phone or a laptop.",
   ];
   const movement =

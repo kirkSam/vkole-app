@@ -3,6 +3,7 @@ import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-ro
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { APP_NAME } from "@/lib/brand";
 import { TrialFinished } from "@/components/trial-finished";
+import { ConfirmEmailLock } from "@/components/confirm-email";
 import { EngineRail, PageSkeleton, Shell } from "@/components/shell";
 import { endReasonSentence, formatOnline, IDLE_MS, type EndReason } from "@/lib/academic-email";
 import { ENGINE_ACTIVITY_EVENT, engineIsBusy, inactivityDue, markEngineSession, noteEngineActivity } from "@/lib/engine-activity";
@@ -337,6 +338,7 @@ function SessionPage() {
     );
   }
   if (!climb) return <PageSkeleton />;
+  if (climb.confirmEmail) return <ConfirmEmailLock />;
   if (climb.blocked) {
     return (
       <TrialFinished
@@ -452,7 +454,10 @@ function SessionPage() {
       </div>
       <div className="mt-3 flex flex-wrap gap-2 text-sm text-muted">
         <span className="rounded-full border border-line bg-surface px-3 py-1">
-          Level <strong className="font-semibold text-ink">{climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa" ? `${levelLabel(climb.level)} · ${climb.standardLabel || climb.standardCode}` : climb.subject === "sg" ? `${singaporePlace(climb.level).short} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3` : `${levelLabel(climb.level)} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3`}</strong>
+          Working level <strong className="font-semibold text-ink">{climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa" ? `${levelLabel(climb.level)} · ${climb.standardLabel || climb.standardCode}` : climb.subject === "sg" ? `${singaporePlace(climb.level).short} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3` : `${levelLabel(climb.level)} · ${stepName(climb.subject, climb.level, climb.standardStep ?? 0)} · ${(climb.standardStep ?? 0) + 1} of 3`}</strong>
+        </span>
+        <span className="rounded-full border border-line bg-surface px-3 py-1">
+          Earned level <strong className="font-semibold text-ink">{levelLabel(climb.performanceLevel)}</strong>
         </span>
         {climb.subject === "sw" || climb.subject === "sp" || climb.subject === "pa" ? null : (
           <span className="rounded-full border border-line bg-surface px-3 py-1">

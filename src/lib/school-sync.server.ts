@@ -6,12 +6,15 @@ import {
   SCHOOL_LEGACY_MESSAGE,
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_SEPARATE_MESSAGE,
+  accountIdOf,
   clearsLocalProgress,
   keptEngineLevel,
   keptLevels,
   profileKeepingProgress,
   schoolWriteBody,
   sgAccountLevel,
+  studentIndexOf,
+  studentScopeId,
   type AccountSession,
   type EngineId,
   type EngineLevel,
@@ -19,7 +22,7 @@ import {
   type SchoolProfile,
 } from "@/lib/school-account";
 import { readSchoolAccount, SchoolCallError, writeSchoolAccount } from "@/lib/school-account.server";
-import { readAccountGrant, readSchoolMirror, saveAccountGrant, saveSchoolMirror } from "@/lib/school-mirror.server";
+import { readAccountGrant, readSchoolMirror, saveAccountGrant, saveActiveStudentIndex, saveSchoolMirror } from "@/lib/school-mirror.server";
 import { masteryFromDetails, richerMastery } from "@/lib/vkole-singapore-report";
 import { isSightBand } from "@/lib/vkole/constants";
 import { spAccountLevel } from "@/lib/vkole/spelling/level";
@@ -92,7 +95,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
             answer_aliases = ${JSON.stringify(view.also)},
             answer_note = ${view.name},
             question_id = ${`sp:${view.band}:${view.id}:s${view.silence}:w${view.wrong}`},
-            performance_level = ${level.earnedGrade ?? grade},
+            performance_level = case when ${level.earnedGrade != null} then ${level.earnedGrade ?? grade} else performance_level end,
             right_count = ${reached},
             asked = ${reached + missed},
             updated_at = now()
@@ -115,7 +118,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
             answer_aliases = ${JSON.stringify(card.also)},
             answer_note = ${card.name},
             question_id = ${`pa:${card.band}:${card.index}`},
-            performance_level = ${level.earnedGrade ?? card.grade},
+            performance_level = case when ${level.earnedGrade != null} then ${level.earnedGrade ?? card.grade} else performance_level end,
             correct_at_level = ${level.streak ?? 0},
             incorrect_streak = ${level.missStreak ?? 0},
             right_count = ${reached},
@@ -137,7 +140,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
             standard_label = ${card.label},
             current_prompt = ${level.word || card.word},
             answer_key = ${level.word || card.word},
-            performance_level = ${level.earnedGrade ?? card.grade},
+            performance_level = case when ${level.earnedGrade != null} then ${level.earnedGrade ?? card.grade} else performance_level end,
             right_count = ${reached},
             asked = ${reached + missed},
             updated_at = now()
@@ -150,7 +153,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
         update climbs
         set level = ${level.grade},
             standard_step = ${level.step},
-            performance_level = ${level.earnedGrade ?? level.grade},
+            performance_level = case when ${level.earnedGrade != null} then ${level.earnedGrade ?? level.grade} else performance_level end,
             correct_at_level = ${level.streak},
             incorrect_streak = ${level.missStreak ?? 0},
             right_count = ${level.reached ?? 0},
@@ -164,6 +167,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
       update climbs
       set level = ${level.grade},
           standard_step = ${level.step},
+          performance_level = case when ${level.earnedGrade != null} then ${level.earnedGrade ?? level.grade} else performance_level end,
           updated_at = now()
       where user_id = ${userId} and subject = ${engine}
     `;
@@ -347,7 +351,8 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Lev
       });
       continue;
     }
-    level[row.subject as EngineId] = { grade, step };
+    const earned = Math.min(12, Math.max(1, Math.round(Number(row.performance_level) || grade)));
+    level[row.subject as EngineId] = { grade, step, earnedGrade: earned };
   }
   return level;
 }
@@ -386,7 +391,8 @@ async function collectSeen(sql: Sql, userId: string): Promise<Array<{ key: strin
 }
 
 export async function pullSchoolAccount(sql: Sql, userId: string, opts?: { engineActive?: boolean }): Promise<SchoolProfile> {
-  const grant = await readAccountGrant(sql, userId);
+  const account = accountIdOf(userId);
+  const grant = await readAccountGrant(sql, account);
   if (!grant) throw new SchoolCallError("unauthorized", "Sign in again.");
   let spun: { token: string; expiresAt: string } | null = null;
   const profile = await readSchoolAccount(userId, {
@@ -403,7 +409,7 @@ export async function pullSchoolAccount(sql: Sql, userId: string, opts?: { engin
     await clearFreshLocalRows(sql, userId);
   }
   const kept = await applyProfile(sql, userId, profile);
-  await saveAccountGrant(sql, userId, spun ?? grant);
+  await saveAccountGrant(sql, account, spun ?? grant);
   return kept;
 }
 
@@ -416,18 +422,21 @@ export async function rememberAccountSession(session: AccountSession): Promise<S
   const sql = await getSql();
   await saveAccountGrant(sql, session.id, { token: session.token, expiresAt: session.expiresAt });
   let profile = session.profile;
+  const index = profile.activeStudent && profile.activeStudent > 1 ? profile.activeStudent : 1;
+  const scope = studentScopeId(session.id, index);
   try {
-    profile = await readSchoolAccount(session.id, { token: session.token, expiresAt: session.expiresAt });
+    profile = await readSchoolAccount(scope, { token: session.token, expiresAt: session.expiresAt });
   } catch (err) {
     if (err instanceof SchoolCallError && (err.reason === "unauthorized" || err.reason === "gone")) throw err;
   }
-  const mirror = await readSchoolMirror(sql, session.id);
+  await saveActiveStudentIndex(sql, session.id, profile.activeStudent ?? index);
+  const mirror = await readSchoolMirror(sql, scope);
   const kept = profileKeepingProgress(mirror, profile);
   if (Object.keys(kept.level).length === 0) {
-    const fromClimbs = await collectLevel(sql, session.id, {});
+    const fromClimbs = await collectLevel(sql, scope, {});
     if (Object.keys(fromClimbs).length > 0) kept.level = fromClimbs;
   }
-  await saveSchoolMirror(sql, session.id, kept, false);
+  await saveSchoolMirror(sql, scope, kept, false);
   return kept;
 }
 
@@ -436,6 +445,7 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
   // A locked family is not playing. Posting now would send an empty or starter
   // book over the levels the website already saved.
   if ((mirror?.access ?? "closed") !== "open") return;
+  if (mirror?.lockReason === "confirm-email" || mirror?.lockReason === "payment") return;
   const remoteLevel = mirror?.level ?? {};
   const level = keptLevels(remoteLevel, await collectLevel(sql, userId, remoteLevel));
   const clockLimit = mirror?.clockLimit && mirror.clockLimit > 0 ? mirror.clockLimit : DAY_LIMIT_SECONDS;
@@ -450,7 +460,7 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
   const studentName = (mirror?.studentName || named[0]?.child_name || "").trim();
   const age = named[0]?.age == null ? null : Number(named[0].age);
   const startingGrade = named[0]?.start_grade == null ? null : Number(named[0].start_grade);
-  const grant = await readAccountGrant(sql, userId);
+  const grant = await readAccountGrant(sql, accountIdOf(userId));
   let spun: { token: string; expiresAt: string } | null = null;
   const body = schoolWriteBody(
     level,
@@ -459,6 +469,7 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
     seen,
     studentName ? { name: studentName, age, startingGrade } : undefined,
     clockLimit,
+    studentIndexOf(userId),
   );
   await writeSchoolAccount(
     userId,
@@ -473,7 +484,7 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
         }
       : undefined,
   );
-  if (spun) await saveAccountGrant(sql, userId, spun);
+  if (spun) await saveAccountGrant(sql, accountIdOf(userId), spun);
   const next: SchoolProfile = {
     access: mirror?.access ?? "closed",
     studentName: studentName || mirror?.studentName || "",
@@ -485,6 +496,12 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
     plan: mirror?.plan ?? null,
     officePurchased: mirror?.officePurchased === true,
     officeSlug: mirror?.officeSlug ?? null,
+    activeStudent: studentIndexOf(userId),
+    students: mirror?.students,
+    emailConfirmed: mirror?.emailConfirmed,
+    confirmationExpiresAt: mirror?.confirmationExpiresAt ?? null,
+    freeWeekGranted: mirror?.freeWeekGranted,
+    lockReason: mirror?.lockReason,
   };
   await saveSchoolMirror(sql, userId, next, true);
 }
@@ -545,7 +562,9 @@ export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>
     onAccountGone: async () => {
       try {
         const { expireLocalSignInCookies, forgetLocalAccount } = await import("./account-purge.server.ts");
-        await forgetLocalAccount(sql, userId);
+        const account = accountIdOf(userId);
+        await forgetLocalAccount(sql, account);
+        if (account !== userId) await forgetLocalAccount(sql, userId);
         await expireLocalSignInCookies();
       } catch {
         throw new Error(SCHOOL_OFFLINE_MESSAGE);
@@ -560,7 +579,7 @@ async function endWebsiteSession(sql: Sql, userId: string, website: string): Pro
   try {
     const { expireLocalSignInCookies } = await import("./account-purge.server.ts");
     const { clearAccountGrant } = await import("./school-mirror.server.ts");
-    await clearAccountGrant(sql, userId);
+    await clearAccountGrant(sql, accountIdOf(userId));
     await expireLocalSignInCookies();
   } catch {
     throw new Error(SCHOOL_OFFLINE_MESSAGE);

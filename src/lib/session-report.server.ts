@@ -27,7 +27,8 @@ async function accountToken(deps: PostDeps): Promise<string> {
   try {
     const { getSql } = await import("./db");
     const { readAccountGrant } = await import("./school-mirror.server");
-    const grant = await readAccountGrant(await getSql(), deps.userId);
+    const { accountIdOf } = await import("./school-account");
+    const grant = await readAccountGrant(await getSql(), accountIdOf(deps.userId));
     return grant?.token ?? "";
   } catch {
     return "";

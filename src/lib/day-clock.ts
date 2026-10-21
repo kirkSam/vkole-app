@@ -3,7 +3,7 @@ import { z } from "zod";
 import { childAccess, rollRenewals } from "@/lib/subscription";
 import { getSql, type Sql } from "@/lib/db";
 import { schoolMiddleware } from "@/lib/school-middleware";
-import { CLOCK_LIMIT_SECONDS, isSchoolAccountId } from "@/lib/school-account";
+import { CLOCK_LIMIT_SECONDS, THIRD_STUDENT_MESSAGE, accountIdOf, isSchoolAccountId } from "@/lib/school-account";
 import { TRIAL_MS } from "@/lib/academic-email";
 import { dealQuestion } from "@/lib/question-history";
 import { practicePromptText, rememberPrompt } from "@/lib/next-sheet";
@@ -222,6 +222,46 @@ export async function disarmStudentClock(sql: Sql, userId: string, climbId: stri
   await writeRow(sql, userId, LOGIN_CLOCK, clock.day, clock.used, false, null, PACIFIC);
 }
 
+async function placeWebsiteStudent(
+  sql: Sql,
+  userId: string,
+  data: { firstName: string; age?: number; grade?: number },
+): Promise<{ status: "extra" | "new" } | { status: "ready"; scopeId: string }> {
+  const { readSchoolAccount, saveSchoolStudent } = await import("@/lib/school-account.server");
+  const { decideStudent, indexForName, isWebsiteMasterEmail, studentIndexToAdd, studentScopeId } = await import("@/lib/school-account");
+  const profile = await readSchoolAccount(userId);
+  const roster = profile.students?.length ? profile.students : profile.studentName ? [{ name: profile.studentName }] : [];
+  const cap = isWebsiteMasterEmail(userId, process.env.VKOLE_MASTER_EMAIL) ? Number.POSITIVE_INFINITY : 2;
+  const gate = decideStudent(profile.studentName, data.firstName, roster, cap);
+  if (gate === "extra") return { status: "extra" };
+  const account = accountIdOf(userId);
+  if (gate === "same") {
+    const index = indexForName(profile, data.firstName);
+    const scopeId = studentScopeId(account, index);
+    if (scopeId !== userId) {
+      const { saveActiveStudentIndex, saveSchoolMirror } = await import("@/lib/school-mirror.server");
+      await saveActiveStudentIndex(sql, account, index);
+      const next = await readSchoolAccount(scopeId);
+      await saveSchoolMirror(sql, scopeId, next, false);
+    }
+    return { status: "ready", scopeId };
+  }
+  if (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12) return { status: "new" };
+  const index = gate === "new" ? 1 : studentIndexToAdd(profile.students ?? [], isWebsiteMasterEmail(account, process.env.VKOLE_MASTER_EMAIL));
+  if (index == null) return { status: "extra" };
+  const saved = await saveSchoolStudent(account, {
+    name: data.firstName.trim(),
+    startingGrade: data.grade,
+    ...(data.age != null ? { age: data.age } : {}),
+    ...(index > 1 ? { studentIndex: index } : {}),
+  });
+  const scopeId = studentScopeId(account, index);
+  const { saveActiveStudentIndex, saveSchoolMirror } = await import("@/lib/school-mirror.server");
+  await saveActiveStudentIndex(sql, account, index);
+  await saveSchoolMirror(sql, scopeId, { ...saved, studentName: saved.studentName || data.firstName.trim() }, false);
+  return { status: "ready", scopeId };
+}
+
 const enterSchema = z.object({
   subject: z.enum(["m", "ela", "ss", "gen", "sg", "sw", "sp", "pa"]),
   firstName: z.string().trim().min(1).max(40),
@@ -241,38 +281,18 @@ export const enterEngine = createServerFn({ method: "POST" })
     const sql = await getSql();
     await ensureTrial(sql, context.userId);
     if (!(await accessOpen(sql, context.userId))) return { status: "blocked" as const };
-    let websiteStudent: "new" | "same" | "local" = "local";
+    let scopeId = context.userId;
+    let websiteStudent: "new" | "same" | "add" | "local" = "local";
     if (isSchoolAccountId(context.userId)) {
-      const { studentCheck } = await import("@/lib/school-account.server");
-      const gate = await studentCheck(context.userId, data.firstName);
-      if (gate === "extra") return { status: "extra" as const };
-      websiteStudent = gate;
-      if (websiteStudent === "new" && (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12)) {
-        return { status: "new" as const };
-      }
-      if (websiteStudent === "new" && data.grade != null) {
-        const { saveSchoolStudent } = await import("@/lib/school-account.server");
-        const saved = await saveSchoolStudent(context.userId, {
-          name: data.firstName.trim(),
-          startingGrade: data.grade,
-          ...(data.age != null ? { age: data.age } : {}),
-        });
-        const { readSchoolMirror, saveSchoolMirror } = await import("@/lib/school-mirror.server");
-        const mirror = await readSchoolMirror(sql, context.userId);
-        if (mirror) {
-          await saveSchoolMirror(
-            sql,
-            context.userId,
-            { ...mirror, studentName: saved.studentName || data.firstName.trim(), seen: [] },
-            false,
-          );
-        }
-      }
+      const placed = await placeWebsiteStudent(sql, context.userId, data);
+      if (placed.status !== "ready") return { status: placed.status };
+      scopeId = placed.scopeId;
+      websiteStudent = "same";
     }
     const key = childKey(data.firstName);
     const existing = await sql<{ id: string; level: number | string; subject: string }>`
       select id, level, subject from climbs
-      where user_id = ${context.userId} and subject = ${data.subject} and lower(child_name) = ${key}
+      where user_id = ${scopeId} and subject = ${data.subject} and lower(child_name) = ${key}
       limit 1
     `;
     let id = existing[0]?.id;
@@ -280,21 +300,20 @@ export const enterEngine = createServerFn({ method: "POST" })
     if (!id) {
       if (websiteStudent === "local") {
         const others = await sql<{ name: string }>`
-          select child_name as name from climbs
-          where user_id = ${context.userId} and lower(child_name) <> ${key}
-          limit 1
+          select distinct lower(child_name) as name from climbs
+          where user_id = ${scopeId} and lower(child_name) <> ${key}
         `;
-        if (others[0]) {
-          throw new Error("This registration is for one student. Download the app on the other student’s device and register there.");
+        if (others.length >= 2) {
+          throw new Error(THIRD_STUDENT_MESSAGE);
         }
       }
       if (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12) return { status: "new" as const };
       let grade = data.grade;
       let step = 0;
       let siteLevel: { grade?: number; band?: string | null; index?: number | null; step?: number; streak?: number; missStreak?: number } | undefined;
-      if (isSchoolAccountId(context.userId)) {
+      if (isSchoolAccountId(scopeId)) {
         const { readSchoolMirror } = await import("@/lib/school-mirror.server");
-        const mirror = await readSchoolMirror(sql, context.userId);
+        const mirror = await readSchoolMirror(sql, scopeId);
         const site = mirror?.level[data.subject];
         if (site) {
           grade = site.grade;
@@ -338,7 +357,7 @@ export const enterEngine = createServerFn({ method: "POST" })
             }
           : phonemic
             ? paPrompt(phonemic.band, phonemic.index, grade)
-            : await dealQuestion(sql, context.userId, data.firstName.trim(), data.subject, grade, step);
+            : await dealQuestion(sql, scopeId, data.firstName.trim(), data.subject, grade, step);
       const practice = sight
         ? practicePromptText("sw", { word: item.stem })
         : spellingView
@@ -346,13 +365,13 @@ export const enterEngine = createServerFn({ method: "POST" })
           : phonemic
             ? practicePromptText("pa", { say: item.stem })
             : "";
-      if (practice) await rememberPrompt(sql, context.userId, data.firstName.trim(), practice);
+      if (practice) await rememberPrompt(sql, scopeId, data.firstName.trim(), practice);
       level = grade;
       await sql`alter table climbs add column if not exists registration_email text`;
       const prior = await sql<{ email: string | null }>`
         select registration_email as email
         from climbs
-        where user_id = ${context.userId}
+        where user_id = ${scopeId}
           and lower(child_name) = ${key}
           and registration_email is not null
           and registration_email <> ''
@@ -361,8 +380,9 @@ export const enterEngine = createServerFn({ method: "POST" })
       `;
       let registrationEmail = prior[0]?.email?.trim() ?? "";
       if (!registrationEmail) {
-        const users = await sql<{ email: string | null }>`select "email" from "user" where "id" = ${context.userId}`;
-        registrationEmail = users[0]?.email?.trim() ?? "";
+        const accountId = accountIdOf(scopeId);
+        const users = await sql<{ email: string | null }>`select "email" from "user" where "id" = ${accountId}`;
+        registrationEmail = users[0]?.email?.trim() || (accountId.includes("@") ? accountId : "");
       }
       await sql`
         insert into climbs (
@@ -371,7 +391,7 @@ export const enterEngine = createServerFn({ method: "POST" })
           answer_key, answer_aliases, answer_note, question_id, correct_at_level, incorrect_streak
         )
         values (
-          ${id}, ${context.userId}, ${data.firstName.trim()}, ${data.subject}, ${grade}, ${grade}, ${data.age},
+          ${id}, ${scopeId}, ${data.firstName.trim()}, ${data.subject}, ${grade}, ${grade}, ${data.age},
           ${grade}, ${item.standard}, ${item.note}, ${item.stem}, ${registrationEmail || null},
           ${item.answer}, ${JSON.stringify(item.aliases)}, ${item.note}, ${item.id},
           ${spellingView?.silence ?? 0}, ${spellingView?.wrong ?? 0}
@@ -379,19 +399,19 @@ export const enterEngine = createServerFn({ method: "POST" })
       `;
       await sql`
         update climbs set standard_step = ${step}
-        where id = ${id} and user_id = ${context.userId}
+        where id = ${id} and user_id = ${scopeId}
       `;
     }
-    const access = await childAccess(sql, context.userId, data.firstName);
+    const access = await childAccess(sql, scopeId, data.firstName);
     if (access === "ended") return { status: "blocked" as const };
     if (access === "extra") return { status: "extra" as const };
     if (!isSubject(data.subject)) return { status: "blocked" as const };
     if (level == null) return { status: "new" as const };
-    await seedPrompt(sql, context.userId, id, data.subject, level, data.firstName.trim());
-    const clock = await observe(sql, context.userId);
+    await seedPrompt(sql, scopeId, id, data.subject, level, data.firstName.trim());
+    const clock = await observe(sql, scopeId);
     if (clock.closed) return { status: "closed" as const };
     if (clock.held) return { status: "hold" as const, id };
-    await writeRow(sql, context.userId, LOGIN_CLOCK, clock.day, clock.used, true, new Date().toISOString(), PACIFIC);
+    await writeRow(sql, scopeId, LOGIN_CLOCK, clock.day, clock.used, true, new Date().toISOString(), PACIFIC);
     return { status: "open" as const, id };
   });
 
