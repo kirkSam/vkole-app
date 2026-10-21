@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { alphabet, noteExerciseCompletion, rememberCompletedExercise } from "./items.ts";
 import {
@@ -78,6 +79,25 @@ describe("alphabet exercise 6 typing", () => {
       assert.equal(judgeTypingKey(letter, other), "wrong");
       assert.equal(judgeTypingKey(letter.toLowerCase(), other.toLowerCase()), "wrong");
     }
+  });
+
+  it("shows the exercise 5 Good job celebration after lowercase z, then ends the sitting", () => {
+    const stage = readFileSync(new URL("../../../components/spelling-stage.tsx", import.meta.url), "utf8");
+    const typed = stage.slice(stage.indexOf("function takeTyped"), stage.indexOf("function noteHeard"));
+    assert.equal(typed.includes('setPhase("good-job")'), true);
+    assert.equal(typed.includes('onDoneRef.current("correct")'), false);
+    const goodJob = stage.slice(stage.indexOf('if (phase !== "good-job") return;'), stage.indexOf('if (phase !== "celebrate") return;'));
+    assert.equal(goodJob.includes("GOOD_JOB_LINE"), true);
+    assert.equal(goodJob.includes('setPhase("celebrate")'), true);
+    const celebrate = stage.slice(stage.indexOf('if (phase !== "celebrate") return;'), stage.indexOf("function allowMic"));
+    assert.equal(celebrate.includes("celebrationFrame"), true);
+    assert.equal(celebrate.includes("SPELLING_CELEBRATION_MS"), true);
+    assert.equal(celebrate.includes("exerciseRef.current === 6"), true);
+    assert.equal(celebrate.includes('onDoneRef.current("correct")'), true);
+    assert.equal(celebrate.includes("onRecitedRef"), true);
+    assert.equal(celebrate.includes('setPhase("type")'), true);
+    assert.equal(stage.includes('aria-label={GOOD_JOB_LINE}'), true);
+    assert.equal(stage.includes('className="sp-celebrate"'), true);
   });
 
   it("saves exercise 6 the same way as the other finished exercises", () => {

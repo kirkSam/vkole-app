@@ -25,7 +25,7 @@ export const SPELLING_RECOGNIZER_RESTART_MS = 250;
 export const SPELLING_LISTEN_GAP_MS = 400;
 
 export const SPELLING_NOTE =
-  "Opening the alphabet plays exercises 1 through 6 in order. Exercise 1 is the song. Exercise 2 shows a capital letter and waits for you to say the next one. Exercise 3 shows a small letter and waits. Exercise 4 asks with no letter, then shows both after you answer. Exercise 5 asks you to say the alphabet. At Z, the app says Good job! Exercise 6 shows each capital letter to type, then each small letter. The six buttons start at that exercise and continue through exercise 6. The microphone opens after the question and does not save the sound.";
+  "Opening the alphabet plays exercises 1 through 6 in order. Exercise 1 is the song. Exercise 2 shows a capital letter and waits for you to say the next one. Exercise 3 shows a small letter and waits. Exercise 4 asks with no letter, then shows both after you answer. Exercise 5 asks you to say the alphabet. At Z, the app says Good job! Exercise 6 shows each capital letter to type, then each small letter. After lowercase z, the app says Good job! The six buttons start at that exercise and continue through exercise 6. The microphone opens after the question and does not save the sound.";
 
 /** Whole seconds left before the alphabet starts itself. 0 means start now. */
 export function spellingStartSecondsLeft(elapsedMs: number): number {

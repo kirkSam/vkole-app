@@ -236,6 +236,8 @@ export function SpellingStage({
   const onRecitedRef = useRef(onRecited);
   const typeRef = useRef<HTMLInputElement | null>(null);
   const typedDone = useRef(false);
+  const exerciseRef = useRef(exercise);
+  exerciseRef.current = exercise;
   const heardRef = useRef("");
   const viewRef = useRef(view);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
@@ -313,7 +315,7 @@ export function SpellingStage({
       if (next.done) {
         typedDone.current = true;
         setTypeFinished(true);
-        onDoneRef.current("correct");
+        setPhase("good-job");
         return;
       }
       setTyping(next.place);
@@ -761,6 +763,10 @@ export function SpellingStage({
     const finish = (elapsed: number) => {
       if (!live || celebrationFrame(elapsed) !== "done") return;
       live = false;
+      if (exerciseRef.current === 6) {
+        onDoneRef.current("correct");
+        return;
+      }
       onRecitedRef.current?.();
       typedDone.current = false;
       setTyping(typingStart());
