@@ -9,6 +9,7 @@ import { SchoolAccountScreen } from "@/components/school-account-screen";
 import { StudentOffice } from "@/components/student-office";
 import { schoolScreen, SCHOOL_ENGINE_URL, THIRD_STUDENT_MESSAGE, TWO_STUDENTS_LINE, type FamilyStudent } from "@/lib/school-account";
 import { ConfirmEmailLock } from "@/components/confirm-email";
+import { WebsiteVisit } from "@/components/website-visit";
 import { StudentSwitcher } from "@/components/student-switcher";
 import { EnginePicks, PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
@@ -418,6 +419,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
           ? `This account is open. It is not on a free week and it is not asked to pay. ${TWO_STUDENTS_LINE}. Each student uses all eight engines. Each student has a clock of 8 hours. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock. The student password starts it again. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`
           : `The free week is 168 hours. It starts when you confirm the email. No credit card is required for that week. ${TWO_STUDENTS_LINE}. Each student may use all eight engines. Each student has a clock of 8 hours. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock. The student password starts it again. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the free week, the payment covers the account for a full month or a full year from the day you pay. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`}
       </p>
+      <WebsiteVisit />
       {account ? (
         <p className="mt-3 text-sm text-ink">
           This email is saved: {account.email}. Logins recorded: {account.loginCount}. Reports go only to this address.

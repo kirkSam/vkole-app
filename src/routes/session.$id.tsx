@@ -41,6 +41,7 @@ import { SgFigure, splitFigures } from "@/components/sg-figure";
 import { deviceTimeZone } from "@/lib/day-clock-math";
 import type { ClockFace } from "@/components/vkole-rules";
 import { SchoolPath } from "@/components/school-path";
+import { WebsiteVisit } from "@/components/website-visit";
 
 export const Route = createFileRoute("/session/$id")({ component: SessionPage });
 
@@ -563,6 +564,7 @@ function SessionPage() {
           >
             Other engines
           </Link>
+          {closure.reason === "finished" ? <WebsiteVisit /> : null}
         </section>
       ) : !clockOpen ? null : climb.age == null ? (
         <form onSubmit={saveAge} className="mt-5 rounded-2xl border border-line bg-surface p-5">
