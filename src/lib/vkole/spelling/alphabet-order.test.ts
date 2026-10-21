@@ -151,7 +151,9 @@ describe("alphabet exercise buttons", () => {
     const jumps = stage.split("<AlphabetJumps").length - 1;
     assert.equal(jumps, 4);
     assert.equal(stage.includes('inputMode="text"'), true);
-    assert.equal(stage.includes('autoCapitalize="none"'), true);
+    assert.equal(stage.includes('autoCapitalize="off"'), true);
+    assert.equal(stage.includes('autoCorrect="off"'), true);
+    assert.equal(stage.includes("spellCheck={false}"), true);
     assert.equal(stage.includes("TYPING_TRY_AGAIN"), true);
     assert.equal(stage.includes("TYPING_WAIT_MS"), true);
     assert.equal(stage.includes('className="sp-type"'), true);

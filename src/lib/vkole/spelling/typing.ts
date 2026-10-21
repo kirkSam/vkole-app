@@ -27,14 +27,15 @@ export function typingShown(place: TypingPlace): string {
 }
 
 /**
- * One typed key. Either case of the shown letter is correct.
- * An empty field is ignored. Any other key is wrong and stays on this letter.
+ * One typed key. The case has to match the letter on the card.
+ * A capital card accepts only the capital key. A small-letter card accepts only the small key.
+ * An empty field is ignored. The other case is wrong and stays on this letter.
  */
 export function judgeTypingKey(shown: string, raw: string): "correct" | "wrong" | "ignore" {
   const chars = [...raw].filter((char) => char.trim() !== "");
   const key = chars[chars.length - 1] ?? "";
   if (!key) return "ignore";
-  if (key.toLowerCase() === shown.trim().toLowerCase()) return "correct";
+  if (key === shown.trim()) return "correct";
   return "wrong";
 }
 
