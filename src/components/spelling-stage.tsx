@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   SPELLING_HAPPY_FACE_MS,
   SPELLING_LETTER_MS,
+  SPELLING_LISTEN_GAP_MS,
   SPELLING_RECOGNIZER_RESTART_MS,
   SPELLING_RESPONSE_MS,
   alphabet,
@@ -155,6 +156,8 @@ export function SpellingStage({
   silence = 0,
   wrong = 0,
   skipSong = false,
+  heard = "",
+  onHeard,
   onSongDone,
   onDone,
 }: {
@@ -162,6 +165,8 @@ export function SpellingStage({
   silence?: number;
   wrong?: number;
   skipSong?: boolean;
+  heard?: string;
+  onHeard?: (note: string) => void;
   onSongDone?: () => void;
   onDone: (outcome: Outcome) => void;
 }) {
@@ -180,6 +185,8 @@ export function SpellingStage({
   const [startIn, setStartIn] = useState(spellingStartSecondsLeft(0));
   const onDoneRef = useRef(onDone);
   const onSongDoneRef = useRef(onSongDone);
+  const onHeardRef = useRef(onHeard);
+  const heardRef = useRef("");
   const viewRef = useRef(view);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
   const advanceRef = useRef(0);
@@ -187,7 +194,19 @@ export function SpellingStage({
   const seen = useRef(token);
   onDoneRef.current = onDone;
   onSongDoneRef.current = onSongDone;
+  onHeardRef.current = onHeard;
   viewRef.current = view;
+
+  function noteHeard(note: string) {
+    heardRef.current = note;
+    setHeardNote(note);
+    if (note) onHeardRef.current?.(note);
+  }
+
+  function noteSilence() {
+    if (heardRef.current.startsWith("I heard:")) return;
+    noteHeard("I didn't hear anything");
+  }
 
   useEffect(() => {
     const supported = recognitionCtor() != null;
@@ -207,6 +226,7 @@ export function SpellingStage({
   useEffect(() => {
     if (seen.current === token) return;
     seen.current = token;
+    heardRef.current = "";
     setHeardNote("");
     setPhase((current) => (current === "song" || current === "gate" ? current : "prompt"));
   }, [token]);
@@ -269,21 +289,39 @@ export function SpellingStage({
   useEffect(() => {
     if (!ready || phase !== "prompt") return;
     let live = true;
+    let gapTimer = 0;
+    let backup = 0;
+    let opened = false;
     const listen = () => {
-      if (live) setPhase("listen");
+      if (!live || opened) return;
+      opened = true;
+      window.clearTimeout(backup);
+      gapTimer = window.setTimeout(() => {
+        if (live) setPhase("listen");
+      }, SPELLING_LISTEN_GAP_MS);
+    };
+    const afterSpeech = () => {
+      if (!live || opened) return;
+      const synth = window.speechSynthesis;
+      if (synth && (synth.speaking || synth.pending)) {
+        gapTimer = window.setTimeout(afterSpeech, SPELLING_LISTEN_GAP_MS);
+        return;
+      }
+      listen();
     };
     // A missing letter on screen is not a reason to wait. A blank line opens the mic now.
     if (spellingPromptStartsListen(view.say) === "now") {
-      listen();
+      if (live) setPhase("listen");
       return () => {
         live = false;
       };
     }
-    const stop = speakLine(view.say, listen);
-    const backup = window.setTimeout(listen, 8000);
+    const stop = speakLine(view.say, afterSpeech);
+    backup = window.setTimeout(listen, 8000);
     return () => {
       live = false;
       window.clearTimeout(backup);
+      window.clearTimeout(gapTimer);
       stop();
     };
   }, [token, view.say, phase, ready]);
@@ -300,7 +338,7 @@ export function SpellingStage({
     const timer = window.setTimeout(() => {
       if (decided) return;
       decided = true;
-      setHeardNote((current) => (current.startsWith("I heard:") ? current : "I didn't hear anything"));
+      noteSilence();
       try {
         rec?.abort();
       } catch {
@@ -373,12 +411,12 @@ export function SpellingStage({
               if (!row) continue;
               alternatives.push({ transcript: row.transcript ?? "", final: Boolean(result.isFinal) });
             }
-            const heard = describeSpellingHear(current.answer, alternatives, current.also);
-            if (heard.status.startsWith("I heard:")) setHeardNote(heard.status);
+            const heard = describeSpellingHear(current.answer, alternatives, current.also, current.say);
+            if (heard.status.startsWith("I heard:")) noteHeard(heard.status);
             if (heard.judgment === "correct") {
               decided = true;
               window.clearTimeout(timer);
-              setHeardNote(heard.status);
+              noteHeard(heard.status);
               finishRef.current("correct");
               return;
             }
@@ -387,7 +425,7 @@ export function SpellingStage({
           if (!missNote) return;
           decided = true;
           window.clearTimeout(timer);
-          setHeardNote(missNote);
+          noteHeard(missNote);
           try {
             rec?.abort();
           } catch {
@@ -402,10 +440,11 @@ export function SpellingStage({
             setUnsupported(true);
             return;
           }
-          if (event.error === "no-speech") {
-            setHeardNote((current) => (current.startsWith("I heard:") ? current : "I didn't hear anything"));
+          if (event.error === "no-speech") noteSilence();
+          if (recognitionErrorRelistens(event.error)) {
+            scheduleRestart();
+            return;
           }
-          if (recognitionErrorRelistens(event.error)) return;
         };
         rec.onend = () => {
           noteEngineActivity();
@@ -514,9 +553,9 @@ export function SpellingStage({
         </>
       )}
       {phase === "listen" && !needsMic ? <p className="mt-3 text-center text-sm text-muted">{secondsLeft} seconds</p> : null}
-      {heardNote && (phase === "listen" || phase === "happy") ? (
+      {(heardNote || heard) && (phase === "prompt" || phase === "listen" || phase === "happy") ? (
         <p className="mt-2 text-center text-sm text-ink" role="status">
-          {heardNote}
+          {heardNote || heard}
         </p>
       ) : null}
       {needsMic ? (

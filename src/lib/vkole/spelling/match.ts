@@ -30,6 +30,53 @@ function hasRun(heard: readonly string[], target: readonly string[]): boolean {
   return false;
 }
 
+function withoutRun(tokens: readonly string[], run: readonly string[]): string[] {
+  if (run.length === 0) return [...tokens];
+  for (let i = 0; i + run.length <= tokens.length; i += 1) {
+    if (run.every((token, offset) => tokens[i + offset] === token)) {
+      return [...tokens.slice(0, i), ...tokens.slice(i + run.length)];
+    }
+  }
+  return [...tokens];
+}
+
+/** Drop a leading tail of the prompt, then a trailing head, so an early mic does not score the question. */
+function withoutPromptEdges(tokens: readonly string[], prompt: readonly string[]): string[] {
+  let cut = 0;
+  const max = Math.min(tokens.length, prompt.length);
+  for (let length = max; length > 0; length -= 1) {
+    const suffix = prompt.slice(prompt.length - length);
+    if (suffix.every((token, index) => tokens[index] === token)) {
+      cut = length;
+      break;
+    }
+  }
+  const rest = tokens.slice(cut);
+  let end = rest.length;
+  const maxEnd = Math.min(rest.length, prompt.length);
+  for (let length = maxEnd; length > 0; length -= 1) {
+    const prefix = prompt.slice(0, length);
+    const start = rest.length - length;
+    if (prefix.every((token, index) => rest[start + index] === token)) {
+      end = start;
+      break;
+    }
+  }
+  return rest.slice(0, end);
+}
+
+/**
+ * Words left after the engine's own prompt is removed once.
+ * A transcript that is only the prompt comes back empty, so it waits instead of missing.
+ * The letter named inside the prompt is not treated as the child's answer.
+ */
+export function heardAsideFromPrompt(say: string, heard: string): string {
+  const prompt = speechTokens(say);
+  const tokens = speechTokens(heard);
+  if (prompt.length === 0 || tokens.length === 0) return tokens.join(" ");
+  return withoutPromptEdges(withoutRun(tokens, prompt), prompt).join(" ");
+}
+
 export function spellingSpokenMatches(answer: string, heard: string, also: readonly string[] = []): boolean {
   const forms = aliasList(answer, also);
   const singles = forms.filter((alias) => speechTokens(alias).length <= 1);
@@ -47,16 +94,19 @@ export function spellingSpokenMatches(answer: string, heard: string, also: reado
 
 /**
  * An empty or punctuation-only transcript waits. It is not a miss.
- * A live non-match waits. Only a finished transcript that has real words and does not match is a miss.
+ * A transcript that is only the spoken prompt also waits: the microphone heard the question, not the child.
+ * A live non-match waits. Only a finished transcript that still has real words and does not match is a miss.
  */
 export function judgeSpellingSpoken(
   answer: string,
   heard: string,
   final: boolean,
   also: readonly string[] = [],
+  say = "",
 ): "correct" | "miss" | "wait" {
-  if (speechTokens(heard).length === 0) return "wait";
-  if (spellingSpokenMatches(answer, heard, also)) return "correct";
+  const aside = heardAsideFromPrompt(say, heard);
+  if (speechTokens(aside).length === 0) return "wait";
+  if (spellingSpokenMatches(answer, aside, also)) return "correct";
   return final ? "miss" : "wait";
 }
 
@@ -69,14 +119,19 @@ export function judgeSpellingAlternatives(
   answer: string,
   alternatives: readonly { transcript?: string; final?: boolean; confidence?: number }[],
   also: readonly string[] = [],
+  say = "",
 ): "correct" | "miss" | "wait" {
   let finishedSpeech = false;
+  let anyAside = false;
   for (const alternative of alternatives) {
     const transcript = alternative.transcript ?? "";
-    const final = Boolean(alternative.final);
-    if (spellingSpokenMatches(answer, transcript, also)) return "correct";
-    if (final && speechTokens(transcript).length > 0) finishedSpeech = true;
+    const aside = heardAsideFromPrompt(say, transcript);
+    if (speechTokens(aside).length === 0) continue;
+    anyAside = true;
+    if (spellingSpokenMatches(answer, aside, also)) return "correct";
+    if (alternative.final) finishedSpeech = true;
   }
+  if (!anyAside) return "wait";
   return finishedSpeech ? "miss" : "wait";
 }
 
@@ -111,15 +166,17 @@ export function describeSpellingHear(
   answer: string,
   alternatives: readonly { transcript?: string; final?: boolean; confidence?: number }[],
   also: readonly string[] = [],
+  say = "",
 ): { judgment: "correct" | "miss" | "wait"; status: string } {
-  const judgment = judgeSpellingAlternatives(answer, alternatives, also);
+  const judgment = judgeSpellingAlternatives(answer, alternatives, also, say);
   let matched = "";
   let top = "";
   for (const alternative of alternatives) {
     const text = (alternative.transcript ?? "").replace(/\s+/g, " ").trim();
-    if (speechTokens(text).length === 0) continue;
+    const aside = heardAsideFromPrompt(say, text);
+    if (speechTokens(aside).length === 0) continue;
     if (!top) top = text;
-    if (!matched && spellingSpokenMatches(answer, text, also)) matched = text;
+    if (!matched && spellingSpokenMatches(answer, aside, also)) matched = text;
   }
   const spoken = judgment === "correct" ? matched || top : top;
   return { judgment, status: spoken ? `I heard: ${spoken}` : "I didn't hear anything" };

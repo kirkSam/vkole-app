@@ -18,6 +18,12 @@ export const SPELLING_START_MS = 30_000;
  */
 export const SPELLING_RECOGNIZER_RESTART_MS = 250;
 
+/**
+ * The microphone stays closed for this long after the prompt finishes.
+ * Opening in the same turn as speech end hears the question itself.
+ */
+export const SPELLING_LISTEN_GAP_MS = 400;
+
 export const SPELLING_NOTE =
   "The alphabet plays once when this engine opens, one letter every 1.5 seconds. Then a question is spoken and shown. The microphone listens only while that question is waiting for an answer, and it does not record or save the sound. A correct answer shows a Happy Face for 2 seconds, then the next letter, and a fast answer moves on as soon as it is heard. Five seconds of silence shows the same letter again. A second silence goes back 3 letters. A miss shows and speaks the 3 earlier letters. A second miss steps back one letter. A miss never sends the alphabet back to A.";
 
@@ -119,6 +125,12 @@ export function micListensDuring(phase: string): boolean {
  */
 export function spellingPromptStartsListen(say: string): "now" | "after-speech" {
   return say.trim() ? "after-speech" : "now";
+}
+
+/** True only after the prompt has finished and the listen gap has elapsed. */
+export function micOpensAfterPrompt(speechEnded: boolean, sinceEndMs: number): boolean {
+  const elapsed = Number.isFinite(sinceEndMs) ? sinceEndMs : 0;
+  return speechEnded && elapsed >= SPELLING_LISTEN_GAP_MS;
 }
 
 export function bandMeta(band: SpBand): { name: string; label: string; count: number; kinds: string[]; note: string } {
