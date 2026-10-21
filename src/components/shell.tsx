@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { APP_NAME, SCHOOL_EMAIL, SCHOOL_SITE } from "@/lib/brand";
+import { WEBSITE_PARENTS } from "@/lib/website-visit";
 import { markZpdReturn } from "@/lib/zpd-info";
 import { SUBJECTS, engineNavLabel, enginePickLabel, type SubjectId } from "@/lib/climb-rules";
 import { PASTEL_NAV } from "@/lib/pastel-nav";
@@ -190,7 +191,7 @@ function SchoolFooter() {
         </p>
         <nav className="school-footer-links" aria-label="School">
           <a href={SCHOOL_SITE}>Home</a>
-          <a href={`${SCHOOL_SITE}/parents`}>Parents</a>
+          <a href={WEBSITE_PARENTS}>Parents</a>
           <a href={`${SCHOOL_SITE}/contact`}>Contact</a>
           <a href={`${SCHOOL_SITE}/privacy`}>Privacy</a>
           <a href={`${SCHOOL_SITE}/terms`}>Terms</a>

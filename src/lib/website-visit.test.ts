@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { SUBJECTS } from "./climb-rules.ts";
 import {
-  WEBSITE_HOME,
+  WEBSITE_PARENTS,
   WEBSITE_VISIT_BUTTON,
   WEBSITE_VISIT_LINE,
   androidWebViewIntent,
@@ -15,14 +15,22 @@ function source(path: string): string {
 }
 
 describe("website visit", () => {
-  it("uses the plain sentence, the button, and the website home", () => {
+  it("uses the plain sentence, the button, and the parents pricing pay page", () => {
     assert.equal(WEBSITE_VISIT_LINE, "Your account works on our website too, with the same progress.");
     assert.equal(WEBSITE_VISIT_BUTTON, "Visit dotheimpossible.ai");
-    assert.equal(WEBSITE_HOME, "https://www.dotheimpossible.ai");
+    assert.equal(WEBSITE_PARENTS, "https://www.dotheimpossible.ai/parents");
+    const visit = source("./website-visit.ts");
+    assert.equal(visit.includes("https://www.dotheimpossible.ai/parents"), true);
+    assert.equal(visit.includes('export const WEBSITE_HOME'), false);
     const view = source("../components/website-visit.tsx");
     assert.equal(view.includes("WEBSITE_VISIT_LINE"), true);
     assert.equal(view.includes("WEBSITE_VISIT_BUTTON"), true);
-    assert.equal(view.includes('href={WEBSITE_HOME}'), true);
+    assert.equal(view.includes("WEBSITE_PARENTS"), true);
+    assert.equal(view.includes('href={WEBSITE_PARENTS}'), true);
+    assert.equal(view.includes("https://www.dotheimpossible.ai\""), false);
+    const shell = source("../components/shell.tsx");
+    assert.equal(shell.includes("href={WEBSITE_PARENTS}"), true);
+    assert.equal(shell.includes('href={`${SCHOOL_SITE}/parents`}'), false);
     assert.equal(view.includes('target="_blank"'), true);
     assert.equal(view.includes('rel="noopener noreferrer"'), true);
     assert.equal(view.includes("role=\"dialog\""), false);
@@ -37,7 +45,7 @@ describe("website visit", () => {
     assert.equal(androidWebViewIntent("Mozilla/5.0 (Linux; Android 14; Pixel 8)"), null);
     assert.equal(
       androidWebViewIntent("Mozilla/5.0 (Linux; Android 14; wv) AppleWebKit/537.36 Version/4.0 Chrome/120.0.0.0 Mobile Safari/537.36"),
-      "intent://www.dotheimpossible.ai#Intent;scheme=https;action=android.intent.action.VIEW;end",
+      "intent://www.dotheimpossible.ai/parents#Intent;scheme=https;action=android.intent.action.VIEW;end",
     );
     assert.equal(androidWebViewIntent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"), null);
   });

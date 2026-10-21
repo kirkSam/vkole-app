@@ -1,4 +1,4 @@
-import { WEBSITE_HOME, WEBSITE_VISIT_BUTTON, WEBSITE_VISIT_LINE, androidWebViewIntent } from "@/lib/website-visit";
+import { WEBSITE_PARENTS, WEBSITE_VISIT_BUTTON, WEBSITE_VISIT_LINE, androidWebViewIntent } from "@/lib/website-visit";
 
 /**
  * One quiet line and a link. It is not a popup and it does not cover the page.
@@ -11,7 +11,7 @@ export function WebsiteVisit() {
       <p className="text-base text-ink">{WEBSITE_VISIT_LINE}</p>
       <a
         className="mt-2 inline-flex min-h-12 items-center rounded-xl border border-line bg-paper px-4 text-base font-semibold text-ink"
-        href={WEBSITE_HOME}
+        href={WEBSITE_PARENTS}
         target="_blank"
         rel="noopener noreferrer"
         onClick={(event) => {

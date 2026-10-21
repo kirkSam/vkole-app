@@ -1,4 +1,5 @@
-export const WEBSITE_HOME = "https://www.dotheimpossible.ai";
+/** Parents, Pricing & Pay. The live nav item is /parents. /pricing and /pay redirect to this page. */
+export const WEBSITE_PARENTS = "https://www.dotheimpossible.ai/parents";
 
 export const WEBSITE_VISIT_LINE = "Your account works on our website too, with the same progress.";
 
@@ -17,5 +18,6 @@ export function visitUsesSystemBrowser(userAgent: string, standalone = false): b
  */
 export function androidWebViewIntent(userAgent: string): string | null {
   if (!/Android/i.test(userAgent) || !/; wv\)/.test(userAgent)) return null;
-  return `intent://www.dotheimpossible.ai#Intent;scheme=https;action=android.intent.action.VIEW;end`;
+  const hostAndPath = WEBSITE_PARENTS.replace(/^https:\/\//, "");
+  return `intent://${hostAndPath}#Intent;scheme=https;action=android.intent.action.VIEW;end`;
 }
