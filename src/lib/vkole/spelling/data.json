@@ -292,8 +292,10 @@
       "kinds": [
         "first-letter",
         "next-letter",
-        "letter-after",
-        "letter-name"
+        "lower-letter",
+        "lower-next",
+        "recall",
+        "recite"
       ],
       "items": [
         {
@@ -642,494 +644,165 @@
           "model": "Z"
         },
         {
-          "id": "lk-after-a",
-          "kind": "letter-after",
-          "say": "What letter comes after A?",
-          "show": "What letter comes after A?",
-          "answer": "B",
-          "also": [
-            "bee",
-            "be"
-          ],
-          "letter": "A",
-          "model": "B"
-        },
-        {
-          "id": "lk-after-b",
-          "kind": "letter-after",
-          "say": "What letter comes after B?",
-          "show": "What letter comes after B?",
-          "answer": "C",
-          "also": [
-            "see",
-            "sea",
-            "cee"
-          ],
-          "letter": "B",
-          "model": "C"
-        },
-        {
-          "id": "lk-after-c",
-          "kind": "letter-after",
-          "say": "What letter comes after C?",
-          "show": "What letter comes after C?",
-          "answer": "D",
-          "also": [
-            "dee"
-          ],
-          "letter": "C",
-          "model": "D"
-        },
-        {
-          "id": "lk-after-d",
-          "kind": "letter-after",
-          "say": "What letter comes after D?",
-          "show": "What letter comes after D?",
-          "answer": "E",
-          "also": [
-            "ee"
-          ],
-          "letter": "D",
-          "model": "E"
-        },
-        {
-          "id": "lk-after-e",
-          "kind": "letter-after",
-          "say": "What letter comes after E?",
-          "show": "What letter comes after E?",
-          "answer": "F",
-          "also": [
-            "ef",
-            "eff"
-          ],
-          "letter": "E",
-          "model": "F"
-        },
-        {
-          "id": "lk-after-f",
-          "kind": "letter-after",
-          "say": "What letter comes after F?",
-          "show": "What letter comes after F?",
-          "answer": "G",
-          "also": [
-            "gee",
-            "jee"
-          ],
-          "letter": "F",
-          "model": "G"
-        },
-        {
-          "id": "lk-after-g",
-          "kind": "letter-after",
-          "say": "What letter comes after G?",
-          "show": "What letter comes after G?",
-          "answer": "H",
-          "also": [
-            "aitch",
-            "haitch"
-          ],
-          "letter": "G",
-          "model": "H"
-        },
-        {
-          "id": "lk-after-h",
-          "kind": "letter-after",
-          "say": "What letter comes after H?",
-          "show": "What letter comes after H?",
-          "answer": "I",
-          "also": [
-            "eye"
-          ],
-          "letter": "H",
-          "model": "I"
-        },
-        {
-          "id": "lk-after-i",
-          "kind": "letter-after",
-          "say": "What letter comes after I?",
-          "show": "What letter comes after I?",
-          "answer": "J",
-          "also": [
-            "jay"
-          ],
-          "letter": "I",
-          "model": "J"
-        },
-        {
-          "id": "lk-after-j",
-          "kind": "letter-after",
-          "say": "What letter comes after J?",
-          "show": "What letter comes after J?",
-          "answer": "K",
-          "also": [
-            "kay"
-          ],
-          "letter": "J",
-          "model": "K"
-        },
-        {
-          "id": "lk-after-k",
-          "kind": "letter-after",
-          "say": "What letter comes after K?",
-          "show": "What letter comes after K?",
-          "answer": "L",
-          "also": [
-            "el",
-            "ell"
-          ],
-          "letter": "K",
-          "model": "L"
-        },
-        {
-          "id": "lk-after-l",
-          "kind": "letter-after",
-          "say": "What letter comes after L?",
-          "show": "What letter comes after L?",
-          "answer": "M",
-          "also": [
-            "em",
-            "emm",
-            "um",
-            "im",
-            "am",
-            "them",
-            "him"
-          ],
-          "letter": "L",
-          "model": "M"
-        },
-        {
-          "id": "lk-after-m",
-          "kind": "letter-after",
-          "say": "What letter comes after M?",
-          "show": "What letter comes after M?",
-          "answer": "N",
-          "also": [
-            "en",
-            "enn",
-            "in",
-            "and",
-            "an",
-            "end"
-          ],
-          "letter": "M",
-          "model": "N"
-        },
-        {
-          "id": "lk-after-n",
-          "kind": "letter-after",
-          "say": "What letter comes after N?",
-          "show": "What letter comes after N?",
-          "answer": "O",
-          "also": [
-            "oh"
-          ],
-          "letter": "N",
-          "model": "O"
-        },
-        {
-          "id": "lk-after-o",
-          "kind": "letter-after",
-          "say": "What letter comes after O?",
-          "show": "What letter comes after O?",
-          "answer": "P",
-          "also": [
-            "pee",
-            "pea"
-          ],
-          "letter": "O",
-          "model": "P"
-        },
-        {
-          "id": "lk-after-p",
-          "kind": "letter-after",
-          "say": "What letter comes after P?",
-          "show": "What letter comes after P?",
-          "answer": "Q",
-          "also": [
-            "cue",
-            "queue",
-            "kyu",
-            "kew",
-            "cute",
-            "que"
-          ],
-          "letter": "P",
-          "model": "Q"
-        },
-        {
-          "id": "lk-after-q",
-          "kind": "letter-after",
-          "say": "What letter comes after Q?",
-          "show": "What letter comes after Q?",
-          "answer": "R",
-          "also": [
-            "ar",
-            "are"
-          ],
-          "letter": "Q",
-          "model": "R"
-        },
-        {
-          "id": "lk-after-r",
-          "kind": "letter-after",
-          "say": "What letter comes after R?",
-          "show": "What letter comes after R?",
-          "answer": "S",
-          "also": [
-            "ess"
-          ],
-          "letter": "R",
-          "model": "S"
-        },
-        {
-          "id": "lk-after-s",
-          "kind": "letter-after",
-          "say": "What letter comes after S?",
-          "show": "What letter comes after S?",
-          "answer": "T",
-          "also": [
-            "tee",
-            "tea"
-          ],
-          "letter": "S",
-          "model": "T"
-        },
-        {
-          "id": "lk-after-t",
-          "kind": "letter-after",
-          "say": "What letter comes after T?",
-          "show": "What letter comes after T?",
-          "answer": "U",
-          "also": [
-            "you",
-            "yoo"
-          ],
-          "letter": "T",
-          "model": "U"
-        },
-        {
-          "id": "lk-after-u",
-          "kind": "letter-after",
-          "say": "What letter comes after U?",
-          "show": "What letter comes after U?",
-          "answer": "V",
-          "also": [
-            "vee"
-          ],
-          "letter": "U",
-          "model": "V"
-        },
-        {
-          "id": "lk-after-v",
-          "kind": "letter-after",
-          "say": "What letter comes after V?",
-          "show": "What letter comes after V?",
-          "answer": "W",
-          "also": [
-            "doubleyou",
-            "double you",
-            "double u"
-          ],
-          "letter": "V",
-          "model": "W"
-        },
-        {
-          "id": "lk-after-w",
-          "kind": "letter-after",
-          "say": "What letter comes after W?",
-          "show": "What letter comes after W?",
-          "answer": "X",
-          "also": [
-            "ex"
-          ],
-          "letter": "W",
-          "model": "X"
-        },
-        {
-          "id": "lk-after-x",
-          "kind": "letter-after",
-          "say": "What letter comes after X?",
-          "show": "What letter comes after X?",
-          "answer": "Y",
-          "also": [
-            "why",
-            "wye"
-          ],
-          "letter": "X",
-          "model": "Y"
-        },
-        {
-          "id": "lk-after-y",
-          "kind": "letter-after",
-          "say": "What letter comes after Y?",
-          "show": "What letter comes after Y?",
-          "answer": "Z",
-          "also": [
-            "zee",
-            "zed"
-          ],
-          "letter": "Y",
-          "model": "Z"
-        },
-        {
-          "id": "lk-name-a",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-a",
+          "kind": "lower-letter",
+          "say": "Your turn! What is the first letter of the alphabet?",
+          "show": "Your turn! What is the first letter of the alphabet?",
           "answer": "A",
           "also": [
             "ay",
             "eh",
             "hey"
           ],
-          "letter": "A",
+          "letter": "a",
           "model": "A"
         },
         {
-          "id": "lk-name-b",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-b",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "B",
           "also": [
             "bee",
             "be"
           ],
-          "letter": "B",
+          "letter": "a",
           "model": "B"
         },
         {
-          "id": "lk-name-c",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-c",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "C",
           "also": [
             "see",
             "sea",
             "cee"
           ],
-          "letter": "C",
+          "letter": "b",
           "model": "C"
         },
         {
-          "id": "lk-name-d",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-d",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "D",
           "also": [
-            "dee"
+            "dee",
+            "de",
+            "the"
           ],
-          "letter": "D",
+          "letter": "c",
           "model": "D"
         },
         {
-          "id": "lk-name-e",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-e",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "E",
           "also": [
             "ee"
           ],
-          "letter": "E",
+          "letter": "d",
           "model": "E"
         },
         {
-          "id": "lk-name-f",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-f",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "F",
           "also": [
             "ef",
             "eff"
           ],
-          "letter": "F",
+          "letter": "e",
           "model": "F"
         },
         {
-          "id": "lk-name-g",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-g",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "G",
           "also": [
             "gee",
             "jee"
           ],
-          "letter": "G",
+          "letter": "f",
           "model": "G"
         },
         {
-          "id": "lk-name-h",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-h",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "H",
           "also": [
             "aitch",
             "haitch"
           ],
-          "letter": "H",
+          "letter": "g",
           "model": "H"
         },
         {
-          "id": "lk-name-i",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-i",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "I",
           "also": [
             "eye"
           ],
-          "letter": "I",
+          "letter": "h",
           "model": "I"
         },
         {
-          "id": "lk-name-j",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-j",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "J",
           "also": [
             "jay"
           ],
-          "letter": "J",
+          "letter": "i",
           "model": "J"
         },
         {
-          "id": "lk-name-k",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-k",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "K",
           "also": [
             "kay"
           ],
-          "letter": "K",
+          "letter": "j",
           "model": "K"
         },
         {
-          "id": "lk-name-l",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-l",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "L",
           "also": [
             "el",
             "ell"
           ],
-          "letter": "L",
+          "letter": "k",
           "model": "L"
         },
         {
-          "id": "lk-name-m",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-m",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "M",
           "also": [
             "em",
@@ -1140,14 +813,14 @@
             "them",
             "him"
           ],
-          "letter": "M",
+          "letter": "l",
           "model": "M"
         },
         {
-          "id": "lk-name-n",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-n",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "N",
           "also": [
             "en",
@@ -1157,39 +830,39 @@
             "an",
             "end"
           ],
-          "letter": "N",
+          "letter": "m",
           "model": "N"
         },
         {
-          "id": "lk-name-o",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-o",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "O",
           "also": [
             "oh"
           ],
-          "letter": "O",
+          "letter": "n",
           "model": "O"
         },
         {
-          "id": "lk-name-p",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-p",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "P",
           "also": [
             "pee",
             "pea"
           ],
-          "letter": "P",
+          "letter": "o",
           "model": "P"
         },
         {
-          "id": "lk-name-q",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-q",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "Q",
           "also": [
             "cue",
@@ -1199,122 +872,482 @@
             "cute",
             "que"
           ],
-          "letter": "Q",
+          "letter": "p",
           "model": "Q"
         },
         {
-          "id": "lk-name-r",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-r",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "R",
           "also": [
             "ar",
             "are"
           ],
-          "letter": "R",
+          "letter": "q",
           "model": "R"
         },
         {
-          "id": "lk-name-s",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-s",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "S",
           "also": [
             "ess"
           ],
-          "letter": "S",
+          "letter": "r",
           "model": "S"
         },
         {
-          "id": "lk-name-t",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-t",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "T",
           "also": [
             "tee",
             "tea"
           ],
-          "letter": "T",
+          "letter": "s",
           "model": "T"
         },
         {
-          "id": "lk-name-u",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-u",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "U",
           "also": [
             "you",
             "yoo"
           ],
-          "letter": "U",
+          "letter": "t",
           "model": "U"
         },
         {
-          "id": "lk-name-v",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-v",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "V",
           "also": [
             "vee"
           ],
-          "letter": "V",
+          "letter": "u",
           "model": "V"
         },
         {
-          "id": "lk-name-w",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-w",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "W",
           "also": [
             "doubleyou",
             "double you",
             "double u"
           ],
-          "letter": "W",
+          "letter": "v",
           "model": "W"
         },
         {
-          "id": "lk-name-x",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-x",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "X",
           "also": [
             "ex"
           ],
-          "letter": "X",
+          "letter": "w",
           "model": "X"
         },
         {
-          "id": "lk-name-y",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-y",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "Y",
           "also": [
             "why",
             "wye"
           ],
-          "letter": "Y",
+          "letter": "x",
           "model": "Y"
         },
         {
-          "id": "lk-name-z",
-          "kind": "letter-name",
-          "say": "What letter is this?",
-          "show": "What letter is this?",
+          "id": "lk-lower-z",
+          "kind": "lower-next",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
           "answer": "Z",
           "also": [
             "zee",
             "zed"
           ],
-          "letter": "Z",
+          "letter": "y",
+          "model": "Z"
+        },
+        {
+          "id": "lk-recall-a",
+          "kind": "recall",
+          "say": "What is the first letter of the alphabet?",
+          "show": "What is the first letter of the alphabet?",
+          "answer": "A",
+          "also": [
+            "ay",
+            "eh",
+            "hey"
+          ],
+          "letter": "",
+          "model": "A"
+        },
+        {
+          "id": "lk-recall-b",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "B",
+          "also": [
+            "bee",
+            "be"
+          ],
+          "letter": "",
+          "model": "B"
+        },
+        {
+          "id": "lk-recall-c",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "C",
+          "also": [
+            "see",
+            "sea",
+            "cee"
+          ],
+          "letter": "",
+          "model": "C"
+        },
+        {
+          "id": "lk-recall-d",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "D",
+          "also": [
+            "dee",
+            "de",
+            "the"
+          ],
+          "letter": "",
+          "model": "D"
+        },
+        {
+          "id": "lk-recall-e",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "E",
+          "also": [
+            "ee"
+          ],
+          "letter": "",
+          "model": "E"
+        },
+        {
+          "id": "lk-recall-f",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "F",
+          "also": [
+            "ef",
+            "eff"
+          ],
+          "letter": "",
+          "model": "F"
+        },
+        {
+          "id": "lk-recall-g",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "G",
+          "also": [
+            "gee",
+            "jee"
+          ],
+          "letter": "",
+          "model": "G"
+        },
+        {
+          "id": "lk-recall-h",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "H",
+          "also": [
+            "aitch",
+            "haitch"
+          ],
+          "letter": "",
+          "model": "H"
+        },
+        {
+          "id": "lk-recall-i",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "I",
+          "also": [
+            "eye"
+          ],
+          "letter": "",
+          "model": "I"
+        },
+        {
+          "id": "lk-recall-j",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "J",
+          "also": [
+            "jay"
+          ],
+          "letter": "",
+          "model": "J"
+        },
+        {
+          "id": "lk-recall-k",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "K",
+          "also": [
+            "kay"
+          ],
+          "letter": "",
+          "model": "K"
+        },
+        {
+          "id": "lk-recall-l",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "L",
+          "also": [
+            "el",
+            "ell"
+          ],
+          "letter": "",
+          "model": "L"
+        },
+        {
+          "id": "lk-recall-m",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "M",
+          "also": [
+            "em",
+            "emm",
+            "um",
+            "im",
+            "am",
+            "them",
+            "him"
+          ],
+          "letter": "",
+          "model": "M"
+        },
+        {
+          "id": "lk-recall-n",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "N",
+          "also": [
+            "en",
+            "enn",
+            "in",
+            "and",
+            "an",
+            "end"
+          ],
+          "letter": "",
+          "model": "N"
+        },
+        {
+          "id": "lk-recall-o",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "O",
+          "also": [
+            "oh"
+          ],
+          "letter": "",
+          "model": "O"
+        },
+        {
+          "id": "lk-recall-p",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "P",
+          "also": [
+            "pee",
+            "pea"
+          ],
+          "letter": "",
+          "model": "P"
+        },
+        {
+          "id": "lk-recall-q",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "Q",
+          "also": [
+            "cue",
+            "queue",
+            "kyu",
+            "kew",
+            "cute",
+            "que"
+          ],
+          "letter": "",
+          "model": "Q"
+        },
+        {
+          "id": "lk-recall-r",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "R",
+          "also": [
+            "ar",
+            "are"
+          ],
+          "letter": "",
+          "model": "R"
+        },
+        {
+          "id": "lk-recall-s",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "S",
+          "also": [
+            "ess"
+          ],
+          "letter": "",
+          "model": "S"
+        },
+        {
+          "id": "lk-recall-t",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "T",
+          "also": [
+            "tee",
+            "tea"
+          ],
+          "letter": "",
+          "model": "T"
+        },
+        {
+          "id": "lk-recall-u",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "U",
+          "also": [
+            "you",
+            "yoo"
+          ],
+          "letter": "",
+          "model": "U"
+        },
+        {
+          "id": "lk-recall-v",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "V",
+          "also": [
+            "vee"
+          ],
+          "letter": "",
+          "model": "V"
+        },
+        {
+          "id": "lk-recall-w",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "W",
+          "also": [
+            "doubleyou",
+            "double you",
+            "double u"
+          ],
+          "letter": "",
+          "model": "W"
+        },
+        {
+          "id": "lk-recall-x",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "X",
+          "also": [
+            "ex"
+          ],
+          "letter": "",
+          "model": "X"
+        },
+        {
+          "id": "lk-recall-y",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "Y",
+          "also": [
+            "why",
+            "wye"
+          ],
+          "letter": "",
+          "model": "Y"
+        },
+        {
+          "id": "lk-recall-z",
+          "kind": "recall",
+          "say": "What letter comes next?",
+          "show": "What letter comes next?",
+          "answer": "Z",
+          "also": [
+            "zee",
+            "zed"
+          ],
+          "letter": "",
+          "model": "Z"
+        },
+        {
+          "id": "lk-recite",
+          "kind": "recite",
+          "say": "Your turn to say the alphabet.",
+          "show": "Your turn to say the alphabet.",
+          "answer": "Z",
+          "also": [
+            "zee",
+            "zed"
+          ],
+          "letter": "",
           "model": "Z"
         }
       ]

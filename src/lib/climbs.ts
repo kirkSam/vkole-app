@@ -15,7 +15,7 @@ import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-histo
 import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
 import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
 import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
-import { applyLetterAnswer, letterMoveNote, letterView, normalizeLetterProgress, progressAfterSong } from "@/lib/vkole/spelling/items";
+import { applyLetterAnswer, letterMoveNote, letterView, migrateAlphabetIndex, normalizeLetterProgress, progressAfterSong } from "@/lib/vkole/spelling/items";
 import { savedSpellingReport, spellingStatsFromEvents, writeSpellingReport } from "@/lib/vkole/spelling/report";
 import { cardFromAccount as paCardFromAccount, migratePaBand, nextAfterAnswer, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
 import { cardFromAccount, nextCard, startCard } from "@/lib/vkole/sight-words/words";
@@ -256,10 +256,50 @@ export const listClimbs = createServerFn({ method: "GET" })
     };
   });
 
+function alphabetItemId(questionId: string | null | undefined): string {
+  const match = (questionId ?? "").match(/sp:[^:]+:([^:]+)/i);
+  return match?.[1] ?? "";
+}
+
+/** Old hidden-letter saves become exercise 4 before the student sees them. */
+async function migratedSpellingClimb(sql: Sql, userId: string, climb: Climb): Promise<Climb> {
+  if (climb.subject !== "sp") return climb;
+  const rows = await sql<{ question_id: string | null; current_prompt: string | null; standard_step: number | string | null }>`
+    select question_id, current_prompt, standard_step
+    from climbs
+    where id = ${climb.id} and user_id = ${userId}
+  `;
+  const row = rows[0];
+  if (!row) return climb;
+  const current = Number(row.standard_step ?? climb.standardStep);
+  const next = migrateAlphabetIndex({
+    index: Number.isInteger(current) ? current : climb.standardStep,
+    word: alphabetItemId(row.question_id),
+    prompt: row.current_prompt ?? "",
+  });
+  if (next === climb.standardStep) return climb;
+  const view = letterView({ index: next, silence: climb.correctAtLevel, wrong: climb.incorrectStreak });
+  await sql`
+    update climbs
+    set standard_step = ${view.index},
+        current_prompt = ${view.show},
+        answer_key = ${view.answer},
+        answer_aliases = ${JSON.stringify(view.also)},
+        question_id = ${`sp:${view.band}:${view.id}:s${view.silence}:w${view.wrong}`},
+        updated_at = now()
+    where id = ${climb.id} and user_id = ${userId}
+  `;
+  return selectOwned(sql, userId, climb.id);
+}
+
 export const getClimb = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
   .middleware([schoolMiddleware])
-  .handler(async ({ context, data }) => selectOwned(await getSql(), context.userId, data.id));
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const climb = await selectOwned(sql, context.userId, data.id);
+    return migratedSpellingClimb(sql, context.userId, climb);
+  });
 
 export const setChildAge = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema.extend({ age: z.number().int().min(4).max(18) }), data))
@@ -602,13 +642,13 @@ export const markSightWord = createServerFn({ method: "POST" })
 
 const spellingSchema = idSchema.extend({ outcome: z.enum(["correct", "miss", "timeout"]) });
 
-/** The song must not open the memory exercise. A saved memory card returns to the first letter that is shown. */
+/** The song stays on a saved exercise 4 or 5 card. It never opens the old hidden-letter prompt. */
 export const placeSpellingAfterSong = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
   .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
-    const current = await selectOwned(sql, context.userId, data.id);
+    const current = await migratedSpellingClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
     if (current.subject !== "sp") throw new Error("This session is not alphabet.");
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
     const before = normalizeLetterProgress({
@@ -616,7 +656,8 @@ export const placeSpellingAfterSong = createServerFn({ method: "POST" })
       silence: current.correctAtLevel,
       wrong: current.incorrectStreak,
     });
-    const after = progressAfterSong(before);
+    const askedNow = letterView(before);
+    const after = progressAfterSong({ ...before, word: askedNow.id, prompt: current.currentPrompt });
     if (after.index === before.index && after.silence === before.silence && after.wrong === before.wrong) {
       return selectOwned(sql, context.userId, data.id);
     }
@@ -647,7 +688,7 @@ export const markSpelling = createServerFn({ method: "POST" })
   .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
-    const current = await selectOwned(sql, context.userId, data.id);
+    const current = await migratedSpellingClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
     if (current.subject !== "sp") throw new Error("This session is not alphabet.");
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
     const before = normalizeLetterProgress({

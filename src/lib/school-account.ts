@@ -12,7 +12,7 @@ import { normalizeAccountEmail, sameAccount } from "./account-scope.ts";
 import { DAY_LIMIT_SECONDS } from "./day-clock-math.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, SIGHT_WORD_BANDS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
-import { bandMeta, cardFromAccount as spCardFromAccount, isSpBand, letterView, SPELLING_BANDS, spCard, type SpBand } from "./vkole/spelling/items.ts";
+import { bandMeta, cardFromAccount as spCardFromAccount, isSpBand, letterView, migrateAlphabetIndex, SPELLING_BANDS, spCard, type SpBand } from "./vkole/spelling/items.ts";
 import { cardFromAccount as paCardFromAccount, migratePaBand, PA_BANDS, type PaBand } from "./vkole/phonemic-awareness/items.ts";
 import { sightCard } from "./vkole/sight-words/words.ts";
 
@@ -530,6 +530,10 @@ function asSpLevel(row: Record<string, unknown>, level: EngineLevel): EngineLeve
   if (saved && alphabetAt == null && asIndex(row.index) == null && !(nested && asIndex(nested.index) != null) && storedWord) {
     const found = spCardFromAccount({ grade: level.grade, band, word: storedWord }, level.grade);
     if (found.id === storedWord) index = found.index;
+  }
+  if (band === "LK") {
+    index = migrateAlphabetIndex({ index: explicit ?? null, word: storedWord });
+    if (alphabetAt != null && explicit == null) index = alphabetAt;
   }
   const card = spCard(band, index, level.grade);
   const silence = wholeNumber(row.streak) ?? (nested ? wholeNumber(nested.streak) : null) ?? 0;

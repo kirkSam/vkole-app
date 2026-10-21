@@ -25,7 +25,7 @@ export const SPELLING_RECOGNIZER_RESTART_MS = 250;
 export const SPELLING_LISTEN_GAP_MS = 400;
 
 export const SPELLING_NOTE =
-  "The alphabet plays once when this engine opens, one letter every 1.5 seconds. Then a question is spoken and shown. The microphone listens only while that question is waiting for an answer, and it does not record or save the sound. A correct answer shows a Happy Face for 2 seconds, then the next letter, and a fast answer moves on as soon as it is heard. Five seconds of silence asks the same letter again. Silence never sends the alphabet back to A. A miss shows and speaks the 3 earlier letters. A second miss steps back one letter. A miss never sends the alphabet back to A.";
+  "Exercise 1 is the alphabet song. Exercise 2 shows a capital letter. Exercise 3 shows a small letter. Exercise 4 asks for the letter, then shows the capital and the small letter. Exercise 5 asks you to say the alphabet. At Z, the app says Good job! The microphone is on only while the app waits for an answer. The sound is not saved. If the app does not hear you, it asks the same letter again.";
 
 /** Whole seconds left before the alphabet starts itself. 0 means start now. */
 export function spellingStartSecondsLeft(elapsedMs: number): number {
@@ -238,7 +238,12 @@ export function cardFromAccount(
   const named = isSpBand(input?.band) ? input.band : isSpBand(input?.levelCode) ? input.levelCode : undefined;
   const band = named && bandMeta(named).count > 0 ? named : startBand();
   let index = named && Number.isInteger(input?.index) && (input?.index ?? 0) >= 0 ? Number(input?.index) : 0;
-  if (named && bandMeta(named).count > 0 && !Number.isInteger(input?.index) && input?.word) {
+  if (band === "LK") {
+    index = migrateAlphabetIndex({
+      index: Number.isInteger(input?.index) ? Number(input?.index) : null,
+      word: input?.word,
+    });
+  } else if (named && bandMeta(named).count > 0 && !Number.isInteger(input?.index) && input?.word) {
     const found = bandItems(band).findIndex((item) => item.id === input.word);
     if (found >= 0) index = found;
   }
@@ -260,12 +265,16 @@ export type LetterView = {
   silence: number;
   wrong: number;
   kind: "ask" | "cue";
+  exercise: 2 | 3 | 4 | 5;
+  itemKind: string;
   cue: string[];
   say: string;
   show: string;
   answer: string;
   also: string[];
   shown: string;
+  /** Upper and lower together, such as "A a", after a recall answer. */
+  pair: string;
   band: SpBand;
   name: string;
 };
@@ -288,27 +297,87 @@ export function normalizeLetterProgress(input: Partial<LetterProgress> | null | 
 }
 
 /**
- * A showing exercise always puts one letter on the screen.
- * The memory exercise is the only one that asks "What letter is this?" with the letter hidden.
- * An empty `letter` on any other card uses the answer glyph, so a handoff cannot land on a blank card.
+ * Exercise 2 and 3 show one letter. Exercise 3 is lowercase.
+ * Exercise 4 and the final recitation leave the screen blank until the answer.
+ * An empty glyph on a showing card uses the answer, so a handoff cannot go blank by mistake.
  */
 export function letterOnScreen(kind: string, letter: string, answer: string): string {
-  if (kind === "letter-name") return "";
-  const listed = (letter || "").trim().toUpperCase();
+  if (kind === "recall" || kind === "recite" || kind === "letter-name") return "";
+  const listed = (letter || "").trim();
+  if (/^[a-z]$/.test(listed)) return listed;
   if (/^[A-Z]$/.test(listed)) return listed;
-  const fallback = answer.trim().toUpperCase();
-  return /^[A-Z]$/.test(fallback) ? fallback : "";
+  const fallback = (answer || "").trim();
+  if (kind === "lower-letter" || kind === "lower-next") {
+    const lower = fallback.toLowerCase();
+    return /^[a-z]$/.test(lower) ? lower : "";
+  }
+  const upper = fallback.toUpperCase();
+  return /^[A-Z]$/.test(upper) ? upper : "";
 }
 
-/** 1 is the alphabet that shows each letter. 2 asks what comes after. 3 is memory and hides the letter. */
-export function letterExercise(index: number): 1 | 2 | 3 {
+/**
+ * Exercise 1 is the song and has no card.
+ * 2 shows uppercase, 3 shows lowercase, 4 asks with nothing shown, 5 is the recitation.
+ */
+export function letterExercise(index: number): 2 | 3 | 4 | 5 {
   const kind = itemAt("LK", clampLetterIndex(index)).kind;
-  if (kind === "letter-name") return 3;
-  if (kind === "letter-after") return 2;
-  return 1;
+  if (kind === "recite") return 5;
+  if (kind === "recall") return 4;
+  if (kind === "lower-letter" || kind === "lower-next") return 3;
+  return 2;
 }
 
+/** The old hidden-letter prompt. Exercise 4 asks a different question on purpose. */
 export const MEMORY_LETTER_PROMPT = "What letter is this?";
+
+const OLD_MEMORY_START = 51;
+const OLD_MEMORY_END = 76;
+
+function recallSlot(letter: string): number {
+  const at = letter.toLowerCase().charCodeAt(0) - 97;
+  const start = bandItems("LK").findIndex((item) => item.kind === "recall");
+  const base = start >= 0 ? start : 52;
+  return base + Math.min(25, Math.max(0, at));
+}
+
+/**
+ * Old saves used indexes 51-76 and ids lk-name-a for the hidden "What letter is this?" cards.
+ * Those places move to exercise 4. A new card in that index range keeps its own id or answer letter.
+ */
+export function migrateAlphabetIndex(input: {
+  index?: number | null;
+  word?: string | null;
+  prompt?: string | null;
+}): number {
+  const word = (input.word ?? "").trim().toLowerCase();
+  const index = Number.isInteger(input.index) ? Number(input.index) : null;
+  const named = word.match(/(?:^|:)lk-name-([a-z])(?:$|:)/);
+  if (named?.[1]) return recallSlot(named[1]);
+  const after = word.match(/^lk-after-([a-z])$/);
+  if (after?.[1]) {
+    const found = bandItems("LK").findIndex((item) => item.id === `lk-lower-${after[1]}`);
+    if (found >= 0) return found;
+  }
+  if ((input.prompt ?? "").trim() === MEMORY_LETTER_PROMPT) {
+    const known = word ? bandItems("LK").some((item) => item.id === word) : false;
+    // A live card already has a current id. A leftover memory prompt must not slide that card forward.
+    if (!known) {
+      if (index != null && index >= OLD_MEMORY_START && index <= OLD_MEMORY_END) {
+        return recallSlot(String.fromCharCode(97 + index - OLD_MEMORY_START));
+      }
+      return recallSlot("a");
+    }
+  }
+  if (index != null && index >= OLD_MEMORY_START && index <= OLD_MEMORY_END) {
+    const oldLetter = String.fromCharCode(97 + (index - OLD_MEMORY_START));
+    if (!word || word === oldLetter) return recallSlot(oldLetter);
+  }
+  if (index == null && word) {
+    const found = bandItems("LK").findIndex((item) => item.id === word);
+    if (found >= 0) return found;
+  }
+  return clampLetterIndex(index ?? 0);
+}
 
 /**
  * Lines the alphabet song speaks, in order.
@@ -327,21 +396,30 @@ export function songSpokenLines(): string[] {
 
 /**
  * The question that follows the song.
- * The song is the recitation. The next card has to show a letter.
- * A saved memory card asks "What letter is this?" with nothing on screen, so the song must not open it.
+ * Exercise 1 is the song. A saved place in exercise 4 or 5 stays on that exercise.
+ * The old hidden prompt is never what the song opens.
  */
-export function progressAfterSong(input: Partial<LetterProgress> | null | undefined): LetterProgress {
-  const state = normalizeLetterProgress(input);
+export function progressAfterSong(
+  input: (Partial<LetterProgress> & { word?: string | null; prompt?: string | null }) | null | undefined,
+): LetterProgress {
+  const migrated = migrateAlphabetIndex({ index: input?.index, word: input?.word, prompt: input?.prompt });
+  const state = normalizeLetterProgress({ ...input, index: migrated });
   const view = letterView(state);
-  if (letterExercise(state.index) === 3 || view.say.trim() === MEMORY_LETTER_PROMPT) {
-    return { index: 0, silence: 0, wrong: 0 };
+  if (view.say.trim() === MEMORY_LETTER_PROMPT) {
+    return { index: recallSlot("a"), silence: 0, wrong: 0 };
+  }
+  if (letterExercise(state.index) === 5) {
+    return { index: state.index, silence: 0, wrong: 0 };
   }
   return state;
 }
 
 function exerciseGroup(kind: string | undefined): string {
-  if (kind === "first-letter" || kind === "next-letter") return "sequence";
-  return kind || "sequence";
+  if (kind === "first-letter" || kind === "next-letter") return "upper";
+  if (kind === "lower-letter" || kind === "lower-next") return "lower";
+  if (kind === "recall") return "recall";
+  if (kind === "recite") return "recite";
+  return kind || "upper";
 }
 
 /** A step backward stays inside the current exercise, so the memory round does not fall back to A. */
@@ -370,6 +448,8 @@ function cueForLetter(letter: string, count: number): string[] {
 export function applyLetterAnswer(input: LetterProgress, outcome: LetterOutcome): LetterProgress {
   const state = normalizeLetterProgress(input);
   if (outcome === "correct") {
+    const current = itemAt("LK", state.index);
+    if (current.kind === "recite") return { index: state.index, silence: 0, wrong: 0 };
     const count = Math.max(1, bandMeta("LK").count);
     const next = state.index + 1 >= count ? 0 : state.index + 1;
     return { index: next, silence: 0, wrong: 0 };
@@ -408,12 +488,15 @@ export function letterView(input: LetterProgress): LetterView {
         silence: progress.silence,
         wrong: progress.wrong,
         kind: "cue",
+        exercise: letterExercise(progress.index),
+        itemKind: item.kind,
         cue,
         say: cue.join(lists.answerFlow.cueSayJoin),
         show: cue.join(lists.answerFlow.cueShowJoin),
         answer,
         also: item.also,
         shown: "",
+        pair: "",
         band: "LK",
         name: meta.name,
       };
@@ -426,12 +509,15 @@ export function letterView(input: LetterProgress): LetterView {
     silence: progress.silence,
     wrong: progress.wrong,
     kind: "ask",
+    exercise: letterExercise(progress.index),
+    itemKind: item.kind,
     cue: [],
     say: item.say,
     show: item.show,
     answer,
     also: item.also,
     shown: letterOnScreen(item.kind, item.letter, answer),
+    pair: item.kind === "recall" ? `${answer} ${answer.toLowerCase()}` : "",
     band: "LK",
     name: meta.name,
   };
