@@ -160,9 +160,11 @@ describe("alphabet exercise buttons", () => {
     const celebrate = stage.slice(stage.indexOf('if (phase !== "celebrate") return;'), stage.indexOf("function allowMic"));
     assert.equal(celebrate.includes("onRecitedRef"), true);
     assert.equal(celebrate.includes('setPhase("type")'), true);
-    assert.equal(celebrate.includes("onDone"), false);
+    assert.equal(celebrate.includes("exerciseRef.current === 6"), true);
+    assert.equal(celebrate.includes('onDoneRef.current("correct")'), true);
     const typed = stage.slice(stage.indexOf("function takeTyped"), stage.indexOf("function noteHeard"));
-    assert.equal(typed.includes('onDoneRef.current("correct")'), true);
+    assert.equal(typed.includes('setPhase("good-job")'), true);
+    assert.equal(typed.includes('onDoneRef.current("correct")'), false);
     assert.equal(typed.includes("TYPING_TRY_AGAIN"), true);
     assert.equal(typed.includes("typingCaseLine"), true);
     assert.equal(typed.includes('judgment === "case"'), true);
