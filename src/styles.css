@@ -98,6 +98,8 @@
 .pastel-nav [data-engine="pa"] { background-color: #eadff6; }
 .pastel-nav[data-engine="zpd"],
 .pastel-nav [data-engine="zpd"] { background-color: #f6e6d8; }
+.pastel-nav[data-engine="practice"],
+.pastel-nav [data-engine="practice"] { background-color: #d9efe4; }
 .pastel-nav [data-engine="m"]:hover,
 .pastel-nav [data-engine="m"]:focus-visible { background-color: #c3daf2; }
 .pastel-nav [data-engine="ela"]:hover,
@@ -116,6 +118,8 @@
 .pastel-nav [data-engine="pa"]:focus-visible { background-color: #dccff0; }
 .pastel-nav [data-engine="zpd"]:hover,
 .pastel-nav [data-engine="zpd"]:focus-visible { background-color: #edd4c0; }
+.pastel-nav [data-engine="practice"]:hover,
+.pastel-nav [data-engine="practice"]:focus-visible { background-color: #c5e6d4; }
 .pastel-nav .vkole-nav:hover,
 .pastel-nav .vkole-nav:focus-visible {
   color: #1d2420;
@@ -762,5 +766,198 @@ a.bg-accent:active {
   }
   .zpd-title {
     max-width: 18ch;
+  }
+}
+
+/* Printable free math practice.
+   Same document family as reportHtml inside academicLetter
+   (src/lib/academic-email.ts), the progress report emailed when a
+   student finishes or logs out. */
+.math-print {
+  background: #e7efe9;
+  margin-top: 24px;
+  padding: 16px 8px;
+}
+.report-card {
+  max-width: 560px;
+  margin: 0 auto 16px;
+  background: #fffdf8;
+  border: 1px solid #d7e0da;
+  color: #1d2420;
+}
+.report-head {
+  background: #173028;
+  border-top: 4px solid #c6a15a;
+  padding: 22px 20px;
+  color: #f6f1e7;
+}
+.report-school {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+.report-title {
+  margin: 8px 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: #f6f1e7;
+}
+.report-app {
+  margin: 8px 0 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #e7efe9;
+}
+.report-lede {
+  margin: 0;
+  padding: 18px 20px 8px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #1d2420;
+}
+.report-section {
+  margin: 0;
+  padding: 8px 20px 4px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  font-weight: 400;
+  color: #2c5e4a;
+}
+.report-intro {
+  margin: 0;
+  padding: 0 20px 8px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #1d2420;
+}
+.report-sitting {
+  width: calc(100% - 40px);
+  margin: 0 20px 8px;
+  border-collapse: collapse;
+}
+.report-sitting th,
+.report-sitting td {
+  padding: 7px 0;
+  border-bottom: 1px solid #e4ebe6;
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+}
+.report-sitting th {
+  width: 132px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13px;
+  color: #5c6b63;
+}
+.report-sitting td {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  color: #1d2420;
+}
+.report-blank {
+  display: block;
+  height: 28px;
+  border-bottom: 1px solid #1d2420;
+}
+.report-items {
+  margin: 0;
+  padding: 0 20px 16px;
+  list-style: none;
+}
+.report-item {
+  margin: 0 0 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #1d2420;
+}
+.report-code,
+.report-domain,
+.report-prompt {
+  margin: 0;
+}
+.report-domain {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 13px;
+  color: #5c6b63;
+}
+.report-prompt {
+  margin-top: 8px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #1d2420;
+}
+.report-line {
+  margin-top: 10px;
+  border-bottom: 1px solid #1d2420;
+  height: 56px;
+}
+.report-cards {
+  padding: 0 20px 18px;
+}
+.report-work {
+  margin: 0 0 12px;
+  border: 1px solid #d7e0da;
+  border-left: 4px solid #2c5e4a;
+  padding: 12px 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #1d2420;
+}
+.report-work p {
+  margin: 0;
+}
+.report-work-title {
+  color: #2c5e4a;
+  font-weight: 700;
+}
+.report-work-question {
+  margin-top: 8px;
+}
+.report-foot {
+  margin: 0;
+  background: #173028;
+  padding: 16px 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: #f6f1e7;
+}
+@media print {
+  body:has(.math-print) .app-shell {
+    max-width: none;
+    padding: 0;
+    min-height: 0;
+  }
+  body:has(.math-print) header,
+  body:has(.math-print) nav,
+  body:has(.math-print) .school-footer,
+  body:has(.math-print) .no-print {
+    display: none !important;
+  }
+  body:has(.math-print) {
+    background: #e7efe9;
+  }
+  .math-print {
+    margin: 0;
+    background: #e7efe9;
+  }
+  .math-key {
+    break-before: page;
+    page-break-before: always;
+  }
+  .report-card,
+  .report-head,
+  .report-foot,
+  .report-work {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

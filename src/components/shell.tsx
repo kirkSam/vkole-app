@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { APP_NAME, SCHOOL_EMAIL, SCHOOL_SITE } from "@/lib/brand";
 import { markZpdReturn } from "@/lib/zpd-info";
 import { SUBJECTS, engineNavLabel, enginePickLabel, type SubjectId } from "@/lib/climb-rules";
@@ -66,7 +66,7 @@ function ParentAccount() {
 
 export function Shell({ children, onSplash }: { children: ReactNode; onSplash?: () => void }) {
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 py-6 sm:px-6 sm:py-8">
+    <div className="app-shell mx-auto flex min-h-screen w-full max-w-2xl flex-col px-4 py-6 sm:px-6 sm:py-8">
       <header className="mb-6 flex flex-col items-stretch gap-3 border-b border-line pb-4 sm:flex-row sm:items-center sm:justify-between">
         {onSplash ? (
           <button
@@ -94,6 +94,8 @@ export function Shell({ children, onSplash }: { children: ReactNode; onSplash?: 
 }
 
 function EngineNav() {
+  const path = useRouterState({ select: (state) => state.location.pathname });
+  const parentScreen = !path.startsWith("/session");
   return (
     <nav className={PASTEL_NAV ? "pastel-nav mb-5 flex flex-wrap gap-2" : "mb-5 flex flex-wrap gap-2"} aria-label="VKOLE engines">
       {SUBJECTS.map((subject) => (
@@ -130,6 +132,11 @@ function EngineNav() {
         <span>Vygotsky ZPD</span>
         <small>Zone of Proximal Development</small>
       </Link>
+      {parentScreen ? (
+        <Link to="/practice" data-engine="practice" className="vkole-nav text-left font-display text-base tracking-wide text-ink">
+          Free Math Practice
+        </Link>
+      ) : null}
     </nav>
   );
 }
