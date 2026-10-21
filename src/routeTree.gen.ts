@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EnrollRouteImport } from './routes/enroll'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PracticeRouteImport } from './routes/practice'
 import { Route as ZpdRouteImport } from './routes/zpd'
 import { Route as SessionIdRouteImport } from './routes/session.$id'
 import { Route as ApiAssignmentIdRouteImport } from './routes/api/assignment/$id'
@@ -31,6 +32,11 @@ const EnrollRoute = EnrollRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PracticeRoute = PracticeRouteImport.update({
+  id: '/practice',
+  path: '/practice',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ZpdRoute = ZpdRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/enroll': typeof EnrollRoute
   '/login': typeof LoginRoute
+  '/practice': typeof PracticeRoute
   '/zpd': typeof ZpdRoute
   '/session/$id': typeof SessionIdRoute
   '/api/assignment/$id': typeof ApiAssignmentIdRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/enroll': typeof EnrollRoute
   '/login': typeof LoginRoute
+  '/practice': typeof PracticeRoute
   '/zpd': typeof ZpdRoute
   '/session/$id': typeof SessionIdRoute
   '/api/assignment/$id': typeof ApiAssignmentIdRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/enroll': typeof EnrollRoute
   '/login': typeof LoginRoute
+  '/practice': typeof PracticeRoute
   '/zpd': typeof ZpdRoute
   '/session/$id': typeof SessionIdRoute
   '/api/assignment/$id': typeof ApiAssignmentIdRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/enroll'
     | '/login'
+    | '/practice'
     | '/zpd'
     | '/session/$id'
     | '/api/assignment/$id'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/enroll'
     | '/login'
+    | '/practice'
     | '/zpd'
     | '/session/$id'
     | '/api/assignment/$id'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/enroll'
     | '/login'
+    | '/practice'
     | '/zpd'
     | '/session/$id'
     | '/api/assignment/$id'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EnrollRoute: typeof EnrollRoute
   LoginRoute: typeof LoginRoute
+  PracticeRoute: typeof PracticeRoute
   ZpdRoute: typeof ZpdRoute
   SessionIdRoute: typeof SessionIdRoute
   ApiAssignmentIdRoute: typeof ApiAssignmentIdRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/practice': {
+      id: '/practice'
+      path: '/practice'
+      fullPath: '/practice'
+      preLoaderRoute: typeof PracticeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/zpd': {
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EnrollRoute: EnrollRoute,
   LoginRoute: LoginRoute,
+  PracticeRoute: PracticeRoute,
   ZpdRoute: ZpdRoute,
   SessionIdRoute: SessionIdRoute,
   ApiAssignmentIdRoute: ApiAssignmentIdRoute,
