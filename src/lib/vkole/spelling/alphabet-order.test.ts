@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 import {
   MEMORY_LETTER_PROMPT,
   alphabet,
-  autoLetters,
   exerciseStartIndex,
   jumpToExercise,
   letterExercise,
@@ -44,30 +43,38 @@ describe("alphabet opens at exercise 1 and plays through 5", () => {
     assert.deepEqual(runFromButton(1), [1, 2, 3, 4, 5]);
   });
 
-  it("plays every capital, then every small letter, then both together, then the recitation", () => {
-    const upper = autoLetters(2);
-    const lower = autoLetters(3);
-    const both = autoLetters(4);
-    assert.equal(upper.length, alphabet().length);
-    assert.equal(lower.length, alphabet().length);
-    assert.equal(both.length, alphabet().length);
-    assert.equal(upper[0]?.shown, "A");
-    assert.equal(upper[0]?.say, "A");
-    assert.equal(upper[25]?.shown, "Z");
-    assert.equal(letterExercise(upper[0]?.index ?? -1), 2);
-    assert.equal(letterExercise(upper[25]?.index ?? -1), 2);
-    assert.equal(lower[0]?.shown, "a");
-    assert.equal(lower[25]?.shown, "z");
-    assert.equal(lower[0]?.say, "A");
-    assert.equal(letterExercise(lower[12]?.index ?? -1), 3);
-    assert.equal(both[0]?.pair, "A a");
-    assert.equal(both[25]?.pair, "Z z");
-    assert.equal(both[0]?.say, "A");
-    assert.equal(letterView({ index: both[0]?.index ?? 0, silence: 0, wrong: 0 }).id, "lk-recall-a");
-    assert.equal(letterExercise(both[25]?.index ?? -1), 4);
-    assert.equal(nextAlphabetExercise(2), 3);
-    assert.equal(nextAlphabetExercise(3), 4);
-    assert.equal(nextAlphabetExercise(4), 5);
+  it("waits on every letter in exercises 2, 3, and 4, and keeps exercise 4 blank until the answer", () => {
+    const letters = alphabet();
+    assert.equal(letters.length, 26);
+    for (let offset = 0; offset < letters.length; offset += 1) {
+      const upper = letterView({ index: exerciseStartIndex(2) + offset, silence: 0, wrong: 0 });
+      const lower = letterView({ index: exerciseStartIndex(3) + offset, silence: 0, wrong: 0 });
+      const recall = letterView({ index: exerciseStartIndex(4) + offset, silence: 0, wrong: 0 });
+      const name = letters[offset] ?? "";
+      assert.equal(upper.exercise, 2);
+      assert.match(upper.shown, /^[A-Z]$/);
+      assert.equal(upper.answer, name);
+      assert.equal(upper.pair, "");
+      assert.equal(lower.exercise, 3);
+      assert.match(lower.shown, /^[a-z]$/);
+      assert.equal(lower.answer, name);
+      assert.equal(lower.pair, "");
+      assert.equal(recall.exercise, 4);
+      assert.equal(recall.shown, "");
+      assert.equal(recall.answer, name);
+      assert.equal(recall.pair, `${name} ${name.toLowerCase()}`);
+    }
+    const firstUpper = letterView({ index: exerciseStartIndex(2), silence: 0, wrong: 0 });
+    assert.equal(firstUpper.id, "lk-first");
+    assert.equal(firstUpper.shown, "A");
+    const firstLower = letterView({ index: exerciseStartIndex(3), silence: 0, wrong: 0 });
+    assert.equal(firstLower.id, "lk-lower-a");
+    assert.equal(firstLower.shown, "a");
+    const firstRecall = letterView({ index: exerciseStartIndex(4), silence: 0, wrong: 0 });
+    assert.equal(firstRecall.id, "lk-recall-a");
+    assert.equal(firstRecall.shown, "");
+    assert.equal(firstRecall.say, "What is the first letter of the alphabet?");
+    assert.equal(firstRecall.pair, "A a");
     const recite = jumpToExercise(5);
     assert.equal(letterView(recite ?? { index: 0, silence: 0, wrong: 0 }).id, "lk-recite");
     assert.equal(letterExercise(exerciseStartIndex(5)), 5);
@@ -111,11 +118,36 @@ describe("alphabet exercise buttons", () => {
     assert.equal(stage.includes("is-current"), true);
     assert.equal(stage.includes("openingAlphabetExercise"), true);
     assert.equal(stage.includes('useState<Phase>("gate")'), true);
-    assert.equal(stage.includes("autoLetters"), true);
-    assert.equal(stage.includes("nextAlphabetExercise"), true);
-    assert.equal(stage.includes('setPhase("play")'), true);
+    assert.equal(stage.includes("autoLetters"), false);
+    assert.equal(stage.includes('setPhase("play")'), false);
+    assert.equal(stage.includes('"play"'), false);
+    assert.equal(stage.includes("takeAnswer"), true);
+    assert.equal(stage.includes("applyLetterAnswer"), true);
+    assert.equal(stage.includes("SPELLING_LISTEN_GAP_MS"), true);
+    assert.equal(stage.includes('setPhase("listen")'), true);
+    const begin = stage.slice(stage.indexOf("function beginExercise"), stage.indexOf("function takeAnswer"));
+    assert.equal(begin.includes("clearTimeout(advanceRef.current)"), true);
+    assert.equal(begin.includes('setPhase("song")'), true);
+    assert.equal(begin.includes('setPhase("prompt")'), true);
+    assert.equal(begin.includes("exerciseStartIndex(next)"), true);
+    const take = stage.slice(stage.indexOf("function takeAnswer"), stage.indexOf("function noteHeard"));
+    assert.equal(take.includes('setPhase("happy")'), true);
+    assert.equal(take.includes("SPELLING_HAPPY_FACE_MS"), true);
+    assert.equal(take.includes("applyLetterAnswer"), true);
+    assert.equal(take.includes("onDone"), false);
+    const score = stage.slice(
+      stage.indexOf("if (viewRef.current.exercise === 5) return;"),
+      stage.indexOf("if (!canScore || viewRef.current.exercise !== 5) return;"),
+    );
+    assert.equal(score.includes('takeAnswer("correct")'), true);
+    assert.equal(score.includes("onDone"), false);
+    const happy = stage.slice(stage.indexOf('phase === "happy"'), stage.indexOf('view.kind === "cue"'));
+    assert.equal(happy.includes("view.pair"), true);
+    const ask = stage.slice(stage.indexOf('view.kind === "cue"'), stage.indexOf('phase === "listen" && !needsMic && view.exercise'));
+    assert.equal(ask.includes("view.shown"), true);
+    assert.equal(ask.includes("view.pair"), false);
     const jumps = stage.split("<AlphabetJumps").length - 1;
-    assert.equal(jumps, 4);
+    assert.equal(jumps, 3);
     const jumpCss = css.slice(css.indexOf(".sp-jumps {"), css.indexOf(".sp-letter {"));
     assert.equal(jumpCss.includes("position: static"), true);
     assert.equal(jumpCss.includes("position: absolute"), false);

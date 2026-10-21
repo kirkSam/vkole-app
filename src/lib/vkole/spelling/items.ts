@@ -25,7 +25,7 @@ export const SPELLING_RECOGNIZER_RESTART_MS = 250;
 export const SPELLING_LISTEN_GAP_MS = 400;
 
 export const SPELLING_NOTE =
-  "Opening the alphabet plays exercises 1, 2, 3, 4, and 5 in order. Exercise 1 is the song. Exercises 2, 3, and 4 show the letters on their own. Exercise 5 asks you to say the alphabet. At Z, the app says Good job! The five buttons start at that exercise and continue through exercise 5. The microphone is on only while exercise 5 waits for an answer. The sound is not saved.";
+  "Opening the alphabet plays exercises 1, 2, 3, 4, and 5 in order. Exercise 1 is the song. Exercise 2 shows a capital letter and waits for you to say the next one. Exercise 3 shows a small letter and waits. Exercise 4 asks with no letter, then shows both after you answer. Exercise 5 asks you to say the alphabet. At Z, the app says Good job! The five buttons start at that exercise and continue through exercise 5. The microphone opens after the question and does not save the sound.";
 
 /** Whole seconds left before the alphabet starts itself. 0 means start now. */
 export function spellingStartSecondsLeft(elapsedMs: number): number {
@@ -480,23 +480,6 @@ export function runFromButton(exercise: AlphabetExercise): AlphabetExercise[] {
     current = nextAlphabetExercise(current);
   }
   return steps;
-}
-
-export type AutoLetter = { index: number; shown: string; say: string; pair: string };
-
-/**
- * Letters played on their own in exercises 2, 3, and 4. No answer is required.
- * Exercise 2 shows capitals, 3 shows small letters, and 4 shows both together.
- */
-export function autoLetters(exercise: 2 | 3 | 4): AutoLetter[] {
-  const letters = alphabet();
-  const start = exerciseStartIndex(exercise);
-  return letters.map((upper, offset) => {
-    const say = upper;
-    if (exercise === 3) return { index: start + offset, shown: upper.toLowerCase(), say, pair: "" };
-    if (exercise === 4) return { index: start + offset, shown: "", say, pair: `${upper} ${upper.toLowerCase()}` };
-    return { index: start + offset, shown: upper, say, pair: "" };
-  });
 }
 
 /** The card a numbered button opens. Exercise 1 is the song and has no card. */
