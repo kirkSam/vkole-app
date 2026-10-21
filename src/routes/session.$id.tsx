@@ -116,6 +116,7 @@ function SessionPage() {
   const [sightRound, setSightRound] = useState(0);
   const [spellingRound, setSpellingRound] = useState(0);
   const [songDone, setSongDone] = useState(false);
+  const [spellingHeard, setSpellingHeard] = useState("");
   const [paRound, setPaRound] = useState(0);
   const finishRef = useRef<(reason: EndReason) => void>(() => {});
 
@@ -605,6 +606,8 @@ function SessionPage() {
             silence={climb.correctAtLevel}
             wrong={climb.incorrectStreak}
             skipSong={songDone}
+            heard={spellingHeard}
+            onHeard={setSpellingHeard}
             onSongDone={() => {
               noteEngineActivity();
               setSongDone(true);

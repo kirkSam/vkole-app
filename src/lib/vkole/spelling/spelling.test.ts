@@ -11,6 +11,7 @@ import {
   SPELLING_ENGINE,
   SPELLING_HAPPY_FACE_MS,
   SPELLING_LETTER_MS,
+  SPELLING_LISTEN_GAP_MS,
   SPELLING_MAX_CHANGES_PER_SECOND,
   SPELLING_RECOGNIZER_RESTART_MS,
   SPELLING_RESPONSE_MS,
@@ -28,6 +29,7 @@ import {
   letterOnScreen,
   letterView,
   MEMORY_LETTER_PROMPT,
+  micOpensAfterPrompt,
   progressAfterSong,
   songSpokenLines,
   micListensDuring,
@@ -420,8 +422,8 @@ describe("spoken spelling answers", () => {
       A: ["a", "ay"],
       B: ["bee", "be"],
       C: ["see", "sea"],
-      D: ["dee"],
-      E: ["ee"],
+      D: ["dee", "the"],
+      E: ["e", "ee"],
       F: ["ef", "eff"],
       G: ["gee", "jee"],
       H: ["aitch", "haitch"],
@@ -536,8 +538,102 @@ describe("spelling start", () => {
     assert.match(stage, /scheduleRestart/);
     const noSpeech = stage.slice(stage.indexOf("rec.onerror"), stage.indexOf("rec.onend"));
     assert.equal(noSpeech.includes("recognitionErrorRelistens"), true);
+    assert.equal(noSpeech.includes("scheduleRestart()"), true);
     assert.equal(noSpeech.includes('finishRef.current("miss")'), false);
     assert.equal(noSpeech.includes('finishRef.current("timeout")'), false);
+  });
+});
+
+describe("exercise 2 next letter", () => {
+  it("hears the next letter across A through E, and ignores the prompt", () => {
+    const prompt = "What letter comes next?";
+    const rounds = [
+      { shown: "A", answer: "B", shownSaid: ["A", "ay"], aliases: ["B", "bee", "be"] },
+      { shown: "B", answer: "C", shownSaid: ["B", "bee", "be"], aliases: ["C", "see", "sea"] },
+      { shown: "C", answer: "D", shownSaid: ["C", "see", "sea"], aliases: ["D", "dee", "the"] },
+      { shown: "D", answer: "E", shownSaid: ["D", "dee", "the"], aliases: ["E", "e", "ee"] },
+      { shown: "E", answer: "F", shownSaid: ["E", "e", "ee"], aliases: ["F", "ef"] },
+    ];
+    assert.equal(micOpensAfterPrompt(false, SPELLING_LISTEN_GAP_MS), false);
+    assert.equal(micOpensAfterPrompt(true, SPELLING_LISTEN_GAP_MS - 1), false);
+    assert.equal(micOpensAfterPrompt(true, SPELLING_LISTEN_GAP_MS), true);
+    assert.equal(SPELLING_LISTEN_GAP_MS >= 400, true);
+    assert.equal(spellingSpokenMatches("A", "the", []), false);
+    assert.equal(spellingSpokenMatches("N", "the", []), false);
+    assert.equal(spellingSpokenMatches("D", "the", []), true);
+    assert.equal(judgeSpellingSpoken("D", openingPrompt(), true, [], openingPrompt()), "wait");
+
+    let state = { index: 1, silence: 0, wrong: 0 };
+    for (const round of rounds) {
+      const ask = letterView(state);
+      assert.equal(ask.say, prompt, round.answer);
+      assert.equal(ask.shown, round.shown);
+      assert.equal(ask.answer, round.answer);
+      assert.notEqual(ask.answer, ask.shown);
+
+      const echo = describeSpellingHear(ask.answer, [{ transcript: prompt, final: true }], ask.also, ask.say);
+      assert.equal(echo.judgment, "wait", round.answer);
+      assert.equal(echo.status, "I didn't hear anything");
+      assert.equal(judgeSpellingSpoken(ask.answer, prompt, true, ask.also, ask.say), "wait");
+      assert.equal(judgeSpellingSpoken(ask.answer, "comes next", true, ask.also, ask.say), "wait");
+      assert.equal(judgeSpellingSpoken(ask.answer, "", true, ask.also, ask.say), "wait");
+      assert.equal(judgeSpellingSpoken(ask.answer, ".", true, ask.also, ask.say), "wait");
+
+      for (const said of round.shownSaid) {
+        assert.equal(judgeSpellingSpoken(ask.answer, said, false, ask.also, ask.say), "wait", said);
+        assert.equal(judgeSpellingSpoken(ask.answer, said, true, ask.also, ask.say), "miss", said);
+        const heard = describeSpellingHear(ask.answer, [{ transcript: said, final: true }], ask.also, ask.say);
+        assert.equal(heard.judgment, "miss", said);
+        assert.equal(heard.status, `I heard: ${said}`);
+      }
+
+      for (const alias of round.aliases) {
+        const withPrompt = `${prompt} ${alias}`;
+        assert.equal(judgeSpellingSpoken(ask.answer, alias, true, ask.also, ask.say), "correct", alias);
+        assert.equal(judgeSpellingSpoken(ask.answer, withPrompt, true, ask.also, ask.say), "correct", withPrompt);
+        const heard = describeSpellingHear(ask.answer, [{ transcript: withPrompt, final: true }], ask.also, ask.say);
+        assert.equal(heard.judgment, "correct", alias);
+        assert.equal(heard.status, `I heard: ${withPrompt}`);
+      }
+
+      const missed = applyLetterAnswer(state, "miss");
+      assert.equal(missed.index, ask.index);
+      assert.equal(missed.wrong, 1);
+      const cue = letterView(missed);
+      assert.equal(cue.answer, round.answer);
+      assert.equal(judgeSpellingSpoken(cue.answer, "", true, cue.also, cue.say), "wait");
+      const alias = round.aliases[1] ?? round.aliases[0];
+      const heardAlias = describeSpellingHear(cue.answer, [{ transcript: alias, final: true }], cue.also, cue.say);
+      assert.equal(heardAlias.judgment, "correct", alias);
+      assert.equal(heardAlias.status, `I heard: ${alias}`);
+      state = applyLetterAnswer(missed, "correct");
+      assert.equal(state.silence, 0);
+      assert.equal(state.wrong, 0);
+    }
+
+    const landed = letterView(state);
+    assert.equal(landed.shown, "F");
+    assert.equal(landed.answer, "G");
+    assert.equal(landed.say, prompt);
+
+    const afterA = itemAt("LK", 26);
+    assert.equal(afterA.id, "lk-after-a");
+    assert.equal(judgeSpellingSpoken(afterA.answer, afterA.say, true, afterA.also, afterA.say), "wait");
+    assert.equal(judgeSpellingSpoken(afterA.answer, "A", true, afterA.also, afterA.say), "wait");
+    assert.equal(judgeSpellingSpoken(afterA.answer, "ay", true, afterA.also, afterA.say), "miss");
+    assert.equal(judgeSpellingSpoken(afterA.answer, "B", true, afterA.also, afterA.say), "correct");
+
+    const stage = readFileSync(stageFile, "utf8");
+    const promptEffect = stage.slice(stage.indexOf('phase !== "prompt"'), stage.indexOf("if (!canScore)"));
+    assert.equal(promptEffect.includes("SPELLING_LISTEN_GAP_MS"), true);
+    assert.equal(promptEffect.includes('setPhase("listen")'), true);
+    assert.equal(promptEffect.includes("view.shown"), false);
+    assert.equal(stage.includes("describeSpellingHear(current.answer, alternatives, current.also, current.say)"), true);
+    assert.match(stage, /phase === "prompt" \|\| phase === "listen" \|\| phase === "happy"/);
+    const session = readFileSync(fileURLToPath(new URL("../../../routes/session.$id.tsx", import.meta.url)), "utf8");
+    assert.equal(session.includes("spellingHeard"), true);
+    assert.equal(session.includes("onHeard={setSpellingHeard}"), true);
+    assert.equal(session.includes("heard={spellingHeard}"), true);
   });
 });
 
