@@ -28,6 +28,8 @@ import {
   letterOnScreen,
   letterView,
   MEMORY_LETTER_PROMPT,
+  progressAfterSong,
+  songSpokenLines,
   micListensDuring,
   openingPrompt,
   reviewChangesPerSecond,
@@ -275,6 +277,26 @@ describe("letter answer flow", () => {
     assert.equal(letterOnScreen("first-letter", "", "A"), "A");
     assert.equal(letterOnScreen("letter-after", "", "Y"), "Y");
     assert.equal(letterOnScreen("letter-name", "M", "M"), "");
+
+    const sung = songSpokenLines();
+    assert.deepEqual(sung, alphabet());
+    const memoryAt = lastOf(3);
+    const afterMemory = letterView(progressAfterSong({ index: memoryAt, silence: 2, wrong: 1 }));
+    assert.equal(afterMemory.index, 0);
+    assert.equal(afterMemory.shown, "A");
+    assert.equal(afterMemory.say, openingPrompt());
+    assert.notEqual(afterMemory.say, MEMORY_LETTER_PROMPT);
+    const afterShowing = letterView(progressAfterSong({ index: end1, silence: 1, wrong: 0 }));
+    assert.equal(afterShowing.index, end1);
+    assert.match(afterShowing.shown, /^[A-Z]$/);
+    assert.notEqual(afterShowing.say, MEMORY_LETTER_PROMPT);
+    const afterSecond = letterView(progressAfterSong({ index: end2, silence: 0, wrong: 0 }));
+    assert.equal(letterExercise(afterSecond.index), 2);
+    assert.match(afterSecond.shown, /^[A-Z]$/);
+    assert.notEqual(afterSecond.say, MEMORY_LETTER_PROMPT);
+    const stage = readFileSync(stageFile, "utf8");
+    assert.equal(stage.includes("progressAfterSong"), true);
+    assert.equal(stage.includes("setAfterSong(true)"), true);
 
     for (let index = 0; index < count; index += 1) {
       const view = letterView({ index, silence: 0, wrong: 0 });

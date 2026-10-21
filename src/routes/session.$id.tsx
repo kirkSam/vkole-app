@@ -16,6 +16,7 @@ import {
   markPhonemic,
   markSightWord,
   markSpelling,
+  placeSpellingAfterSong,
   recordAnswer,
   revealNextQuestion,
   setChildAge,
@@ -607,6 +608,13 @@ function SessionPage() {
             onSongDone={() => {
               noteEngineActivity();
               setSongDone(true);
+              setPendingAnswer(true);
+              void placeSpellingAfterSong({ data: { id: climb.id } })
+                .then((row) => setClimb(row))
+                .catch((err: unknown) => {
+                  setError(err instanceof Error ? err.message : "Could not open the next letter.");
+                })
+                .finally(() => setPendingAnswer(false));
             }}
             onDone={(outcome) => {
               noteEngineActivity();
