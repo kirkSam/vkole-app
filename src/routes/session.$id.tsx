@@ -14,6 +14,7 @@ import {
   beginSitting,
   endChildSession,
   getClimb,
+  completeAlphabetExercise,
   markPhonemic,
   markSightWord,
   markSpelling,
@@ -30,7 +31,7 @@ import { GRADING_PAUSE_MESSAGE, NO_REPLY_MESSAGE } from "@/lib/grading-pause";
 import { showAsSpaceXsi } from "@/lib/space-xsi";
 import { VKOLE_MOVEMENT } from "@/lib/vkole-cap";
 import { SIGHT_WORD_NOTE } from "@/lib/vkole/constants";
-import { letterExercise, SPELLING_NOTE } from "@/lib/vkole/spelling/items";
+import { SPELLING_NOTE } from "@/lib/vkole/spelling/items";
 import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
 import { PA_NOTE } from "@/lib/vkole/phonemic-awareness/items";
 import { PhonemicStage } from "@/components/phonemic-stage";
@@ -613,18 +614,25 @@ function SessionPage() {
             wrong={climb.incorrectStreak}
             heard={spellingHeard}
             onHeard={setSpellingHeard}
+            onRecited={() => {
+              noteEngineActivity();
+              void placeSpellingExercise({ data: { id: climb.id, exercise: 5 } })
+                .then(() => markSpelling({ data: { id: climb.id, outcome: "correct" } }))
+                .then((row) => setClimb(row))
+                .catch((err: unknown) => {
+                  setError(err instanceof Error ? err.message : "Could not save that answer.");
+                });
+            }}
             onDone={(outcome) => {
               noteEngineActivity();
               if (pendingAnswer) return;
               if (outcome !== "correct") return;
               setPendingAnswer(true);
               setError("");
-              void placeSpellingExercise({ data: { id: climb.id, exercise: 5 } })
-                .then(() => markSpelling({ data: { id: climb.id, outcome: "correct" } }))
+              void completeAlphabetExercise({ data: { id: climb.id, exercise: 6 } })
                 .then((row) => {
                   setClimb(row);
-                  const answered = row.standardStep;
-                  if (outcome === "correct" && letterExercise(answered) === 5) finishRef.current("finished");
+                  finishRef.current("finished");
                 })
                 .catch((err: unknown) => {
                   setError(err instanceof Error ? err.message : "Could not save that answer.");

@@ -15,7 +15,7 @@ import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-histo
 import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
 import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
 import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
-import { applyLetterAnswer, formatCompletedExercises, jumpToExercise, letterExercise, letterMoveNote, letterView, normalizeCompletedExercises, normalizeLetterProgress, noteExerciseCompletion, progressAfterSong, resumeAlphabetPlace } from "@/lib/vkole/spelling/items";
+import { applyLetterAnswer, formatCompletedExercises, jumpToExercise, letterExercise, letterMoveNote, letterView, normalizeCompletedExercises, normalizeLetterProgress, noteExerciseCompletion, progressAfterSong, rememberCompletedExercise, resumeAlphabetPlace } from "@/lib/vkole/spelling/items";
 import { savedSpellingReport, spellingStatsFromEvents, writeSpellingReport } from "@/lib/vkole/spelling/report";
 import { cardFromAccount as paCardFromAccount, migratePaBand, nextAfterAnswer, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
 import { cardFromAccount, nextCard, startCard } from "@/lib/vkole/sight-words/words";
@@ -774,6 +774,29 @@ export const placeSpellingExercise = createServerFn({ method: "POST" })
     await writeAlphabetPlace(sql, context.userId, data.id, view, current.completedExercises);
     const saved = await selectOwned(sql, context.userId, data.id);
     return { ...saved, completedExercises: current.completedExercises };
+  });
+
+/** Remember that this alphabet exercise was finished. Opening still starts at exercise 1. */
+export const completeAlphabetExercise = createServerFn({ method: "POST" })
+  .validator((data: unknown) =>
+    parse(idSchema.extend({ exercise: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]) }), data),
+  )
+  .middleware([schoolMiddleware])
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const current = await migratedSpellingClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
+    if (current.subject !== "sp") throw new Error("This session is not alphabet.");
+    if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
+    const completed = rememberCompletedExercise(current.completedExercises, data.exercise);
+    await ensureAlphabetCompletedColumn(sql);
+    await sql`
+      update climbs
+      set alphabet_completed = ${formatCompletedExercises(completed)},
+          updated_at = now()
+      where id = ${data.id} and user_id = ${context.userId}
+    `;
+    const saved = await selectOwned(sql, context.userId, data.id);
+    return { ...saved, completedExercises: completed };
   });
 
 export const markSpelling = createServerFn({ method: "POST" })

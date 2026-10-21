@@ -105,7 +105,12 @@ describe("spelling timing", () => {
     assert.equal(stage.includes("SPELLING_RESPONSE_MS"), true);
     assert.equal(stage.includes("SPELLING_ADVANCE_MS"), false);
     assert.equal(stage.includes(".model"), false);
-    assert.match(stage, /if \(outcome === "correct"\) \{[\s\S]*SPELLING_HAPPY_FACE_MS[\s\S]*return;\s*\}\s*onDoneRef\.current\(outcome\);/);
+    assert.match(
+      stage,
+      /function takeAnswer\(outcome: Outcome\) \{\s*if \(outcome === "correct"\) \{[\s\S]*?SPELLING_HAPPY_FACE_MS[\s\S]*?return;\s*\}\s*const after = applyLetterAnswer\(placeRef\.current, outcome\);/,
+    );
+    assert.equal(stage.includes('onDoneRef.current("correct")'), true);
+    assert.equal(stage.includes("onDoneRef.current(outcome)"), false);
     assert.equal(stage.includes("micListensDuring"), true);
     assert.equal(stage.includes('aria-label="Happy Face"'), true);
     assert.equal(stage.includes("VKOLE/Alphabet ZPD"), true);
@@ -317,8 +322,11 @@ describe("letter answer flow", () => {
     assert.notEqual(afterLower.say, MEMORY_LETTER_PROMPT);
     const stage = readFileSync(stageFile, "utf8");
     assert.equal(stage.includes("openingAlphabetExercise"), true);
-    assert.equal(stage.includes("autoLetters"), true);
-    assert.equal(stage.includes("EXERCISE_BUTTONS = [1, 2, 3, 4, 5]"), true);
+    assert.equal(stage.includes("autoLetters"), false);
+    assert.equal(stage.includes('setPhase("play")'), false);
+    assert.equal(stage.includes("takeAnswer"), true);
+    assert.equal(stage.includes("SPELLING_LISTEN_GAP_MS"), true);
+    assert.equal(stage.includes("EXERCISE_BUTTONS = [1, 2, 3, 4, 5, 6]"), true);
     assert.equal(stage.includes("Exercise 1"), true);
     assert.equal(stage.includes("Exercise {view.exercise}"), true);
 
@@ -826,7 +834,10 @@ describe("alphabet exercises 3, 4, and 5", () => {
     assert.equal(stage.includes(GOOD_JOB_LINE) || stage.includes("GOOD_JOB_LINE"), true);
     assert.equal(stage.includes('viewRef.current.exercise === 5'), true);
     const session = readFileSync(fileURLToPath(new URL("../../../routes/session.$id.tsx", import.meta.url)), "utf8");
-    assert.equal(session.includes('letterExercise(answered) === 5'), true);
+    assert.equal(session.includes("onRecited"), true);
+    assert.equal(session.includes("exercise: 5"), true);
+    assert.equal(session.includes("completeAlphabetExercise"), true);
+    assert.equal(session.includes("exercise: 6"), true);
     assert.equal(session.includes('finishRef.current("finished")'), true);
   });
 });
