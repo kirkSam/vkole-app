@@ -21,7 +21,7 @@ describe("engines view trial text", () => {
     assert.equal(engines.includes("daysLeft"), false);
     assert.equal(session.includes("climb.daysLeft"), false);
     assert.equal(engines.includes('found.status === "blocked"'), true);
-    assert.equal(engines.includes("setTrialOver(result.fullAccess ? false : result.blocked)"), true);
+    assert.equal(engines.includes("setTrialOver(result.fullAccess || result.confirmEmail ? false : result.blocked)"), true);
   });
 
   it("still blocks a finished free week and still returns days left from the account decision", () => {
