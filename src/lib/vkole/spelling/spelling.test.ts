@@ -24,7 +24,10 @@ import {
   itemAt,
   letterAtSongTime,
   letterColors,
+  letterExercise,
+  letterOnScreen,
   letterView,
+  MEMORY_LETTER_PROMPT,
   micListensDuring,
   openingPrompt,
   reviewChangesPerSecond,
@@ -228,6 +231,63 @@ describe("letter answer flow", () => {
     assert.equal(promptEffect.includes("view.shown"), false);
   });
 
+  it("keeps a letter on screen across every exercise handoff, and hides it only for memory", () => {
+    const count = bandMeta("LK").count;
+    const lastOf = (exercise: 1 | 2 | 3) => {
+      let index = 0;
+      for (let i = 0; i < count; i += 1) if (letterExercise(i) === exercise) index = i;
+      return index;
+    };
+    const end1 = lastOf(1);
+    const into2 = letterView(applyLetterAnswer({ index: end1, silence: 0, wrong: 0 }, "correct"));
+    assert.equal(letterExercise(end1), 1);
+    assert.equal(letterExercise(into2.index), 2);
+    assert.equal(into2.id, "lk-after-a");
+    assert.equal(into2.shown, "A");
+    assert.notEqual(into2.say, MEMORY_LETTER_PROMPT);
+
+    const end2 = lastOf(2);
+    const into3 = letterView(applyLetterAnswer({ index: end2, silence: 0, wrong: 0 }, "correct"));
+    assert.equal(itemAt("LK", end2).id, "lk-after-y");
+    assert.equal(letterExercise(into3.index), 3);
+    assert.equal(into3.id, "lk-name-a");
+    assert.equal(into3.shown, "");
+    assert.equal(into3.say, MEMORY_LETTER_PROMPT);
+
+    const end3 = lastOf(3);
+    const restarted = applyLetterAnswer({ index: end3, silence: 0, wrong: 0 }, "correct");
+    const restart = letterView(restarted);
+    assert.equal(itemAt("LK", end3).id, "lk-name-z");
+    assert.equal(restart.index, 0);
+    assert.equal(letterExercise(restart.index), 1);
+    assert.equal(restart.shown, "A");
+    assert.notEqual(restart.say, MEMORY_LETTER_PROMPT);
+    const continued = letterView(applyLetterAnswer(restarted, "correct"));
+    assert.equal(continued.id, "lk-next-b");
+    assert.equal(continued.shown, "A");
+    assert.equal(letterExercise(continued.index), 1);
+    assert.notEqual(continued.say, MEMORY_LETTER_PROMPT);
+
+    const afterSong = letterView({ index: 0, silence: 0, wrong: 0 });
+    assert.equal(afterSong.shown, "A");
+    assert.equal(afterSong.say, openingPrompt());
+    assert.notEqual(afterSong.say, MEMORY_LETTER_PROMPT);
+    assert.equal(letterOnScreen("first-letter", "", "A"), "A");
+    assert.equal(letterOnScreen("letter-after", "", "Y"), "Y");
+    assert.equal(letterOnScreen("letter-name", "M", "M"), "");
+
+    for (let index = 0; index < count; index += 1) {
+      const view = letterView({ index, silence: 0, wrong: 0 });
+      if (letterExercise(index) === 3) {
+        assert.equal(view.shown, "");
+        assert.equal(view.say, MEMORY_LETTER_PROMPT);
+      } else {
+        assert.match(view.shown, /^[A-Z]$/);
+        assert.notEqual(view.say, MEMORY_LETTER_PROMPT);
+      }
+    }
+  });
+
   it("shows the same letter again after one silence", () => {
     const once = applyLetterAnswer(g, "timeout");
     assert.deepEqual(once, { index: g.index, silence: 1, wrong: 0 });
@@ -269,7 +329,7 @@ describe("letter answer flow", () => {
     const atA = letterView(applyLetterAnswer({ index: 0, silence: 0, wrong: 0 }, "miss"));
     assert.equal(atA.kind, "ask");
     assert.deepEqual(atA.cue, []);
-    assert.equal(atA.shown, "");
+    assert.equal(atA.shown, "A");
     assert.equal(atA.answer, "A");
   });
 
