@@ -6,12 +6,16 @@ import {
   SPELLING_RECOGNIZER_RESTART_MS,
   SPELLING_RESPONSE_MS,
   alphabet,
+  autoLetters,
+  jumpToExercise,
   letterAtSongTime,
   letterColors,
   earlyHandoffMiss,
   letterView,
-  progressAfterSong,
+  nextAlphabetExercise,
+  openingAlphabetExercise,
   micListensDuring,
+  type AlphabetExercise,
   promptPlayedLongEnough,
   spellingPromptStartsListen,
   spellingStartSecondsLeft,
@@ -66,7 +70,28 @@ function applyLetterGrammar(rec: SpeechListener, answer: string, also: readonly 
 }
 
 type Outcome = "correct" | "miss" | "timeout";
-type Phase = "gate" | "song" | "prompt" | "listen" | "happy" | "good-job" | "celebrate";
+type Phase = "gate" | "song" | "play" | "prompt" | "listen" | "happy" | "good-job" | "celebrate";
+
+const EXERCISE_BUTTONS = [1, 2, 3, 4, 5] as const;
+
+function AlphabetJumps({ current, onPick }: { current: AlphabetExercise; onPick: (exercise: AlphabetExercise) => void }) {
+  return (
+    <div className="sp-jumps" role="group" aria-label="Exercises">
+      {EXERCISE_BUTTONS.map((exercise) => (
+        <button
+          key={exercise}
+          type="button"
+          className={exercise === current ? "is-current" : undefined}
+          aria-current={exercise === current ? "true" : undefined}
+          aria-label={`Exercise ${exercise}`}
+          onClick={() => onPick(exercise)}
+        >
+          {exercise}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const CONFETTI = [
   { left: "6%", bottom: "8%", delay: "0s", color: "#f6c945", size: "0.85rem" },
@@ -169,51 +194,70 @@ export function SpellingStage({
   index = 0,
   silence = 0,
   wrong = 0,
-  skipSong = false,
   heard = "",
   onHeard,
-  onSongDone,
   onDone,
 }: {
   index?: number;
   silence?: number;
   wrong?: number;
-  skipSong?: boolean;
   heard?: string;
   onHeard?: (note: string) => void;
-  onSongDone?: () => void;
   onDone: (outcome: Outcome) => void;
 }) {
-  const [afterSong, setAfterSong] = useState(false);
-  const saved = letterView({ index, silence, wrong });
-  const view = letterView(
-    afterSong ? progressAfterSong({ index, silence, wrong, word: saved.id, prompt: saved.say }) : { index, silence, wrong },
-  );
-  const token = `${view.id}:${view.silence}:${view.wrong}`;
+  const opening = openingAlphabetExercise({ index, silence, wrong });
+  const recite = letterView(jumpToExercise(5) ?? { index: 0, silence: 0, wrong: 0 });
+  const [exercise, setExercise] = useState<AlphabetExercise>(opening);
+  const [cursor, setCursor] = useState(0);
+  const [runToken, setRunToken] = useState(0);
+  const playing = exercise === 2 || exercise === 3 || exercise === 4 ? autoLetters(exercise) : [];
+  const frame = playing[cursor] ?? playing[0];
+  const view = exercise === 5 ? recite : letterView({ index: frame?.index ?? 0, silence: 0, wrong: 0 });
   const letters = alphabet();
   const colors = letterColors();
   const [ready, setReady] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
   const [allowed, setAllowed] = useState(false);
-  const [phase, setPhase] = useState<Phase>(skipSong ? "prompt" : "gate");
+  const [phase, setPhase] = useState<Phase>("gate");
+  const token = `${exercise}:${phase}:${exercise === 5 ? `${view.id}:${view.silence}:${view.wrong}` : "auto"}`;
   const [songIndex, setSongIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(SPELLING_RESPONSE_MS / 1000);
   const [heardNote, setHeardNote] = useState("");
   const [startIn, setStartIn] = useState(spellingStartSecondsLeft(0));
   const onDoneRef = useRef(onDone);
-  const onSongDoneRef = useRef(onSongDone);
   const onHeardRef = useRef(onHeard);
   const heardRef = useRef("");
   const viewRef = useRef(view);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
   const advanceRef = useRef(0);
   const reciteRef = useRef(0);
-  const began = useRef(skipSong);
+  const began = useRef(false);
   const seen = useRef(token);
   onDoneRef.current = onDone;
-  onSongDoneRef.current = onSongDone;
   onHeardRef.current = onHeard;
   viewRef.current = view;
+
+  function startAt(next: AlphabetExercise) {
+    noteEngineActivity();
+    window.speechSynthesis?.cancel();
+    setRunToken((value) => value + 1);
+    setCursor(0);
+    setExercise(next);
+    heardRef.current = "";
+    setHeardNote("");
+    reciteRef.current = 0;
+    if (next === 1) {
+      setSongIndex(0);
+      began.current = true;
+      setPhase("song");
+      return;
+    }
+    if (next === 5) {
+      setPhase("prompt");
+      return;
+    }
+    setPhase("play");
+  }
 
   function noteHeard(note: string) {
     heardRef.current = note;
@@ -247,13 +291,14 @@ export function SpellingStage({
     heardRef.current = "";
     setHeardNote("");
     reciteRef.current = 0;
-    setPhase((current) => (current === "song" || current === "gate" ? current : "prompt"));
+    setPhase((current) => (current === "song" || current === "gate" || current === "play" ? current : "prompt"));
   }, [token]);
 
   function begin() {
     if (began.current) return;
     began.current = true;
-    setPhase(skipSong ? "prompt" : "song");
+    setExercise(1);
+    setPhase("song");
   }
 
   useEffect(() => {
@@ -266,7 +311,7 @@ export function SpellingStage({
       if (left <= 0) begin();
     }, 200);
     return () => window.clearInterval(timer);
-  }, [ready, phase, skipSong]);
+  }, [ready, phase]);
 
   useEffect(() => {
     if (phase !== "song") return;
@@ -277,25 +322,61 @@ export function SpellingStage({
     const timer = window.setInterval(() => {
       ticks += 1;
       noteEngineActivity();
-      const frame = letterAtSongTime(ticks * SPELLING_LETTER_MS);
+      const songFrame = letterAtSongTime(ticks * SPELLING_LETTER_MS);
       if (!live) return;
-      if (frame.done) {
+      if (songFrame.done) {
         window.clearInterval(timer);
         stopLine();
-        setAfterSong(true);
-        onSongDoneRef.current?.();
-        setPhase("prompt");
+        setCursor(0);
+        setExercise(2);
+        setPhase("play");
         return;
       }
-      setSongIndex(frame.index);
-      stopLine = speakLine(frame.letter, () => {});
+      setSongIndex(songFrame.index);
+      stopLine = speakLine(songFrame.letter, () => {});
     }, SPELLING_LETTER_MS);
     return () => {
       live = false;
       window.clearInterval(timer);
       stopLine();
     };
-  }, [letters, phase]);
+  }, [letters, phase, runToken]);
+
+  useEffect(() => {
+    if (phase !== "play" || (exercise !== 2 && exercise !== 3 && exercise !== 4)) return;
+    const frames = autoLetters(exercise);
+    let live = true;
+    let ticks = 0;
+    let stopLine = speakLine(frames[0]?.say ?? "A", () => {});
+    setCursor(0);
+    const timer = window.setInterval(() => {
+      ticks += 1;
+      noteEngineActivity();
+      if (!live) return;
+      if (ticks >= frames.length) {
+        window.clearInterval(timer);
+        stopLine();
+        const next = nextAlphabetExercise(exercise);
+        if (next === 5) {
+          setExercise(5);
+          setPhase("prompt");
+          return;
+        }
+        if (next === 2 || next === 3 || next === 4) {
+          setCursor(0);
+          setExercise(next);
+        }
+        return;
+      }
+      setCursor(ticks);
+      stopLine = speakLine(frames[ticks]?.say ?? "A", () => {});
+    }, SPELLING_LETTER_MS);
+    return () => {
+      live = false;
+      window.clearInterval(timer);
+      stopLine();
+    };
+  }, [phase, exercise, runToken]);
 
   const listening = ready && !unsupported && allowed && micListensDuring(phase);
   const canScore = ready && phase === "listen" && (unsupported || allowed);
@@ -683,6 +764,7 @@ export function SpellingStage({
     const letter = letters[0] ?? "A";
     return (
       <section className="sp-review" style={{ background: swatch?.background }} aria-label="Start alphabet">
+        <AlphabetJumps current={1} onPick={startAt} />
         <p className="text-center text-base font-semibold text-ink">Exercise 1</p>
         <p className="sp-letter font-display" style={{ color: swatch?.letter }}>
           {letter}
@@ -702,10 +784,34 @@ export function SpellingStage({
     const letter = letters[songIndex] ?? "A";
     return (
       <section className="sp-review" style={{ background: swatch?.background }} aria-label="Alphabet song">
+        <AlphabetJumps current={1} onPick={startAt} />
         <p className="text-center text-base font-semibold text-ink">Exercise 1</p>
         <p className="sp-letter font-display" style={{ color: swatch?.letter }}>
           {letter}
         </p>
+      </section>
+    );
+  }
+
+  if (phase === "play" && frame && (exercise === 2 || exercise === 3 || exercise === 4)) {
+    const swatch = colors[letters.indexOf(frame.say)] ?? colors[0];
+    return (
+      <section className="sp-review" style={{ background: swatch?.background }} aria-label={`Exercise ${exercise}`}>
+        <AlphabetJumps current={exercise} onPick={startAt} />
+        <p className="text-center text-base font-semibold text-ink">Exercise {exercise}</p>
+        {frame.pair ? (
+          <div className="sp-pair" aria-label={frame.pair}>
+            {frame.pair.split(" ").map((glyph) => (
+              <p key={glyph} className="sp-letter font-display" style={{ color: swatch?.letter }}>
+                {glyph}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="sp-letter font-display" style={{ color: swatch?.letter }}>
+            {frame.shown}
+          </p>
+        )}
       </section>
     );
   }
@@ -718,6 +824,7 @@ export function SpellingStage({
 
   return (
     <section className="sp-review" style={background ? { background } : undefined} aria-live="polite">
+      <AlphabetJumps current={5} onPick={startAt} />
       <p className="text-center text-base font-semibold text-ink">Exercise {view.exercise}</p>
       <p className="text-center text-xs tracking-wide text-muted uppercase">{status}</p>
       {phase === "celebrate" ? (

@@ -26,7 +26,8 @@ import { readAccountGrant, readSchoolMirror, saveAccountGrant, saveActiveStudent
 import { masteryFromDetails, richerMastery } from "@/lib/vkole-singapore-report";
 import { isSightBand } from "@/lib/vkole/constants";
 import { spAccountLevel } from "@/lib/vkole/spelling/level";
-import { isSpBand, letterView } from "@/lib/vkole/spelling/items";
+import { isSpBand, letterView, resumeAlphabetPlace } from "@/lib/vkole/spelling/items";
+import { ensureAlphabetCompletedColumn } from "@/lib/climbs";
 import { paAccountLevel } from "@/lib/vkole/phonemic-awareness/level";
 import { cardFromAccount as paCardFromAccount, migratePaBand } from "@/lib/vkole/phonemic-awareness/items";
 import { swAccountLevel } from "@/lib/vkole/sight-words/level";
@@ -40,6 +41,7 @@ function rowTime(value: unknown): string {
 }
 
 async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): Promise<SchoolProfile> {
+  await ensureAlphabetCompletedColumn(sql);
   const mirror = await readSchoolMirror(sql, userId);
   const kept = profileKeepingProgress(mirror, profile);
   if (Object.keys(kept.level).length === 0) {
@@ -78,7 +80,14 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
     if (pushedAt != null && local && localAt > pushedAt) continue;
     if (engine === "sp" && level.band && level.band !== "LK") continue;
     if (engine === "sp" && level.band) {
-      const view = letterView({ index: level.index ?? 0, silence: level.streak ?? 0, wrong: level.missStreak ?? 0 });
+      const place = resumeAlphabetPlace({
+        index: level.index,
+        word: level.word,
+        silence: level.streak,
+        wrong: level.missStreak,
+        completedExercises: level.completedExercises,
+      });
+      const view = letterView(place);
       const reached = level.reached ?? 0;
       const missed = level.missed ?? 0;
       const grade = Math.min(12, Math.max(1, Math.round(level.grade) || 1));
@@ -95,6 +104,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
             answer_aliases = ${JSON.stringify(view.also)},
             answer_note = ${view.name},
             question_id = ${`sp:${view.band}:${view.id}:s${view.silence}:w${view.wrong}`},
+            alphabet_completed = ${Array.isArray(level.completedExercises) ? level.completedExercises.join(",") : ""},
             performance_level = case when ${level.earnedGrade != null} then ${level.earnedGrade ?? grade} else performance_level end,
             right_count = ${reached},
             asked = ${reached + missed},
@@ -210,6 +220,7 @@ function climbPlace(row: {
 }
 
 async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<LevelKey, EngineLevel>>) {
+  await ensureAlphabetCompletedColumn(sql);
   const rows = await sql<{
     subject: string;
     level: number | string;
@@ -223,9 +234,10 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Lev
     start_grade: number | string | null;
     standard_code: string | null;
     current_prompt: string | null;
+    alphabet_completed: string | null;
   }>`
     select subject, level, standard_step, child_name, performance_level, correct_at_level,
-      incorrect_streak, asked, right_count, start_grade, standard_code, current_prompt
+      incorrect_streak, asked, right_count, start_grade, standard_code, current_prompt, alphabet_completed
     from climbs
     where user_id = ${userId}
     order by updated_at desc
@@ -257,6 +269,7 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Lev
         earnedGrade: Math.min(12, Math.max(1, Math.round(Number(row.performance_level) || grade))),
         reached,
         missed: asked - reached,
+        completedExercises: row.alphabet_completed,
         ...(Number.isInteger(starting) && starting >= 1 && starting <= 12 ? { startingGrade: starting } : {}),
         updatedAt: Date.now(),
       });

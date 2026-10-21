@@ -17,7 +17,7 @@ import {
   markPhonemic,
   markSightWord,
   markSpelling,
-  placeSpellingAfterSong,
+  placeSpellingExercise,
   recordAnswer,
   revealNextQuestion,
   setChildAge,
@@ -117,7 +117,6 @@ function SessionPage() {
   const [studentPassword, setStudentPassword] = useState("");
   const [sightRound, setSightRound] = useState(0);
   const [spellingRound, setSpellingRound] = useState(0);
-  const [songDone, setSongDone] = useState(false);
   const [spellingHeard, setSpellingHeard] = useState("");
   const [paRound, setPaRound] = useState(0);
   const finishRef = useRef<(reason: EndReason) => void>(() => {});
@@ -608,33 +607,23 @@ function SessionPage() {
           />
         ) : climb.subject === "sp" ? (
           <SpellingStage
-            key={`${climb.id}:${climb.standardStep}:${climb.correctAtLevel}:${climb.incorrectStreak}:${spellingRound}`}
+            key={`${climb.id}:${spellingRound}`}
             index={climb.standardStep}
             silence={climb.correctAtLevel}
             wrong={climb.incorrectStreak}
-            skipSong={songDone}
             heard={spellingHeard}
             onHeard={setSpellingHeard}
-            onSongDone={() => {
-              noteEngineActivity();
-              setSongDone(true);
-              setPendingAnswer(true);
-              void placeSpellingAfterSong({ data: { id: climb.id } })
-                .then((row) => setClimb(row))
-                .catch((err: unknown) => {
-                  setError(err instanceof Error ? err.message : "Could not open the next letter.");
-                })
-                .finally(() => setPendingAnswer(false));
-            }}
             onDone={(outcome) => {
               noteEngineActivity();
               if (pendingAnswer) return;
-              const answered = climb.standardStep;
+              if (outcome !== "correct") return;
               setPendingAnswer(true);
               setError("");
-              void markSpelling({ data: { id: climb.id, outcome } })
+              void placeSpellingExercise({ data: { id: climb.id, exercise: 5 } })
+                .then(() => markSpelling({ data: { id: climb.id, outcome: "correct" } }))
                 .then((row) => {
                   setClimb(row);
+                  const answered = row.standardStep;
                   if (outcome === "correct" && letterExercise(answered) === 5) finishRef.current("finished");
                 })
                 .catch((err: unknown) => {

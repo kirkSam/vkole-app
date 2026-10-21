@@ -25,7 +25,7 @@ export const SPELLING_RECOGNIZER_RESTART_MS = 250;
 export const SPELLING_LISTEN_GAP_MS = 400;
 
 export const SPELLING_NOTE =
-  "Exercise 1 is the alphabet song. Exercise 2 shows a capital letter. Exercise 3 shows a small letter. Exercise 4 asks for the letter, then shows the capital and the small letter. Exercise 5 asks you to say the alphabet. At Z, the app says Good job! The microphone is on only while the app waits for an answer. The sound is not saved. If the app does not hear you, it asks the same letter again.";
+  "Opening the alphabet plays exercises 1, 2, 3, 4, and 5 in order. Exercise 1 is the song. Exercises 2, 3, and 4 show the letters on their own. Exercise 5 asks you to say the alphabet. At Z, the app says Good job! The five buttons start at that exercise and continue through exercise 5. The microphone is on only while exercise 5 waits for an answer. The sound is not saved.";
 
 /** Whole seconds left before the alphabet starts itself. 0 means start now. */
 export function spellingStartSecondsLeft(elapsedMs: number): number {
@@ -394,24 +394,148 @@ export function songSpokenLines(): string[] {
   return lines;
 }
 
+export type CompletedExercise = 2 | 3 | 4 | 5;
+
+/** The exercises this student has finished in the five-exercise flow. Missing means none. */
+export function normalizeCompletedExercises(value: unknown): CompletedExercise[] {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[^0-9]+/)
+      : [];
+  const done: CompletedExercise[] = [];
+  for (const item of raw) {
+    const exercise = Math.round(Number(item));
+    if ((exercise === 2 || exercise === 3 || exercise === 4 || exercise === 5) && !done.includes(exercise)) {
+      done.push(exercise);
+    }
+  }
+  return done;
+}
+
+export function formatCompletedExercises(value: unknown): string {
+  return normalizeCompletedExercises(value).join(",");
+}
+
+/** The first card of an exercise. Exercise 1 is the song and has no card. */
+export function exerciseStartIndex(exercise: 2 | 3 | 4 | 5): number {
+  const count = bandMeta("LK").count;
+  for (let index = 0; index < count; index += 1) {
+    if (letterExercise(index) === exercise) return index;
+  }
+  return 0;
+}
+
+export type AlphabetExercise = 1 | 2 | 3 | 4 | 5;
+
 /**
- * The question that follows the song.
- * Exercise 1 is the song. A saved place in exercise 4 or 5 stays on that exercise.
- * The old hidden prompt is never what the song opens.
+ * The account can still store a letter card.
+ * Opening the engine does not use that card. The run always starts at exercise 1.
  */
-export function progressAfterSong(
-  input: (Partial<LetterProgress> & { word?: string | null; prompt?: string | null }) | null | undefined,
+export function resumeAlphabetPlace(
+  input:
+    | (Partial<LetterProgress> & {
+        word?: string | null;
+        prompt?: string | null;
+        completedExercises?: unknown;
+      })
+    | null
+    | undefined,
 ): LetterProgress {
   const migrated = migrateAlphabetIndex({ index: input?.index, word: input?.word, prompt: input?.prompt });
-  const state = normalizeLetterProgress({ ...input, index: migrated });
-  const view = letterView(state);
-  if (view.say.trim() === MEMORY_LETTER_PROMPT) {
-    return { index: recallSlot("a"), silence: 0, wrong: 0 };
+  return normalizeLetterProgress({ index: migrated, silence: input?.silence, wrong: input?.wrong });
+}
+
+/** Sign-in and a fresh open always start at the song. A saved letter does not skip ahead. */
+export function openingAlphabetExercise(
+  _saved?: {
+    index?: number | null;
+    silence?: number | null;
+    wrong?: number | null;
+    word?: string | null;
+    prompt?: string | null;
+  } | null,
+): AlphabetExercise {
+  return 1;
+}
+
+/** The exercise that plays next. Exercise 5 is the last one. */
+export function nextAlphabetExercise(exercise: AlphabetExercise): AlphabetExercise | null {
+  if (exercise === 1) return 2;
+  if (exercise === 2) return 3;
+  if (exercise === 3) return 4;
+  if (exercise === 4) return 5;
+  return null;
+}
+
+/**
+ * Exercises a button starts, then the ones that follow on their own through exercise 5.
+ * Another button starts a new list from that exercise.
+ */
+export function runFromButton(exercise: AlphabetExercise): AlphabetExercise[] {
+  const steps: AlphabetExercise[] = [];
+  let current: AlphabetExercise | null = exercise;
+  while (current) {
+    steps.push(current);
+    current = nextAlphabetExercise(current);
   }
-  if (letterExercise(state.index) === 5) {
-    return { index: state.index, silence: 0, wrong: 0 };
-  }
-  return state;
+  return steps;
+}
+
+export type AutoLetter = { index: number; shown: string; say: string; pair: string };
+
+/**
+ * Letters played on their own in exercises 2, 3, and 4. No answer is required.
+ * Exercise 2 shows capitals, 3 shows small letters, and 4 shows both together.
+ */
+export function autoLetters(exercise: 2 | 3 | 4): AutoLetter[] {
+  const letters = alphabet();
+  const start = exerciseStartIndex(exercise);
+  return letters.map((upper, offset) => {
+    const say = upper;
+    if (exercise === 3) return { index: start + offset, shown: upper.toLowerCase(), say, pair: "" };
+    if (exercise === 4) return { index: start + offset, shown: "", say, pair: `${upper} ${upper.toLowerCase()}` };
+    return { index: start + offset, shown: upper, say, pair: "" };
+  });
+}
+
+/** The card a numbered button opens. Exercise 1 is the song and has no card. */
+export function jumpToExercise(exercise: 1 | 2 | 3 | 4 | 5): LetterProgress | null {
+  if (exercise === 1) return null;
+  return { index: exerciseStartIndex(exercise), silence: 0, wrong: 0 };
+}
+
+/** A correct answer that leaves an exercise marks that exercise finished. Exercise 5 is marked when it is recited. */
+export function noteExerciseCompletion(
+  beforeIndex: number,
+  afterIndex: number,
+  completed: unknown,
+  recited = false,
+): CompletedExercise[] {
+  const done = normalizeCompletedExercises(completed);
+  const from = letterExercise(beforeIndex);
+  const to = letterExercise(afterIndex);
+  if ((from === 2 || from === 3 || from === 4) && to > from && !done.includes(from)) done.push(from);
+  if (recited && !done.includes(5)) done.push(5);
+  return done;
+}
+
+/**
+ * The card after the song.
+ * The song is exercise 1. Exercise 2 always comes next, from its first letter.
+ * A saved later card is not what the song opens.
+ */
+export function progressAfterSong(
+  _input?:
+    | (Partial<LetterProgress> & {
+        word?: string | null;
+        prompt?: string | null;
+        completedExercises?: unknown;
+      })
+    | null
+    | undefined,
+): LetterProgress {
+  return { index: exerciseStartIndex(2), silence: 0, wrong: 0 };
 }
 
 function exerciseGroup(kind: string | undefined): string {
