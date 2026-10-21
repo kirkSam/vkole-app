@@ -19,7 +19,7 @@ const stageFile = fileURLToPath(new URL("../../../components/spelling-stage.tsx"
 const sessionFile = fileURLToPath(new URL("../../../routes/session.$id.tsx", import.meta.url));
 const cssFile = fileURLToPath(new URL("../../../styles.css", import.meta.url));
 
-describe("alphabet opens at exercise 1 and plays through 5", () => {
+describe("alphabet opens at exercise 1 and plays through 6", () => {
   it("starts at exercise 1 on sign-in even when a later card was saved", () => {
     assert.equal(openingAlphabetExercise(null), 1);
     assert.equal(openingAlphabetExercise({ index: 0 }), 1);
@@ -34,13 +34,14 @@ describe("alphabet opens at exercise 1 and plays through 5", () => {
     assert.equal(songNext.silence, 0);
   });
 
-  it("plays 1, then 2, then 3, then 4, then 5 with no gap", () => {
+  it("plays 1, then 2, then 3, then 4, then 5, then 6 with no gap", () => {
     assert.equal(nextAlphabetExercise(1), 2);
     assert.equal(nextAlphabetExercise(2), 3);
     assert.equal(nextAlphabetExercise(3), 4);
     assert.equal(nextAlphabetExercise(4), 5);
-    assert.equal(nextAlphabetExercise(5), null);
-    assert.deepEqual(runFromButton(1), [1, 2, 3, 4, 5]);
+    assert.equal(nextAlphabetExercise(5), 6);
+    assert.equal(nextAlphabetExercise(6), null);
+    assert.deepEqual(runFromButton(1), [1, 2, 3, 4, 5, 6]);
   });
 
   it("waits on every letter in exercises 2, 3, and 4, and keeps exercise 4 blank until the answer", () => {
@@ -82,12 +83,13 @@ describe("alphabet opens at exercise 1 and plays through 5", () => {
 });
 
 describe("alphabet exercise buttons", () => {
-  it("starts a new run at the pressed exercise and continues through exercise 5", () => {
-    assert.deepEqual(runFromButton(1), [1, 2, 3, 4, 5]);
-    assert.deepEqual(runFromButton(2), [2, 3, 4, 5]);
-    assert.deepEqual(runFromButton(3), [3, 4, 5]);
-    assert.deepEqual(runFromButton(4), [4, 5]);
-    assert.deepEqual(runFromButton(5), [5]);
+  it("starts a new run at the pressed exercise and continues through exercise 6", () => {
+    assert.deepEqual(runFromButton(1), [1, 2, 3, 4, 5, 6]);
+    assert.deepEqual(runFromButton(2), [2, 3, 4, 5, 6]);
+    assert.deepEqual(runFromButton(3), [3, 4, 5, 6]);
+    assert.deepEqual(runFromButton(4), [4, 5, 6]);
+    assert.deepEqual(runFromButton(5), [5, 6]);
+    assert.deepEqual(runFromButton(6), [6]);
     assert.equal(letterView(jumpToExercise(2) ?? { index: 0, silence: 0, wrong: 0 }).id, "lk-first");
     assert.equal(letterView(jumpToExercise(3) ?? { index: 0, silence: 0, wrong: 0 }).id, "lk-lower-a");
     assert.equal(letterView(jumpToExercise(4) ?? { index: 0, silence: 0, wrong: 0 }).id, "lk-recall-a");
@@ -97,20 +99,20 @@ describe("alphabet exercise buttons", () => {
   it("a second button replaces the run instead of continuing the old one", () => {
     const first = runFromButton(4);
     const again = runFromButton(2);
-    assert.deepEqual(first, [4, 5]);
-    assert.deepEqual(again, [2, 3, 4, 5]);
+    assert.deepEqual(first, [4, 5, 6]);
+    assert.deepEqual(again, [2, 3, 4, 5, 6]);
     assert.equal(again[0], 2);
     assert.equal(again.includes(1), false);
     const backToSong = runFromButton(1);
     assert.equal(backToSong[0], 1);
-    assert.deepEqual(backToSong, [1, 2, 3, 4, 5]);
+    assert.deepEqual(backToSong, [1, 2, 3, 4, 5, 6]);
   });
 
-  it("draws five small pastel buttons above the letter and the microphone", () => {
+  it("draws six small pastel buttons above the letter and the typing box", () => {
     const stage = readFileSync(stageFile, "utf8");
     const css = readFileSync(cssFile, "utf8");
     const session = readFileSync(sessionFile, "utf8");
-    assert.equal(stage.includes("const EXERCISE_BUTTONS = [1, 2, 3, 4, 5]"), true);
+    assert.equal(stage.includes("const EXERCISE_BUTTONS = [1, 2, 3, 4, 5, 6]"), true);
     assert.equal(stage.includes('aria-label="Exercises"'), true);
     assert.equal(stage.includes('aria-label={`Exercise ${exercise}`}'), true);
     assert.equal(stage.includes('aria-current={exercise === current ? "true" : undefined}'), true);
@@ -130,7 +132,7 @@ describe("alphabet exercise buttons", () => {
     assert.equal(begin.includes('setPhase("song")'), true);
     assert.equal(begin.includes('setPhase("prompt")'), true);
     assert.equal(begin.includes("exerciseStartIndex(next)"), true);
-    const take = stage.slice(stage.indexOf("function takeAnswer"), stage.indexOf("function noteHeard"));
+    const take = stage.slice(stage.indexOf("function takeAnswer"), stage.indexOf("function takeTyped"));
     assert.equal(take.includes('setPhase("happy")'), true);
     assert.equal(take.includes("SPELLING_HAPPY_FACE_MS"), true);
     assert.equal(take.includes("applyLetterAnswer"), true);
@@ -147,7 +149,19 @@ describe("alphabet exercise buttons", () => {
     assert.equal(ask.includes("view.shown"), true);
     assert.equal(ask.includes("view.pair"), false);
     const jumps = stage.split("<AlphabetJumps").length - 1;
-    assert.equal(jumps, 3);
+    assert.equal(jumps, 4);
+    assert.equal(stage.includes('inputMode="text"'), true);
+    assert.equal(stage.includes('autoCapitalize="none"'), true);
+    assert.equal(stage.includes("TYPING_TRY_AGAIN"), true);
+    assert.equal(stage.includes("TYPING_WAIT_MS"), true);
+    assert.equal(stage.includes('className="sp-type"'), true);
+    const celebrate = stage.slice(stage.indexOf('if (phase !== "celebrate") return;'), stage.indexOf("function allowMic"));
+    assert.equal(celebrate.includes("onRecitedRef"), true);
+    assert.equal(celebrate.includes('setPhase("type")'), true);
+    assert.equal(celebrate.includes("onDone"), false);
+    const typed = stage.slice(stage.indexOf("function takeTyped"), stage.indexOf("function noteHeard"));
+    assert.equal(typed.includes('onDoneRef.current("correct")'), true);
+    assert.equal(typed.includes("TYPING_TRY_AGAIN"), true);
     const jumpCss = css.slice(css.indexOf(".sp-jumps {"), css.indexOf(".sp-letter {"));
     assert.equal(jumpCss.includes("position: static"), true);
     assert.equal(jumpCss.includes("position: absolute"), false);
@@ -157,10 +171,13 @@ describe("alphabet exercise buttons", () => {
     assert.equal(jumpCss.includes("#f8dce8"), true);
     assert.equal(jumpCss.includes("#e4dcf6"), true);
     assert.equal(jumpCss.includes("#d9f3d4"), true);
+    assert.equal(jumpCss.includes("#d7e8fb"), true);
     assert.equal(jumpCss.includes(".is-current"), true);
     assert.equal(session.includes("placeSpellingAfterSong"), false);
     assert.equal(session.includes("placeSpellingExercise"), true);
     assert.equal(session.includes("exercise: 5"), true);
+    assert.equal(session.includes("completeAlphabetExercise"), true);
+    assert.equal(session.includes("exercise: 6"), true);
     assert.equal(session.includes('key={`${climb.id}:${spellingRound}`}'), true);
     assert.equal(session.includes("standardStep}:${climb.correctAtLevel"), false);
   });

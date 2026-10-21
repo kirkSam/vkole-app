@@ -326,7 +326,7 @@ describe("letter answer flow", () => {
     assert.equal(stage.includes('setPhase("play")'), false);
     assert.equal(stage.includes("takeAnswer"), true);
     assert.equal(stage.includes("SPELLING_LISTEN_GAP_MS"), true);
-    assert.equal(stage.includes("EXERCISE_BUTTONS = [1, 2, 3, 4, 5]"), true);
+    assert.equal(stage.includes("EXERCISE_BUTTONS = [1, 2, 3, 4, 5, 6]"), true);
     assert.equal(stage.includes("Exercise 1"), true);
     assert.equal(stage.includes("Exercise {view.exercise}"), true);
 
@@ -834,7 +834,10 @@ describe("alphabet exercises 3, 4, and 5", () => {
     assert.equal(stage.includes(GOOD_JOB_LINE) || stage.includes("GOOD_JOB_LINE"), true);
     assert.equal(stage.includes('viewRef.current.exercise === 5'), true);
     const session = readFileSync(fileURLToPath(new URL("../../../routes/session.$id.tsx", import.meta.url)), "utf8");
-    assert.equal(session.includes('letterExercise(answered) === 5'), true);
+    assert.equal(session.includes("onRecited"), true);
+    assert.equal(session.includes("exercise: 5"), true);
+    assert.equal(session.includes("completeAlphabetExercise"), true);
+    assert.equal(session.includes("exercise: 6"), true);
     assert.equal(session.includes('finishRef.current("finished")'), true);
   });
 });

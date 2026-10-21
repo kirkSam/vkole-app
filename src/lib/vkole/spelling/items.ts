@@ -25,7 +25,7 @@ export const SPELLING_RECOGNIZER_RESTART_MS = 250;
 export const SPELLING_LISTEN_GAP_MS = 400;
 
 export const SPELLING_NOTE =
-  "Opening the alphabet plays exercises 1, 2, 3, 4, and 5 in order. Exercise 1 is the song. Exercise 2 shows a capital letter and waits for you to say the next one. Exercise 3 shows a small letter and waits. Exercise 4 asks with no letter, then shows both after you answer. Exercise 5 asks you to say the alphabet. At Z, the app says Good job! The five buttons start at that exercise and continue through exercise 5. The microphone opens after the question and does not save the sound.";
+  "Opening the alphabet plays exercises 1 through 6 in order. Exercise 1 is the song. Exercise 2 shows a capital letter and waits for you to say the next one. Exercise 3 shows a small letter and waits. Exercise 4 asks with no letter, then shows both after you answer. Exercise 5 asks you to say the alphabet. At Z, the app says Good job! Exercise 6 shows each capital letter to type, then each small letter. The six buttons start at that exercise and continue through exercise 6. The microphone opens after the question and does not save the sound.";
 
 /** Whole seconds left before the alphabet starts itself. 0 means start now. */
 export function spellingStartSecondsLeft(elapsedMs: number): number {
@@ -394,9 +394,9 @@ export function songSpokenLines(): string[] {
   return lines;
 }
 
-export type CompletedExercise = 2 | 3 | 4 | 5;
+export type CompletedExercise = 2 | 3 | 4 | 5 | 6;
 
-/** The exercises this student has finished in the five-exercise flow. Missing means none. */
+/** The exercises this student has finished. Missing means none. */
 export function normalizeCompletedExercises(value: unknown): CompletedExercise[] {
   const raw = Array.isArray(value)
     ? value
@@ -406,7 +406,7 @@ export function normalizeCompletedExercises(value: unknown): CompletedExercise[]
   const done: CompletedExercise[] = [];
   for (const item of raw) {
     const exercise = Math.round(Number(item));
-    if ((exercise === 2 || exercise === 3 || exercise === 4 || exercise === 5) && !done.includes(exercise)) {
+    if ((exercise === 2 || exercise === 3 || exercise === 4 || exercise === 5 || exercise === 6) && !done.includes(exercise)) {
       done.push(exercise);
     }
   }
@@ -426,7 +426,7 @@ export function exerciseStartIndex(exercise: 2 | 3 | 4 | 5): number {
   return 0;
 }
 
-export type AlphabetExercise = 1 | 2 | 3 | 4 | 5;
+export type AlphabetExercise = 1 | 2 | 3 | 4 | 5 | 6;
 
 /**
  * The account can still store a letter card.
@@ -459,17 +459,18 @@ export function openingAlphabetExercise(
   return 1;
 }
 
-/** The exercise that plays next. Exercise 5 is the last one. */
+/** The exercise that plays next. Exercise 6 is the last one. */
 export function nextAlphabetExercise(exercise: AlphabetExercise): AlphabetExercise | null {
   if (exercise === 1) return 2;
   if (exercise === 2) return 3;
   if (exercise === 3) return 4;
   if (exercise === 4) return 5;
+  if (exercise === 5) return 6;
   return null;
 }
 
 /**
- * Exercises a button starts, then the ones that follow on their own through exercise 5.
+ * Exercises a button starts, then the ones that follow on their own through exercise 6.
  * Another button starts a new list from that exercise.
  */
 export function runFromButton(exercise: AlphabetExercise): AlphabetExercise[] {
@@ -482,24 +483,36 @@ export function runFromButton(exercise: AlphabetExercise): AlphabetExercise[] {
   return steps;
 }
 
-/** The card a numbered button opens. Exercise 1 is the song and has no card. */
-export function jumpToExercise(exercise: 1 | 2 | 3 | 4 | 5): LetterProgress | null {
-  if (exercise === 1) return null;
+/** The card a numbered button opens. Exercise 1 is the song. Exercise 6 is typing. Neither has a letter-card index. */
+export function jumpToExercise(exercise: AlphabetExercise): LetterProgress | null {
+  if (exercise === 1 || exercise === 6) return null;
   return { index: exerciseStartIndex(exercise), silence: 0, wrong: 0 };
 }
 
-/** A correct answer that leaves an exercise marks that exercise finished. Exercise 5 is marked when it is recited. */
+/** Add one finished exercise to the saved list. A repeat stays a single entry. */
+export function rememberCompletedExercise(completed: unknown, exercise: CompletedExercise): CompletedExercise[] {
+  const done = normalizeCompletedExercises(completed);
+  if (!done.includes(exercise)) done.push(exercise);
+  return done;
+}
+
+/**
+ * A correct answer that leaves an exercise marks that exercise finished.
+ * Exercise 5 is marked when it is recited. Exercise 6 is marked when it is typed.
+ */
 export function noteExerciseCompletion(
   beforeIndex: number,
   afterIndex: number,
   completed: unknown,
   recited = false,
+  typed = false,
 ): CompletedExercise[] {
-  const done = normalizeCompletedExercises(completed);
+  let done = normalizeCompletedExercises(completed);
   const from = letterExercise(beforeIndex);
   const to = letterExercise(afterIndex);
-  if ((from === 2 || from === 3 || from === 4) && to > from && !done.includes(from)) done.push(from);
-  if (recited && !done.includes(5)) done.push(5);
+  if ((from === 2 || from === 3 || from === 4) && to > from) done = rememberCompletedExercise(done, from);
+  if (recited) done = rememberCompletedExercise(done, 5);
+  if (typed) done = rememberCompletedExercise(done, 6);
   return done;
 }
 

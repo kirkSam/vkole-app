@@ -23,6 +23,7 @@ import {
 import { holdEngineAudio, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { describeSpellingHear, recognitionErrorRelistens, spellingGrammar } from "@/lib/vkole/spelling/match";
 import { celebrationFrame, GOOD_JOB_LINE, reciteHear, SPELLING_CELEBRATION_MS } from "@/lib/vkole/spelling/recite";
+import { advanceTyping, judgeTypingKey, TYPING_TRY_AGAIN, TYPING_WAIT_MS, typingShown, typingStart, type TypingPlace } from "@/lib/vkole/spelling/typing";
 
 const MIC_KEY = "vkole-sp-mic";
 
@@ -70,9 +71,9 @@ function applyLetterGrammar(rec: SpeechListener, answer: string, also: readonly 
 }
 
 type Outcome = "correct" | "miss" | "timeout";
-type Phase = "gate" | "song" | "prompt" | "listen" | "happy" | "good-job" | "celebrate";
+type Phase = "gate" | "song" | "prompt" | "listen" | "happy" | "good-job" | "celebrate" | "type";
 
-const EXERCISE_BUTTONS = [1, 2, 3, 4, 5] as const;
+const EXERCISE_BUTTONS = [1, 2, 3, 4, 5, 6] as const;
 
 function AlphabetJumps({ current, onPick }: { current: AlphabetExercise; onPick: (exercise: AlphabetExercise) => void }) {
   return (
@@ -196,6 +197,7 @@ export function SpellingStage({
   wrong = 0,
   heard = "",
   onHeard,
+  onRecited,
   onDone,
 }: {
   index?: number;
@@ -203,6 +205,7 @@ export function SpellingStage({
   wrong?: number;
   heard?: string;
   onHeard?: (note: string) => void;
+  onRecited?: () => void;
   onDone: (outcome: Outcome) => void;
 }) {
   const opening = openingAlphabetExercise({ index, silence, wrong });
@@ -218,6 +221,11 @@ export function SpellingStage({
   const [unsupported, setUnsupported] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const [phase, setPhase] = useState<Phase>("gate");
+  const [typing, setTyping] = useState<TypingPlace>(typingStart());
+  const [typeNote, setTypeNote] = useState("");
+  const [typeDraft, setTypeDraft] = useState("");
+  const [typeNudge, setTypeNudge] = useState(0);
+  const [typeFinished, setTypeFinished] = useState(false);
   const token = `${place.index}:${place.silence}:${place.wrong}`;
   const [songIndex, setSongIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(SPELLING_RESPONSE_MS / 1000);
@@ -225,6 +233,9 @@ export function SpellingStage({
   const [startIn, setStartIn] = useState(spellingStartSecondsLeft(0));
   const onDoneRef = useRef(onDone);
   const onHeardRef = useRef(onHeard);
+  const onRecitedRef = useRef(onRecited);
+  const typeRef = useRef<HTMLInputElement | null>(null);
+  const typedDone = useRef(false);
   const heardRef = useRef("");
   const viewRef = useRef(view);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
@@ -234,6 +245,7 @@ export function SpellingStage({
   const seen = useRef(token);
   onDoneRef.current = onDone;
   onHeardRef.current = onHeard;
+  onRecitedRef.current = onRecited;
   viewRef.current = view;
 
   function beginExercise(next: AlphabetExercise) {
@@ -245,10 +257,20 @@ export function SpellingStage({
     setHeardNote("");
     reciteRef.current = 0;
     setExercise(next);
+    typedDone.current = false;
     if (next === 1) {
       setSongIndex(0);
       began.current = true;
       setPhase("song");
+      return;
+    }
+    if (next === 6) {
+      setTyping(typingStart());
+      setTypeNote("");
+      setTypeDraft("");
+      setTypeNudge(0);
+      setTypeFinished(false);
+      setPhase("type");
       return;
     }
     const nextPlace = { index: exerciseStartIndex(next), silence: 0, wrong: 0 };
@@ -277,6 +299,28 @@ export function SpellingStage({
     setPlace(after);
     setExercise(letterExercise(after.index));
     setPhase("prompt");
+  }
+
+  function takeTyped(raw: string) {
+    setTypeDraft("");
+    if (phase !== "type" || typedDone.current) return;
+    const judgment = judgeTypingKey(typingShown(typing), raw);
+    if (judgment === "ignore") return;
+    if (judgment === "correct") {
+      const next = advanceTyping(typing);
+      setTypeNote("");
+      if (next.done) {
+        typedDone.current = true;
+        setTypeFinished(true);
+        onDoneRef.current("correct");
+        return;
+      }
+      setTyping(next.place);
+      return;
+    }
+    setTypeNote(TYPING_TRY_AGAIN);
+    speakLine(TYPING_TRY_AGAIN, () => {});
+    setTypeNudge((value) => value + 1);
   }
 
   function noteHeard(note: string) {
@@ -715,7 +759,15 @@ export function SpellingStage({
     const finish = (elapsed: number) => {
       if (!live || celebrationFrame(elapsed) !== "done") return;
       live = false;
-      onDoneRef.current("correct");
+      onRecitedRef.current?.();
+      typedDone.current = false;
+      setTyping(typingStart());
+      setTypeNote("");
+      setTypeDraft("");
+      setTypeNudge(0);
+      setTypeFinished(false);
+      setExercise(6);
+      setPhase("type");
     };
     const timer = window.setInterval(() => finish(performance.now() - started), 100);
     const backup = window.setTimeout(() => finish(SPELLING_CELEBRATION_MS), SPELLING_CELEBRATION_MS);
@@ -732,6 +784,26 @@ export function SpellingStage({
       if (typeof window !== "undefined") window.speechSynthesis?.cancel();
     };
   }, [token]);
+
+  useEffect(() => {
+    if (phase !== "type" || typeFinished) return;
+    let live = true;
+    const timer = window.setTimeout(() => {
+      if (!live) return;
+      setTypeNote(TYPING_TRY_AGAIN);
+      speakLine(TYPING_TRY_AGAIN, () => {});
+      setTypeNudge((value) => value + 1);
+    }, TYPING_WAIT_MS);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [phase, typing.index, typing.letterCase, typeNudge, typeFinished]);
+
+  useEffect(() => {
+    if (phase !== "type") return;
+    typeRef.current?.focus();
+  }, [phase, typing.index, typing.letterCase]);
 
   function allowMic() {
     try {
@@ -774,6 +846,39 @@ export function SpellingStage({
         <p className="sp-letter font-display" style={{ color: swatch?.letter }}>
           {letter}
         </p>
+      </section>
+    );
+  }
+
+  if (phase === "type") {
+    const shown = typingShown(typing);
+    const swatch = colors[letters.indexOf(shown.toUpperCase())] ?? colors[0];
+    return (
+      <section className="sp-review" style={{ background: swatch?.background }} aria-label="Type the letter" onClick={() => typeRef.current?.focus()}>
+        <AlphabetJumps current={6} onPick={beginExercise} />
+        <p className="text-center text-base font-semibold text-ink">Exercise 6</p>
+        <p className="sp-letter font-display" style={{ color: swatch?.letter }}>
+          {shown}
+        </p>
+        {typeNote ? (
+          <p className="sp-prompt" role="status">
+            {typeNote}
+          </p>
+        ) : null}
+        <input
+          ref={typeRef}
+          className="sp-type"
+          type="text"
+          inputMode="text"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          autoComplete="off"
+          enterKeyHint="done"
+          aria-label={`Type ${shown}`}
+          value={typeDraft}
+          onChange={(event) => takeTyped(event.target.value)}
+        />
       </section>
     );
   }
