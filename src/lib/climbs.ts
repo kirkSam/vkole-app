@@ -15,7 +15,7 @@ import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-histo
 import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
 import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
 import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
-import { applyLetterAnswer, letterMoveNote, letterView, normalizeLetterProgress } from "@/lib/vkole/spelling/items";
+import { applyLetterAnswer, letterMoveNote, letterView, normalizeLetterProgress, progressAfterSong } from "@/lib/vkole/spelling/items";
 import { savedSpellingReport, spellingStatsFromEvents, writeSpellingReport } from "@/lib/vkole/spelling/report";
 import { cardFromAccount as paCardFromAccount, migratePaBand, nextAfterAnswer, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
 import { cardFromAccount, nextCard, startCard } from "@/lib/vkole/sight-words/words";
@@ -601,6 +601,46 @@ export const markSightWord = createServerFn({ method: "POST" })
   });
 
 const spellingSchema = idSchema.extend({ outcome: z.enum(["correct", "miss", "timeout"]) });
+
+/** The song must not open the memory exercise. A saved memory card returns to the first letter that is shown. */
+export const placeSpellingAfterSong = createServerFn({ method: "POST" })
+  .validator((data: unknown) => parse(idSchema, data))
+  .middleware([schoolMiddleware])
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const current = await selectOwned(sql, context.userId, data.id);
+    if (current.subject !== "sp") throw new Error("This session is not alphabet.");
+    if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
+    const before = normalizeLetterProgress({
+      index: current.standardStep,
+      silence: current.correctAtLevel,
+      wrong: current.incorrectStreak,
+    });
+    const after = progressAfterSong(before);
+    if (after.index === before.index && after.silence === before.silence && after.wrong === before.wrong) {
+      return selectOwned(sql, context.userId, data.id);
+    }
+    const next = letterView(after);
+    await sql`
+      update climbs
+      set correct_at_level = ${next.silence},
+          incorrect_streak = ${next.wrong},
+          standard_step = ${next.index},
+          standard_code = ${next.band},
+          standard_label = ${next.name},
+          current_prompt = ${next.show},
+          answer_key = ${next.answer},
+          answer_aliases = ${JSON.stringify(next.also)},
+          answer_note = ${next.name},
+          question_id = ${`sp:${next.band}:${next.id}:s${next.silence}:w${next.wrong}`},
+          next_prompt = '',
+          last_feedback = ${"The alphabet is on the screen."},
+          awaiting_next = 0,
+          updated_at = now()
+      where id = ${data.id} and user_id = ${context.userId}
+    `;
+    return selectOwned(sql, context.userId, data.id);
+  });
 
 export const markSpelling = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(spellingSchema, data))

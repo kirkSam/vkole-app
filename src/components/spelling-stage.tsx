@@ -8,6 +8,7 @@ import {
   letterAtSongTime,
   letterColors,
   letterView,
+  progressAfterSong,
   micListensDuring,
   spellingPromptStartsListen,
   spellingStartSecondsLeft,
@@ -164,7 +165,8 @@ export function SpellingStage({
   onSongDone?: () => void;
   onDone: (outcome: Outcome) => void;
 }) {
-  const view = letterView({ index, silence, wrong });
+  const [afterSong, setAfterSong] = useState(false);
+  const view = letterView(afterSong ? progressAfterSong({ index, silence, wrong }) : { index, silence, wrong });
   const token = `${view.id}:${view.silence}:${view.wrong}`;
   const letters = alphabet();
   const colors = letterColors();
@@ -241,6 +243,7 @@ export function SpellingStage({
       if (frame.done) {
         window.clearInterval(timer);
         stopLine();
+        setAfterSong(true);
         onSongDoneRef.current?.();
         setPhase("prompt");
         return;

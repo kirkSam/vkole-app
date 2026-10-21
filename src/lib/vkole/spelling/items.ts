@@ -279,6 +279,35 @@ export function letterExercise(index: number): 1 | 2 | 3 {
 
 export const MEMORY_LETTER_PROMPT = "What letter is this?";
 
+/**
+ * Lines the alphabet song speaks, in order.
+ * The stage says the first letter at once, then one letter each `letterMs` until the song is done.
+ */
+export function songSpokenLines(): string[] {
+  const letters = alphabet();
+  const lines = [letters[0] ?? "A"];
+  for (let ticks = 1; ticks < letters.length + 2; ticks += 1) {
+    const frame = letterAtSongTime(ticks * SPELLING_LETTER_MS);
+    if (frame.done) break;
+    lines.push(frame.letter);
+  }
+  return lines;
+}
+
+/**
+ * The question that follows the song.
+ * The song is the recitation. The next card has to show a letter.
+ * A saved memory card asks "What letter is this?" with nothing on screen, so the song must not open it.
+ */
+export function progressAfterSong(input: Partial<LetterProgress> | null | undefined): LetterProgress {
+  const state = normalizeLetterProgress(input);
+  const view = letterView(state);
+  if (letterExercise(state.index) === 3 || view.say.trim() === MEMORY_LETTER_PROMPT) {
+    return { index: 0, silence: 0, wrong: 0 };
+  }
+  return state;
+}
+
 function exerciseGroup(kind: string | undefined): string {
   if (kind === "first-letter" || kind === "next-letter") return "sequence";
   return kind || "sequence";
