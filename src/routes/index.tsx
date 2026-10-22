@@ -418,8 +418,8 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       <h1 className="mt-1 font-display text-4xl text-ink">Eight climbs</h1>
       <p className="mt-3 text-muted">
         {fullAccess
-          ? `This account is open. It is not on a free week and it is not asked to pay. ${TWO_STUDENTS_LINE}. Each student uses all eight engines. Each student has a clock of 8 hours. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock. The student password starts it again. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`
-          : `The free week is 168 hours. It starts when you confirm the email. No credit card is required for that week. ${TWO_STUDENTS_LINE}. Each student may use all eight engines. Each student has a clock of 8 hours. It resets at midnight Pacific time. Five minutes with no pointer or key stops the clock. The student password starts it again. Time already used stays. Leaving one engine does not stop that clock. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the free week, the payment covers the account for a full month or a full year from the day you pay. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`}
+          ? `This account is open. It is not on a free week and it is not asked to pay. ${TWO_STUDENTS_LINE}. Each student uses all eight engines. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`
+          : `The free week is 168 hours. It starts when you confirm the email. No credit card is required for that week. ${TWO_STUDENTS_LINE}. Each student may use all eight engines. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the free week, the payment covers the account for a full month or a full year from the day you pay. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`}
       </p>
       <Link
         to="/practice"
@@ -539,7 +539,6 @@ function AppGate({
   const navigate = useNavigate();
   const meta = subjectMeta(subject);
   const [firstName, setFirstName] = useState("");
-  const [shut, setShut] = useState(false);
   const [age, setAge] = useState(8);
   const [gradeText, setGradeText] = useState("");
   const [needsNew, setNeedsNew] = useState(false);
@@ -557,7 +556,6 @@ function AppGate({
       return;
     }
     setError("");
-    setShut(false);
     let grade: number | undefined;
     if (needsNew) {
       const typed = Number(gradeText);
@@ -593,12 +591,7 @@ function AppGate({
         return;
       }
       onClock();
-      if (found.status === "closed") {
-        setShut(true);
-        setPending(false);
-        return;
-      }
-      if (found.status !== "open" && found.status !== "hold") {
+      if (found.status !== "open") {
         setPending(false);
         return;
       }
@@ -627,7 +620,6 @@ function AppGate({
             setFirstName(event.target.value);
             setNeedsNew(false);
             setGradeText("");
-            setShut(false);
           }}
           autoComplete="off"
           className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
@@ -767,7 +759,6 @@ function AppGate({
         </div>
       ) : null}
       {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
-      {shut ? <p className="mt-3 text-sm text-ink">The 8 hours for this student are used. The engines open again at midnight Pacific time.</p> : null}
       <button
         type="submit"
         disabled={pending}

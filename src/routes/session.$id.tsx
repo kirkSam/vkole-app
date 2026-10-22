@@ -27,7 +27,7 @@ import {
   touchSitting,
   type Climb,
 } from "@/lib/climbs";
-import { beatStudentClock, readStudentClock, resumeStudentClock } from "@/lib/day-clock";
+import { beatStudentClock } from "@/lib/day-clock";
 import { GRADING_PAUSE_MESSAGE, NO_REPLY_MESSAGE } from "@/lib/grading-pause";
 import { showAsSpaceXsi } from "@/lib/space-xsi";
 import { VKOLE_MOVEMENT } from "@/lib/vkole-cap";
@@ -41,7 +41,6 @@ import { SpellingStage } from "@/components/spelling-stage";
 import { SG_STAGE_NOTE, sgCodeLabel, singaporePlace } from "@/lib/vkole-singapore";
 import { SgFigure, splitFigures } from "@/components/sg-figure";
 import { deviceTimeZone } from "@/lib/day-clock-math";
-import type { ClockFace } from "@/components/vkole-rules";
 import { SchoolPath } from "@/components/school-path";
 import { WebsiteVisit } from "@/components/website-visit";
 import { openEnginePicker, takeHeldSitting } from "@/lib/engine-picker";
@@ -115,9 +114,7 @@ function SessionPage() {
   const [onlineAt, setOnlineAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [closure, setClosure] = useState<Closure | null>(null);
-  const [clock, setClock] = useState<ClockFace | null>(null);
   const [levelPassword, setLevelPassword] = useState("");
-  const [studentPassword, setStudentPassword] = useState("");
   const [sightRound, setSightRound] = useState(0);
   const [spellingRound, setSpellingRound] = useState(0);
   const [spellingHeard, setSpellingHeard] = useState("");
@@ -125,8 +122,7 @@ function SessionPage() {
   const finishRef = useRef<(reason: EndReason, explicitLogout?: boolean) => void>(() => {});
 
   const userId = user?.id;
-  const clockOpen = Boolean(clock?.armed && !clock.closed);
-  const climbId = climb && !climb.blocked && clockOpen ? climb.id : undefined;
+  const climbId = climb && !climb.blocked ? climb.id : undefined;
 
   useEffect(() => {
     if (!userId) return;
@@ -159,19 +155,6 @@ function SessionPage() {
     const id = window.setTimeout(stop, ms);
     return () => window.clearTimeout(id);
   }, [climb?.id, climb?.endsAt, climb?.subscriptionEndsAt, climb?.subscribed, climb?.renews, climb?.blocked, climb?.fullAccess]);
-
-  useEffect(() => {
-    if (!userId || !climb || climb.blocked) return;
-    let live = true;
-    readStudentClock({ data: { id: climb.id, timeZone: deviceTimeZone() } })
-      .then((row) => {
-        if (live) setClock(row);
-      })
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, [userId, climb?.id, climb?.blocked]);
 
   useEffect(() => {
     if (!climb?.age) return;
@@ -291,19 +274,7 @@ function SessionPage() {
       if (last > lastSent && !inactivityDue(last, Date.now(), false, IDLE_MS)) {
         lastSent = last;
         void touchSitting({ data: { id: climbId } }).catch(() => undefined);
-        void beatStudentClock({ data: { id: climbId, timeZone: deviceTimeZone() } })
-          .then((next) => {
-            if (stopped) return;
-            if (next.closed) {
-              setClock(next);
-              finish("logout");
-              return;
-            }
-            if (!next.armed && engineIsBusy()) return;
-            setClock(next);
-            if (!next.armed) finish("inactivity");
-          })
-          .catch(() => undefined);
+        void beatStudentClock({ data: { id: climbId, timeZone: deviceTimeZone() } }).catch(() => undefined);
       }
     }, 5000);
     const onVisible = () => {
@@ -499,46 +470,6 @@ function SessionPage() {
       <p className="mt-3 text-sm text-muted">{climb.subject === "sw" ? SIGHT_WORD_NOTE : climb.subject === "sp" ? SPELLING_NOTE : climb.subject === "pa" ? PA_NOTE : VKOLE_MOVEMENT}</p>
       {climb.subject === "sg" ? <p className="mt-2 text-sm text-muted">{SG_STAGE_NOTE}</p> : null}
       <SchoolPath />
-      {!closure && clock?.closed ? (
-        <p className="mt-5 text-ink">The 8 hours for this student are used. The engines open again at midnight Pacific time.</p>
-      ) : null}
-      {!closure && clock && !clock.armed && !clock.closed ? (
-        <form
-          className="mt-5 rounded-2xl border border-line bg-surface p-5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setError("");
-            void resumeStudentClock({ data: { id: climb.id, password: studentPassword, timeZone: deviceTimeZone() } })
-              .then((next) => {
-                setClock(next);
-                setStudentPassword("");
-              })
-              .catch((err: unknown) => {
-                setError(err instanceof Error ? err.message : "Could not continue.");
-              });
-          }}
-        >
-          <p className="text-ink">
-            {clock.passwordSet
-              ? `Enter the student password to continue as ${clock.childName}. Time already used today stays on this login.`
-              : `Choose an easy password for ${clock.childName}. It is required the next time the clock stops.`}
-          </p>
-          <label className="mt-3 block text-sm text-muted">
-            Student password
-            <input
-              type="password"
-              value={studentPassword}
-              onChange={(event) => setStudentPassword(event.target.value)}
-              autoComplete="current-password"
-              className="mt-1 w-full rounded-xl border border-line bg-bg px-3 py-2 text-ink"
-            />
-          </label>
-          {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
-          <button type="submit" className="mt-4 min-h-11 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
-            Continue
-          </button>
-        </form>
-      ) : null}
       {closure ? (
         <section className="mt-5 rounded-2xl border border-line bg-surface p-5">
           <h2 className="font-display text-2xl text-ink">Session closed</h2>
@@ -569,7 +500,7 @@ function SessionPage() {
           </button>
           {closure.reason === "finished" ? <WebsiteVisit /> : null}
         </section>
-      ) : !clockOpen ? null : climb.age == null ? (
+      ) : climb.age == null ? (
         <form onSubmit={saveAge} className="mt-5 rounded-2xl border border-line bg-surface p-5">
           <p className="text-ink">Age is required for the academic record. The saved level stays {levelLabel(climb.level)}.</p>
           <label className="mt-3 block text-sm text-muted">

@@ -219,7 +219,7 @@ export const SCHOOL_WAIT_MESSAGE =
 export const SCHOOL_ACCOUNT_GONE_MESSAGE =
   "This account is no longer on the school website. Sign in again after it is opened there.";
 
-/** Default day cap. A `clock.limit` from the website replaces this for that account. */
+/** Stored when the website omits `clock.limit`. It does not cap seconds or close an engine. */
 export const CLOCK_LIMIT_SECONDS = DAY_LIMIT_SECONDS;
 
 export const ENGINE_IDS = ["m", "ela", "ss", "gen", "sg", "sw", "sp", "pa"] as const;
@@ -309,7 +309,7 @@ export type SchoolProfile = {
   clockSeconds: number;
   seen: SeenQuestion[];
   plan: "month" | "year" | null;
-  /** Day cap in seconds. The website clock limit wins; otherwise this is 8 hours. */
+  /** A limit sent by the website, stored for the sync. It does not close an engine. */
   clockLimit?: number;
   /** Pacific day `clockSeconds` belongs to. Empty when the website sent no day. */
   clockDayKey?: string;
@@ -387,13 +387,13 @@ export function clockDayKeyOf(value: unknown): string {
   return CLOCK_DAY.test(text) ? text : "";
 }
 
+/** Higher of the two second totals. A limit does not cap it, and zero is the floor. */
 export function clockToWrite(localSeconds: number, remoteSeconds: number, limit = CLOCK_LIMIT_SECONDS): number {
-  const cap = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : CLOCK_LIMIT_SECONDS;
-  const value = Math.max(0, Math.floor(localSeconds) || 0, Math.floor(remoteSeconds) || 0);
-  return Math.min(cap, value);
+  void limit;
+  return Math.max(0, Math.floor(localSeconds) || 0, Math.floor(remoteSeconds) || 0);
 }
 
-/** Seconds in a website clock payload. `limit` is preferred. Missing or unusable values stay at 8 hours. */
+/** A limit from a website clock payload. Missing values stay at the stored placeholder. */
 export function clockLimitFrom(clock: unknown): number {
   const row = asRecord(clock);
   const raw = row?.limit ?? row?.limitSeconds ?? row?.maxSeconds ?? row?.dayLimit;
@@ -1337,32 +1337,24 @@ export function keptLevels(
 
 /**
  * Which clock total to keep.
- * When the website names today's Pacific day, its seconds are that day.
- * Seconds from two different days are never added or maxed together.
- * Two totals with no day still keep the higher one, and that total stays undated.
+ * The higher second total stays. A different Pacific day does not zero it,
+ * and the two totals are not added together.
  */
 export function keptClock(
   stored: StoredSchoolProgress | null | undefined,
   incoming: Pick<SchoolProfile, "clockSeconds" | "clockDayKey" | "clockLimit">,
   today = localDayKey(PACIFIC),
 ): { clockSeconds: number; clockDayKey: string } {
+  void today;
+  void incoming.clockLimit;
   const incomingDay = clockDayKeyOf(incoming.clockDayKey);
   const storedDay = clockDayKeyOf(stored?.clockDayKey);
-  const limit = incoming.clockLimit;
-  if (incomingDay === today) {
-    return { clockSeconds: clockToWrite(incoming.clockSeconds, 0, limit), clockDayKey: today };
+  const incomingSeconds = Math.max(0, Math.floor(incoming.clockSeconds) || 0);
+  const storedSeconds = Math.max(0, Math.floor(stored?.clockSeconds ?? 0) || 0);
+  if (incomingSeconds >= storedSeconds) {
+    return { clockSeconds: incomingSeconds, clockDayKey: incomingDay || storedDay };
   }
-  if (storedDay === today) {
-    return { clockSeconds: clockToWrite(stored?.clockSeconds ?? 0, 0, limit), clockDayKey: today };
-  }
-  if (!incomingDay && !storedDay) {
-    return {
-      clockSeconds: clockToWrite(incoming.clockSeconds || 0, stored?.clockSeconds || 0, limit),
-      clockDayKey: "",
-    };
-  }
-  if (incomingDay) return { clockSeconds: clockToWrite(incoming.clockSeconds, 0, limit), clockDayKey: incomingDay };
-  return { clockSeconds: clockToWrite(stored?.clockSeconds ?? 0, 0, limit), clockDayKey: storedDay };
+  return { clockSeconds: storedSeconds, clockDayKey: storedDay || incomingDay };
 }
 
 /**
@@ -1370,7 +1362,7 @@ export function keptClock(
  * Access follows the website, so a lapse still locks the engines.
  * The student, the levels, the free-week start, and the plan
  * stay when the website sends an empty or earlier value.
- * The clock stays only for the same Pacific day.
+ * The clock keeps the higher second total. A new Pacific day does not zero it.
  */
 export function profileKeepingProgress(stored: StoredSchoolProgress | null | undefined, incoming: SchoolProfile): SchoolProfile {
   const clock = keptClock(stored, incoming);

@@ -286,7 +286,7 @@ describe("keep progress after a lapse", () => {
     }
   });
 
-  it("does not carry yesterday's 8 hours onto today's clock or the website post", async () => {
+  it("keeps yesterday's seconds and still posts a clock", async () => {
     const today = localDayKey(PACIFIC);
     const [year, month, date] = today.split("-").map(Number);
     const prior = new Date(Date.UTC(year ?? 2026, (month ?? 1) - 1, date ?? 1));
@@ -321,20 +321,20 @@ describe("keep progress after a lapse", () => {
         [EMAIL, yesterday],
       );
       const pulled = await pullSchoolAccount(sql, EMAIL);
-      assert.equal(pulled.clockDayKey, today);
-      assert.equal(pulled.clockSeconds, 0);
+      assert.equal(pulled.clockDayKey, yesterday);
+      assert.equal(pulled.clockSeconds, 28800);
       const todayRow = await pg.query<{ used_seconds: number }>(
         "select used_seconds from day_clocks where user_id = $1 and day_key = $2",
         [EMAIL, today],
       );
       assert.equal(todayRow.rows.length, 0);
       const mirror = await readSchoolMirror(sql, EMAIL);
-      assert.equal(mirror?.clockDayKey, today);
-      assert.equal(mirror?.clockSeconds, 0);
+      assert.equal(mirror?.clockDayKey, yesterday);
+      assert.equal(mirror?.clockSeconds, 28800);
       await pushSchoolAccount(sql, EMAIL);
       assert.equal(posts.length, 1);
       const body = posts[0] as { clock?: { seconds?: number; dayKey?: string } };
-      assert.equal(body.clock?.seconds, 0);
+      assert.equal(body.clock?.seconds, 28800);
       assert.equal(body.clock?.dayKey, today);
     } finally {
       globalThis.fetch = previous;
