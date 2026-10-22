@@ -9,6 +9,7 @@ import { SchoolAccountScreen } from "@/components/school-account-screen";
 import { StudentOffice } from "@/components/student-office";
 import { schoolScreen, SCHOOL_ENGINE_URL, THIRD_STUDENT_MESSAGE, TWO_STUDENTS_LINE, type FamilyStudent } from "@/lib/school-account";
 import { ConfirmEmailLock } from "@/components/confirm-email";
+import { AlphabetMisses } from "@/components/alphabet-misses";
 import { WebsiteVisit } from "@/components/website-visit";
 import { StudentSwitcher } from "@/components/student-switcher";
 import { EnginePicks, PageSkeleton, Shell } from "@/components/shell";
@@ -427,6 +428,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
         Free Math Practice
       </Link>
       <WebsiteVisit />
+      {fullAccess ? <AlphabetMisses /> : null}
       {account ? (
         <p className="mt-3 text-sm text-ink">
           This email is saved: {account.email}. Logins recorded: {account.loginCount}. Reports go only to this address.

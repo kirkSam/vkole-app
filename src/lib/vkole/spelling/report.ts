@@ -62,8 +62,8 @@ export function spellingStatsFromEvents(events: { detail: string; correct?: bool
   for (const event of events) {
     let row: { letter?: unknown; outcome?: unknown } | null = null;
     try {
-      const parsed = JSON.parse(event.detail) as { letter?: unknown; outcome?: unknown };
-      if (parsed && typeof parsed === "object") row = parsed;
+      const parsed = JSON.parse(event.detail) as { letter?: unknown; outcome?: unknown; attempt?: unknown };
+      if (parsed && typeof parsed === "object" && parsed.attempt !== true) row = parsed;
     } catch {
       row = null;
     }
