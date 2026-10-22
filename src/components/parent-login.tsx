@@ -7,6 +7,7 @@ import { rememberAppSession } from "@/lib/auth/client";
 import { recordLogin } from "@/lib/ledger";
 import { beginSharedTrial } from "@/lib/climbs";
 import { ENGINE_PICKER_ROUTE } from "@/lib/engine-picker";
+import { CREATE_ACCOUNT_BUTTON_CLASS } from "@/lib/pre-account";
 import { SchoolAccountScreen } from "@/components/school-account-screen";
 import { Shell } from "@/components/shell";
 
@@ -221,7 +222,11 @@ export function ParentLogin({
         {mode === "in" || mode === "up" ? (
           <button
             type="button"
-            className="min-h-11 w-full rounded-xl border border-line bg-paper px-4 text-sm text-ink"
+            className={
+              mode === "in"
+                ? CREATE_ACCOUNT_BUTTON_CLASS
+                : "min-h-11 w-full rounded-xl border border-line bg-paper px-4 text-sm text-ink"
+            }
             onClick={() => go(mode === "in" ? "up" : "in")}
           >
             {mode === "in" ? "Create account" : "Sign in"}
