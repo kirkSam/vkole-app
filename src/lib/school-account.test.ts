@@ -3,7 +3,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { DAY_LIMIT_SECONDS, projectClock } from "./day-clock-math.ts";
+import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC, projectClock, projectTodayClock } from "./day-clock-math.ts";
 import { mergeLocalSeen, practicePromptFromDetail, practicePromptText } from "./next-sheet.ts";
 import {
   CLOCK_LIMIT_SECONDS,
@@ -18,6 +18,7 @@ import {
   clearsLocalProgress,
   failureKind,
   isFreshSchoolProfile,
+  keptClock,
   keptLevels,
   profileKeepingProgress,
   isWebsiteMasterEmail,
@@ -177,6 +178,7 @@ describe("clock and seen writes", () => {
       { key: "sw:PP:1", text: "the" },
     ]);
     assert.equal(body.clock.seconds, 100);
+    assert.equal(body.clock.dayKey, localDayKey(PACIFIC));
     assert.deepEqual(body.seenQuestions, [{ prompt: "What is 2 + 2?" }, { prompt: "the" }]);
     assert.equal("seen" in body, false);
     assert.equal(JSON.stringify(body).includes("m:1:0:0"), false);
@@ -1017,6 +1019,7 @@ describe("progress after a lapse", () => {
     assert.equal(profile.level.m?.grade, 4);
     assert.equal(profile.level.sp?.word, "lk-next-m");
     assert.equal(profile.clockSeconds, 120);
+    assert.equal(profile.clockDayKey, "");
     assert.equal(profile.freeWeekStart, stored.freeWeekStart);
     assert.equal(profile.plan, "month");
     assert.equal(schoolAccessDecision({
@@ -1025,5 +1028,76 @@ describe("progress after a lapse", () => {
       freeWeekStart: profile.freeWeekStart,
       now: Date.parse("2026-10-20T00:00:00.000Z"),
     }).blocked, true);
+  });
+});
+
+describe("pacific day clock", () => {
+  const today = "2026-10-22";
+  const yesterday = "2026-10-21";
+
+  it("keeps the website clock day on the profile", () => {
+    const parsed = parseSchoolProfile({
+      family: { email: "a@b.co", access: "open", clock: { seconds: 50, dayKey: today } },
+    });
+    assert.equal(parsed?.profile.clockSeconds, 50);
+    assert.equal(parsed?.profile.clockDayKey, today);
+    const missing = parseSchoolProfile({
+      family: { email: "a@b.co", access: "open", clock: { seconds: 50 } },
+    });
+    assert.equal(missing?.profile.clockDayKey, "");
+    const unsafe = parseSchoolProfile({
+      family: { email: "a@b.co", access: "open", clock: { seconds: 50, dayKey: "yesterday" } },
+    });
+    assert.equal(unsafe?.profile.clockDayKey, "");
+  });
+
+  it("uses today's website seconds and does not max a different day", () => {
+    const fromWebsite = keptClock(
+      { clockSeconds: 28800, clockDayKey: yesterday },
+      { clockSeconds: 30, clockDayKey: today },
+      today,
+    );
+    assert.equal(fromWebsite.clockSeconds, 30);
+    assert.equal(fromWebsite.clockDayKey, today);
+    const websiteTodayWins = keptClock(
+      { clockSeconds: 100, clockDayKey: today },
+      { clockSeconds: 40, clockDayKey: today },
+      today,
+    );
+    assert.equal(websiteTodayWins.clockSeconds, 40);
+    const localToday = keptClock(
+      { clockSeconds: 100, clockDayKey: today },
+      { clockSeconds: 28800, clockDayKey: yesterday },
+      today,
+    );
+    assert.equal(localToday.clockSeconds, 100);
+    assert.equal(localToday.clockDayKey, today);
+    const otherDays = keptClock(
+      { clockSeconds: 20000, clockDayKey: "2026-01-01" },
+      { clockSeconds: 10000, clockDayKey: yesterday },
+      today,
+    );
+    assert.equal(otherDays.clockSeconds, 10000);
+    assert.equal(otherDays.clockDayKey, yesterday);
+    const pacificToday = localDayKey(PACIFIC);
+    const profile = profileKeepingProgress(
+      { clockSeconds: 28800, clockDayKey: yesterday },
+      { ...freshProfile, clockSeconds: 30, clockDayKey: pacificToday },
+    );
+    assert.equal(profile.clockDayKey, pacificToday);
+    assert.equal(profile.clockSeconds, 30);
+  });
+
+  it("resets a previous Pacific day to 0 on load and sends today's day with the post", () => {
+    const loaded = projectTodayClock({ day_key: yesterday, used_seconds: 28800, armed: 1 }, today);
+    assert.equal(loaded.used, 0);
+    assert.equal(loaded.closed, false);
+    assert.equal(projectTodayClock({ day_key: today, used_seconds: 90, armed: 0 }, today).used, 90);
+    assert.equal(projectTodayClock(undefined, today).used, 0);
+    const body = schoolWriteBody({}, 90, 0, [], undefined, undefined, undefined, today);
+    assert.deepEqual(body.clock, { seconds: 90, dayKey: today });
+    const posted = schoolWriteBody({}, 0, 0, []);
+    assert.equal(posted.clock.dayKey, localDayKey(PACIFIC));
+    assert.equal(posted.clock.seconds, 0);
   });
 });

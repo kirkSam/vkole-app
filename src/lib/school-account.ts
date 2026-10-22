@@ -10,7 +10,7 @@
 
 import { normalizeAccountEmail, sameAccount } from "./account-scope.ts";
 import { levelFieldsForWebsite } from "./level-pair.ts";
-import { DAY_LIMIT_SECONDS } from "./day-clock-math.ts";
+import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC } from "./day-clock-math.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, SIGHT_WORD_BANDS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
 import { bandMeta, cardFromAccount as spCardFromAccount, isSpBand, letterView, migrateAlphabetIndex, normalizeCompletedExercises, resumeAlphabetPlace, SPELLING_BANDS, spCard, type SpBand } from "./vkole/spelling/items.ts";
@@ -311,6 +311,8 @@ export type SchoolProfile = {
   plan: "month" | "year" | null;
   /** Day cap in seconds. The website clock limit wins; otherwise this is 8 hours. */
   clockLimit?: number;
+  /** Pacific day `clockSeconds` belongs to. Empty when the website sent no day. */
+  clockDayKey?: string;
   /** Missing or non-boolean website values stay false. */
   officePurchased: boolean;
   /** A single path segment, or null when the website sent nothing usable. */
@@ -345,7 +347,7 @@ export type AccountSession = {
 
 export type FamilyWrite = {
   levels: Partial<Record<LevelKey, EngineLevel>>;
-  clock: { seconds: number };
+  clock: { seconds: number; dayKey: string };
   /** The website rebuilds its practice-sheet key from this prompt text. */
   seenQuestions: { prompt: string }[];
   /** Set on the first child-name save. The website ignores a bare studentName field. */
@@ -375,6 +377,14 @@ export function schoolScreen(message: string): "offline" | "legacy" | "separate"
   if (message === SCHOOL_SEPARATE_MESSAGE) return "separate";
   if (message === SCHOOL_WAIT_MESSAGE) return "wait";
   return null;
+}
+
+const CLOCK_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A website clock day, or empty when the value is not a calendar day. */
+export function clockDayKeyOf(value: unknown): string {
+  const text = typeof value === "string" ? value.trim() : "";
+  return CLOCK_DAY.test(text) ? text : "";
 }
 
 export function clockToWrite(localSeconds: number, remoteSeconds: number, limit = CLOCK_LIMIT_SECONDS): number {
@@ -1109,6 +1119,7 @@ export function parseSchoolProfile(body: unknown, knownEmail?: string): { id: st
     0,
     clockLimit,
   );
+  const clockDayKey = clockDayKeyOf(clockRow?.dayKey ?? clockRow?.day ?? family.clockDayKey);
   const plan = asPlan(family.subscription ?? family.plan);
   return {
     id,
@@ -1118,6 +1129,7 @@ export function parseSchoolProfile(body: unknown, knownEmail?: string): { id: st
       level,
       freeWeekStart,
       clockSeconds,
+      clockDayKey,
       clockLimit,
       seen: asSeen(family.seen ?? family.seenQuestions),
       plan,
@@ -1169,6 +1181,8 @@ export type StoredSchoolProgress = {
   level?: Partial<Record<LevelKey, EngineLevel>>;
   freeWeekStart?: string | null;
   clockSeconds?: number;
+  /** Pacific day for `clockSeconds`. Empty on a mirror saved before days were stored. */
+  clockDayKey?: string;
   plan?: "month" | "year" | null;
 };
 
@@ -1322,18 +1336,51 @@ export function keptLevels(
 }
 
 /**
+ * Which clock total to keep.
+ * When the website names today's Pacific day, its seconds are that day.
+ * Seconds from two different days are never added or maxed together.
+ * Two totals with no day still keep the higher one, and that total stays undated.
+ */
+export function keptClock(
+  stored: StoredSchoolProgress | null | undefined,
+  incoming: Pick<SchoolProfile, "clockSeconds" | "clockDayKey" | "clockLimit">,
+  today = localDayKey(PACIFIC),
+): { clockSeconds: number; clockDayKey: string } {
+  const incomingDay = clockDayKeyOf(incoming.clockDayKey);
+  const storedDay = clockDayKeyOf(stored?.clockDayKey);
+  const limit = incoming.clockLimit;
+  if (incomingDay === today) {
+    return { clockSeconds: clockToWrite(incoming.clockSeconds, 0, limit), clockDayKey: today };
+  }
+  if (storedDay === today) {
+    return { clockSeconds: clockToWrite(stored?.clockSeconds ?? 0, 0, limit), clockDayKey: today };
+  }
+  if (!incomingDay && !storedDay) {
+    return {
+      clockSeconds: clockToWrite(incoming.clockSeconds || 0, stored?.clockSeconds || 0, limit),
+      clockDayKey: "",
+    };
+  }
+  if (incomingDay) return { clockSeconds: clockToWrite(incoming.clockSeconds, 0, limit), clockDayKey: incomingDay };
+  return { clockSeconds: clockToWrite(stored?.clockSeconds ?? 0, 0, limit), clockDayKey: storedDay };
+}
+
+/**
  * The family to store after a read.
  * Access follows the website, so a lapse still locks the engines.
- * The student, the levels, the free-week start, the clock, and the plan
+ * The student, the levels, the free-week start, and the plan
  * stay when the website sends an empty or earlier value.
+ * The clock stays only for the same Pacific day.
  */
 export function profileKeepingProgress(stored: StoredSchoolProgress | null | undefined, incoming: SchoolProfile): SchoolProfile {
+  const clock = keptClock(stored, incoming);
   return {
     ...incoming,
     studentName: incoming.studentName.trim() || stored?.studentName?.trim() || "",
     level: keptLevels(stored?.level ?? {}, incoming.level),
     freeWeekStart: incoming.freeWeekStart ?? stored?.freeWeekStart ?? null,
-    clockSeconds: clockToWrite(incoming.clockSeconds || 0, stored?.clockSeconds || 0, incoming.clockLimit),
+    clockSeconds: clock.clockSeconds,
+    clockDayKey: clock.clockDayKey,
     plan: incoming.plan ?? stored?.plan ?? null,
   };
 }
@@ -1399,6 +1446,7 @@ export function schoolWriteBody(
   student?: { name: string; age?: number | null; startingGrade?: number | null },
   limit = CLOCK_LIMIT_SECONDS,
   studentIndex?: number,
+  dayKey = localDayKey(PACIFIC),
 ): FamilyWrite {
   const seenQuestions: { prompt: string }[] = [];
   const prompts = new Set<string>();
@@ -1422,7 +1470,7 @@ export function schoolWriteBody(
   const index = Math.round(studentIndex ?? 1);
   return {
     levels,
-    clock: { seconds: clockToWrite(localClock, remoteClock, limit) },
+    clock: { seconds: clockToWrite(localClock, remoteClock, limit), dayKey: clockDayKeyOf(dayKey) || localDayKey(PACIFIC) },
     seenQuestions,
     ...(name
       ? {

@@ -11,13 +11,14 @@ import { isSubject, type SubjectId } from "@/lib/climb-rules";
 import { cardFromAccount as spCardFromAccount, letterView } from "@/lib/vkole/spelling/items";
 import { cardFromAccount as paCardFromAccount, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
 import { cardFromAccount, sightPrompt } from "@/lib/vkole/sight-words/words";
-import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC, projectClock, type ClockProjection } from "@/lib/day-clock-math";
+import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC, projectTodayClock, type ClockProjection } from "@/lib/day-clock-math";
 import type { ClockFace } from "@/components/vkole-rules";
 
 type ClockRow = {
   used_seconds: number | string | null;
   last_tick_at: unknown;
   armed: unknown;
+  day_key?: string | null;
 };
 
 const LOGIN_CLOCK = "login";
@@ -26,11 +27,13 @@ function childKey(name: string) {
   return name.trim().toLowerCase();
 }
 
-async function readRow(sql: Sql, userId: string, key: string, day: string) {
+async function readLatestRow(sql: Sql, userId: string, key: string) {
   const rows = await sql<ClockRow>`
-    select used_seconds, last_tick_at, armed
+    select used_seconds, last_tick_at, armed, day_key
     from day_clocks
-    where user_id = ${userId} and child_key = ${key} and day_key = ${day}
+    where user_id = ${userId} and child_key = ${key}
+    order by day_key desc
+    limit 1
   `;
   return rows[0];
 }
@@ -65,8 +68,9 @@ async function dayLimit(sql: Sql, userId: string): Promise<number> {
 
 async function observe(sql: Sql, userId: string) {
   const day = localDayKey(PACIFIC);
-  const row = await readRow(sql, userId, LOGIN_CLOCK, day);
-  const projected = projectClock(row, Date.now(), await dayLimit(sql, userId));
+  const latest = await readLatestRow(sql, userId, LOGIN_CLOCK);
+  const row = latest?.day_key === day ? latest : undefined;
+  const projected = projectTodayClock(latest, day, Date.now(), await dayLimit(sql, userId));
   const storedArmed = row?.armed === true || row?.armed === 1 || row?.armed === "1" || row?.armed === "t";
   if (row && storedArmed && !projected.armed) {
     await writeRow(sql, userId, LOGIN_CLOCK, day, projected.used, false, null, PACIFIC);

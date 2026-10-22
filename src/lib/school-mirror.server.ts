@@ -1,11 +1,12 @@
 import type { Sql } from "@/lib/db";
 import type { EngineLevel, FamilyStudent, LevelKey, LockReason, SchoolProfile } from "@/lib/school-account";
-import { CLOCK_LIMIT_SECONDS, LEVEL_KEYS, accountIdOf, normalizeEngineLevel } from "@/lib/school-account";
+import { CLOCK_LIMIT_SECONDS, LEVEL_KEYS, accountIdOf, clockDayKeyOf, normalizeEngineLevel } from "@/lib/school-account";
 
 export type SchoolMirror = {
   access: "open" | "closed";
   freeWeekStart: string | null;
   clockSeconds: number;
+  clockDayKey: string;
   clockLimit: number;
   studentName: string;
   plan: "month" | "year" | null;
@@ -31,6 +32,7 @@ type MirrorRow = {
   access: string;
   free_week_start: unknown;
   clock_seconds: number | string | null;
+  clock_day?: string | null;
   clock_limit?: number | string | null;
   student_name: string | null;
   plan: string | null;
@@ -65,6 +67,7 @@ export async function ensureSchoolMirror(sql: Sql): Promise<void> {
   await sql`alter table school_mirror add column if not exists account_token text`;
   await sql`alter table school_mirror add column if not exists token_expires_at timestamptz`;
   await sql`alter table school_mirror add column if not exists clock_limit integer not null default 28800`;
+  await sql`alter table school_mirror add column if not exists clock_day text`;
   await sql`alter table school_mirror add column if not exists active_student integer not null default 1`;
   await sql`alter table school_mirror add column if not exists students text`;
   await sql`alter table school_mirror add column if not exists email_confirmed boolean not null default true`;
@@ -111,7 +114,7 @@ function parseLevels(raw: string | null): Partial<Record<LevelKey, EngineLevel>>
 export async function readSchoolMirror(sql: Sql, userId: string): Promise<SchoolMirror | null> {
   await ensureSchoolMirror(sql);
   const rows = await sql<MirrorRow>`
-    select access, free_week_start, clock_seconds, clock_limit, student_name, plan, levels, last_push_at,
+    select access, free_week_start, clock_seconds, clock_day, clock_limit, student_name, plan, levels, last_push_at,
       office_purchased, office_slug, active_student, students, email_confirmed,
       confirmation_expires_at, free_week_granted, lock_reason
     from school_mirror
@@ -124,6 +127,7 @@ export async function readSchoolMirror(sql: Sql, userId: string): Promise<School
     access: row.access === "open" ? "open" : "closed",
     freeWeekStart: row.free_week_start ? new Date(String(row.free_week_start)).toISOString() : null,
     clockSeconds: Math.max(0, Number(row.clock_seconds) || 0),
+    clockDayKey: clockDayKeyOf(row.clock_day),
     clockLimit: Math.floor(Number(row.clock_limit)) > 0 ? Math.floor(Number(row.clock_limit)) : CLOCK_LIMIT_SECONDS,
     studentName: row.student_name?.trim() ?? "",
     plan,
@@ -147,7 +151,7 @@ export async function saveSchoolMirror(sql: Sql, userId: string, profile: School
   const confirmed = profile.emailConfirmed === false ? false : true;
   await sql`
     insert into school_mirror (
-      user_id, access, free_week_start, clock_seconds, clock_limit, student_name, plan, levels, last_push_at,
+      user_id, access, free_week_start, clock_seconds, clock_day, clock_limit, student_name, plan, levels, last_push_at,
       office_purchased, office_slug, students, email_confirmed, confirmation_expires_at,
       free_week_granted, lock_reason, updated_at
     )
@@ -156,6 +160,7 @@ export async function saveSchoolMirror(sql: Sql, userId: string, profile: School
       ${profile.access},
       ${profile.freeWeekStart},
       ${profile.clockSeconds},
+      ${clockDayKeyOf(profile.clockDayKey) || null},
       ${profile.clockLimit && profile.clockLimit > 0 ? Math.floor(profile.clockLimit) : CLOCK_LIMIT_SECONDS},
       ${profile.studentName || null},
       ${profile.plan},
@@ -174,6 +179,7 @@ export async function saveSchoolMirror(sql: Sql, userId: string, profile: School
     set access = excluded.access,
         free_week_start = excluded.free_week_start,
         clock_seconds = excluded.clock_seconds,
+        clock_day = excluded.clock_day,
         clock_limit = excluded.clock_limit,
         student_name = excluded.student_name,
         plan = excluded.plan,

@@ -1,5 +1,5 @@
 import type { Sql } from "@/lib/db";
-import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC, projectClock } from "@/lib/day-clock-math";
+import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC, projectTodayClock } from "@/lib/day-clock-math";
 import {
   ENGINE_IDS,
   SCHOOL_ACCOUNT_GONE_MESSAGE,
@@ -183,7 +183,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
     `;
   }
   const day = localDayKey(PACIFIC);
-  const clockSeconds = kept.clockSeconds;
+  const clockSeconds = kept.clockDayKey === day ? kept.clockSeconds : 0;
   if (clockSeconds > 0) {
     await sql`
       insert into day_clocks (user_id, child_key, day_key, used_seconds, last_tick_at, armed, time_zone)
@@ -372,12 +372,14 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Lev
 
 async function collectClock(sql: Sql, userId: string, limit = DAY_LIMIT_SECONDS): Promise<number> {
   const day = localDayKey(PACIFIC);
-  const rows = await sql<{ used_seconds: number | string | null; last_tick_at: unknown; armed: unknown }>`
-    select used_seconds, last_tick_at, armed
+  const rows = await sql<{ used_seconds: number | string | null; last_tick_at: unknown; armed: unknown; day_key: string | null }>`
+    select used_seconds, last_tick_at, armed, day_key
     from day_clocks
-    where user_id = ${userId} and child_key = ${LOGIN_CLOCK} and day_key = ${day}
+    where user_id = ${userId} and child_key = ${LOGIN_CLOCK}
+    order by day_key desc
+    limit 1
   `;
-  return projectClock(rows[0], Date.now(), limit).used;
+  return projectTodayClock(rows[0], day, Date.now(), limit).used;
 }
 
 async function collectSeen(sql: Sql, userId: string): Promise<Array<{ key: string; text: string }>> {
@@ -462,7 +464,9 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
   const remoteLevel = mirror?.level ?? {};
   const level = keptLevels(remoteLevel, await collectLevel(sql, userId, remoteLevel));
   const clockLimit = mirror?.clockLimit && mirror.clockLimit > 0 ? mirror.clockLimit : DAY_LIMIT_SECONDS;
+  const dayKey = localDayKey(PACIFIC);
   const localClock = await collectClock(sql, userId, clockLimit);
+  const remoteToday = mirror?.clockDayKey === dayKey ? (mirror.clockSeconds ?? 0) : 0;
   const seen = await collectSeen(sql, userId);
   const named = await sql<{ child_name: string; age: number | string | null; start_grade: number | string | null }>`
     select child_name, age, start_grade from climbs
@@ -478,11 +482,12 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
   const body = schoolWriteBody(
     level,
     localClock,
-    mirror?.clockSeconds ?? 0,
+    remoteToday,
     seen,
     studentName ? { name: studentName, age, startingGrade } : undefined,
     clockLimit,
     studentIndexOf(userId),
+    dayKey,
   );
   await writeSchoolAccount(
     userId,
@@ -504,6 +509,7 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
     level,
     freeWeekStart: mirror?.freeWeekStart ?? null,
     clockSeconds: body.clock.seconds,
+    clockDayKey: body.clock.dayKey,
     clockLimit,
     seen,
     plan: mirror?.plan ?? null,
