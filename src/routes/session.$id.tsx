@@ -543,6 +543,7 @@ function SessionPage() {
         ) : climb.subject === "sp" ? (
           <SpellingStage
             key={`${climb.id}:${spellingRound}`}
+            timingDebug={climb.fullAccess}
             index={climb.standardStep}
             silence={climb.correctAtLevel}
             wrong={climb.incorrectStreak}

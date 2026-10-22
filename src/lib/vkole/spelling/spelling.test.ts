@@ -105,7 +105,7 @@ describe("spelling timing", () => {
     assert.equal(stage.includes("track.stop()"), true);
     assert.equal(stage.includes("SPELLING_LETTER_MS"), true);
     assert.equal(stage.includes("SPELLING_HAPPY_FACE_MS"), true);
-    assert.equal(stage.includes("SPELLING_RESPONSE_MS"), true);
+    assert.equal(stage.includes("MIC_WINDOW_MS"), true);
     assert.equal(stage.includes("SPELLING_ADVANCE_MS"), false);
     assert.equal(stage.includes(".model"), false);
     assert.match(
@@ -813,9 +813,11 @@ describe("exercise 2 next letter", () => {
     assert.equal(notI.next, alphabet().indexOf("I"));
 
     const stage = readFileSync(stageFile, "utf8");
-    const timer = stage.slice(stage.indexOf("windowTimer = window.setTimeout"), stage.indexOf("ticker = window.setInterval"));
+    const timer = stage.slice(stage.indexOf("const closeForDeadline"), stage.indexOf("const scheduleRestart"));
     assert.equal(timer.includes('finishRef.current("timeout")'), true);
-    assert.equal(timer.includes("alphabetMicWindowMs"), true);
+    assert.equal(timer.includes("requestAnimationFrame"), false);
+    assert.equal(stage.includes("requestAnimationFrame(pump)"), true);
+    assert.equal(stage.includes("onaudiostart"), true);
     assert.match(stage, /const after = applyLetterAnswer\(placeRef\.current, outcome\);\s*placeRef\.current = after;\s*setPlace\(after\);\s*setExercise\(letterExercise\(after\.index\)\);\s*setPhase\("prompt"\);/);
     assert.equal(stage.includes("holdEngineLetter"), true);
   });

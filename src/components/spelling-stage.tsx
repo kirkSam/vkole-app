@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   SPELLING_HAPPY_FACE_MS,
   SPELLING_LETTER_MS,
   SPELLING_LISTEN_GAP_MS,
   SPELLING_RECOGNIZER_RESTART_MS,
-  SPELLING_RESPONSE_MS,
   alphabet,
   applyLetterAnswer,
   exerciseStartIndex,
@@ -25,17 +24,18 @@ import { holdEngineAudio, holdEngineLetter, holdEngineMic, noteEngineActivity } 
 import { LETTER_ALTERNATIVE_LIMIT, judgeLetterHear } from "@/lib/speech/letter-pronunciations";
 import {
   MIC_WINDOW_MS,
-  SPELLING_COUNTDOWN_MS,
-  SPELLING_MIC_AFTER_ZERO_MS,
-  SPELLING_MIC_BEFORE_COUNT_MS,
+  formatMicTiming,
   micAnswer,
   micCountdown,
+  micRestartAllowed,
   planMicStart,
   recognizerIsIdle,
   recognizerSerial,
   releaseRecognizer,
+  scheduleMicRestart,
   speechMayBlockMic,
   startWhenIdle,
+  type MicTimingMark,
 } from "@/lib/speech/mic-session";
 import { describeSpellingHear, heardAsideFromPrompt, recognitionErrorRelistens, spellingGrammar } from "@/lib/vkole/spelling/match";
 import { celebrationFrame, GOOD_JOB_LINE, reciteHear, SPELLING_CELEBRATION_MS } from "@/lib/vkole/spelling/recite";
@@ -43,11 +43,8 @@ import { advanceTyping, judgeTypingKey, TYPING_TRY_AGAIN, TYPING_WAIT_MS, typing
 
 const MIC_KEY = "vkole-sp-mic";
 
-/** Lead, visible countdown, and the extra second before the mic closes. */
-function alphabetMicWindowMs(): number {
-  const parts = SPELLING_MIC_BEFORE_COUNT_MS + SPELLING_COUNTDOWN_MS + SPELLING_MIC_AFTER_ZERO_MS;
-  return parts === MIC_WINDOW_MS ? MIC_WINDOW_MS : parts;
-}
+/** useLayoutEffect before paint on the client. The server render keeps useEffect so the hook order stays valid. */
+const useLetterLayout = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 type SpeechAlternative = { transcript?: string; confidence?: number };
 type SpeechResult = ArrayLike<SpeechAlternative> & { isFinal?: boolean };
@@ -61,6 +58,7 @@ type SpeechListener = {
   maxAlternatives: number;
   grammars: SpeechGrammarList | null;
   onstart: (() => void) | null;
+  onaudiostart: (() => void) | null;
   onresult: ((event: SpeechEvent) => void) | null;
   onerror: ((event: { error?: string }) => void) | null;
   onend: (() => void) | null;
@@ -179,16 +177,15 @@ function beginWhenReady(rec: SpeechListener, again: () => void, opened: () => bo
     return null;
   }
   if (attempt.status === "already-started" && attempt.serial !== 0) {
-    window.setTimeout(() => {
-      if (opened() || recognizerSerial() !== attempt.serial) return;
-      try {
-        rec.abort();
-      } catch {
-        /* already stopped */
-      }
-      releaseRecognizer(attempt.serial);
-      again();
-    }, SPELLING_MIC_BEFORE_COUNT_MS);
+    if (opened() || recognizerSerial() !== attempt.serial) return null;
+    try {
+      rec.abort();
+    } catch {
+      /* already stopped */
+    }
+    releaseRecognizer(attempt.serial);
+    again();
+    return null;
   }
   return attempt.serial || null;
 }
@@ -273,6 +270,7 @@ export function SpellingStage({
   onRecited,
   onAttempt,
   onDone,
+  timingDebug = false,
 }: {
   index?: number;
   silence?: number;
@@ -287,6 +285,8 @@ export function SpellingStage({
     heard: { transcript: string; confidence: number | null }[];
   }) => void;
   onDone: (outcome: Outcome) => void;
+  /** Website master only. Shows letter, mic start, audio start, and mic close. */
+  timingDebug?: boolean;
 }) {
   const opening = openingAlphabetExercise({ index, silence, wrong });
   const [exercise, setExercise] = useState<AlphabetExercise>(opening);
@@ -308,9 +308,10 @@ export function SpellingStage({
   const [typeFinished, setTypeFinished] = useState(false);
   const token = `${place.index}:${place.silence}:${place.wrong}`;
   const [songIndex, setSongIndex] = useState(0);
-  const [secondsLeft, setSecondsLeft] = useState(SPELLING_RESPONSE_MS / 1000);
+  const [secondsLeft, setSecondsLeft] = useState(MIC_WINDOW_MS / 1000);
   const [micLive, setMicLive] = useState(false);
   const [clockOn, setClockOn] = useState(false);
+  const [micTiming, setMicTiming] = useState<MicTimingMark | null>(null);
   const [heardNote, setHeardNote] = useState("");
   const [startIn, setStartIn] = useState(spellingStartSecondsLeft(0));
   const onDoneRef = useRef(onDone);
@@ -543,9 +544,9 @@ export function SpellingStage({
       opened = true;
       window.clearTimeout(backup);
       window.clearTimeout(gapTimer);
-      gapTimer = window.setTimeout(() => {
-        if (live) setPhase("listen");
-      }, SPELLING_LISTEN_GAP_MS);
+      // The prompt's onend has already run. Open the listen phase now so the letter
+      // and recognition.start() share the next paint. TTS is not still speaking.
+      if (live) setPhase("listen");
     };
     const beginSpeak = () => {
       if (!live || opened) return;
@@ -589,75 +590,109 @@ export function SpellingStage({
     };
   }, [token, view.say, phase, ready, runToken]);
 
-  useEffect(() => {
+  useLetterLayout(() => {
     if (!canScore) return;
     if (viewRef.current.exercise === 5) return;
     let live = true;
     const settled = { current: false };
     let rec: SpeechListener | null = null;
-    let restartTimer = 0;
     let decided = false;
     let heardOrigin = 0;
     let serial = 0;
-    let windowTimer = 0;
-    let ticker = 0;
-    let openedAt: number | null = null;
+    let clockFrame = 0;
+    let restartAt: number | null = null;
     let permissionTries = 0;
+    let shownClock = false;
+    let shownSeconds: number | null = null;
+    const letterAt = performance.now();
+    let micStartAt: number | null = null;
+    let audioAt: number | null = null;
+    let closedAt: number | null = null;
     const lastHeard: { transcript: string; confidence: number | null }[] = [];
-    const clearWindow = () => {
-      window.clearTimeout(windowTimer);
-      window.clearInterval(ticker);
+    const publish = (reason: string) => {
+      const mark: MicTimingMark = { letterShown: letterAt, micStart: micStartAt, audioStart: audioAt, micClose: closedAt };
+      if (!timingDebug) return;
+      console.info("[vkole-mic]", reason, formatMicTiming(mark));
+      setMicTiming(mark);
+    };
+    const markClose = () => {
+      if (closedAt != null) return;
+      closedAt = performance.now();
+      publish("close");
+    };
+    const stopClock = () => {
+      if (clockFrame) cancelAnimationFrame(clockFrame);
+      clockFrame = 0;
+      restartAt = null;
     };
     const paint = (now: number) => {
-      const frame = micCountdown(openedAt, now);
-      setClockOn(frame.showCountdown);
-      if (frame.seconds != null) setSecondsLeft(frame.seconds);
+      if (audioAt == null && now - letterAt >= MIC_WINDOW_MS) {
+        return { showCountdown: false as const, seconds: null, close: true };
+      }
+      const frame = micCountdown(audioAt, now);
+      if (frame.showCountdown !== shownClock) {
+        shownClock = frame.showCountdown;
+        setClockOn(frame.showCountdown);
+      }
+      if (frame.seconds != null && frame.seconds !== shownSeconds) {
+        shownSeconds = frame.seconds;
+        setSecondsLeft(frame.seconds);
+      }
       return frame;
     };
-    const armWindow = (now: number) => {
-      const first = openedAt == null;
-      if (first) {
-        openedAt = now;
-        heardOrigin = now;
+    const closeForDeadline = () => {
+      if (decided) return;
+      decided = true;
+      stopClock();
+      setClockOn(true);
+      setSecondsLeft(0);
+      markClose();
+      noteSilence();
+      const card = viewRef.current;
+      onAttemptRef.current?.({ letter: card.answer, exercise: card.exercise, outcome: "timeout", heard: lastHeard });
+      try {
+        rec?.abort();
+      } catch {
+        /* already stopped */
       }
-      paint(now);
-      if (!first) return;
-      windowTimer = window.setTimeout(() => {
-        if (decided) return;
-        decided = true;
-        setClockOn(false);
-        noteSilence();
-        const card = viewRef.current;
-        onAttemptRef.current?.({ letter: card.answer, exercise: card.exercise, outcome: "timeout", heard: lastHeard });
-        try {
-          rec?.abort();
-        } catch {
-          /* already stopped */
-        }
-        if (live) finishRef.current("timeout");
-      }, alphabetMicWindowMs());
-      ticker = window.setInterval(() => {
-        paint(performance.now());
-      }, 200);
+      if (live) finishRef.current("timeout");
     };
-
     const scheduleRestart = () => {
       if (!live || settled.current || decided || !rec) return;
-      if (micCountdown(openedAt, performance.now()).close) return;
-      window.clearTimeout(restartTimer);
-      restartTimer = window.setTimeout(() => {
-        if (!live || settled.current || decided || !rec) return;
-        if (micCountdown(openedAt, performance.now()).close) return;
-        const next = beginWhenReady(rec, scheduleRestart, () => openedAt != null);
-        if (next != null) serial = next;
-      }, SPELLING_RECOGNIZER_RESTART_MS);
+      const at = scheduleMicRestart(audioAt, performance.now(), SPELLING_RECOGNIZER_RESTART_MS);
+      if (at == null) return;
+      restartAt = at;
     };
+    const pump = () => {
+      if (!live || decided) return;
+      const now = performance.now();
+      const frame = paint(now);
+      if (frame.close) {
+        closeForDeadline();
+        return;
+      }
+      if (restartAt != null && now >= restartAt && rec) {
+        restartAt = null;
+        if (micRestartAllowed(audioAt, now)) {
+          const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
+          if (next != null) {
+            serial = next;
+            if (micStartAt == null) {
+              micStartAt = performance.now();
+              publish("mic-start");
+            }
+          }
+        }
+      }
+      clockFrame = requestAnimationFrame(pump);
+    };
+    publish("letter");
 
     finishRef.current = (outcome: Outcome) => {
       if (!live || settled.current) return;
       settled.current = true;
-      clearWindow();
-      window.clearTimeout(restartTimer);
+      stopClock();
+      markClose();
       try {
         rec?.abort();
       } catch {
@@ -697,8 +732,8 @@ export function SpellingStage({
             if (action === "keep") continue;
             if (action === "reask") {
               decided = true;
-              clearWindow();
-              openedAt = null;
+              stopClock();
+              markClose();
               setClockOn(false);
               noteHeard("Try again");
               onAttemptRef.current?.({
@@ -719,8 +754,8 @@ export function SpellingStage({
             if (action === "retry" && earlyHandoffMiss(elapsed, "miss")) continue;
             if (action === "advance") {
               decided = true;
-              clearWindow();
-              openedAt = null;
+              stopClock();
+              markClose();
               setClockOn(false);
               noteHeard(heard.status);
               onAttemptRef.current?.({ letter: current.answer, exercise: current.exercise, outcome: "correct", heard: lastHeard });
@@ -731,8 +766,8 @@ export function SpellingStage({
           }
           if (!missNote) return;
           decided = true;
-          clearWindow();
-          openedAt = null;
+          stopClock();
+          markClose();
           setClockOn(false);
           noteHeard(missNote);
           onAttemptRef.current?.({
@@ -772,22 +807,32 @@ export function SpellingStage({
           }
           if (recognitionErrorRelistens(error)) restartListening();
         };
+        rec.onaudiostart = () => {
+          if (audioAt != null) return;
+          audioAt = performance.now();
+          heardOrigin = audioAt;
+          setMicLive(true);
+          publish("audio");
+        };
         rec.onstart = () => {
           noteEngineActivity();
           permissionTries = 0;
-          setMicLive(true);
-          armWindow(performance.now());
         };
         rec.onend = () => {
           noteEngineActivity();
           setMicLive(false);
           releaseRecognizer(serial);
           if (!live || settled.current || decided || !rec) return;
-          if (micCountdown(openedAt, performance.now()).close) return;
+          if (!micRestartAllowed(audioAt, performance.now())) return;
           scheduleRestart();
         };
-        const next = beginWhenReady(rec, scheduleRestart, () => openedAt != null);
-        if (next != null) serial = next;
+        clockFrame = requestAnimationFrame(pump);
+        const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
+        if (next != null) {
+          serial = next;
+          micStartAt = performance.now();
+          publish("mic-start");
+        }
       }
     }
 
@@ -795,8 +840,8 @@ export function SpellingStage({
       live = false;
       setMicLive(false);
       setClockOn(false);
-      clearWindow();
-      window.clearTimeout(restartTimer);
+      stopClock();
+      markClose();
       const stuck = serial;
       window.setTimeout(() => releaseRecognizer(stuck), 400);
       try {
@@ -805,64 +850,122 @@ export function SpellingStage({
         /* already stopped */
       }
     };
-  }, [canScore, token, listening]);
+  }, [canScore, token, listening, timingDebug]);
 
-  useEffect(() => {
+  useLetterLayout(() => {
     if (!canScore || viewRef.current.exercise !== 5) return;
     let live = true;
     let rec: SpeechListener | null = null;
-    let restartTimer = 0;
     let serial = 0;
-    let windowTimer = 0;
-    let ticker = 0;
-    let openedAt: number | null = null;
+    let clockFrame = 0;
+    let restartAt: number | null = null;
     let decided = false;
     let permissionTries = 0;
-    const clearWindow = () => {
-      window.clearTimeout(windowTimer);
-      window.clearInterval(ticker);
+    let shownClock = false;
+    let shownSeconds: number | null = null;
+    let letterAt = performance.now();
+    let micStartAt: number | null = null;
+    let audioAt: number | null = null;
+    let closedAt: number | null = null;
+    const publish = (reason: string) => {
+      const mark: MicTimingMark = { letterShown: letterAt, micStart: micStartAt, audioStart: audioAt, micClose: closedAt };
+      if (!timingDebug) return;
+      console.info("[vkole-mic]", reason, formatMicTiming(mark));
+      setMicTiming(mark);
+    };
+    const markClose = () => {
+      if (closedAt != null) return;
+      closedAt = performance.now();
+      publish("close");
+    };
+    const stopClock = () => {
+      if (clockFrame) cancelAnimationFrame(clockFrame);
+      clockFrame = 0;
+      restartAt = null;
     };
     const paint = (now: number) => {
-      const frame = micCountdown(openedAt, now);
-      setClockOn(frame.showCountdown);
-      if (frame.seconds != null) setSecondsLeft(frame.seconds);
+      if (audioAt == null && now - letterAt >= MIC_WINDOW_MS) {
+        return { showCountdown: false as const, seconds: null, close: true };
+      }
+      const frame = micCountdown(audioAt, now);
+      if (frame.showCountdown !== shownClock) {
+        shownClock = frame.showCountdown;
+        setClockOn(frame.showCountdown);
+      }
+      if (frame.seconds != null && frame.seconds !== shownSeconds) {
+        shownSeconds = frame.seconds;
+        setSecondsLeft(frame.seconds);
+      }
+      return frame;
     };
-    const armWindow = (now: number) => {
-      clearWindow();
-      openedAt = now;
-      paint(now);
-      windowTimer = window.setTimeout(() => {
-        if (!live || decided) return;
-        decided = true;
-        try {
-          rec?.abort();
-        } catch {
-          /* already stopped */
-        }
-        setMicLive(false);
-        setClockOn(false);
-        if (live) setPhase("prompt");
-      }, alphabetMicWindowMs());
-      ticker = window.setInterval(() => paint(performance.now()), 200);
+    const closeForDeadline = () => {
+      if (!live || decided) return;
+      decided = true;
+      stopClock();
+      setSecondsLeft(0);
+      markClose();
+      try {
+        rec?.abort();
+      } catch {
+        /* already stopped */
+      }
+      setMicLive(false);
+      setClockOn(false);
+      if (live) setPhase("prompt");
     };
     const scheduleRestart = () => {
       if (!live || decided || !rec) return;
-      if (micCountdown(openedAt, performance.now()).close) return;
-      window.clearTimeout(restartTimer);
-      restartTimer = window.setTimeout(() => {
-        if (!live || decided || !rec) return;
-        if (micCountdown(openedAt, performance.now()).close) return;
-        const next = beginWhenReady(rec, scheduleRestart, () => openedAt != null);
-        if (next != null) serial = next;
-      }, SPELLING_RECOGNIZER_RESTART_MS);
+      const at = scheduleMicRestart(audioAt, performance.now(), SPELLING_RECOGNIZER_RESTART_MS);
+      if (at == null) return;
+      restartAt = at;
+    };
+    const pump = () => {
+      if (!live || decided) return;
+      const now = performance.now();
+      const frame = paint(now);
+      if (frame.close) {
+        closeForDeadline();
+        return;
+      }
+      if (restartAt != null && now >= restartAt && rec) {
+        restartAt = null;
+        if (micRestartAllowed(audioAt, now)) {
+          const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
+          if (next != null) {
+            serial = next;
+            if (micStartAt == null) {
+              micStartAt = performance.now();
+              publish("mic-start");
+            }
+          }
+        }
+      }
+      clockFrame = requestAnimationFrame(pump);
+    };
+    const freshLetter = (now: number) => {
+      markClose();
+      audioAt = null;
+      closedAt = null;
+      micStartAt = null;
+      letterAt = now;
+      shownClock = false;
+      shownSeconds = null;
+      setClockOn(false);
+      setMicLive(false);
+      publish("letter");
+      try {
+        rec?.abort();
+      } catch {
+        /* onend starts the next letter inside the same recognizer gate */
+      }
+      scheduleRestart();
     };
     const celebrate = () => {
       if (!live) return;
       live = false;
       decided = true;
-      clearWindow();
-      openedAt = null;
-      window.clearTimeout(restartTimer);
+      stopClock();
+      markClose();
       try {
         rec?.abort();
       } catch {
@@ -872,6 +975,7 @@ export function SpellingStage({
       setClockOn(false);
       setPhase("good-job");
     };
+    publish("letter");
     finishRef.current = (outcome: Outcome) => {
       if (!live) return;
       if (outcome === "correct") {
@@ -911,8 +1015,8 @@ export function SpellingStage({
             if (action === "keep") continue;
             if (action === "reask" || action === "retry") {
               decided = true;
-              clearWindow();
-              openedAt = null;
+              stopClock();
+              markClose();
               noteHeard("Try again");
               onAttemptRef.current?.({
                 letter: nextLetter,
@@ -946,7 +1050,7 @@ export function SpellingStage({
               for (const letter of alphabet().slice(before, next)) {
                 onAttemptRef.current?.({ letter, exercise: 5, outcome: "correct", heard: packed });
               }
-              if (next < alphabet().length) armWindow(performance.now());
+              if (next < alphabet().length) freshLetter(performance.now());
             } else if (bestStatus.startsWith("I heard:") && !heardRef.current.startsWith("I heard:")) {
               noteHeard(bestStatus);
             }
@@ -976,23 +1080,31 @@ export function SpellingStage({
           }
           if (recognitionErrorRelistens(error)) restartListening();
         };
+        rec.onaudiostart = () => {
+          if (audioAt != null) return;
+          audioAt = performance.now();
+          setMicLive(true);
+          publish("audio");
+        };
         rec.onstart = () => {
           noteEngineActivity();
           permissionTries = 0;
-          setMicLive(true);
-          if (openedAt == null) armWindow(performance.now());
-          else paint(performance.now());
         };
         rec.onend = () => {
           noteEngineActivity();
           setMicLive(false);
           releaseRecognizer(serial);
           if (!live || decided || !rec) return;
-          if (micCountdown(openedAt, performance.now()).close) return;
+          if (!micRestartAllowed(audioAt, performance.now())) return;
           scheduleRestart();
         };
-        const next = beginWhenReady(rec, scheduleRestart, () => openedAt != null);
-        if (next != null) serial = next;
+        clockFrame = requestAnimationFrame(pump);
+        const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
+        if (next != null) {
+          serial = next;
+          micStartAt = performance.now();
+          publish("mic-start");
+        }
       }
     }
     return () => {
@@ -1000,8 +1112,8 @@ export function SpellingStage({
       decided = true;
       setMicLive(false);
       setClockOn(false);
-      clearWindow();
-      window.clearTimeout(restartTimer);
+      stopClock();
+      markClose();
       const stuck = serial;
       window.setTimeout(() => releaseRecognizer(stuck), 400);
       try {
@@ -1010,7 +1122,7 @@ export function SpellingStage({
         /* already stopped */
       }
     };
-  }, [canScore, token, listening]);
+  }, [canScore, token, listening, timingDebug]);
 
   useEffect(() => {
     if (phase !== "good-job") return;
@@ -1222,7 +1334,7 @@ export function SpellingStage({
           ) : null}
           <HappyFace />
         </>
-      ) : view.kind === "cue" ? (
+      ) : phase === "prompt" ? null : view.kind === "cue" ? (
         <div className="sp-cue" aria-label={view.show}>
           {view.cue.map((glyph) => {
             const swatch = colors[letters.indexOf(glyph)];
@@ -1244,7 +1356,20 @@ export function SpellingStage({
         </>
       )}
       {phase === "listen" && !needsMic && view.exercise >= 2 && clockOn ? (
-        <p className="mt-3 text-center text-sm text-muted">{secondsLeft} seconds</p>
+        <div className="mt-3 w-full max-w-xs" aria-label="Microphone">
+          <p className="text-center text-sm text-muted">Microphone · {secondsLeft} seconds</p>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-line" aria-hidden="true">
+            <div
+              className="h-full bg-accent"
+              style={{ width: `${Math.max(0, Math.min(100, (secondsLeft / (MIC_WINDOW_MS / 1000)) * 100))}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
+      {timingDebug && micTiming ? (
+        <p className="mt-2 text-center font-mono text-xs text-muted" data-mic-timing="master">
+          {formatMicTiming(micTiming)}
+        </p>
       ) : null}
       {(heardNote || heard) && (phase === "prompt" || phase === "listen" || phase === "happy") ? (
         <p className="mt-2 text-center text-sm text-ink" role="status">
