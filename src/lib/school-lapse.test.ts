@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import type { Sql } from "./db.ts";
+import { localDayKey, PACIFIC } from "./day-clock-math.ts";
 import { pullSchoolAccount, pushSchoolAccount } from "./school-sync.server.ts";
 import { saveAccountGrant, saveSchoolMirror, readSchoolMirror } from "./school-mirror.server.ts";
 import type { SchoolProfile } from "./school-account.ts";
@@ -46,6 +47,7 @@ async function database(): Promise<{ pg: PGlite; sql: Sql }> {
       right_count integer not null default 0,
       performance_level integer,
       current_prompt text,
+      alphabet_completed text not null default '',
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     );
@@ -278,6 +280,62 @@ describe("keep progress after a lapse", () => {
       const leftSeen = await pg.query<{ n: number }>("select count(*)::int as n from seen_prompts");
       assert.equal(Number(leftClimbs.rows[0]?.n), 0);
       assert.equal(Number(leftSeen.rows[0]?.n), 0);
+    } finally {
+      globalThis.fetch = previous;
+      await pg.close();
+    }
+  });
+
+  it("does not carry yesterday's 8 hours onto today's clock or the website post", async () => {
+    const today = localDayKey(PACIFIC);
+    const [year, month, date] = today.split("-").map(Number);
+    const prior = new Date(Date.UTC(year ?? 2026, (month ?? 1) - 1, date ?? 1));
+    prior.setUTCDate(prior.getUTCDate() - 1);
+    const yesterday = prior.toISOString().slice(0, 10);
+    const { pg, sql } = await database();
+    const posts: unknown[] = [];
+    const previous = globalThis.fetch;
+    globalThis.fetch = (async (_input: string, init?: RequestInit) => {
+      const method = String(init?.method ?? "GET");
+      if (method === "POST") {
+        posts.push(init?.body ? JSON.parse(String(init.body)) : null);
+        return jsonResponse(family("open"));
+      }
+      return jsonResponse({
+        family: {
+          email: EMAIL,
+          access: "open",
+          student: "Ada",
+          levels: { m: { grade: 4, step: 2 } },
+          clock: { seconds: 0, dayKey: today },
+          seen: [],
+        },
+      });
+    }) as typeof fetch;
+    try {
+      await saveAccountGrant(sql, EMAIL, { token: TOKEN, expiresAt: EXPIRES });
+      await saveSchoolMirror(sql, EMAIL, { ...saved, clockSeconds: 28800, clockDayKey: yesterday }, true);
+      await pg.query(
+        `insert into day_clocks (user_id, child_key, day_key, used_seconds, armed, time_zone)
+         values ($1, 'login', $2, 28800, 0, 'America/Los_Angeles')`,
+        [EMAIL, yesterday],
+      );
+      const pulled = await pullSchoolAccount(sql, EMAIL);
+      assert.equal(pulled.clockDayKey, today);
+      assert.equal(pulled.clockSeconds, 0);
+      const todayRow = await pg.query<{ used_seconds: number }>(
+        "select used_seconds from day_clocks where user_id = $1 and day_key = $2",
+        [EMAIL, today],
+      );
+      assert.equal(todayRow.rows.length, 0);
+      const mirror = await readSchoolMirror(sql, EMAIL);
+      assert.equal(mirror?.clockDayKey, today);
+      assert.equal(mirror?.clockSeconds, 0);
+      await pushSchoolAccount(sql, EMAIL);
+      assert.equal(posts.length, 1);
+      const body = posts[0] as { clock?: { seconds?: number; dayKey?: string } };
+      assert.equal(body.clock?.seconds, 0);
+      assert.equal(body.clock?.dayKey, today);
     } finally {
       globalThis.fetch = previous;
       await pg.close();

@@ -50,6 +50,22 @@ export function formatClock(totalSeconds: number): string {
   return `${hours}:${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
 }
 
+/**
+ * The clock that counts today.
+ * A row from another Pacific day, or a total with no day, is a fresh 0.
+ */
+export function projectTodayClock(
+  row:
+    | { day_key?: string | null; used_seconds?: number | string | null; last_tick_at?: unknown; armed?: unknown }
+    | undefined,
+  today = localDayKey(PACIFIC),
+  now = Date.now(),
+  limit = DAY_LIMIT_SECONDS,
+): ClockProjection {
+  if (!row || row.day_key !== today) return projectClock(undefined, now, limit);
+  return projectClock(row, now, limit);
+}
+
 export function projectClock(
   row:
     { used_seconds?: number | string | null; last_tick_at?: unknown; armed?: unknown } | undefined,
