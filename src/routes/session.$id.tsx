@@ -44,6 +44,7 @@ import { deviceTimeZone } from "@/lib/day-clock-math";
 import type { ClockFace } from "@/components/vkole-rules";
 import { SchoolPath } from "@/components/school-path";
 import { WebsiteVisit } from "@/components/website-visit";
+import { openEnginePicker, takeHeldSitting } from "@/lib/engine-picker";
 
 export const Route = createFileRoute("/session/$id")({ component: SessionPage });
 
@@ -321,7 +322,7 @@ function SessionPage() {
       for (const name of names) window.removeEventListener(name, mark);
       window.removeEventListener(ENGINE_ACTIVITY_EVENT, onEngine);
       document.removeEventListener("visibilitychange", onVisible);
-      if (closing.current) return;
+      if (closing.current || takeHeldSitting()) return;
       const timer = window.setTimeout(() => finish("logout"), 500);
       pendingLeave = { id: climbId, cancel: () => window.clearTimeout(timer) };
     };
@@ -559,12 +560,13 @@ function SessionPage() {
           {closure.body ? (
             <pre className="mt-4 whitespace-pre-wrap font-sans text-sm leading-relaxed text-ink">{`${closure.subject}\n\n${closure.body}`}</pre>
           ) : null}
-          <Link
-            to="/"
+          <button
+            type="button"
+            onClick={() => openEnginePicker()}
             className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-ink bg-paper px-5 text-base font-semibold text-ink"
           >
             Other engines
-          </Link>
+          </button>
           {closure.reason === "finished" ? <WebsiteVisit /> : null}
         </section>
       ) : !clockOpen ? null : climb.age == null ? (
@@ -720,12 +722,13 @@ function SessionPage() {
           >
             Finished
           </button>
-          <Link
-            to="/"
+          <button
+            type="button"
+            onClick={() => openEnginePicker()}
             className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-ink bg-paper px-5 text-base font-semibold text-ink"
           >
             Other engines
-          </Link>
+          </button>
         </div>
       </article>
       )}

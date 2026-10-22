@@ -25,6 +25,7 @@ import { useRefetchWhenConnectorReady } from "@/lib/app-data/use-connector-readi
 import { endReasonSentence, type EndReason } from "@/lib/academic-email";
 import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
 import { ACCOUNT_GONE_FLAG } from "@/lib/account-purge";
+import { ENGINE_PICKER_PARAM, isEnginePickerSearch } from "@/lib/engine-picker";
 import { takeZpdReturn } from "@/lib/zpd-info";
 import { PASTEL_NAV } from "@/lib/pastel-nav";
 
@@ -54,8 +55,8 @@ function Home() {
       /* storage may be unavailable */
     }
     const params = new URLSearchParams(window.location.search);
-    if (params.get("open") !== "1") return;
-    params.delete("open");
+    if (!isEnginePickerSearch(window.location.search)) return;
+    params.delete(ENGINE_PICKER_PARAM);
     const next = params.toString();
     window.history.replaceState(null, "", next ? `/?${next}` : "/");
     setUnpaid(false);
