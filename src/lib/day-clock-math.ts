@@ -1,15 +1,14 @@
 import { APP_NAME, SCHOOL_EMAIL } from "@/lib/brand";
 
-/** One day clock per student, shared by that student's engines. Midnight is Pacific, not the device clock. */
+/**
+ * Stored when a website clock omits a limit.
+ * It does not cap seconds, reset at midnight, or close an engine.
+ */
 export const DAY_LIMIT_SECONDS = 8 * 60 * 60;
 export const IDLE_STOP_SECONDS = 5 * 60;
 export const PACIFIC = "America/Los_Angeles";
 
-export const VKOLE_RULES = [
-  `${APP_NAME} uses one short call to grade the answer and write the next question. Price stays: one week free, then $9.00 USD plus tax a month, or $79.00 USD plus tax a year. 2 students per account. It auto-renews until cancelled by email at ${SCHOOL_EMAIL}.`,
-  "Access: each student has 8 hours a day. That student's engines share the clock. Used time never goes past 8 hours. It resets at midnight Pacific time.",
-  "Five minutes with no pointer press or key press stops the clock. Those later minutes are not added. The student password starts the clock again. Time already used stays. Leaving one engine does not stop the clock. The other engines stay open. After 8 hours the engines stay closed until midnight Pacific time.",
-].join("\n\n");
+export const VKOLE_RULES = `${APP_NAME} uses one short call to grade the answer and write the next question. Price stays: one week free, then $9.00 USD plus tax a month, or $79.00 USD plus tax a year. 2 students per account. It auto-renews until cancelled by email at ${SCHOOL_EMAIL}.`;
 
 export type ClockProjection = {
   used: number;
@@ -51,8 +50,8 @@ export function formatClock(totalSeconds: number): string {
 }
 
 /**
- * The clock that counts today.
- * A row from another Pacific day, or a total with no day, is a fresh 0.
+ * Seconds already recorded for this student.
+ * A row from another Pacific day still counts. Nothing here closes an engine.
  */
 export function projectTodayClock(
   row:
@@ -62,7 +61,7 @@ export function projectTodayClock(
   now = Date.now(),
   limit = DAY_LIMIT_SECONDS,
 ): ClockProjection {
-  if (!row || row.day_key !== today) return projectClock(undefined, now, limit);
+  void today;
   return projectClock(row, now, limit);
 }
 
@@ -72,11 +71,11 @@ export function projectClock(
   now = Date.now(),
   limit = DAY_LIMIT_SECONDS,
 ): ClockProjection {
-  const cap = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : DAY_LIMIT_SECONDS;
+  void limit;
   if (!row) {
     return {
       used: 0,
-      remaining: cap,
+      remaining: 0,
       closed: false,
       armed: false,
       idleStopped: false,
@@ -95,8 +94,6 @@ export function projectClock(
       used += gap;
     }
   }
-  used = Math.min(cap, Math.floor(used));
-  const closed = used >= cap;
-  if (closed) armed = false;
-  return { used, remaining: cap - used, closed, armed, idleStopped };
+  used = Math.max(0, Math.floor(used));
+  return { used, remaining: 0, closed: false, armed, idleStopped };
 }

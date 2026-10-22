@@ -155,7 +155,8 @@ describe("engine activity keeps a sitting open", () => {
     assert.match(session, /inactivityDue\(last, Date\.now\(\), engineIsBusy\(\), IDLE_MS\)/);
     assert.match(session, /ENGINE_ACTIVITY_EVENT/);
     assert.match(session, /if \(engineIsBusy\(\)\) stamp\(\)/);
-    assert.match(session, /!next\.armed && engineIsBusy\(\)/);
+    assert.equal(session.includes("next.closed"), false);
+    assert.equal(session.includes("!next.armed"), false);
     for (const stage of [spelling, phonemic, sight]) {
       assert.match(stage, /holdEngineAudio/);
       assert.match(stage, /holdEngineMic/);
@@ -167,5 +168,20 @@ describe("engine activity keeps a sitting open", () => {
     assert.equal(sight.includes("holdEngineLetter"), false);
     assert.match(middleware, /engineSessionActive\(\)/);
     assert.match(middleware, /appSessionOnWebsiteUnauthorized\(engineSessionActive\(\)\) === "sign-in"/);
+  });
+
+  it("does not lock a sitting when recorded seconds are high", () => {
+    const session = source("../routes/session.$id.tsx");
+    const home = source("../routes/index.tsx");
+    const clock = source("./day-clock.ts");
+    assert.equal(session.includes("midnight Pacific"), false);
+    assert.equal(session.includes("The 8 hours"), false);
+    assert.equal(session.includes("Student password"), false);
+    assert.match(session, /inactivityDue\(last, Date\.now\(\), engineIsBusy\(\), IDLE_MS\)/);
+    assert.match(session, /formatOnline\(closure\.sittingSeconds\)/);
+    assert.equal(home.includes("clock of 8 hours"), false);
+    assert.equal(home.includes("midnight Pacific"), false);
+    assert.equal(clock.includes('status: "closed"'), false);
+    assert.equal(clock.includes('status: "hold"'), false);
   });
 });

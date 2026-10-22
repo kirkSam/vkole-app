@@ -8,6 +8,7 @@ import {
   SCHOOL_SEPARATE_MESSAGE,
   accountIdOf,
   clearsLocalProgress,
+  clockDayKeyOf,
   keptEngineLevel,
   keptLevels,
   profileKeepingProgress,
@@ -182,12 +183,12 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
       where user_id = ${userId} and subject = ${engine}
     `;
   }
-  const day = localDayKey(PACIFIC);
-  const clockSeconds = kept.clockDayKey === day ? kept.clockSeconds : 0;
-  if (clockSeconds > 0) {
+  const clockDay = clockDayKeyOf(kept.clockDayKey);
+  const clockSeconds = Math.max(0, Math.floor(kept.clockSeconds) || 0);
+  if (clockDay && clockSeconds > 0) {
     await sql`
       insert into day_clocks (user_id, child_key, day_key, used_seconds, last_tick_at, armed, time_zone)
-      values (${userId}, ${LOGIN_CLOCK}, ${day}, ${clockSeconds}, null, 0, ${PACIFIC})
+      values (${userId}, ${LOGIN_CLOCK}, ${clockDay}, ${clockSeconds}, null, 0, ${PACIFIC})
       on conflict (user_id, child_key, day_key) do update
       set used_seconds = greatest(day_clocks.used_seconds, excluded.used_seconds),
           time_zone = excluded.time_zone
@@ -370,8 +371,7 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Lev
   return level;
 }
 
-async function collectClock(sql: Sql, userId: string, limit = DAY_LIMIT_SECONDS): Promise<number> {
-  const day = localDayKey(PACIFIC);
+async function collectClock(sql: Sql, userId: string): Promise<number> {
   const rows = await sql<{ used_seconds: number | string | null; last_tick_at: unknown; armed: unknown; day_key: string | null }>`
     select used_seconds, last_tick_at, armed, day_key
     from day_clocks
@@ -379,7 +379,7 @@ async function collectClock(sql: Sql, userId: string, limit = DAY_LIMIT_SECONDS)
     order by day_key desc
     limit 1
   `;
-  return projectTodayClock(rows[0], day, Date.now(), limit).used;
+  return projectTodayClock(rows[0]).used;
 }
 
 async function collectSeen(sql: Sql, userId: string): Promise<Array<{ key: string; text: string }>> {
@@ -465,8 +465,8 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
   const level = keptLevels(remoteLevel, await collectLevel(sql, userId, remoteLevel));
   const clockLimit = mirror?.clockLimit && mirror.clockLimit > 0 ? mirror.clockLimit : DAY_LIMIT_SECONDS;
   const dayKey = localDayKey(PACIFIC);
-  const localClock = await collectClock(sql, userId, clockLimit);
-  const remoteToday = mirror?.clockDayKey === dayKey ? (mirror.clockSeconds ?? 0) : 0;
+  const localClock = await collectClock(sql, userId);
+  const remoteSeconds = Math.max(0, Math.floor(Number(mirror?.clockSeconds) || 0));
   const seen = await collectSeen(sql, userId);
   const named = await sql<{ child_name: string; age: number | string | null; start_grade: number | string | null }>`
     select child_name, age, start_grade from climbs
@@ -482,7 +482,7 @@ export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void>
   const body = schoolWriteBody(
     level,
     localClock,
-    remoteToday,
+    remoteSeconds,
     seen,
     studentName ? { name: studentName, age, startingGrade } : undefined,
     clockLimit,

@@ -45,7 +45,7 @@ export function finishSendsReport(reason: EndReason, eventCount: number): boolea
  * Whether this ending emails the parent.
  * Alphabet emails only for Finished, completing exercise 6 (also Finished),
  * and an explicit Log out that already has an answer.
- * A 5-minute idle, the 8-hour clock, and leaving Alphabet do not email.
+ * A 5-minute idle and leaving Alphabet do not email.
  * Other engines keep finishSendsReport.
  */
 export function parentProgressMail(input: {

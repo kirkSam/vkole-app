@@ -3,7 +3,7 @@ import { z } from "zod";
 import { childAccess, rollRenewals } from "@/lib/subscription";
 import { getSql, type Sql } from "@/lib/db";
 import { schoolMiddleware } from "@/lib/school-middleware";
-import { CLOCK_LIMIT_SECONDS, THIRD_STUDENT_MESSAGE, accountIdOf, isSchoolAccountId } from "@/lib/school-account";
+import { THIRD_STUDENT_MESSAGE, accountIdOf, isSchoolAccountId } from "@/lib/school-account";
 import { TRIAL_MS } from "@/lib/academic-email";
 import { dealQuestion } from "@/lib/question-history";
 import { practicePromptText, rememberPrompt } from "@/lib/next-sheet";
@@ -11,7 +11,7 @@ import { isSubject, type SubjectId } from "@/lib/climb-rules";
 import { cardFromAccount as spCardFromAccount, letterView } from "@/lib/vkole/spelling/items";
 import { cardFromAccount as paCardFromAccount, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
 import { cardFromAccount, sightPrompt } from "@/lib/vkole/sight-words/words";
-import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC, projectTodayClock, type ClockProjection } from "@/lib/day-clock-math";
+import { localDayKey, PACIFIC, projectTodayClock, type ClockProjection } from "@/lib/day-clock-math";
 import type { ClockFace } from "@/components/vkole-rules";
 
 type ClockRow = {
@@ -59,23 +59,16 @@ async function writeRow(
   `;
 }
 
-async function dayLimit(sql: Sql, userId: string): Promise<number> {
-  if (!isSchoolAccountId(userId)) return DAY_LIMIT_SECONDS;
-  const { readSchoolMirror } = await import("@/lib/school-mirror.server");
-  const mirror = await readSchoolMirror(sql, userId);
-  return mirror?.clockLimit && mirror.clockLimit > 0 ? mirror.clockLimit : CLOCK_LIMIT_SECONDS;
-}
-
 async function observe(sql: Sql, userId: string) {
   const day = localDayKey(PACIFIC);
   const latest = await readLatestRow(sql, userId, LOGIN_CLOCK);
   const row = latest?.day_key === day ? latest : undefined;
-  const projected = projectTodayClock(latest, day, Date.now(), await dayLimit(sql, userId));
+  const projected = projectTodayClock(latest, day, Date.now());
   const storedArmed = row?.armed === true || row?.armed === 1 || row?.armed === "1" || row?.armed === "t";
   if (row && storedArmed && !projected.armed) {
     await writeRow(sql, userId, LOGIN_CLOCK, day, projected.used, false, null, PACIFIC);
   }
-  return { ...projected, day, zone: PACIFIC, held: !projected.armed && !projected.closed && projected.used > 0 };
+  return { ...projected, day, zone: PACIFIC };
 }
 
 async function accessOpen(sql: Sql, userId: string) {
@@ -413,8 +406,6 @@ export const enterEngine = createServerFn({ method: "POST" })
     if (level == null) return { status: "new" as const };
     await seedPrompt(sql, scopeId, id, data.subject, level, data.firstName.trim());
     const clock = await observe(sql, scopeId);
-    if (clock.closed) return { status: "closed" as const };
-    if (clock.held) return { status: "hold" as const, id };
     await writeRow(sql, scopeId, LOGIN_CLOCK, clock.day, clock.used, true, new Date().toISOString(), PACIFIC);
     return { status: "open" as const, id };
   });
@@ -473,8 +464,7 @@ export const beatStudentClock = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const { name, clock } = await clockForClimb(sql, context.userId, data.id);
-    if (!clock.armed || clock.closed) return face(sql, context.userId, name, clock);
-    await writeRow(sql, context.userId, LOGIN_CLOCK, clock.day, clock.used, !clock.closed, new Date().toISOString(), PACIFIC);
+    await writeRow(sql, context.userId, LOGIN_CLOCK, clock.day, clock.used, true, new Date().toISOString(), PACIFIC);
     const next = await observe(sql, context.userId);
     return face(sql, context.userId, name, next);
   });
@@ -496,7 +486,6 @@ export const resumeStudentClock = createServerFn({ method: "POST" })
     const sql = await getSql();
     if (!(await accessOpen(sql, context.userId))) throw new Error("The 7-day trial for VKOLE/ZPD - Space XSI Integrated Learning Engine has ended.");
     const { name, clock } = await clockForClimb(sql, context.userId, data.id);
-    if (clock.closed) return face(sql, context.userId, name, clock);
     await acceptStudentPassword(sql, context.userId, name, data.password);
     await writeRow(sql, context.userId, LOGIN_CLOCK, clock.day, clock.used, true, new Date().toISOString(), PACIFIC);
     const next = await observe(sql, context.userId);

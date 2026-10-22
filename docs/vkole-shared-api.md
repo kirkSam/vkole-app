@@ -37,7 +37,7 @@ The password is the typed password with trailing newlines removed. It is not tri
 
 `VKOLE_MASTER_EMAIL`, or `kirksamalpha@dotheimpossible.ai` when that variable is empty, is never on a free week and never has to pay. Register, sign-in, and the family read for that email return `access: "open"` and do not send a finished free week.
 
-A family save sends each engine object the app has, including alphabet on `sp` and a stored `mg` level when one was read. `seenQuestions` is the last 400 questions, `{ "prompt" }`, using the text the child saw. The website builds the practice-sheet key from that text. `clock.seconds` is that student's day clock. `clock.limit` is the cap in seconds when the website sends one. When it is missing, the cap is 8 hours (28800 seconds). The clock is shared by that student's engines and resets at midnight Pacific.
+A family save sends each engine object the app has, including alphabet on `sp` and a stored `mg` level when one was read. `seenQuestions` is the last 400 questions, `{ "prompt" }`, using the text the child saw. The website builds the practice-sheet key from that text. `clock.seconds` is that student's practiced seconds, and `clock.dayKey` is the Pacific day sent with the save. The app does not cap those seconds, does not reset them at midnight, and does not close an engine because of them. `clock.limit`, when the website sends one, is stored and is not a lock.
 
 Errors are JSON `{ "error": "..." }` and are shown as sent. Those sentences include `No account for this email`, `Invalid email or password`, `Account already exists`, and token errors.
 

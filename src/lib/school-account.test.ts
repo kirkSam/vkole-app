@@ -133,27 +133,27 @@ describe("school profile", () => {
 });
 
 describe("clock and seen writes", () => {
-  it("never decreases the clock and keeps it between 0 and 8 hours", () => {
+  it("never decreases the clock and does not cap it", () => {
     assert.equal(CLOCK_LIMIT_SECONDS, 28800);
     assert.equal(DAY_LIMIT_SECONDS, 28800);
     assert.equal(clockToWrite(10, 50), 50);
     assert.equal(clockToWrite(80, 50), 80);
     assert.equal(clockToWrite(-5, -1), 0);
-    assert.equal(clockToWrite(CLOCK_LIMIT_SECONDS + 1, 10), CLOCK_LIMIT_SECONDS);
+    assert.equal(clockToWrite(CLOCK_LIMIT_SECONDS + 1, 10), CLOCK_LIMIT_SECONDS + 1);
     assert.equal(clockToWrite(Number.NaN, 12.9), 12);
-    assert.equal(clockToWrite(20000, 0, 10000), 10000);
+    assert.equal(clockToWrite(20000, 0, 10000), 20000);
     const open = projectClock({ used_seconds: 9000, armed: 0 }, Date.now());
+    assert.equal(open.used, 9000);
     assert.equal(open.closed, false);
-    assert.equal(open.remaining, 28800 - 9000);
-    const shut = projectClock({ used_seconds: 28800, armed: 1 }, Date.now());
-    assert.equal(shut.closed, true);
-    assert.equal(shut.remaining, 0);
+    const full = projectClock({ used_seconds: 28800, armed: 1 }, Date.now());
+    assert.equal(full.used, 28800);
+    assert.equal(full.closed, false);
     const website = projectClock({ used_seconds: 5000, armed: 0 }, Date.now(), 4000);
-    assert.equal(website.used, 4000);
-    assert.equal(website.closed, true);
+    assert.equal(website.used, 5000);
+    assert.equal(website.closed, false);
   });
 
-  it("prefers a clock limit from the website and otherwise uses 8 hours", () => {
+  it("stores a website limit and does not cap the seconds", () => {
     assert.equal(clockLimitFrom({ seconds: 10 }), 28800);
     assert.equal(clockLimitFrom({ seconds: 10, limit: 12000 }), 12000);
     assert.equal(clockLimitFrom({ limitSeconds: "14400" }), 14400);
@@ -161,7 +161,7 @@ describe("clock and seen writes", () => {
       family: { email: "a@b.co", access: "open", clock: { seconds: 40000, limit: 10000 } },
     });
     assert.equal(capped?.profile.clockLimit, 10000);
-    assert.equal(capped?.profile.clockSeconds, 10000);
+    assert.equal(capped?.profile.clockSeconds, 40000);
     const plain = parseSchoolProfile({
       family: { email: "a@b.co", access: "open", clock: { seconds: 90 } },
     });
@@ -1051,51 +1051,54 @@ describe("pacific day clock", () => {
     assert.equal(unsafe?.profile.clockDayKey, "");
   });
 
-  it("uses today's website seconds and does not max a different day", () => {
+  it("keeps the higher second total across Pacific days", () => {
     const fromWebsite = keptClock(
       { clockSeconds: 28800, clockDayKey: yesterday },
       { clockSeconds: 30, clockDayKey: today },
       today,
     );
-    assert.equal(fromWebsite.clockSeconds, 30);
-    assert.equal(fromWebsite.clockDayKey, today);
-    const websiteTodayWins = keptClock(
+    assert.equal(fromWebsite.clockSeconds, 28800);
+    assert.equal(fromWebsite.clockDayKey, yesterday);
+    const higherLocal = keptClock(
       { clockSeconds: 100, clockDayKey: today },
       { clockSeconds: 40, clockDayKey: today },
       today,
     );
-    assert.equal(websiteTodayWins.clockSeconds, 40);
-    const localToday = keptClock(
+    assert.equal(higherLocal.clockSeconds, 100);
+    assert.equal(higherLocal.clockDayKey, today);
+    const olderTotal = keptClock(
       { clockSeconds: 100, clockDayKey: today },
       { clockSeconds: 28800, clockDayKey: yesterday },
       today,
     );
-    assert.equal(localToday.clockSeconds, 100);
-    assert.equal(localToday.clockDayKey, today);
+    assert.equal(olderTotal.clockSeconds, 28800);
+    assert.equal(olderTotal.clockDayKey, yesterday);
     const otherDays = keptClock(
       { clockSeconds: 20000, clockDayKey: "2026-01-01" },
       { clockSeconds: 10000, clockDayKey: yesterday },
       today,
     );
-    assert.equal(otherDays.clockSeconds, 10000);
-    assert.equal(otherDays.clockDayKey, yesterday);
+    assert.equal(otherDays.clockSeconds, 20000);
+    assert.equal(otherDays.clockDayKey, "2026-01-01");
     const pacificToday = localDayKey(PACIFIC);
     const profile = profileKeepingProgress(
       { clockSeconds: 28800, clockDayKey: yesterday },
       { ...freshProfile, clockSeconds: 30, clockDayKey: pacificToday },
     );
-    assert.equal(profile.clockDayKey, pacificToday);
-    assert.equal(profile.clockSeconds, 30);
+    assert.equal(profile.clockDayKey, yesterday);
+    assert.equal(profile.clockSeconds, 28800);
   });
 
-  it("resets a previous Pacific day to 0 on load and sends today's day with the post", () => {
+  it("keeps a previous Pacific day's seconds and still posts a clock", () => {
     const loaded = projectTodayClock({ day_key: yesterday, used_seconds: 28800, armed: 1 }, today);
-    assert.equal(loaded.used, 0);
+    assert.equal(loaded.used, 28800);
     assert.equal(loaded.closed, false);
     assert.equal(projectTodayClock({ day_key: today, used_seconds: 90, armed: 0 }, today).used, 90);
     assert.equal(projectTodayClock(undefined, today).used, 0);
     const body = schoolWriteBody({}, 90, 0, [], undefined, undefined, undefined, today);
     assert.deepEqual(body.clock, { seconds: 90, dayKey: today });
+    const uncapped = schoolWriteBody({}, 40000, 10, [], undefined, 1000, undefined, today);
+    assert.deepEqual(uncapped.clock, { seconds: 40000, dayKey: today });
     const posted = schoolWriteBody({}, 0, 0, []);
     assert.equal(posted.clock.dayKey, localDayKey(PACIFIC));
     assert.equal(posted.clock.seconds, 0);
