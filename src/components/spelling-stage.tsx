@@ -28,12 +28,14 @@ import {
   SPELLING_COUNTDOWN_MS,
   SPELLING_MIC_AFTER_ZERO_MS,
   SPELLING_MIC_BEFORE_COUNT_MS,
-  claimRecognizer,
   micAnswer,
   micCountdown,
   planMicStart,
   recognizerIsIdle,
+  recognizerSerial,
   releaseRecognizer,
+  speechMayBlockMic,
+  startWhenIdle,
 } from "@/lib/speech/mic-session";
 import { describeSpellingHear, heardAsideFromPrompt, recognitionErrorRelistens, spellingGrammar } from "@/lib/vkole/spelling/match";
 import { celebrationFrame, GOOD_JOB_LINE, reciteHear, SPELLING_CELEBRATION_MS } from "@/lib/vkole/spelling/recite";
@@ -161,21 +163,34 @@ function speechQueueBusy(): boolean {
   return Boolean(synth && (synth.speaking || synth.pending));
 }
 
-/** Start only when the prompt is finished and the previous recognizer has ended. */
-function beginWhenReady(rec: SpeechListener, again: () => void): number | null {
+/**
+ * Start only when the prompt is finished and no recognizer is active.
+ * A wait schedules another try and does not call start().
+ * InvalidStateError means this recognizer is already running, so start() is not called again.
+ */
+function beginWhenReady(rec: SpeechListener, again: () => void, opened: () => boolean = () => false): number | null {
   if (planMicStart({ speechBusy: speechQueueBusy(), previousEnded: recognizerIsIdle() }) !== "start") {
     again();
     return null;
   }
-  const serial = claimRecognizer();
-  try {
-    rec.start();
-    return serial;
-  } catch {
-    releaseRecognizer(serial);
+  const attempt = startWhenIdle(rec, true);
+  if (attempt.status === "retry") {
     again();
     return null;
   }
+  if (attempt.status === "already-started" && attempt.serial !== 0) {
+    window.setTimeout(() => {
+      if (opened() || recognizerSerial() !== attempt.serial) return;
+      try {
+        rec.abort();
+      } catch {
+        /* already stopped */
+      }
+      releaseRecognizer(attempt.serial);
+      again();
+    }, SPELLING_MIC_BEFORE_COUNT_MS);
+  }
+  return attempt.serial || null;
 }
 
 function speakLine(line: string, done: () => void): () => void {
@@ -503,6 +518,7 @@ export function SpellingStage({
     let opened = false;
     let attempts = 0;
     let started = 0;
+    let busyWaits = 0;
     let stop = () => {};
     const speechBusy = () => {
       const synth = window.speechSynthesis;
@@ -511,9 +527,18 @@ export function SpellingStage({
     const listen = () => {
       if (!live || opened) return;
       // The mic stays shut while speech is speaking or still queued.
-      if (speechBusy()) {
+      // A sticky Chrome speaking flag must not keep the microphone closed forever.
+      if (speechMayBlockMic(speechBusy(), busyWaits)) {
+        busyWaits += 1;
         gapTimer = window.setTimeout(listen, SPELLING_LISTEN_GAP_MS);
         return;
+      }
+      if (speechBusy()) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {
+          /* The prompt callback already ran. Cancel so the microphone can open. */
+        }
       }
       opened = true;
       window.clearTimeout(backup);
@@ -533,7 +558,10 @@ export function SpellingStage({
       if (!live || opened) return;
       // The first card after a handoff often ends the utterance immediately. Say it again
       // before the microphone opens, or the mic scores the previous letter.
-      const step = promptAfterSpeech(speechBusy(), performance.now() - started, attempts);
+      const stuck = speechBusy();
+      const step = promptAfterSpeech(speechMayBlockMic(stuck, busyWaits), performance.now() - started, attempts);
+      if (stuck) busyWaits += 1;
+      else busyWaits = 0;
       if (step === "wait") {
         gapTimer = window.setTimeout(afterSpeech, SPELLING_LISTEN_GAP_MS);
         return;
@@ -574,6 +602,7 @@ export function SpellingStage({
     let windowTimer = 0;
     let ticker = 0;
     let openedAt: number | null = null;
+    let permissionTries = 0;
     const lastHeard: { transcript: string; confidence: number | null }[] = [];
     const clearWindow = () => {
       window.clearTimeout(windowTimer);
@@ -619,7 +648,7 @@ export function SpellingStage({
       restartTimer = window.setTimeout(() => {
         if (!live || settled.current || decided || !rec) return;
         if (micCountdown(openedAt, performance.now()).close) return;
-        const next = beginWhenReady(rec, scheduleRestart);
+        const next = beginWhenReady(rec, scheduleRestart, () => openedAt != null);
         if (next != null) serial = next;
       }, SPELLING_RECOGNIZER_RESTART_MS);
     };
@@ -722,16 +751,30 @@ export function SpellingStage({
           }, HEARD_HOLD_MS);
         };
         rec.onerror = (event) => {
-          if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          const error = event.error;
+          const restartListening = () => {
+            try {
+              rec?.abort();
+            } catch {
+              /* already stopped */
+            }
+            releaseRecognizer(serial);
+            scheduleRestart();
+          };
+          if (error === "not-allowed" || error === "service-not-allowed") {
+            if (permissionTries < 2) {
+              permissionTries += 1;
+              restartListening();
+              return;
+            }
             setUnsupported(true);
             return;
           }
-          if (recognitionErrorRelistens(event.error)) {
-            scheduleRestart();
-          }
+          if (recognitionErrorRelistens(error)) restartListening();
         };
         rec.onstart = () => {
           noteEngineActivity();
+          permissionTries = 0;
           setMicLive(true);
           armWindow(performance.now());
         };
@@ -743,7 +786,7 @@ export function SpellingStage({
           if (micCountdown(openedAt, performance.now()).close) return;
           scheduleRestart();
         };
-        const next = beginWhenReady(rec, scheduleRestart);
+        const next = beginWhenReady(rec, scheduleRestart, () => openedAt != null);
         if (next != null) serial = next;
       }
     }
@@ -774,6 +817,7 @@ export function SpellingStage({
     let ticker = 0;
     let openedAt: number | null = null;
     let decided = false;
+    let permissionTries = 0;
     const clearWindow = () => {
       window.clearTimeout(windowTimer);
       window.clearInterval(ticker);
@@ -808,7 +852,7 @@ export function SpellingStage({
       restartTimer = window.setTimeout(() => {
         if (!live || decided || !rec) return;
         if (micCountdown(openedAt, performance.now()).close) return;
-        const next = beginWhenReady(rec, scheduleRestart);
+        const next = beginWhenReady(rec, scheduleRestart, () => openedAt != null);
         if (next != null) serial = next;
       }, SPELLING_RECOGNIZER_RESTART_MS);
     };
@@ -911,16 +955,30 @@ export function SpellingStage({
           if (next >= alphabet().length) celebrate();
         };
         rec.onerror = (event) => {
-          if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          const error = event.error;
+          const restartListening = () => {
+            try {
+              rec?.abort();
+            } catch {
+              /* already stopped */
+            }
+            releaseRecognizer(serial);
+            scheduleRestart();
+          };
+          if (error === "not-allowed" || error === "service-not-allowed") {
+            if (permissionTries < 2) {
+              permissionTries += 1;
+              restartListening();
+              return;
+            }
             setUnsupported(true);
             return;
           }
-          if (recognitionErrorRelistens(event.error)) {
-            scheduleRestart();
-          }
+          if (recognitionErrorRelistens(error)) restartListening();
         };
         rec.onstart = () => {
           noteEngineActivity();
+          permissionTries = 0;
           setMicLive(true);
           if (openedAt == null) armWindow(performance.now());
           else paint(performance.now());
@@ -933,7 +991,7 @@ export function SpellingStage({
           if (micCountdown(openedAt, performance.now()).close) return;
           scheduleRestart();
         };
-        const next = beginWhenReady(rec, scheduleRestart);
+        const next = beginWhenReady(rec, scheduleRestart, () => openedAt != null);
         if (next != null) serial = next;
       }
     }
@@ -1024,12 +1082,29 @@ export function SpellingStage({
   }, [phase, typing.index, typing.letterCase]);
 
   function allowMic() {
-    try {
-      window.sessionStorage.setItem(MIC_KEY, "1");
-    } catch {
-      /* storage may be unavailable */
+    const open = () => {
+      try {
+        window.sessionStorage.setItem(MIC_KEY, "1");
+      } catch {
+        /* storage may be unavailable */
+      }
+      setAllowed(true);
+    };
+    // Ask during this click. recognition.start() later runs from a timer, and Chrome
+    // reports not-allowed when that timer is the first time the microphone is used.
+    const ask = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+    if (!ask) {
+      open();
+      return;
     }
-    setAllowed(true);
+    void ask({ audio: true })
+      .then((stream) => {
+        for (const track of stream.getTracks()) track.stop();
+        open();
+      })
+      .catch(() => {
+        setUnsupported(true);
+      });
   }
 
   if (!ready) return <p className="mt-6 text-sm text-muted">VKOLE/Alphabet ZPD</p>;

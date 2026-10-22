@@ -11,8 +11,12 @@ import {
   micCountdown,
   planMicStart,
   recognizerIsIdle,
+  SPEECH_BUSY_WAIT_LIMIT,
+  alreadyStartedError,
   releaseRecognizer,
   resetRecognizerGate,
+  speechMayBlockMic,
+  startWhenIdle,
 } from "./mic-session.ts";
 
 type FakeRecognizer = {
@@ -229,6 +233,42 @@ describe("alphabet microphone window", () => {
     assert.equal(clock.pending(), 0);
   });
 
+  it("does not call start while a recognizer is active", () => {
+    resetRecognizerGate();
+    const running = fakeRecognizer();
+    running.active = true;
+    const blocked = startWhenIdle(running, false);
+    assert.equal(blocked.status, "already-started");
+    assert.equal(blocked.serial, 0);
+    assert.equal(running.starts, 0);
+
+    const rec = fakeRecognizer();
+    rec.start = () => {
+      throw Object.assign(new Error("recognition has already started"), { name: "InvalidStateError" });
+    };
+    const failed = startWhenIdle(rec, true);
+    assert.equal(alreadyStartedError({ name: "InvalidStateError", message: "failed" }), true);
+    assert.equal(failed.status, "already-started");
+    assert.equal(recognizerIsIdle(), false);
+    releaseRecognizer(failed.serial);
+    assert.equal(recognizerIsIdle(), true);
+
+    const ready = fakeRecognizer();
+    const started = startWhenIdle(ready, recognizerIsIdle());
+    assert.equal(started.status, "started");
+    assert.equal(ready.starts, 1);
+    assert.equal(startWhenIdle(ready, false).status, "already-started");
+    assert.equal(ready.starts, 1);
+    releaseRecognizer(started.serial);
+    resetRecognizerGate();
+
+    assert.equal(SPEECH_BUSY_WAIT_LIMIT, 3);
+    assert.equal(speechMayBlockMic(true, 0), true);
+    assert.equal(speechMayBlockMic(true, 2), true);
+    assert.equal(speechMayBlockMic(true, SPEECH_BUSY_WAIT_LIMIT), false);
+    assert.equal(speechMayBlockMic(false, 0), false);
+  });
+
   it("points exercises 2 through 5 at these constants", () => {
     const stage = readFileSync(new URL("../../components/spelling-stage.tsx", import.meta.url), "utf8");
     assert.equal(stage.includes("SPELLING_MIC_BEFORE_COUNT_MS"), true);
@@ -238,6 +278,10 @@ describe("alphabet microphone window", () => {
     assert.equal(stage.includes("micCountdown"), true);
     assert.equal(stage.includes("micAnswer"), true);
     assert.equal(stage.includes("rec.onstart"), true);
+    assert.equal(stage.includes("startWhenIdle"), true);
+    assert.equal(stage.includes("getUserMedia"), true);
+    assert.equal(stage.includes("speechMayBlockMic"), true);
+    assert.equal(stage.includes("setClockOn(frame.showCountdown)"), true);
     assert.equal(stage.includes('noteHeard("Try again")'), true);
     assert.equal(stage.includes('outcome: "again"'), true);
     assert.equal(stage.includes('error === "no-speech"'), false);

@@ -101,7 +101,8 @@ describe("spelling timing", () => {
     assert.equal(new Set(colors.map((color) => color.background)).size, 26);
     const stage = readFileSync(stageFile, "utf8");
     assert.equal(stage.includes("MediaRecorder"), false);
-    assert.equal(stage.includes("getUserMedia"), false);
+    assert.equal(stage.includes("getUserMedia"), true);
+    assert.equal(stage.includes("track.stop()"), true);
     assert.equal(stage.includes("SPELLING_LETTER_MS"), true);
     assert.equal(stage.includes("SPELLING_HAPPY_FACE_MS"), true);
     assert.equal(stage.includes("SPELLING_RESPONSE_MS"), true);

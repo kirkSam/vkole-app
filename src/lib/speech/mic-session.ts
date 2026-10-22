@@ -40,6 +40,10 @@ export function recognizerIsIdle(): boolean {
   return openSerial === 0;
 }
 
+export function recognizerSerial(): number {
+  return openSerial;
+}
+
 export function claimRecognizer(): number {
   micSerial += 1;
   openSerial = micSerial;
@@ -60,6 +64,46 @@ export function resetRecognizerGate(): void {
 export function planMicStart(input: { speechBusy: boolean; previousEnded: boolean }): "start" | "wait" {
   if (input.speechBusy || !input.previousEnded) return "wait";
   return "start";
+}
+
+/** A sticky speechSynthesis.speaking flag may delay the mic only this many times. */
+export const SPEECH_BUSY_WAIT_LIMIT = 3;
+
+/** True while speech may still be finishing. After the limit, the mic may open. */
+export function speechMayBlockMic(speechBusy: boolean, waits: number): boolean {
+  const count = Number.isFinite(waits) && waits > 0 ? waits : 0;
+  return speechBusy && count < SPEECH_BUSY_WAIT_LIMIT;
+}
+
+/** Chrome throws this when start() is called on a recognizer that is already running. */
+export function alreadyStartedError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const name = "name" in err ? String((err as { name?: unknown }).name ?? "") : "";
+  const message = "message" in err ? String((err as { message?: unknown }).message ?? "") : "";
+  return name === "InvalidStateError" || /already started/i.test(message) || message === "InvalidStateError";
+}
+
+export type RecognizerStart = {
+  status: "started" | "already-started" | "retry";
+  serial: number;
+};
+
+/**
+ * Start only when `idle` is true.
+ * InvalidStateError means this recognizer is already running: do not start again.
+ * Any other throw releases the claim so a later try can start.
+ */
+export function startWhenIdle(rec: { start: () => void }, idle: boolean): RecognizerStart {
+  if (!idle) return { status: "already-started", serial: 0 };
+  const serial = claimRecognizer();
+  try {
+    rec.start();
+    return { status: "started", serial };
+  } catch (err) {
+    if (alreadyStartedError(err)) return { status: "already-started", serial };
+    releaseRecognizer(serial);
+    return { status: "retry", serial: 0 };
+  }
 }
 
 /**
