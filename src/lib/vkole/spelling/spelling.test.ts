@@ -101,7 +101,8 @@ describe("spelling timing", () => {
     assert.equal(new Set(colors.map((color) => color.background)).size, 26);
     const stage = readFileSync(stageFile, "utf8");
     assert.equal(stage.includes("MediaRecorder"), false);
-    assert.equal(stage.includes("getUserMedia"), false);
+    assert.equal(stage.includes("getUserMedia"), true);
+    assert.equal(stage.includes("track.stop()"), true);
     assert.equal(stage.includes("SPELLING_LETTER_MS"), true);
     assert.equal(stage.includes("SPELLING_HAPPY_FACE_MS"), true);
     assert.equal(stage.includes("SPELLING_RESPONSE_MS"), true);
@@ -498,6 +499,8 @@ describe("spoken spelling answers", () => {
     assert.equal(judgeSpellingAlternatives("M", [{ transcript: "", final: true }, { transcript: ".", final: true }]), "wait");
     assert.equal(judgeSpellingSpoken("M", "em", false, []), "correct");
     assert.equal(recognitionErrorRelistens("no-speech"), true);
+    assert.equal(recognitionErrorRelistens(""), true);
+    assert.equal(recognitionErrorRelistens(undefined), true);
     assert.equal(recognitionErrorRelistens("network"), true);
     assert.equal(recognitionErrorRelistens("audio-capture"), true);
     assert.equal(recognitionErrorRelistens("not-allowed"), false);
@@ -534,6 +537,10 @@ describe("spoken spelling answers", () => {
     ]);
     assert.equal(quiet.judgment, "again");
     assert.equal(quiet.status, "Try again");
+    const liveLow = describeSpellingHear("N", [{ transcript: "enn", final: false, confidence: 0.1 }]);
+    assert.equal(liveLow.judgment, "wait");
+    assert.equal(judgeSpellingAlternatives("N", [{ transcript: "enn", final: false, confidence: 0.1 }]), "wait");
+    assert.equal(describeSpellingHear("D", [{ transcript: "dee", final: false, confidence: 0.19 }]).judgment, "wait");
     assert.equal(describeSpellingHear("M", [{ transcript: "and", final: true }]).judgment, "miss");
     assert.equal(describeSpellingHear("M", [{ transcript: "and", final: true }]).status, "I heard: and");
     assert.equal(describeSpellingHear("Q", [{ transcript: "", final: true }, { transcript: ".", final: true }]).status, "I didn't hear anything");
@@ -753,7 +760,7 @@ describe("exercise 2 next letter", () => {
     assert.equal(promptEffect.includes("speakLine(view.say"), true);
     assert.equal(stage.includes("earlyHandoffMiss"), true);
     const noSpeech = stage.slice(stage.indexOf("rec.onerror"), stage.indexOf("rec.onend"));
-    assert.equal(noSpeech.includes('setPhase("prompt")'), true);
+    assert.equal(noSpeech.includes('setPhase("prompt")'), false);
     assert.equal(noSpeech.includes("scheduleRestart()"), true);
     assert.equal(noSpeech.includes('finishRef.current("timeout")'), false);
     assert.equal(noSpeech.includes('finishRef.current("miss")'), false);
@@ -806,8 +813,9 @@ describe("exercise 2 next letter", () => {
     assert.equal(notI.next, alphabet().indexOf("I"));
 
     const stage = readFileSync(stageFile, "utf8");
-    const timer = stage.slice(stage.indexOf("const timer = window.setTimeout"), stage.indexOf("const ticker"));
+    const timer = stage.slice(stage.indexOf("windowTimer = window.setTimeout"), stage.indexOf("ticker = window.setInterval"));
     assert.equal(timer.includes('finishRef.current("timeout")'), true);
+    assert.equal(timer.includes("alphabetMicWindowMs"), true);
     assert.match(stage, /const after = applyLetterAnswer\(placeRef\.current, outcome\);\s*placeRef\.current = after;\s*setPlace\(after\);\s*setExercise\(letterExercise\(after\.index\)\);\s*setPhase\("prompt"\);/);
     assert.equal(stage.includes("holdEngineLetter"), true);
   });

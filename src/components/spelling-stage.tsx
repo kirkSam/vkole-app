@@ -23,11 +23,31 @@ import {
 } from "@/lib/vkole/spelling/items";
 import { holdEngineAudio, holdEngineLetter, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LETTER_ALTERNATIVE_LIMIT, judgeLetterHear } from "@/lib/speech/letter-pronunciations";
+import {
+  MIC_WINDOW_MS,
+  SPELLING_COUNTDOWN_MS,
+  SPELLING_MIC_AFTER_ZERO_MS,
+  SPELLING_MIC_BEFORE_COUNT_MS,
+  micAnswer,
+  micCountdown,
+  planMicStart,
+  recognizerIsIdle,
+  recognizerSerial,
+  releaseRecognizer,
+  speechMayBlockMic,
+  startWhenIdle,
+} from "@/lib/speech/mic-session";
 import { describeSpellingHear, heardAsideFromPrompt, recognitionErrorRelistens, spellingGrammar } from "@/lib/vkole/spelling/match";
 import { celebrationFrame, GOOD_JOB_LINE, reciteHear, SPELLING_CELEBRATION_MS } from "@/lib/vkole/spelling/recite";
 import { advanceTyping, judgeTypingKey, TYPING_TRY_AGAIN, TYPING_WAIT_MS, typingCaseLine, typingShown, typingStart, type TypingPlace } from "@/lib/vkole/spelling/typing";
 
 const MIC_KEY = "vkole-sp-mic";
+
+/** Lead, visible countdown, and the extra second before the mic closes. */
+function alphabetMicWindowMs(): number {
+  const parts = SPELLING_MIC_BEFORE_COUNT_MS + SPELLING_COUNTDOWN_MS + SPELLING_MIC_AFTER_ZERO_MS;
+  return parts === MIC_WINDOW_MS ? MIC_WINDOW_MS : parts;
+}
 
 type SpeechAlternative = { transcript?: string; confidence?: number };
 type SpeechResult = ArrayLike<SpeechAlternative> & { isFinal?: boolean };
@@ -40,6 +60,7 @@ type SpeechListener = {
   interimResults: boolean;
   maxAlternatives: number;
   grammars: SpeechGrammarList | null;
+  onstart: (() => void) | null;
   onresult: ((event: SpeechEvent) => void) | null;
   onerror: ((event: { error?: string }) => void) | null;
   onend: (() => void) | null;
@@ -135,6 +156,41 @@ function recognitionCtor(): (new () => SpeechListener) | null {
 
 function canSpeak(): boolean {
   return typeof window !== "undefined" && !!window.speechSynthesis;
+}
+
+function speechQueueBusy(): boolean {
+  const synth = typeof window === "undefined" ? undefined : window.speechSynthesis;
+  return Boolean(synth && (synth.speaking || synth.pending));
+}
+
+/**
+ * Start only when the prompt is finished and no recognizer is active.
+ * A wait schedules another try and does not call start().
+ * InvalidStateError means this recognizer is already running, so start() is not called again.
+ */
+function beginWhenReady(rec: SpeechListener, again: () => void, opened: () => boolean = () => false): number | null {
+  if (planMicStart({ speechBusy: speechQueueBusy(), previousEnded: recognizerIsIdle() }) !== "start") {
+    again();
+    return null;
+  }
+  const attempt = startWhenIdle(rec, true);
+  if (attempt.status === "retry") {
+    again();
+    return null;
+  }
+  if (attempt.status === "already-started" && attempt.serial !== 0) {
+    window.setTimeout(() => {
+      if (opened() || recognizerSerial() !== attempt.serial) return;
+      try {
+        rec.abort();
+      } catch {
+        /* already stopped */
+      }
+      releaseRecognizer(attempt.serial);
+      again();
+    }, SPELLING_MIC_BEFORE_COUNT_MS);
+  }
+  return attempt.serial || null;
 }
 
 function speakLine(line: string, done: () => void): () => void {
@@ -253,6 +309,8 @@ export function SpellingStage({
   const token = `${place.index}:${place.silence}:${place.wrong}`;
   const [songIndex, setSongIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(SPELLING_RESPONSE_MS / 1000);
+  const [micLive, setMicLive] = useState(false);
+  const [clockOn, setClockOn] = useState(false);
   const [heardNote, setHeardNote] = useState("");
   const [startIn, setStartIn] = useState(spellingStartSecondsLeft(0));
   const onDoneRef = useRef(onDone);
@@ -460,6 +518,7 @@ export function SpellingStage({
     let opened = false;
     let attempts = 0;
     let started = 0;
+    let busyWaits = 0;
     let stop = () => {};
     const speechBusy = () => {
       const synth = window.speechSynthesis;
@@ -468,9 +527,18 @@ export function SpellingStage({
     const listen = () => {
       if (!live || opened) return;
       // The mic stays shut while speech is speaking or still queued.
-      if (speechBusy()) {
+      // A sticky Chrome speaking flag must not keep the microphone closed forever.
+      if (speechMayBlockMic(speechBusy(), busyWaits)) {
+        busyWaits += 1;
         gapTimer = window.setTimeout(listen, SPELLING_LISTEN_GAP_MS);
         return;
+      }
+      if (speechBusy()) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {
+          /* The prompt callback already ran. Cancel so the microphone can open. */
+        }
       }
       opened = true;
       window.clearTimeout(backup);
@@ -490,7 +558,10 @@ export function SpellingStage({
       if (!live || opened) return;
       // The first card after a handoff often ends the utterance immediately. Say it again
       // before the microphone opens, or the mic scores the previous letter.
-      const step = promptAfterSpeech(speechBusy(), performance.now() - started, attempts);
+      const stuck = speechBusy();
+      const step = promptAfterSpeech(speechMayBlockMic(stuck, busyWaits), performance.now() - started, attempts);
+      if (stuck) busyWaits += 1;
+      else busyWaits = 0;
       if (step === "wait") {
         gapTimer = window.setTimeout(afterSpeech, SPELLING_LISTEN_GAP_MS);
         return;
@@ -526,46 +597,66 @@ export function SpellingStage({
     let rec: SpeechListener | null = null;
     let restartTimer = 0;
     let decided = false;
-    const listenStarted = performance.now();
-    const deadline = listenStarted + SPELLING_RESPONSE_MS;
+    let heardOrigin = 0;
+    let serial = 0;
+    let windowTimer = 0;
+    let ticker = 0;
+    let openedAt: number | null = null;
+    let permissionTries = 0;
     const lastHeard: { transcript: string; confidence: number | null }[] = [];
-    setSecondsLeft(SPELLING_RESPONSE_MS / 1000);
-    const timer = window.setTimeout(() => {
-      if (decided) return;
-      decided = true;
-      noteSilence();
-      const card = viewRef.current;
-      onAttemptRef.current?.({ letter: card.answer, exercise: card.exercise, outcome: "timeout", heard: lastHeard });
-      try {
-        rec?.abort();
-      } catch {
-        /* already stopped */
+    const clearWindow = () => {
+      window.clearTimeout(windowTimer);
+      window.clearInterval(ticker);
+    };
+    const paint = (now: number) => {
+      const frame = micCountdown(openedAt, now);
+      setClockOn(frame.showCountdown);
+      if (frame.seconds != null) setSecondsLeft(frame.seconds);
+      return frame;
+    };
+    const armWindow = (now: number) => {
+      const first = openedAt == null;
+      if (first) {
+        openedAt = now;
+        heardOrigin = now;
       }
-      if (live) finishRef.current("timeout");
-    }, SPELLING_RESPONSE_MS);
-    const ticker = window.setInterval(() => {
-      const left = Math.max(0, Math.ceil((deadline - performance.now()) / 1000));
-      setSecondsLeft((current) => (current === left ? current : left));
-    }, 250);
+      paint(now);
+      if (!first) return;
+      windowTimer = window.setTimeout(() => {
+        if (decided) return;
+        decided = true;
+        setClockOn(false);
+        noteSilence();
+        const card = viewRef.current;
+        onAttemptRef.current?.({ letter: card.answer, exercise: card.exercise, outcome: "timeout", heard: lastHeard });
+        try {
+          rec?.abort();
+        } catch {
+          /* already stopped */
+        }
+        if (live) finishRef.current("timeout");
+      }, alphabetMicWindowMs());
+      ticker = window.setInterval(() => {
+        paint(performance.now());
+      }, 200);
+    };
 
     const scheduleRestart = () => {
       if (!live || settled.current || decided || !rec) return;
+      if (micCountdown(openedAt, performance.now()).close) return;
       window.clearTimeout(restartTimer);
       restartTimer = window.setTimeout(() => {
         if (!live || settled.current || decided || !rec) return;
-        try {
-          rec.start();
-        } catch {
-          scheduleRestart();
-        }
+        if (micCountdown(openedAt, performance.now()).close) return;
+        const next = beginWhenReady(rec, scheduleRestart, () => openedAt != null);
+        if (next != null) serial = next;
       }, SPELLING_RECOGNIZER_RESTART_MS);
     };
 
     finishRef.current = (outcome: Outcome) => {
       if (!live || settled.current) return;
       settled.current = true;
-      window.clearTimeout(timer);
-      window.clearInterval(ticker);
+      clearWindow();
       window.clearTimeout(restartTimer);
       try {
         rec?.abort();
@@ -602,30 +693,47 @@ export function SpellingStage({
             const alternatives = packAlternatives(result);
             lastHeard.splice(0, lastHeard.length, ...alternatives.map(({ transcript, confidence }) => ({ transcript, confidence })));
             const heard = describeSpellingHear(current.answer, alternatives, current.also, current.say);
-            const tooSoon = heard.judgment === "miss" || heard.judgment === "again" ? earlyHandoffMiss(performance.now() - listenStarted, "miss") : false;
-            if (tooSoon) continue;
-            if (heard.status.startsWith("I heard:")) noteHeard(heard.status);
-            if (heard.judgment === "correct") {
+            const action = micAnswer(heard.judgment);
+            if (action === "keep") continue;
+            if (action === "reask") {
               decided = true;
-              window.clearTimeout(timer);
+              clearWindow();
+              openedAt = null;
+              setClockOn(false);
+              noteHeard("Try again");
+              onAttemptRef.current?.({
+                letter: current.answer,
+                exercise: current.exercise,
+                outcome: "again",
+                heard: lastHeard,
+              });
+              try {
+                rec?.abort();
+              } catch {
+                /* already stopped */
+              }
+              if (live) setPhase("prompt");
+              return;
+            }
+            const elapsed = heardOrigin === 0 ? 0 : performance.now() - heardOrigin;
+            if (action === "retry" && earlyHandoffMiss(elapsed, "miss")) continue;
+            if (action === "advance") {
+              decided = true;
+              clearWindow();
+              openedAt = null;
+              setClockOn(false);
               noteHeard(heard.status);
               onAttemptRef.current?.({ letter: current.answer, exercise: current.exercise, outcome: "correct", heard: lastHeard });
               finishRef.current("correct");
               return;
             }
-            if (heard.judgment === "again") {
-              decided = true;
-              window.clearTimeout(timer);
-              noteHeard("Try again");
-              onAttemptRef.current?.({ letter: current.answer, exercise: current.exercise, outcome: "again", heard: lastHeard });
-              finishRef.current("timeout");
-              return;
-            }
-            if (heard.judgment === "miss") missNote = heard.status;
+            if (action === "retry") missNote = "Try again";
           }
           if (!missNote) return;
           decided = true;
-          window.clearTimeout(timer);
+          clearWindow();
+          openedAt = null;
+          setClockOn(false);
           noteHeard(missNote);
           onAttemptRef.current?.({
             letter: viewRef.current.answer,
@@ -643,50 +751,54 @@ export function SpellingStage({
           }, HEARD_HOLD_MS);
         };
         rec.onerror = (event) => {
-          if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-            setUnsupported(true);
-            return;
-          }
-          if (event.error === "no-speech") {
-            // Re-ask this same card. Restarting a recognizer that will not start again leaves the
-            // "I didn't hear anything" line on screen until a later silence steps back to A.
-            decided = true;
-            noteSilence();
-            const card = viewRef.current;
-            onAttemptRef.current?.({ letter: card.answer, exercise: card.exercise, outcome: "timeout", heard: lastHeard });
-            window.clearTimeout(timer);
-            window.clearTimeout(restartTimer);
+          const error = event.error;
+          const restartListening = () => {
             try {
               rec?.abort();
             } catch {
               /* already stopped */
             }
-            if (live) setPhase("prompt");
-            return;
-          }
-          if (recognitionErrorRelistens(event.error)) {
+            releaseRecognizer(serial);
             scheduleRestart();
+          };
+          if (error === "not-allowed" || error === "service-not-allowed") {
+            if (permissionTries < 2) {
+              permissionTries += 1;
+              restartListening();
+              return;
+            }
+            setUnsupported(true);
             return;
           }
+          if (recognitionErrorRelistens(error)) restartListening();
+        };
+        rec.onstart = () => {
+          noteEngineActivity();
+          permissionTries = 0;
+          setMicLive(true);
+          armWindow(performance.now());
         };
         rec.onend = () => {
           noteEngineActivity();
+          setMicLive(false);
+          releaseRecognizer(serial);
           if (!live || settled.current || decided || !rec) return;
+          if (micCountdown(openedAt, performance.now()).close) return;
           scheduleRestart();
         };
-        try {
-          rec.start();
-        } catch {
-          scheduleRestart();
-        }
+        const next = beginWhenReady(rec, scheduleRestart, () => openedAt != null);
+        if (next != null) serial = next;
       }
     }
 
     return () => {
       live = false;
-      window.clearTimeout(timer);
-      window.clearInterval(ticker);
+      setMicLive(false);
+      setClockOn(false);
+      clearWindow();
       window.clearTimeout(restartTimer);
+      const stuck = serial;
+      window.setTimeout(() => releaseRecognizer(stuck), 400);
       try {
         rec?.abort();
       } catch {
@@ -700,27 +812,64 @@ export function SpellingStage({
     let live = true;
     let rec: SpeechListener | null = null;
     let restartTimer = 0;
+    let serial = 0;
+    let windowTimer = 0;
+    let ticker = 0;
+    let openedAt: number | null = null;
+    let decided = false;
+    let permissionTries = 0;
+    const clearWindow = () => {
+      window.clearTimeout(windowTimer);
+      window.clearInterval(ticker);
+    };
+    const paint = (now: number) => {
+      const frame = micCountdown(openedAt, now);
+      setClockOn(frame.showCountdown);
+      if (frame.seconds != null) setSecondsLeft(frame.seconds);
+    };
+    const armWindow = (now: number) => {
+      clearWindow();
+      openedAt = now;
+      paint(now);
+      windowTimer = window.setTimeout(() => {
+        if (!live || decided) return;
+        decided = true;
+        try {
+          rec?.abort();
+        } catch {
+          /* already stopped */
+        }
+        setMicLive(false);
+        setClockOn(false);
+        if (live) setPhase("prompt");
+      }, alphabetMicWindowMs());
+      ticker = window.setInterval(() => paint(performance.now()), 200);
+    };
     const scheduleRestart = () => {
-      if (!live || !rec) return;
+      if (!live || decided || !rec) return;
+      if (micCountdown(openedAt, performance.now()).close) return;
       window.clearTimeout(restartTimer);
       restartTimer = window.setTimeout(() => {
-        if (!live || !rec) return;
-        try {
-          rec.start();
-        } catch {
-          scheduleRestart();
-        }
+        if (!live || decided || !rec) return;
+        if (micCountdown(openedAt, performance.now()).close) return;
+        const next = beginWhenReady(rec, scheduleRestart, () => openedAt != null);
+        if (next != null) serial = next;
       }, SPELLING_RECOGNIZER_RESTART_MS);
     };
     const celebrate = () => {
       if (!live) return;
       live = false;
+      decided = true;
+      clearWindow();
+      openedAt = null;
       window.clearTimeout(restartTimer);
       try {
         rec?.abort();
       } catch {
         /* already stopped */
       }
+      setMicLive(false);
+      setClockOn(false);
       setPhase("good-job");
     };
     finishRef.current = (outcome: Outcome) => {
@@ -758,10 +907,28 @@ export function SpellingStage({
             const nextLetter = alphabet()[next] ?? "A";
             const judged = judgeLetterHear(nextLetter, stripped);
             const packed = alternatives.map(({ transcript, confidence }) => ({ transcript, confidence }));
-            if (judged === "again" || judged === "miss") {
-              onAttemptRef.current?.({ letter: nextLetter, exercise: 5, outcome: judged, heard: packed });
-              if (judged === "again") noteHeard("Try again");
-              continue;
+            const action = micAnswer(judged);
+            if (action === "keep") continue;
+            if (action === "reask" || action === "retry") {
+              decided = true;
+              clearWindow();
+              openedAt = null;
+              noteHeard("Try again");
+              onAttemptRef.current?.({
+                letter: nextLetter,
+                exercise: 5,
+                outcome: action === "reask" ? "again" : "miss",
+                heard: packed,
+              });
+              try {
+                rec?.abort();
+              } catch {
+                /* already stopped */
+              }
+              setMicLive(false);
+              setClockOn(false);
+              if (live) setPhase("prompt");
+              return;
             }
             const before = next;
             let bestNext = next;
@@ -779,6 +946,7 @@ export function SpellingStage({
               for (const letter of alphabet().slice(before, next)) {
                 onAttemptRef.current?.({ letter, exercise: 5, outcome: "correct", heard: packed });
               }
+              if (next < alphabet().length) armWindow(performance.now());
             } else if (bestStatus.startsWith("I heard:") && !heardRef.current.startsWith("I heard:")) {
               noteHeard(bestStatus);
             }
@@ -787,29 +955,55 @@ export function SpellingStage({
           if (next >= alphabet().length) celebrate();
         };
         rec.onerror = (event) => {
-          if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          const error = event.error;
+          const restartListening = () => {
+            try {
+              rec?.abort();
+            } catch {
+              /* already stopped */
+            }
+            releaseRecognizer(serial);
+            scheduleRestart();
+          };
+          if (error === "not-allowed" || error === "service-not-allowed") {
+            if (permissionTries < 2) {
+              permissionTries += 1;
+              restartListening();
+              return;
+            }
             setUnsupported(true);
             return;
           }
-          if (recognitionErrorRelistens(event.error)) {
-            scheduleRestart();
-          }
+          if (recognitionErrorRelistens(error)) restartListening();
+        };
+        rec.onstart = () => {
+          noteEngineActivity();
+          permissionTries = 0;
+          setMicLive(true);
+          if (openedAt == null) armWindow(performance.now());
+          else paint(performance.now());
         };
         rec.onend = () => {
           noteEngineActivity();
-          if (!live || !rec) return;
+          setMicLive(false);
+          releaseRecognizer(serial);
+          if (!live || decided || !rec) return;
+          if (micCountdown(openedAt, performance.now()).close) return;
           scheduleRestart();
         };
-        try {
-          rec.start();
-        } catch {
-          scheduleRestart();
-        }
+        const next = beginWhenReady(rec, scheduleRestart, () => openedAt != null);
+        if (next != null) serial = next;
       }
     }
     return () => {
       live = false;
+      decided = true;
+      setMicLive(false);
+      setClockOn(false);
+      clearWindow();
       window.clearTimeout(restartTimer);
+      const stuck = serial;
+      window.setTimeout(() => releaseRecognizer(stuck), 400);
       try {
         rec?.abort();
       } catch {
@@ -888,12 +1082,29 @@ export function SpellingStage({
   }, [phase, typing.index, typing.letterCase]);
 
   function allowMic() {
-    try {
-      window.sessionStorage.setItem(MIC_KEY, "1");
-    } catch {
-      /* storage may be unavailable */
+    const open = () => {
+      try {
+        window.sessionStorage.setItem(MIC_KEY, "1");
+      } catch {
+        /* storage may be unavailable */
+      }
+      setAllowed(true);
+    };
+    // Ask during this click. recognition.start() later runs from a timer, and Chrome
+    // reports not-allowed when that timer is the first time the microphone is used.
+    const ask = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+    if (!ask) {
+      open();
+      return;
     }
-    setAllowed(true);
+    void ask({ audio: true })
+      .then((stream) => {
+        for (const track of stream.getTracks()) track.stop();
+        open();
+      })
+      .catch(() => {
+        setUnsupported(true);
+      });
   }
 
   if (!ready) return <p className="mt-6 text-sm text-muted">VKOLE/Alphabet ZPD</p>;
@@ -969,7 +1180,7 @@ export function SpellingStage({
   const pairSwatch = colors[letters.indexOf(view.letter)] ?? colors[0];
   const needsMic = phase === "listen" && !unsupported && !allowed;
   const background = view.kind === "ask" && shownSwatch ? shownSwatch.background : undefined;
-  const status = phase === "prompt" ? "Speaking" : phase === "listen" ? "Listening" : phase === "good-job" || phase === "celebrate" ? "Good job" : "Happy Face";
+  const status = phase === "prompt" ? "Speaking" : phase === "listen" ? (micLive ? "Listening" : "") : phase === "good-job" || phase === "celebrate" ? "Good job" : "Happy Face";
 
   return (
     <section className="sp-review" style={background ? { background } : undefined} aria-live="polite">
@@ -1032,7 +1243,7 @@ export function SpellingStage({
           <p className="sp-prompt">{view.show}</p>
         </>
       )}
-      {phase === "listen" && !needsMic && view.exercise !== 5 ? (
+      {phase === "listen" && !needsMic && view.exercise >= 2 && clockOn ? (
         <p className="mt-3 text-center text-sm text-muted">{secondsLeft} seconds</p>
       ) : null}
       {(heardNote || heard) && (phase === "prompt" || phase === "listen" || phase === "happy") ? (

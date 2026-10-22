@@ -1,4 +1,4 @@
-import { acceptedFormsForLetter, judgeLetterHear, type HeardAlternative, type LetterJudgment } from "../../speech/letter-pronunciations.ts";
+import { acceptedFormsForLetter, judgeLetterHear, lowScoreAsk, type HeardAlternative, type LetterJudgment } from "../../speech/letter-pronunciations.ts";
 import { compactSpeech, speechTokens, spokenMatches } from "../sight-words/match.ts";
 
 /**
@@ -131,7 +131,11 @@ export function judgeSpellingAlternatives(
     const aside = alternative.transcript ?? "";
     if (speechTokens(aside).length === 0) continue;
     anyAside = true;
-    if (spellingSpokenMatches(answer, aside, also)) return "correct";
+    if (spellingSpokenMatches(answer, aside, also)) {
+      // A live low score must stay a wait. Promoting it would accept the same interim match.
+      if (lowScoreAsk(alternative.final, alternative.confidence) === "wait") continue;
+      return "correct";
+    }
     if (alternative.final) finishedSpeech = true;
   }
   if (judged === "miss") return "miss";
@@ -190,6 +194,7 @@ export function describeSpellingHear(
 /** These recognition failures mean the mic did not hear a usable answer. They are not a miss. */
 export function recognitionErrorRelistens(error: string | undefined): boolean {
   return (
+    !error?.trim() ||
     error === "no-speech" ||
     error === "audio-capture" ||
     error === "network" ||
