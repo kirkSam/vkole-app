@@ -753,7 +753,7 @@ describe("exercise 2 next letter", () => {
     assert.equal(promptEffect.includes("speakLine(view.say"), true);
     assert.equal(stage.includes("earlyHandoffMiss"), true);
     const noSpeech = stage.slice(stage.indexOf("rec.onerror"), stage.indexOf("rec.onend"));
-    assert.equal(noSpeech.includes('setPhase("prompt")'), true);
+    assert.equal(noSpeech.includes('setPhase("prompt")'), false);
     assert.equal(noSpeech.includes("scheduleRestart()"), true);
     assert.equal(noSpeech.includes('finishRef.current("timeout")'), false);
     assert.equal(noSpeech.includes('finishRef.current("miss")'), false);
@@ -806,8 +806,9 @@ describe("exercise 2 next letter", () => {
     assert.equal(notI.next, alphabet().indexOf("I"));
 
     const stage = readFileSync(stageFile, "utf8");
-    const timer = stage.slice(stage.indexOf("const timer = window.setTimeout"), stage.indexOf("const ticker"));
+    const timer = stage.slice(stage.indexOf("windowTimer = window.setTimeout"), stage.indexOf("ticker = window.setInterval"));
     assert.equal(timer.includes('finishRef.current("timeout")'), true);
+    assert.equal(timer.includes("alphabetMicWindowMs"), true);
     assert.match(stage, /const after = applyLetterAnswer\(placeRef\.current, outcome\);\s*placeRef\.current = after;\s*setPlace\(after\);\s*setExercise\(letterExercise\(after\.index\)\);\s*setPhase\("prompt"\);/);
     assert.equal(stage.includes("holdEngineLetter"), true);
   });

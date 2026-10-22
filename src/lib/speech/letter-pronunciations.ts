@@ -14,8 +14,8 @@ export const LETTER_ALTERNATIVE_LIMIT = 5;
 
 /**
  * Chrome reports confidence from 0 to 1, and uses 0 when it has no score.
- * A reported score above 0 and below this floor is not graded: the student
- * says the letter again. A missing score, or 0, skips this check.
+ * A reported score above 0 and below this floor is not graded.
+ * The microphone stays open for the rest of its window. A missing score, or 0, skips this check.
  */
 export const LETTER_CONFIDENCE_FLOOR = 0.2;
 
