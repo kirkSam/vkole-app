@@ -1,28 +1,19 @@
 /**
  * Alphabet microphone timing for speech exercises 2, 3, 4, and 5.
  *
- * After the spoken prompt ends and recognition fires onstart:
- *   SPELLING_MIC_BEFORE_COUNT_MS with the mic open and no countdown,
- *   then SPELLING_COUNTDOWN_MS showing 5 down to 0,
- *   then SPELLING_MIC_AFTER_ZERO_MS with the mic still open,
- *   then the mic closes.
- * That is one window of MIC_WINDOW_MS (about 7 seconds).
- * The Listening label is on only while the recognizer is actually open.
- * A new letter starts only after this recognizer has ended and the next prompt has finished.
+ * The spoken prompt finishes before this window. The letter visual and
+ * recognition.start() happen in that same turn, at the prompt's onend.
+ * The 6 second countdown and the mic close share one start and one deadline,
+ * measured with performance.now() from onaudiostart. A restart for no-speech,
+ * aborted, or network stays inside that deadline and does not move it.
  * Copy this file with the spelling stage handler. It does not import the app.
  */
 
-/** Quiet open mic before the countdown appears. */
-export const SPELLING_MIC_BEFORE_COUNT_MS = 1_000;
+/** How long the microphone stays open after audio actually starts. */
+export const MIC_WINDOW_MS = 6_000;
 
-/** Visible countdown, from 5 down to 0. */
-export const SPELLING_COUNTDOWN_MS = 5_000;
-
-/** Mic stays open after the countdown reaches 0. */
-export const SPELLING_MIC_AFTER_ZERO_MS = 1_000;
-
-/** Before + countdown + after zero. The recognizer closes at this age. */
-export const MIC_WINDOW_MS = SPELLING_MIC_BEFORE_COUNT_MS + SPELLING_COUNTDOWN_MS + SPELLING_MIC_AFTER_ZERO_MS;
+/** The visible countdown is this same window. It reaches 0 when the mic closes. */
+export const SPELLING_COUNTDOWN_MS = MIC_WINDOW_MS;
 
 export type MicHear = "correct" | "miss" | "wait" | "again";
 
@@ -30,6 +21,13 @@ export type MicCountdown = {
   showCountdown: boolean;
   seconds: number | null;
   close: boolean;
+};
+
+export type MicTimingMark = {
+  letterShown: number;
+  micStart: number | null;
+  audioStart: number | null;
+  micClose: number | null;
 };
 
 let openSerial = 0;
@@ -106,26 +104,53 @@ export function startWhenIdle(rec: { start: () => void }, idle: boolean): Recogn
   }
 }
 
+/** The moment the mic must close. Keyed to audio start, not to when the letter was drawn. */
+export function micDeadline(audioAt: number): number {
+  return audioAt + MIC_WINDOW_MS;
+}
+
 /**
- * Countdown for a mic that opened at `openedAt`.
- * Before the lead ends, the number stays hidden.
- * At the lead, it shows 5. It reaches 0 when the countdown duration ends.
- * `close` is true one tail later. Passing a null open time hides the number and does not close.
+ * Countdown for audio that started at `audioAt`.
+ * Hidden until audio flows. Shows 6 at that instant and 0 at the deadline.
+ * `close` is true on that same instant, so the number and the mic end together.
  */
-export function micCountdown(openedAt: number | null, now: number): MicCountdown {
-  if (openedAt == null || !Number.isFinite(openedAt) || !Number.isFinite(now)) {
+export function micCountdown(audioAt: number | null, now: number): MicCountdown {
+  if (audioAt == null || !Number.isFinite(audioAt) || !Number.isFinite(now)) {
     return { showCountdown: false, seconds: null, close: false };
   }
-  const elapsed = now - openedAt;
-  if (elapsed < 0 || elapsed < SPELLING_MIC_BEFORE_COUNT_MS) {
-    return { showCountdown: false, seconds: null, close: false };
-  }
-  if (elapsed >= MIC_WINDOW_MS) {
-    return { showCountdown: false, seconds: null, close: true };
-  }
-  const into = elapsed - SPELLING_MIC_BEFORE_COUNT_MS;
-  const seconds = into >= SPELLING_COUNTDOWN_MS ? 0 : Math.ceil((SPELLING_COUNTDOWN_MS - into) / 1000);
-  return { showCountdown: true, seconds, close: false };
+  const elapsed = now - audioAt;
+  if (elapsed < 0) return { showCountdown: false, seconds: null, close: false };
+  if (elapsed >= MIC_WINDOW_MS) return { showCountdown: true, seconds: 0, close: true };
+  return {
+    showCountdown: true,
+    seconds: Math.ceil((MIC_WINDOW_MS - elapsed) / 1000),
+    close: false,
+  };
+}
+
+/** A restart may run only before the deadline. No audio yet means the window has not opened. */
+export function micRestartAllowed(audioAt: number | null, now: number): boolean {
+  if (!Number.isFinite(now)) return false;
+  if (audioAt == null) return true;
+  return now < micDeadline(audioAt);
+}
+
+/**
+ * When the next start() may run. Null means the deadline would be missed, so the caller must not start.
+ * The returned time never moves the deadline.
+ */
+export function scheduleMicRestart(audioAt: number | null, now: number, delayMs: number): number | null {
+  if (!micRestartAllowed(audioAt, now)) return null;
+  const wait = Number.isFinite(delayMs) && delayMs > 0 ? delayMs : 0;
+  const at = now + wait;
+  if (audioAt != null && at >= micDeadline(audioAt)) return null;
+  return at;
+}
+
+/** Master readout. Times are milliseconds after the letter was shown. */
+export function formatMicTiming(mark: MicTimingMark): string {
+  const rel = (at: number | null) => (at == null || !Number.isFinite(at) ? "—" : `${Math.round(at - mark.letterShown)}ms`);
+  return `letter 0ms · mic ${rel(mark.micStart)} · audio ${rel(mark.audioStart)} · close ${rel(mark.micClose)}`;
 }
 
 /**
