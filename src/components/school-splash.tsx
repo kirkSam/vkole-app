@@ -1,21 +1,32 @@
-import { useEffect, useRef } from "react";
-
-/** Same delay as the school site splash (`setTimeout(..., 7000)` before `/discover`). */
-const ADVANCE_MS = 7000;
+import { useCallback, useEffect, useRef } from "react";
+import { SPLASH_ADVANCE_MS, claimSplashAdvance } from "@/lib/pre-account";
 
 export function SchoolSplash({ onEnter }: { onEnter: () => void }) {
   const onEnterRef = useRef(onEnter);
+  const enteredRef = useRef(false);
   const enterRef = useRef<HTMLButtonElement>(null);
   onEnterRef.current = onEnter;
 
-  useEffect(() => {
-    const id = window.setTimeout(() => onEnterRef.current(), ADVANCE_MS);
-    return () => window.clearTimeout(id);
+  const go = useCallback(() => {
+    if (!claimSplashAdvance(enteredRef.current)) return;
+    enteredRef.current = true;
+    onEnterRef.current();
   }, []);
+
+  useEffect(() => {
+    const id = window.setTimeout(go, SPLASH_ADVANCE_MS);
+    return () => window.clearTimeout(id);
+  }, [go]);
 
   useEffect(() => {
     enterRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    const onPointer = () => go();
+    window.addEventListener("pointerdown", onPointer);
+    return () => window.removeEventListener("pointerdown", onPointer);
+  }, [go]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -30,16 +41,16 @@ export function SchoolSplash({ onEnter }: { onEnter: () => void }) {
         return;
       }
       event.preventDefault();
-      onEnterRef.current();
+      go();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [go]);
 
   return (
     <main className="logo-splash">
       <h1 className="sr-only">ADOL with VKOLE/ZPD - Space XSI Integrated Learning Engine</h1>
-      <button ref={enterRef} type="button" className="logo-splash-enter" onClick={() => onEnter()}>
+      <button ref={enterRef} type="button" className="logo-splash-enter" onClick={go}>
         <picture>
           <source srcSet="/logo-splash.webp" type="image/webp" />
           <img
@@ -51,12 +62,7 @@ export function SchoolSplash({ onEnter }: { onEnter: () => void }) {
           />
         </picture>
       </button>
-      <button
-        type="button"
-        className="logo-splash-login"
-        aria-label="Click anywhere"
-        onClick={() => onEnter()}
-      >
+      <button type="button" className="logo-splash-login" aria-label="Click anywhere" onClick={go}>
         Click anywhere
       </button>
     </main>

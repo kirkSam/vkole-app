@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { Shell } from "@/components/shell";
-import { SCHOOL_ENGINE_URL } from "@/lib/school-account";
+import { PAY_MONTH_URL, PAY_YEAR_URL } from "@/lib/pre-account";
 
 export const Route = createFileRoute("/enroll")({ component: EnrollPage });
 
@@ -37,7 +37,7 @@ function EnrollPage() {
       </p>
       <a
         className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 text-base font-semibold text-[#1c1408]"
-        href={SCHOOL_ENGINE_URL}
+        href={PAY_YEAR_URL}
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -45,7 +45,7 @@ function EnrollPage() {
       </a>
       <a
         className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 text-base font-semibold text-[#1c1408]"
-        href={SCHOOL_ENGINE_URL}
+        href={PAY_MONTH_URL}
         target="_blank"
         rel="noopener noreferrer"
       >

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { APP_NAME } from "@/lib/brand";
 import { beginSharedTrial } from "@/lib/climbs";
-import { SCHOOL_ENGINE_URL } from "@/lib/school-account";
+import { PAY_MONTH_URL, PAY_YEAR_URL } from "@/lib/pre-account";
 
 const LEAD =
   "What if you and your child could access a \"State of the Art\" learning engine, VKOLE/ZPD - the Space XSI Integrated Learning Engine? It is developed in conjunction with Space XSI and a team of educators dedicated to bringing applied Superintelligence to parents at an affordable cost. Additionally, what if your educational agent stored your child's levels, and gave you control of your child's levels to send you a private email report of your child's progress and achievements?";
@@ -135,7 +135,7 @@ export function TeletypeIntro({
         </p>
         <a
           className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
-          href={SCHOOL_ENGINE_URL}
+          href={PAY_YEAR_URL}
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -143,7 +143,7 @@ export function TeletypeIntro({
         </a>
         <a
           className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
-          href={SCHOOL_ENGINE_URL}
+          href={PAY_MONTH_URL}
           target="_blank"
           rel="noopener noreferrer"
         >

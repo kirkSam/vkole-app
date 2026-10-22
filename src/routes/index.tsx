@@ -28,6 +28,7 @@ import { ACCOUNT_GONE_FLAG } from "@/lib/account-purge";
 import { ENGINE_PICKER_PARAM, isEnginePickerSearch } from "@/lib/engine-picker";
 import { takeZpdReturn } from "@/lib/zpd-info";
 import { PASTEL_NAV } from "@/lib/pastel-nav";
+import { markSplashShown, splashAlreadyShown } from "@/lib/pre-account";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -49,13 +50,24 @@ function Home() {
   stageRef.current = stage;
 
   useLayoutEffect(() => {
+    let openedApp = false;
     try {
-      if (takeZpdReturn(sessionStorage)) setStage("app");
+      if (takeZpdReturn(sessionStorage)) {
+        setStage("app");
+        openedApp = true;
+      }
     } catch {
       /* storage may be unavailable */
     }
     const params = new URLSearchParams(window.location.search);
-    if (!isEnginePickerSearch(window.location.search)) return;
+    if (!isEnginePickerSearch(window.location.search)) {
+      try {
+        if (!openedApp && splashAlreadyShown(sessionStorage)) setStage("teletype");
+      } catch {
+        /* storage may be unavailable */
+      }
+      return;
+    }
     params.delete(ENGINE_PICKER_PARAM);
     const next = params.toString();
     window.history.replaceState(null, "", next ? `/?${next}` : "/");
@@ -182,20 +194,19 @@ function Home() {
     return () => window.clearTimeout(id);
   }, [endsAt, gate, fullAccess, subscribed]);
 
-  const trialClosed = () => {
-    if (gate === "closed") return true;
-    if (gate === "open") return false;
-    try {
-      return sessionStorage.getItem("vkole-unpaid") === "1";
-    } catch {
-      return false;
-    }
-  };
-
   if (isPending && !createAccount && !accountGone) return <PageSkeleton />;
   if (stage === "splash") {
     return (
-      <SchoolSplash onEnter={() => setStage(trialClosed() ? "trial" : "teletype")} />
+      <SchoolSplash
+        onEnter={() => {
+          try {
+            markSplashShown(sessionStorage);
+          } catch {
+            /* storage may be unavailable */
+          }
+          setStage("teletype");
+        }}
+      />
     );
   }
   if (stage === "teletype") {

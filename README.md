@@ -34,7 +34,7 @@ This app still keeps a copy of that sign-in and of the student record: Better Au
 
 `POST /api/vkole/purge` deletes those rows and leaves the tables and the eight engines in place. The caller sends header `X-Vkole-Secret` (the shared secret) or is signed in as an email listed in `VKOLE_ADMIN_EMAILS`, and the JSON body `{ "confirm": "delete-all-accounts" }`. The response is counts only. That secret is still required for this purge route. It is not sent on account calls, and it must not be exposed to the browser (`VITE_` names are visible to the page). When a signed-in parent later opens the app and the website says that account is gone, this app deletes that parent's rows, expires the session cookie, and the browser drops the cached sign-in.
 
-Pay buttons open https://www.dotheimpossible.ai/engine. This app does not record a payment and does not charge the card. The prices shown are $9.00 USD plus tax a month, or $79.00 USD plus tax a year. 2 students per account. Google and X stay separate from the school account.
+Pay buttons open https://www.dotheimpossible.ai/parents#plan-79 for the year and https://www.dotheimpossible.ai/parents#plan-9 for the month. The live Parents page does not have those ids yet. This app does not record a payment and does not charge the card. The prices shown are $9.00 USD plus tax a month, or $79.00 USD plus tax a year. 2 students per account. Google and X stay separate from the school account.
 
 ## Install
 
