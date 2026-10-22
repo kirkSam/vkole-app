@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
-  MIC_COUNTDOWN_MS,
-  MIC_LEAD_MS,
-  MIC_TAIL_MS,
   MIC_WINDOW_MS,
+  SPELLING_COUNTDOWN_MS,
+  SPELLING_MIC_AFTER_ZERO_MS,
+  SPELLING_MIC_BEFORE_COUNT_MS,
   claimRecognizer,
   micAnswer,
   micCountdown,
@@ -89,9 +89,9 @@ function fakeClock() {
 
 describe("alphabet microphone window", () => {
   it("uses a 1 second lead, a 5 second countdown, and a 1 second tail", () => {
-    assert.equal(MIC_LEAD_MS, 1000);
-    assert.equal(MIC_COUNTDOWN_MS, 5000);
-    assert.equal(MIC_TAIL_MS, 1000);
+    assert.equal(SPELLING_MIC_BEFORE_COUNT_MS, 1000);
+    assert.equal(SPELLING_COUNTDOWN_MS, 5000);
+    assert.equal(SPELLING_MIC_AFTER_ZERO_MS, 1000);
     assert.equal(MIC_WINDOW_MS, 7000);
 
     resetRecognizerGate();
@@ -118,19 +118,19 @@ describe("alphabet microphone window", () => {
     rec.browserOpened();
     assert.equal(listening, true);
     assert.equal(openedAt, 500);
-    assert.equal(micCountdown(openedAt, 500 + MIC_LEAD_MS - 1).showCountdown, false);
-    assert.equal(micCountdown(openedAt, 500 + MIC_LEAD_MS).seconds, 5);
-    assert.equal(micCountdown(openedAt, 500 + MIC_LEAD_MS + 999).seconds, 5);
-    assert.equal(micCountdown(openedAt, 500 + MIC_LEAD_MS + 1000).seconds, 4);
-    assert.equal(micCountdown(openedAt, 500 + MIC_LEAD_MS + MIC_COUNTDOWN_MS).seconds, 0);
-    assert.equal(micCountdown(openedAt, 500 + MIC_LEAD_MS + MIC_COUNTDOWN_MS).close, false);
+    assert.equal(micCountdown(openedAt, 500 + SPELLING_MIC_BEFORE_COUNT_MS - 1).showCountdown, false);
+    assert.equal(micCountdown(openedAt, 500 + SPELLING_MIC_BEFORE_COUNT_MS).seconds, 5);
+    assert.equal(micCountdown(openedAt, 500 + SPELLING_MIC_BEFORE_COUNT_MS + 999).seconds, 5);
+    assert.equal(micCountdown(openedAt, 500 + SPELLING_MIC_BEFORE_COUNT_MS + 1000).seconds, 4);
+    assert.equal(micCountdown(openedAt, 500 + SPELLING_MIC_BEFORE_COUNT_MS + SPELLING_COUNTDOWN_MS).seconds, 0);
+    assert.equal(micCountdown(openedAt, 500 + SPELLING_MIC_BEFORE_COUNT_MS + SPELLING_COUNTDOWN_MS).close, false);
     assert.equal(micCountdown(openedAt, 500 + MIC_WINDOW_MS - 1).seconds, 0);
     assert.equal(micCountdown(openedAt, 500 + MIC_WINDOW_MS - 1).close, false);
     assert.equal(listening, true);
     assert.equal(micCountdown(openedAt, 500 + MIC_WINDOW_MS).close, true);
 
-    assert.equal(micAnswer("again"), "keep");
     assert.equal(micAnswer("wait"), "keep");
+    assert.equal(micAnswer("again"), "reask");
     assert.equal(openedAt, 500);
     assert.equal(rec.active, true);
     assert.equal(micAnswer("correct"), "advance");
@@ -173,11 +173,11 @@ describe("alphabet microphone window", () => {
     assert.equal(listening, true);
     assert.equal(micCountdown(openedAt, clock.now()).showCountdown, false);
 
-    clock.advance(MIC_LEAD_MS);
+    clock.advance(SPELLING_MIC_BEFORE_COUNT_MS);
     assert.equal(micCountdown(openedAt, clock.now()).seconds, 5);
     clock.advance(1_000);
     assert.equal(micCountdown(openedAt, clock.now()).seconds, 4);
-    assert.equal(micAnswer("again"), "keep");
+    assert.equal(micAnswer("wait"), "keep");
     assert.equal(openedAt, 0);
 
     clock.advance(500);
@@ -217,13 +217,13 @@ describe("alphabet microphone window", () => {
     second.browserOpened();
     const nextOpen = openedAt ?? 0;
     assert.equal(micCountdown(nextOpen, nextOpen).showCountdown, false);
-    clock.advance(MIC_LEAD_MS);
+    clock.advance(SPELLING_MIC_BEFORE_COUNT_MS);
     assert.equal(micCountdown(nextOpen, clock.now()).seconds, 5);
-    clock.advance(MIC_COUNTDOWN_MS);
+    clock.advance(SPELLING_COUNTDOWN_MS);
     assert.equal(micCountdown(nextOpen, clock.now()).seconds, 0);
     assert.equal(listening, true);
     assert.deepEqual(closes, []);
-    clock.advance(MIC_TAIL_MS);
+    clock.advance(SPELLING_MIC_AFTER_ZERO_MS);
     assert.deepEqual([...closes], ["next"]);
     assert.equal(listening, false);
     assert.equal(clock.pending(), 0);
@@ -231,15 +231,19 @@ describe("alphabet microphone window", () => {
 
   it("points exercises 2 through 5 at these constants", () => {
     const stage = readFileSync(new URL("../../components/spelling-stage.tsx", import.meta.url), "utf8");
-    assert.equal(stage.includes("MIC_LEAD_MS"), true);
-    assert.equal(stage.includes("MIC_COUNTDOWN_MS"), true);
-    assert.equal(stage.includes("MIC_TAIL_MS"), true);
+    assert.equal(stage.includes("SPELLING_MIC_BEFORE_COUNT_MS"), true);
+    assert.equal(stage.includes("SPELLING_COUNTDOWN_MS"), true);
+    assert.equal(stage.includes("SPELLING_MIC_AFTER_ZERO_MS"), true);
     assert.equal(stage.includes("MIC_WINDOW_MS"), true);
     assert.equal(stage.includes("micCountdown"), true);
     assert.equal(stage.includes("micAnswer"), true);
     assert.equal(stage.includes("rec.onstart"), true);
     assert.equal(stage.includes('noteHeard("Try again")'), true);
-    assert.equal(stage.includes('outcome: "again"'), false);
+    assert.equal(stage.includes('outcome: "again"'), true);
+    assert.equal(stage.includes('error === "no-speech"'), false);
+    const noSpeech = stage.slice(stage.indexOf("rec.onerror"), stage.indexOf("rec.onend"));
+    assert.equal(noSpeech.includes("scheduleRestart()"), true);
+    assert.equal(noSpeech.includes('setPhase("prompt")'), false);
     const exercises = stage.slice(stage.indexOf("if (!canScore) return;"), stage.indexOf("phase !== \"good-job\""));
     assert.equal(exercises.includes("viewRef.current.exercise === 5"), true);
     assert.equal(exercises.includes("viewRef.current.exercise !== 5"), true);

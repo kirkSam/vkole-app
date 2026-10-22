@@ -14,8 +14,9 @@ export const LETTER_ALTERNATIVE_LIMIT = 5;
 
 /**
  * Chrome reports confidence from 0 to 1, and uses 0 when it has no score.
- * A reported score above 0 and below this floor is not graded.
- * The microphone stays open for the rest of its window. A missing score, or 0, skips this check.
+ * A live result under this floor waits. It is not graded and it is not "say it again".
+ * A finished result under this floor asks the student to say the letter again.
+ * A missing score, or 0, skips this check.
  */
 export const LETTER_CONFIDENCE_FLOOR = 0.2;
 
@@ -117,9 +118,19 @@ function confidenceIsLow(value: number | null | undefined): boolean {
 }
 
 /**
+ * A live score under the floor waits.
+ * Only a finished score under the floor asks again.
+ * A usable score, or no score, returns null so the caller grades the words.
+ */
+export function lowScoreAsk(final: boolean | undefined, confidence: number | null | undefined): "wait" | "again" | null {
+  if (!confidenceIsLow(confidence)) return null;
+  return final === true ? "again" : "wait";
+}
+
+/**
  * Look at the top alternatives only.
  * One accepted form, with a usable confidence, is correct.
- * A very low reported confidence is not scored.
+ * A live score under the floor waits. A finished score under the floor asks again.
  */
 export function judgeLetterHear(letter: string, alternatives: readonly HeardAlternative[]): LetterJudgment {
   const top = alternatives.slice(0, LETTER_ALTERNATIVE_LIMIT);
@@ -133,7 +144,9 @@ export function judgeLetterHear(letter: string, alternatives: readonly HeardAlte
     sawWords = true;
     const low = confidenceIsLow(alternative.confidence);
     if (pronunciationMatches(letter, alternative.transcript ?? "")) {
-      if (low) {
+      const ask = lowScoreAsk(alternative.final, alternative.confidence);
+      if (ask === "wait") continue;
+      if (ask === "again") {
         lowMatch = true;
         continue;
       }

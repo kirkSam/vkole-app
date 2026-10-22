@@ -87,6 +87,7 @@ describe("recognizer alternatives", () => {
 
   it("asks again when the only match is below the confidence floor", () => {
     assert.equal(judgeLetterHear("R", [{ transcript: "are", confidence: 0.1, final: true }]), "again");
+    assert.equal(judgeLetterHear("R", [{ transcript: "are", confidence: 0.1, final: false }]), "wait");
     assert.equal(judgeLetterHear("R", [{ transcript: "are", confidence: 0, final: true }]), "correct");
     assert.equal(judgeLetterHear("R", [{ transcript: "are", final: true }]), "correct");
   });

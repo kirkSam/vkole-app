@@ -498,6 +498,8 @@ describe("spoken spelling answers", () => {
     assert.equal(judgeSpellingAlternatives("M", [{ transcript: "", final: true }, { transcript: ".", final: true }]), "wait");
     assert.equal(judgeSpellingSpoken("M", "em", false, []), "correct");
     assert.equal(recognitionErrorRelistens("no-speech"), true);
+    assert.equal(recognitionErrorRelistens(""), true);
+    assert.equal(recognitionErrorRelistens(undefined), true);
     assert.equal(recognitionErrorRelistens("network"), true);
     assert.equal(recognitionErrorRelistens("audio-capture"), true);
     assert.equal(recognitionErrorRelistens("not-allowed"), false);
@@ -534,6 +536,10 @@ describe("spoken spelling answers", () => {
     ]);
     assert.equal(quiet.judgment, "again");
     assert.equal(quiet.status, "Try again");
+    const liveLow = describeSpellingHear("N", [{ transcript: "enn", final: false, confidence: 0.1 }]);
+    assert.equal(liveLow.judgment, "wait");
+    assert.equal(judgeSpellingAlternatives("N", [{ transcript: "enn", final: false, confidence: 0.1 }]), "wait");
+    assert.equal(describeSpellingHear("D", [{ transcript: "dee", final: false, confidence: 0.19 }]).judgment, "wait");
     assert.equal(describeSpellingHear("M", [{ transcript: "and", final: true }]).judgment, "miss");
     assert.equal(describeSpellingHear("M", [{ transcript: "and", final: true }]).status, "I heard: and");
     assert.equal(describeSpellingHear("Q", [{ transcript: "", final: true }, { transcript: ".", final: true }]).status, "I didn't hear anything");

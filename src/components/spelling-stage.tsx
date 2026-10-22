@@ -24,10 +24,10 @@ import {
 import { holdEngineAudio, holdEngineLetter, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LETTER_ALTERNATIVE_LIMIT, judgeLetterHear } from "@/lib/speech/letter-pronunciations";
 import {
-  MIC_COUNTDOWN_MS,
-  MIC_LEAD_MS,
-  MIC_TAIL_MS,
   MIC_WINDOW_MS,
+  SPELLING_COUNTDOWN_MS,
+  SPELLING_MIC_AFTER_ZERO_MS,
+  SPELLING_MIC_BEFORE_COUNT_MS,
   claimRecognizer,
   micAnswer,
   micCountdown,
@@ -43,7 +43,7 @@ const MIC_KEY = "vkole-sp-mic";
 
 /** Lead, visible countdown, and the extra second before the mic closes. */
 function alphabetMicWindowMs(): number {
-  const parts = MIC_LEAD_MS + MIC_COUNTDOWN_MS + MIC_TAIL_MS;
+  const parts = SPELLING_MIC_BEFORE_COUNT_MS + SPELLING_COUNTDOWN_MS + SPELLING_MIC_AFTER_ZERO_MS;
   return parts === MIC_WINDOW_MS ? MIC_WINDOW_MS : parts;
 }
 
@@ -666,6 +666,26 @@ export function SpellingStage({
             const heard = describeSpellingHear(current.answer, alternatives, current.also, current.say);
             const action = micAnswer(heard.judgment);
             if (action === "keep") continue;
+            if (action === "reask") {
+              decided = true;
+              clearWindow();
+              openedAt = null;
+              setClockOn(false);
+              noteHeard("Try again");
+              onAttemptRef.current?.({
+                letter: current.answer,
+                exercise: current.exercise,
+                outcome: "again",
+                heard: lastHeard,
+              });
+              try {
+                rec?.abort();
+              } catch {
+                /* already stopped */
+              }
+              if (live) setPhase("prompt");
+              return;
+            }
             const elapsed = heardOrigin === 0 ? 0 : performance.now() - heardOrigin;
             if (action === "retry" && earlyHandoffMiss(elapsed, "miss")) continue;
             if (action === "advance") {
@@ -845,12 +865,17 @@ export function SpellingStage({
             const packed = alternatives.map(({ transcript, confidence }) => ({ transcript, confidence }));
             const action = micAnswer(judged);
             if (action === "keep") continue;
-            if (action === "retry") {
+            if (action === "reask" || action === "retry") {
               decided = true;
               clearWindow();
               openedAt = null;
               noteHeard("Try again");
-              onAttemptRef.current?.({ letter: nextLetter, exercise: 5, outcome: "miss", heard: packed });
+              onAttemptRef.current?.({
+                letter: nextLetter,
+                exercise: 5,
+                outcome: action === "reask" ? "again" : "miss",
+                heard: packed,
+              });
               try {
                 rec?.abort();
               } catch {
