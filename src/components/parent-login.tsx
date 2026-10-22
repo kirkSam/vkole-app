@@ -6,6 +6,7 @@ import { SIGN_IN_AGAIN_NOTE } from "@/lib/account-purge";
 import { rememberAppSession } from "@/lib/auth/client";
 import { recordLogin } from "@/lib/ledger";
 import { beginSharedTrial } from "@/lib/climbs";
+import { ENGINE_PICKER_ROUTE } from "@/lib/engine-picker";
 import { SchoolAccountScreen } from "@/components/school-account-screen";
 import { Shell } from "@/components/shell";
 
@@ -56,7 +57,7 @@ export function ParentLogin({
     sessionStorage.removeItem("vkole-account-gone");
     await beginSharedTrial().catch(() => undefined);
     onAccountReady?.();
-    window.location.assign("/?open=1");
+    window.location.assign(ENGINE_PICKER_ROUTE);
   }
 
   async function sendCode() {
