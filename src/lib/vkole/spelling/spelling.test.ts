@@ -524,10 +524,16 @@ describe("spoken spelling answers", () => {
     assert.equal(spellingSpokenMatches("U", "you", []), true);
     const lower = describeSpellingHear("N", [
       { transcript: "the", final: true },
-      { transcript: "enn", final: true, confidence: 0.1 },
+      { transcript: "enn", final: true, confidence: 0.5 },
     ]);
     assert.equal(lower.judgment, "correct");
     assert.equal(lower.status, "I heard: enn");
+    const quiet = describeSpellingHear("N", [
+      { transcript: "the", final: true },
+      { transcript: "enn", final: true, confidence: 0.1 },
+    ]);
+    assert.equal(quiet.judgment, "again");
+    assert.equal(quiet.status, "Try again");
     assert.equal(describeSpellingHear("M", [{ transcript: "and", final: true }]).judgment, "miss");
     assert.equal(describeSpellingHear("M", [{ transcript: "and", final: true }]).status, "I heard: and");
     assert.equal(describeSpellingHear("Q", [{ transcript: "", final: true }, { transcript: ".", final: true }]).status, "I didn't hear anything");
@@ -541,7 +547,8 @@ describe("spoken spelling answers", () => {
     assert.equal(spellingGrammar("M").includes("em"), true);
     assert.equal(spellingGrammar("N").includes("and"), true);
     const stage = readFileSync(stageFile, "utf8");
-    assert.equal(stage.includes("maxAlternatives = 8"), true);
+    assert.equal(stage.includes("maxAlternatives = LETTER_ALTERNATIVE_LIMIT"), true);
+    assert.equal(stage.includes("maxAlternatives = 8"), false);
     assert.equal(stage.includes("interimResults = true"), true);
     assert.equal(stage.includes("applyLetterGrammar"), true);
     assert.equal(stage.includes("I didn't hear anything"), true);

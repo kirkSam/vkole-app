@@ -1,4 +1,4 @@
-import lists from "./data.json" with { type: "json" };
+import { acceptedFormsForLetter, judgeLetterHear, type HeardAlternative, type LetterJudgment } from "../../speech/letter-pronunciations.ts";
 import { compactSpeech, speechTokens, spokenMatches } from "../sight-words/match.ts";
 
 /**
@@ -7,16 +7,13 @@ import { compactSpeech, speechTokens, spokenMatches } from "../sight-words/match
  * A single-word alias matches as a token. A multi-word alias, such as
  * "double you", matches only as those words in a row, so a short piece
  * of it does not count as the whole letter.
- * Letter names from the data file are always accepted, including when an
+ * Letter names come from the shared pronunciation list, including when an
  * item's own also-list is missing one of them.
  */
 
-const letterNames = lists.letterNames as Record<string, readonly string[]>;
-
-/** Spoken names for a letter, such as "em" for M. The letter itself is matched separately. */
+/** Spoken names for a letter, from the shared pronunciation list. */
 export function spokenFormsForLetter(answer: string): readonly string[] {
-  const letter = answer.trim().toUpperCase();
-  return letterNames[letter] ?? [];
+  return acceptedFormsForLetter(answer);
 }
 
 function aliasList(answer: string, also: readonly string[]): string[] {
@@ -117,20 +114,27 @@ export function judgeSpellingSpoken(
  */
 export function judgeSpellingAlternatives(
   answer: string,
-  alternatives: readonly { transcript?: string; final?: boolean; confidence?: number }[],
+  alternatives: readonly { transcript?: string; final?: boolean; confidence?: number | null }[],
   also: readonly string[] = [],
   say = "",
-): "correct" | "miss" | "wait" {
+): LetterJudgment {
+  const prepared: HeardAlternative[] = alternatives.map((alternative) => ({
+    transcript: heardAsideFromPrompt(say, alternative.transcript ?? ""),
+    confidence: alternative.confidence,
+    final: alternative.final,
+  }));
+  const judged = judgeLetterHear(answer, prepared);
+  if (judged === "correct" || judged === "again") return judged;
   let finishedSpeech = false;
   let anyAside = false;
-  for (const alternative of alternatives) {
-    const transcript = alternative.transcript ?? "";
-    const aside = heardAsideFromPrompt(say, transcript);
+  for (const alternative of prepared) {
+    const aside = alternative.transcript ?? "";
     if (speechTokens(aside).length === 0) continue;
     anyAside = true;
     if (spellingSpokenMatches(answer, aside, also)) return "correct";
     if (alternative.final) finishedSpeech = true;
   }
+  if (judged === "miss") return "miss";
   if (!anyAside) return "wait";
   return finishedSpeech ? "miss" : "wait";
 }
@@ -164,11 +168,12 @@ export function spellingGrammar(answer: string, also: readonly string[] = []): s
  */
 export function describeSpellingHear(
   answer: string,
-  alternatives: readonly { transcript?: string; final?: boolean; confidence?: number }[],
+  alternatives: readonly { transcript?: string; final?: boolean; confidence?: number | null }[],
   also: readonly string[] = [],
   say = "",
-): { judgment: "correct" | "miss" | "wait"; status: string } {
+): { judgment: LetterJudgment; status: string } {
   const judgment = judgeSpellingAlternatives(answer, alternatives, also, say);
+  if (judgment === "again") return { judgment, status: "Try again" };
   let matched = "";
   let top = "";
   for (const alternative of alternatives) {

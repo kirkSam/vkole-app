@@ -22,13 +22,14 @@ import {
   spellingStartSecondsLeft,
 } from "@/lib/vkole/spelling/items";
 import { holdEngineAudio, holdEngineLetter, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
-import { describeSpellingHear, recognitionErrorRelistens, spellingGrammar } from "@/lib/vkole/spelling/match";
+import { LETTER_ALTERNATIVE_LIMIT, judgeLetterHear } from "@/lib/speech/letter-pronunciations";
+import { describeSpellingHear, heardAsideFromPrompt, recognitionErrorRelistens, spellingGrammar } from "@/lib/vkole/spelling/match";
 import { celebrationFrame, GOOD_JOB_LINE, reciteHear, SPELLING_CELEBRATION_MS } from "@/lib/vkole/spelling/recite";
 import { advanceTyping, judgeTypingKey, TYPING_TRY_AGAIN, TYPING_WAIT_MS, typingCaseLine, typingShown, typingStart, type TypingPlace } from "@/lib/vkole/spelling/typing";
 
 const MIC_KEY = "vkole-sp-mic";
 
-type SpeechAlternative = { transcript?: string };
+type SpeechAlternative = { transcript?: string; confidence?: number };
 type SpeechResult = ArrayLike<SpeechAlternative> & { isFinal?: boolean };
 type SpeechEvent = { resultIndex?: number; results: ArrayLike<SpeechResult> };
 type SpeechGrammarList = { addFromString: (source: string, weight: number) => void };
@@ -58,6 +59,21 @@ function grammarCtor(): (new () => SpeechGrammarList) | null {
 }
 
 /** Bias the recognizer toward this letter when the browser still accepts a grammar. */
+function packAlternatives(result: SpeechResult): { transcript: string; confidence: number | null; final: boolean }[] {
+  const alternatives: { transcript: string; confidence: number | null; final: boolean }[] = [];
+  const count = Math.min(result.length, LETTER_ALTERNATIVE_LIMIT);
+  for (let j = 0; j < count; j += 1) {
+    const row = result[j];
+    if (!row) continue;
+    alternatives.push({
+      transcript: row.transcript ?? "",
+      confidence: typeof row.confidence === "number" ? row.confidence : null,
+      final: Boolean(result.isFinal),
+    });
+  }
+  return alternatives;
+}
+
 function applyLetterGrammar(rec: SpeechListener, answer: string, also: readonly string[]) {
   const Ctor = grammarCtor();
   const source = spellingGrammar(answer, also);
@@ -199,6 +215,7 @@ export function SpellingStage({
   heard = "",
   onHeard,
   onRecited,
+  onAttempt,
   onDone,
 }: {
   index?: number;
@@ -207,6 +224,12 @@ export function SpellingStage({
   heard?: string;
   onHeard?: (note: string) => void;
   onRecited?: () => void;
+  onAttempt?: (attempt: {
+    letter: string;
+    exercise: number;
+    outcome: "correct" | "miss" | "timeout" | "again";
+    heard: { transcript: string; confidence: number | null }[];
+  }) => void;
   onDone: (outcome: Outcome) => void;
 }) {
   const opening = openingAlphabetExercise({ index, silence, wrong });
@@ -235,6 +258,7 @@ export function SpellingStage({
   const onDoneRef = useRef(onDone);
   const onHeardRef = useRef(onHeard);
   const onRecitedRef = useRef(onRecited);
+  const onAttemptRef = useRef(onAttempt);
   const typeRef = useRef<HTMLInputElement | null>(null);
   const typedDone = useRef(false);
   const exerciseRef = useRef(exercise);
@@ -249,6 +273,7 @@ export function SpellingStage({
   onDoneRef.current = onDone;
   onHeardRef.current = onHeard;
   onRecitedRef.current = onRecited;
+  onAttemptRef.current = onAttempt;
   viewRef.current = view;
 
   function beginExercise(next: AlphabetExercise) {
@@ -503,11 +528,14 @@ export function SpellingStage({
     let decided = false;
     const listenStarted = performance.now();
     const deadline = listenStarted + SPELLING_RESPONSE_MS;
+    const lastHeard: { transcript: string; confidence: number | null }[] = [];
     setSecondsLeft(SPELLING_RESPONSE_MS / 1000);
     const timer = window.setTimeout(() => {
       if (decided) return;
       decided = true;
       noteSilence();
+      const card = viewRef.current;
+      onAttemptRef.current?.({ letter: card.answer, exercise: card.exercise, outcome: "timeout", heard: lastHeard });
       try {
         rec?.abort();
       } catch {
@@ -560,7 +588,7 @@ export function SpellingStage({
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
-        rec.maxAlternatives = 8;
+        rec.maxAlternatives = LETTER_ALTERNATIVE_LIMIT;
         applyLetterGrammar(rec, viewRef.current.answer, viewRef.current.also);
         rec.onresult = (event) => {
           noteEngineActivity();
@@ -571,20 +599,26 @@ export function SpellingStage({
           for (let i = start; i < event.results.length; i += 1) {
             const result = event.results[i];
             if (!result) continue;
-            const alternatives: { transcript: string; final: boolean }[] = [];
-            for (let j = 0; j < result.length; j += 1) {
-              const row = result[j];
-              if (!row) continue;
-              alternatives.push({ transcript: row.transcript ?? "", final: Boolean(result.isFinal) });
-            }
+            const alternatives = packAlternatives(result);
+            lastHeard.splice(0, lastHeard.length, ...alternatives.map(({ transcript, confidence }) => ({ transcript, confidence })));
             const heard = describeSpellingHear(current.answer, alternatives, current.also, current.say);
-            if (earlyHandoffMiss(performance.now() - listenStarted, heard.judgment)) continue;
+            const tooSoon = heard.judgment === "miss" || heard.judgment === "again" ? earlyHandoffMiss(performance.now() - listenStarted, "miss") : false;
+            if (tooSoon) continue;
             if (heard.status.startsWith("I heard:")) noteHeard(heard.status);
             if (heard.judgment === "correct") {
               decided = true;
               window.clearTimeout(timer);
               noteHeard(heard.status);
+              onAttemptRef.current?.({ letter: current.answer, exercise: current.exercise, outcome: "correct", heard: lastHeard });
               finishRef.current("correct");
+              return;
+            }
+            if (heard.judgment === "again") {
+              decided = true;
+              window.clearTimeout(timer);
+              noteHeard("Try again");
+              onAttemptRef.current?.({ letter: current.answer, exercise: current.exercise, outcome: "again", heard: lastHeard });
+              finishRef.current("timeout");
               return;
             }
             if (heard.judgment === "miss") missNote = heard.status;
@@ -593,6 +627,12 @@ export function SpellingStage({
           decided = true;
           window.clearTimeout(timer);
           noteHeard(missNote);
+          onAttemptRef.current?.({
+            letter: viewRef.current.answer,
+            exercise: viewRef.current.exercise,
+            outcome: "miss",
+            heard: lastHeard,
+          });
           try {
             rec?.abort();
           } catch {
@@ -612,6 +652,8 @@ export function SpellingStage({
             // "I didn't hear anything" line on screen until a later silence steps back to A.
             decided = true;
             noteSilence();
+            const card = viewRef.current;
+            onAttemptRef.current?.({ letter: card.answer, exercise: card.exercise, outcome: "timeout", heard: lastHeard });
             window.clearTimeout(timer);
             window.clearTimeout(restartTimer);
             try {
@@ -697,7 +739,7 @@ export function SpellingStage({
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
-        rec.maxAlternatives = 8;
+        rec.maxAlternatives = LETTER_ALTERNATIVE_LIMIT;
         applyLetterGrammar(rec, "A", []);
         rec.onresult = (event) => {
           noteEngineActivity();
@@ -708,11 +750,24 @@ export function SpellingStage({
           for (let i = start; i < event.results.length; i += 1) {
             const result = event.results[i];
             if (!result) continue;
+            const alternatives = packAlternatives(result);
+            const stripped = alternatives.map((alternative) => ({
+              ...alternative,
+              transcript: heardAsideFromPrompt(say, alternative.transcript),
+            }));
+            const nextLetter = alphabet()[next] ?? "A";
+            const judged = judgeLetterHear(nextLetter, stripped);
+            const packed = alternatives.map(({ transcript, confidence }) => ({ transcript, confidence }));
+            if (judged === "again" || judged === "miss") {
+              onAttemptRef.current?.({ letter: nextLetter, exercise: 5, outcome: judged, heard: packed });
+              if (judged === "again") noteHeard("Try again");
+              continue;
+            }
+            const before = next;
             let bestNext = next;
             let bestStatus = "";
-            for (let j = 0; j < result.length; j += 1) {
-              const row = result[j];
-              const heard = reciteHear({ next }, row?.transcript ?? "", say);
+            for (const alternative of stripped) {
+              const heard = reciteHear({ next }, alternative.transcript, say);
               if (heard.next > bestNext) {
                 bestNext = heard.next;
                 bestStatus = heard.status;
@@ -721,6 +776,9 @@ export function SpellingStage({
             if (bestNext > next) {
               next = bestNext;
               noteHeard(`I heard: ${alphabet().slice(0, next).join(" ")}`);
+              for (const letter of alphabet().slice(before, next)) {
+                onAttemptRef.current?.({ letter, exercise: 5, outcome: "correct", heard: packed });
+              }
             } else if (bestStatus.startsWith("I heard:") && !heardRef.current.startsWith("I heard:")) {
               noteHeard(bestStatus);
             }

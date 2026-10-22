@@ -18,6 +18,7 @@ import {
   markPhonemic,
   markSightWord,
   markSpelling,
+  recordAlphabetAttempt,
   placeSpellingExercise,
   recordAnswer,
   revealNextQuestion,
@@ -614,6 +615,17 @@ function SessionPage() {
             wrong={climb.incorrectStreak}
             heard={spellingHeard}
             onHeard={setSpellingHeard}
+            onAttempt={(attempt) => {
+              void recordAlphabetAttempt({
+                data: {
+                  id: climb.id,
+                  letter: attempt.letter,
+                  exercise: attempt.exercise,
+                  outcome: attempt.outcome,
+                  heard: attempt.heard,
+                },
+              }).catch(() => undefined);
+            }}
             onRecited={() => {
               noteEngineActivity();
               void placeSpellingExercise({ data: { id: climb.id, exercise: 5 } })

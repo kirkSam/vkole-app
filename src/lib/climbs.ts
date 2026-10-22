@@ -3,7 +3,8 @@ import { z } from "zod";
 import { IDLE_MS, academicLetter, parentLogoutLetter, parentProgressMail, trialState, type AppTime, type EndReason, type ReportEvent } from "@/lib/academic-email";
 import { reportLine } from "@/lib/session-report";
 import { schoolMiddleware } from "@/lib/school-middleware";
-import { accountIdOf, isSchoolAccountId, schoolAccessDecision, studentIndexOf, type FamilyStudent } from "@/lib/school-account";
+import { aggregateLetterMisses, missSamplesFromDetails } from "@/lib/speech/letter-attempts";
+import { accountIdOf, isSchoolAccountId, isWebsiteMasterEmail, schoolAccessDecision, studentIndexOf, type FamilyStudent } from "@/lib/school-account";
 import { isSubject, SUBJECTS, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { moveRung, stepName, stepSentence } from "@/lib/cc-steps";
 import { fillSheet, practicePromptText, rememberPrompt, seenKeys } from "@/lib/next-sheet";
@@ -1118,6 +1119,7 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
   const events = await sql<{ created_at: unknown; detail: string; level_after: number | string; level_before: number | string; correct: boolean | number | string }>`
     select created_at, detail, level_after, level_before, correct from climb_events
     where climb_id = ${climbId} and user_id = ${userId} and created_at >= ${startedAt}
+      and detail not like ${'%"attempt":true%'}
     order by created_at asc limit 40
   `;
   const reportEvents: ReportEvent[] = events.map((event) => ({
@@ -1126,6 +1128,24 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     levelAfter: Number(event.level_after),
     correct: flag(event.correct),
   }));
+  const attemptRows =
+    climb.subject === "sp"
+      ? await sql<{ created_at: unknown; detail: string; level_after: number | string; correct: boolean | number | string }>`
+          select created_at, detail, level_after, correct from climb_events
+          where climb_id = ${climbId} and user_id = ${userId} and created_at >= ${startedAt}
+            and detail like ${'%"attempt":true%'}
+          order by created_at asc limit 400
+        `
+      : [];
+  const letterEvents: ReportEvent[] = [
+    ...reportEvents,
+    ...attemptRows.map((event) => ({
+      at: asIso(event.created_at),
+      detail: event.detail,
+      levelAfter: Number(event.level_after),
+      correct: flag(event.correct),
+    })),
+  ];
   const before = events[0] ? Number(events[0].level_before) : climb.level;
   const startStep = events[0] ? stepBeforeOf(events[0].detail) : null;
   const startPos = before * 3 + (startStep ?? 0);
@@ -1199,7 +1219,7 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     moved: climb.subject === "sp" || climb.subject === "pa" ? null : moved,
     sheet: built?.prompts,
     trial: { startedAt: climb.startedAt, endsAt: climb.endsAt, daysLeft: climb.daysLeft, expired: climb.expired },
-    events: reportEvents,
+    events: letterEvents,
     session: { reason, sittingSeconds: sittingSecondsValue, totalSeconds: climb.onlineSeconds },
     spellingReport,
   });
@@ -1262,6 +1282,72 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     spellingReport,
   };
 }
+
+const attemptSchema = idSchema.extend({
+  letter: z.string().trim().min(1).max(4),
+  exercise: z.number().int().min(2).max(5),
+  outcome: z.enum(["correct", "miss", "timeout", "again"]),
+  heard: z
+    .array(
+      z.object({
+        transcript: z.string().max(240),
+        confidence: z.number().nullable(),
+      }),
+    )
+    .max(8),
+});
+
+/** Save one alphabet hear. This does not move the letter and does not add a pronunciation. */
+export const recordAlphabetAttempt = createServerFn({ method: "POST" })
+  .validator((data: unknown) => parse(attemptSchema, data))
+  .middleware([schoolMiddleware])
+  .handler(async ({ context, data }) => {
+    const sql = await getSql();
+    const current = await selectOwned(sql, context.userId, data.id);
+    if (current.subject !== "sp") throw new Error("This session is not alphabet.");
+    const letter = data.letter.trim().toUpperCase();
+    if (!/^[A-Z]$/.test(letter)) throw new Error("Check the form and try again.");
+    await sql`
+      insert into climb_events (id, climb_id, user_id, subject, child_name, age, correct, level_before, level_after, detail)
+      values (
+        ${crypto.randomUUID()}, ${data.id}, ${context.userId}, ${current.subject}, ${current.childName},
+        ${current.age}, ${data.outcome === "correct"}, ${current.level}, ${current.level},
+        ${JSON.stringify({
+          attempt: true,
+          letter,
+          exercise: data.exercise,
+          outcome: data.outcome,
+          heard: data.heard.slice(0, 5).map((row) => ({
+            transcript: row.transcript,
+            confidence: row.confidence,
+          })),
+          studentId: context.userId,
+        })}
+      )`;
+    return { ok: true };
+  });
+
+/**
+ * Counts of words heard when a letter was not scored.
+ * Only the website master can read this. Each row is a letter, a heard word, and a count.
+ * Nothing here is added to the pronunciation list.
+ */
+export const listAlphabetMisses = createServerFn({ method: "POST" })
+  .middleware([schoolMiddleware])
+  .handler(async ({ context }) => {
+    if (!isWebsiteMasterEmail(accountIdOf(context.userId))) return { allowed: false, letters: [] };
+    const sql = await getSql();
+    const rows = await sql<{ detail: string }>`
+      select detail from climb_events
+      where subject = 'sp'
+      order by created_at desc
+      limit 4000
+    `;
+    return {
+      allowed: true,
+      letters: aggregateLetterMisses(missSamplesFromDetails(rows.map((row) => row.detail))),
+    };
+  });
 
 export const beginSitting = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
