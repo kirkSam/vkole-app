@@ -435,7 +435,14 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
           This email is saved: {account.email}. Logins recorded: {account.loginCount}. Reports go only to this address.
         </p>
       ) : null}
-      <StudentSwitcher students={students} activeStudent={activeStudent} onSwitched={() => setRevision((value) => value + 1)} />
+      <StudentSwitcher
+        students={students}
+        activeStudent={activeStudent}
+        onSwitched={(index) => {
+          setActiveStudent(index);
+          setRevision((value) => value + 1);
+        }}
+      />
       {office && (office.purchased || !fullAccess) ? (
         <StudentOffice purchased={office.purchased} slug={office.slug} />
       ) : null}
@@ -510,8 +517,9 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       <div className="mt-3 grid gap-4">
         {SUBJECTS.map((subject) => (
           <AppGate
-            key={subject.id}
+            key={`${activeStudent}-${subject.id}`}
             subject={subject.id}
+            studentName={students.find((student) => student.index === activeStudent)?.name ?? ""}
             roster={(climbs ?? []).filter((climb) => climb.subject === subject.id)}
             onTrialFinished={() => setClosedApp(subject.id)}
             onLevelsChanged={() => setRevision((n) => n + 1)}
@@ -525,12 +533,14 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
 
 function AppGate({
   subject,
+  studentName,
   roster,
   onTrialFinished,
   onLevelsChanged,
   onClock,
 }: {
   subject: SubjectId;
+  studentName: string;
   roster: Climb[];
   onTrialFinished: () => void;
   onLevelsChanged: () => void;
@@ -538,7 +548,7 @@ function AppGate({
 }) {
   const navigate = useNavigate();
   const meta = subjectMeta(subject);
-  const [firstName, setFirstName] = useState("");
+  const [firstName, setFirstName] = useState(studentName);
   const [age, setAge] = useState(8);
   const [gradeText, setGradeText] = useState("");
   const [needsNew, setNeedsNew] = useState(false);
@@ -547,6 +557,10 @@ function AppGate({
   const [pending, setPending] = useState(false);
   const [changing, setChanging] = useState(false);
   const [childId, setChildId] = useState("");
+
+  useEffect(() => {
+    setFirstName(studentName);
+  }, [studentName]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();

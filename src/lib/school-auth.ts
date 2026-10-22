@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { authMiddleware } from "@/lib/auth/middleware";
 import { schoolMiddleware } from "@/lib/school-middleware";
 import {
   SCHOOL_ACCOUNT_GONE_MESSAGE,
@@ -9,8 +10,10 @@ import {
   accountIdOf,
   clearsLocalProgress,
   isWebsiteMasterEmail,
+  studentScopeId,
   type SchoolFailure,
 } from "@/lib/school-account";
+import { acceptStudentSwitch, mergeFamilyStudents } from "@/lib/student-card";
 
 const credentials = z.object({
   email: z.string().trim().email().max(160),
@@ -139,20 +142,26 @@ export const switchSchoolStudent = createServerFn({ method: "POST" })
     if (!parsed.success) throw new Error("Pick a student.");
     return parsed.data;
   })
-  .middleware([schoolMiddleware])
+  // The family session stays. Do not pull or push the open child's book first:
+  // that reload can replace the roster with one child and refuse the tap.
+  .middleware([authMiddleware])
   .handler(async ({ context, data }) => {
     const { getSql } = await import("./db");
-    const { readSchoolMirror, saveActiveStudentIndex } = await import("./school-mirror.server");
+    const { readSchoolMirror, rememberFamilyRoster, saveActiveStudentIndex } = await import("./school-mirror.server");
     const sql = await getSql();
     const account = accountIdOf(context.userId);
-    if (data.index > 2 && !isWebsiteMasterEmail(account, process.env.VKOLE_MASTER_EMAIL)) {
-      throw new Error(THIRD_STUDENT_MESSAGE);
-    }
-    const mirror = await readSchoolMirror(sql, context.userId);
-    const known = mirror?.students?.some((student) => student.index === data.index);
-    if (mirror?.students?.length && !known) throw new Error("That student is not on this account.");
+    const master = isWebsiteMasterEmail(account, process.env.VKOLE_MASTER_EMAIL);
+    const accountMirror = await readSchoolMirror(sql, account);
+    const scopeMirror = context.userId === account ? null : await readSchoolMirror(sql, context.userId);
+    const second = await readSchoolMirror(sql, studentScopeId(account, 2));
+    const roster = mergeFamilyStudents(accountMirror?.students, scopeMirror?.students, second?.students);
+    const gate = acceptStudentSwitch(roster, data.index, master);
+    if (gate === "cap") throw new Error(THIRD_STUDENT_MESSAGE);
+    if (gate === "missing") throw new Error("That student is not on this account.");
+    await rememberFamilyRoster(sql, account, roster);
     await saveActiveStudentIndex(sql, account, data.index);
-    return { ok: true as const, index: data.index };
+    const student = roster.find((item) => item.index === data.index);
+    return { ok: true as const, index: data.index, name: student?.name ?? "" };
   });
 
 export const schoolPasswordReset = createServerFn({ method: "POST" })
