@@ -1,6 +1,7 @@
 import type { Sql } from "@/lib/db";
 import type { EngineLevel, FamilyStudent, LevelKey, LockReason, SchoolProfile } from "@/lib/school-account";
 import { CLOCK_LIMIT_SECONDS, LEVEL_KEYS, accountIdOf, clockDayKeyOf, normalizeEngineLevel } from "@/lib/school-account";
+import { mergeFamilyStudents } from "@/lib/student-card";
 
 export type SchoolMirror = {
   access: "open" | "closed";
@@ -146,7 +147,10 @@ export async function readSchoolMirror(sql: Sql, userId: string): Promise<School
 
 export async function saveSchoolMirror(sql: Sql, userId: string, profile: SchoolProfile, pushed: boolean): Promise<void> {
   await ensureSchoolMirror(sql);
-  const students = JSON.stringify(profile.students ?? []);
+  const existing = await readSchoolMirror(sql, userId);
+  const merged = mergeFamilyStudents(existing?.students, profile.students);
+  const students = JSON.stringify(merged);
+  if (accountIdOf(userId) !== userId) await rememberFamilyRoster(sql, accountIdOf(userId), merged);
   const lockReason = profile.lockReason === "confirm-email" || profile.lockReason === "payment" ? profile.lockReason : "";
   const confirmed = profile.emailConfirmed === false ? false : true;
   await sql`
@@ -192,6 +196,22 @@ export async function saveSchoolMirror(sql: Sql, userId: string, profile: School
         confirmation_expires_at = excluded.confirmation_expires_at,
         free_week_granted = excluded.free_week_granted,
         lock_reason = excluded.lock_reason,
+        updated_at = now()
+  `;
+}
+
+/** Keep the whole family list on the parent row. A one-child read must not erase the other child. */
+export async function rememberFamilyRoster(sql: Sql, accountId: string, incoming: FamilyStudent[] | undefined): Promise<void> {
+  await ensureSchoolMirror(sql);
+  const account = accountIdOf(accountId);
+  const existing = await readSchoolMirror(sql, account);
+  const merged = mergeFamilyStudents(existing?.students, incoming);
+  const json = JSON.stringify(merged);
+  await sql`
+    insert into school_mirror (user_id, access, students, updated_at)
+    values (${account}, 'closed', ${json}, now())
+    on conflict (user_id) do update
+    set students = ${json},
         updated_at = now()
   `;
 }

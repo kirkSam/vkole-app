@@ -4,7 +4,8 @@ import { IDLE_MS, academicLetter, parentLogoutLetter, parentProgressMail, trialS
 import { reportLine } from "@/lib/session-report";
 import { schoolMiddleware } from "@/lib/school-middleware";
 import { aggregateLetterMisses, missSamplesFromDetails } from "@/lib/speech/letter-attempts";
-import { accountIdOf, isSchoolAccountId, isWebsiteMasterEmail, schoolAccessDecision, studentIndexOf, type FamilyStudent } from "@/lib/school-account";
+import { accountIdOf, isSchoolAccountId, isWebsiteMasterEmail, schoolAccessDecision, studentIndexOf, studentScopeId, type FamilyStudent } from "@/lib/school-account";
+import { climbsForActiveStudent, mergeFamilyStudents } from "@/lib/student-card";
 import { isSubject, SUBJECTS, subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { moveRung, stepName, stepSentence } from "@/lib/cc-steps";
 import { fillSheet, practicePromptText, rememberPrompt, seenKeys } from "@/lib/next-sheet";
@@ -135,6 +136,15 @@ async function accountState(sql: Sql, userId: string) {
       officePurchased: mirror?.officePurchased === true,
       officeSlug: mirror?.officeSlug ?? null,
     };
+    const account = accountIdOf(userId);
+    const lists: FamilyStudent[][] = [mirror?.students ?? []];
+    if (account !== userId) {
+      const accountMirror = await readSchoolMirror(sql, account);
+      if (accountMirror?.students) lists.push(accountMirror.students);
+    } else {
+      const second = await readSchoolMirror(sql, studentScopeId(account, 2));
+      if (second?.students) lists.push(second.students);
+    }
     return {
       ...trial,
       expired: decision.expired,
@@ -146,7 +156,7 @@ async function accountState(sql: Sql, userId: string) {
       renews: false,
       fullAccess: decision.fullAccess,
       confirmEmail: decision.confirmEmail,
-      students: mirror?.students ?? [],
+      students: mergeFamilyStudents(...lists),
       activeStudent: studentIndexOf(userId),
       ...office,
     };
@@ -263,8 +273,13 @@ export const listClimbs = createServerFn({ method: "GET" })
       const access = await childAccess(sql, context.userId, row.child_name);
       climbs.push(toClimb(row, account, access !== "open"));
     }
+    const visible = climbsForActiveStudent(climbs, account.students, account.activeStudent);
+    for (const climb of visible) {
+      if (climb.subject !== "sp") continue;
+      climb.completedExercises = await readAlphabetCompleted(sql, context.userId, climb.id);
+    }
     return {
-      climbs,
+      climbs: visible,
       endsAt: account.fullAccess ? null : account.endsAt,
       daysLeft: account.fullAccess ? null : account.daysLeft,
       subscribed: account.subscribed,

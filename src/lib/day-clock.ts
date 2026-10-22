@@ -3,7 +3,8 @@ import { z } from "zod";
 import { childAccess, rollRenewals } from "@/lib/subscription";
 import { getSql, type Sql } from "@/lib/db";
 import { schoolMiddleware } from "@/lib/school-middleware";
-import { THIRD_STUDENT_MESSAGE, accountIdOf, isSchoolAccountId } from "@/lib/school-account";
+import { THIRD_STUDENT_MESSAGE, accountIdOf, isSchoolAccountId, studentIndexOf, studentScopeId } from "@/lib/school-account";
+import { mergeFamilyStudents, openingForNewClimb, type SiteOpening } from "@/lib/student-card";
 import { TRIAL_MS } from "@/lib/academic-email";
 import { dealQuestion } from "@/lib/question-history";
 import { practicePromptText, rememberPrompt } from "@/lib/next-sheet";
@@ -259,6 +260,22 @@ async function placeWebsiteStudent(
   return { status: "ready", scopeId };
 }
 
+async function storedOpening(sql: Sql, scopeId: string, firstName: string, subject: SubjectId) {
+  if (!isSchoolAccountId(scopeId)) return { startingGrade: null as number | null, age: null as number | null, site: undefined as SiteOpening | undefined };
+  const { readSchoolMirror } = await import("@/lib/school-mirror.server");
+  const account = accountIdOf(scopeId);
+  const scopeMirror = await readSchoolMirror(sql, scopeId);
+  const accountMirror = account === scopeId ? scopeMirror : await readSchoolMirror(sql, account);
+  const second = account === scopeId ? await readSchoolMirror(sql, studentScopeId(account, 2)) : null;
+  const roster = mergeFamilyStudents(accountMirror?.students, scopeMirror?.students, second?.students);
+  const key = firstName.trim().toLowerCase();
+  const student =
+    roster.find((item) => item.name.trim().toLowerCase() === key) ??
+    roster.find((item) => item.index === studentIndexOf(scopeId));
+  const site = scopeMirror?.level[subject];
+  return { startingGrade: student?.startingGrade ?? null, age: student?.age ?? null, site };
+}
+
 const enterSchema = z.object({
   subject: z.enum(["m", "ela", "ss", "gen", "sg", "sw", "sp", "pa"]),
   firstName: z.string().trim().min(1).max(40),
@@ -304,20 +321,21 @@ export const enterEngine = createServerFn({ method: "POST" })
           throw new Error(THIRD_STUDENT_MESSAGE);
         }
       }
-      if (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12) return { status: "new" as const };
-      let grade = data.grade;
-      let step = 0;
+      const facts = await storedOpening(sql, scopeId, data.firstName, data.subject);
+      const opening = openingForNewClimb({
+        studentName: data.firstName,
+        formGrade: data.grade,
+        formAge: data.age,
+        storedGrade: facts.startingGrade,
+        storedAge: facts.age,
+        site: facts.site,
+      });
+      if (!opening) return { status: "new" as const };
+      let grade = opening.grade;
+      let step = opening.step;
+      const age = opening.age;
       let siteLevel: { grade?: number; band?: string | null; index?: number | null; step?: number; streak?: number; missStreak?: number } | undefined;
-      if (isSchoolAccountId(scopeId)) {
-        const { readSchoolMirror } = await import("@/lib/school-mirror.server");
-        const mirror = await readSchoolMirror(sql, scopeId);
-        const site = mirror?.level[data.subject];
-        if (site) {
-          grade = site.grade;
-          step = site.step;
-          siteLevel = site;
-        }
-      }
+      if (opening.resumeSite) siteLevel = facts.site;
       id = crypto.randomUUID();
       const sight = data.subject === "sw" ? cardFromAccount(siteLevel ?? { grade }, grade) : null;
       const spellingCard = data.subject === "sp" ? spCardFromAccount(siteLevel ?? { grade }, grade) : null;
@@ -327,7 +345,7 @@ export const enterEngine = createServerFn({ method: "POST" })
           : null;
       const phonemic =
         data.subject === "pa"
-          ? paCardFromAccount({ ...(siteLevel ?? {}), grade, age: data.age }, grade)
+          ? paCardFromAccount({ ...(siteLevel ?? {}), grade, age }, grade)
           : null;
       if (sight) {
         grade = sight.grade;
@@ -388,7 +406,7 @@ export const enterEngine = createServerFn({ method: "POST" })
           answer_key, answer_aliases, answer_note, question_id, correct_at_level, incorrect_streak
         )
         values (
-          ${id}, ${scopeId}, ${data.firstName.trim()}, ${data.subject}, ${grade}, ${grade}, ${data.age},
+          ${id}, ${scopeId}, ${data.firstName.trim()}, ${data.subject}, ${grade}, ${grade}, ${age},
           ${grade}, ${item.standard}, ${item.note}, ${item.stem}, ${registrationEmail || null},
           ${item.answer}, ${JSON.stringify(item.aliases)}, ${item.note}, ${item.id},
           ${spellingView?.silence ?? 0}, ${spellingView?.wrong ?? 0}
