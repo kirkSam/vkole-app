@@ -521,7 +521,7 @@ function SessionPage() {
         </form>
       ) : (
       <>
-      {climb.subject === "sp" ? <HeadphoneNotice /> : null}
+      <HeadphoneNotice />
       <article className="mt-5 rounded-2xl border border-line bg-surface p-5">
         {climb.subject === "sw" ? (
           <SightWordStage
