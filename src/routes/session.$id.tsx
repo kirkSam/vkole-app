@@ -37,6 +37,7 @@ import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
 import { PA_NOTE } from "@/lib/vkole/phonemic-awareness/items";
 import { PhonemicStage } from "@/components/phonemic-stage";
 import { SightWordStage } from "@/components/sight-word-stage";
+import { HeadphoneNotice } from "@/components/headphone-notice";
 import { SpellingStage } from "@/components/spelling-stage";
 import { SG_STAGE_NOTE, sgCodeLabel, singaporePlace } from "@/lib/vkole-singapore";
 import { SgFigure, splitFigures } from "@/components/sg-figure";
@@ -519,6 +520,8 @@ function SessionPage() {
           </button>
         </form>
       ) : (
+      <>
+      {climb.subject === "sp" ? <HeadphoneNotice /> : null}
       <article className="mt-5 rounded-2xl border border-line bg-surface p-5">
         {climb.subject === "sw" ? (
           <SightWordStage
@@ -663,6 +666,7 @@ function SessionPage() {
           </button>
         </div>
       </article>
+      </>
       )}
       {!closure && climb.age != null ? (
         <div className="mt-6 space-y-2">

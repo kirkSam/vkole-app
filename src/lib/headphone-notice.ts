@@ -1,0 +1,3 @@
+/** Shown on the parent home and above the alphabet engine. The words stay exactly as written. */
+export const HEADPHONE_NOTICE =
+  'The VKOLE Online Learning Engines work well without headphones and a microphone, but the verbal and auditory VKOLE Learning Engines are BEST used with headphones and a microphone. The Learning Engines themselves gradually learn and adjust to accents and less developed pronunciation, so have your student repeat the response into the microphone. Parents also have "Override", "Correct", and "Miss" buttons for the teacher/parent to facilitate this iterative learning process.';

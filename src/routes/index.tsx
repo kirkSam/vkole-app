@@ -11,6 +11,7 @@ import { schoolScreen, SCHOOL_ENGINE_URL, THIRD_STUDENT_MESSAGE, TWO_STUDENTS_LI
 import { ConfirmEmailLock } from "@/components/confirm-email";
 import { AlphabetMisses } from "@/components/alphabet-misses";
 import { WebsiteVisit } from "@/components/website-visit";
+import { HeadphoneNotice } from "@/components/headphone-notice";
 import { StudentSwitcher } from "@/components/student-switcher";
 import { EnginePicks, PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
@@ -432,6 +433,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
           ? `This account is open. It is not on a free week and it is not asked to pay. ${TWO_STUDENTS_LINE}. Each student uses all eight engines. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`
           : `The free week is 168 hours. It starts when you confirm the email. No credit card is required for that week. ${TWO_STUDENTS_LINE}. Each student may use all eight engines. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the free week, the payment covers the account for a full month or a full year from the day you pay. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`}
       </p>
+      <HeadphoneNotice />
       <Link
         to="/practice"
         data-engine="practice"
