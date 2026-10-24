@@ -5,7 +5,6 @@ import { schoolScreen } from "@/lib/school-account";
 import { SIGN_IN_AGAIN_NOTE } from "@/lib/account-purge";
 import { rememberAppSession } from "@/lib/auth/client";
 import { recordLogin } from "@/lib/ledger";
-import { beginSharedTrial } from "@/lib/climbs";
 import { ENGINE_PICKER_ROUTE } from "@/lib/engine-picker";
 import { CREATE_ACCOUNT_BUTTON_CLASS } from "@/lib/pre-account";
 import { SchoolAccountScreen } from "@/components/school-account-screen";
@@ -56,7 +55,6 @@ export function ParentLogin({
     await recordLogin({ data: { kind: mode === "up" ? "sign-up" : "sign-in" } }).catch(() => undefined);
     sessionStorage.removeItem("vkole-sync-trial");
     sessionStorage.removeItem("vkole-account-gone");
-    await beginSharedTrial().catch(() => undefined);
     onAccountReady?.();
     window.location.assign(ENGINE_PICKER_ROUTE);
   }

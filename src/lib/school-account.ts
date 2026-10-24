@@ -146,8 +146,7 @@ export function schoolAccessDecision(input: {
       confirmEmail: false,
     };
   }
-  const needsConfirm =
-    input.lockReason === "confirm-email" || (input.emailConfirmed === false && input.lockReason !== "payment");
+  const needsConfirm = input.lockReason === "confirm-email";
   if (needsConfirm) {
     return {
       fullAccess: false,

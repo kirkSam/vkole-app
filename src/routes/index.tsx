@@ -26,7 +26,7 @@ import { useRefetchWhenConnectorReady } from "@/lib/app-data/use-connector-readi
 import { endReasonSentence, type EndReason } from "@/lib/academic-email";
 import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
 import { ACCOUNT_GONE_FLAG } from "@/lib/account-purge";
-import { ENGINE_PICKER_PARAM, isEnginePickerSearch } from "@/lib/engine-picker";
+import { clearStayInApp, ENGINE_PICKER_PARAM, isEnginePickerSearch, markStayInApp, shouldStayInApp } from "@/lib/engine-picker";
 import { takeZpdReturn } from "@/lib/zpd-info";
 import { PASTEL_NAV } from "@/lib/pastel-nav";
 import { markSplashShown, splashAlreadyShown } from "@/lib/pre-account";
@@ -60,26 +60,31 @@ function Home() {
     } catch {
       /* storage may be unavailable */
     }
-    const params = new URLSearchParams(window.location.search);
-    if (!isEnginePickerSearch(window.location.search)) {
+    if (isEnginePickerSearch(window.location.search)) {
+      markStayInApp(sessionStorage);
+      const params = new URLSearchParams(window.location.search);
+      params.delete(ENGINE_PICKER_PARAM);
+      const next = params.toString();
+      window.history.replaceState(null, "", next ? `/?${next}` : "/");
+      setUnpaid(false);
+      setGate("open");
       try {
-        if (!openedApp && splashAlreadyShown(sessionStorage)) setStage("teletype");
+        sessionStorage.removeItem("vkole-unpaid");
       } catch {
         /* storage may be unavailable */
       }
+      setStage("app");
       return;
     }
-    params.delete(ENGINE_PICKER_PARAM);
-    const next = params.toString();
-    window.history.replaceState(null, "", next ? `/?${next}` : "/");
-    setUnpaid(false);
-    setGate("open");
+    if (!openedApp && shouldStayInApp(sessionStorage)) {
+      setStage("app");
+      return;
+    }
     try {
-      sessionStorage.removeItem("vkole-unpaid");
+      if (!openedApp && splashAlreadyShown(sessionStorage)) setStage("teletype");
     } catch {
       /* storage may be unavailable */
     }
-    setStage("app");
   }, []);
 
   useEffect(() => {
@@ -215,6 +220,7 @@ function Home() {
       <TeletypeIntro
         onSplash={() => {
           touring.current = false;
+          clearStayInApp(sessionStorage);
           setStage(unpaid ? "trial" : "splash");
         }}
         onContinue={() => {
@@ -233,6 +239,7 @@ function Home() {
         stopped={endedPlan === "trial" ? undefined : stopped}
         onSplash={() => {
           touring.current = true;
+          clearStayInApp(sessionStorage);
           setStage("splash");
         }}
       />
@@ -244,6 +251,7 @@ function Home() {
         onSplash={() => {
           setCreateAccount(false);
           setAccountGone(false);
+          clearStayInApp(sessionStorage);
           setStage("splash");
         }}
         initialMode={createAccount ? "up" : "in"}
@@ -261,10 +269,14 @@ function Home() {
   }
   return (
     <StartSession
-      onSplash={() => setStage("splash")}
+      onSplash={() => {
+        clearStayInApp(sessionStorage);
+        setStage("splash");
+      }}
       onTrialSplash={() => {
         touring.current = true;
         setUnpaid(true);
+        clearStayInApp(sessionStorage);
         setStage("splash");
       }}
     />

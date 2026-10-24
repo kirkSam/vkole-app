@@ -51,7 +51,7 @@ async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): P
   }
   const name = kept.studentName.trim() || profile.studentName.trim() || "student";
   const key = name.toLowerCase();
-  if (profile.freeWeekStart) {
+  if (profile.freeWeekStart && profile.freeWeekGranted === true && profile.lockReason !== "confirm-email") {
     await sql`
       insert into app_trials (user_id, subject, started_at)
       values (${userId}, 'app', ${profile.freeWeekStart})
