@@ -14,8 +14,11 @@ export const schoolMiddleware = createMiddleware({ type: "function" })
     } catch (err) {
       const { isAccountGoneError, isSignInAgainError, leaveForSignIn, leaveStaleSignIn } = await import("./account-purge");
       if (isSignInAgainError(err) && appSessionOnWebsiteUnauthorized(engineSessionActive()) === "sign-in") {
-        const message = err instanceof Error ? err.message : "";
-        await leaveForSignIn(message);
+        const { shouldStayInApp } = await import("./engine-picker");
+        if (!shouldStayInApp(typeof sessionStorage === "undefined" ? null : sessionStorage)) {
+          const message = err instanceof Error ? err.message : "";
+          await leaveForSignIn(message);
+        }
       } else if (isAccountGoneError(err)) {
         await leaveStaleSignIn();
       }

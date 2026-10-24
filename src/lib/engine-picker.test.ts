@@ -3,9 +3,12 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { SUBJECTS } from "./climb-rules.ts";
 import {
+  clearStayInApp,
   ENGINE_PICKER_ROUTE,
   isEnginePickerSearch,
+  markStayInApp,
   openEnginePicker,
+  shouldStayInApp,
   takeHeldSitting,
 } from "./engine-picker.ts";
 
@@ -69,5 +72,25 @@ describe("engine picker", () => {
     const login = source("../components/parent-login.tsx");
     assert.equal(login.includes("window.location.assign(ENGINE_PICKER_ROUTE)"), true);
     assert.equal(login.includes('"/?open=1"'), false);
+    assert.equal(login.includes("resendSchoolConfirmation"), false);
+    assert.equal(login.includes("beginSharedTrial"), false);
+    const store = new Map<string, string>();
+    const memory = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, value);
+      },
+      removeItem: (key: string) => {
+        store.delete(key);
+      },
+    };
+    assert.equal(shouldStayInApp(memory), false);
+    markStayInApp(memory);
+    assert.equal(shouldStayInApp(memory), true);
+    assert.equal(home.includes("markStayInApp(sessionStorage)"), true);
+    assert.equal(home.includes("shouldStayInApp(sessionStorage)"), true);
+    assert.equal(home.includes("clearStayInApp(sessionStorage)"), true);
+    clearStayInApp(memory);
+    assert.equal(shouldStayInApp(memory), false);
   });
 });

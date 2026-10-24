@@ -6,6 +6,39 @@ export const ENGINE_PICKER_ROUTE = "/?open=1";
 
 export const ENGINE_PICKER_PARAM = "open";
 
+/** Set when sign-in opens the engine list, so a second load does not show the splash. */
+export const STAY_IN_APP_KEY = "vkole-stay-in-app";
+
+type FlagStore = {
+  getItem?(key: string): string | null;
+  setItem?(key: string, value: string): void;
+  removeItem?(key: string): void;
+};
+
+export function markStayInApp(storage: FlagStore | null): void {
+  try {
+    storage?.setItem?.(STAY_IN_APP_KEY, "1");
+  } catch {
+    /* storage may be unavailable */
+  }
+}
+
+export function shouldStayInApp(storage: FlagStore | null): boolean {
+  try {
+    return storage?.getItem?.(STAY_IN_APP_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function clearStayInApp(storage: FlagStore | null): void {
+  try {
+    storage?.removeItem?.(STAY_IN_APP_KEY);
+  } catch {
+    /* storage may be unavailable */
+  }
+}
+
 let sittingHeld = false;
 
 /** The next leave keeps the open sitting and does not send the parent email. */
