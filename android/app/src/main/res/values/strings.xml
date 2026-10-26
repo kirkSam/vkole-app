@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">VKOLE</string>
+    <string name="title_activity_main">VKOLE</string>
+    <string name="package_name">com.dotheimpossible.vkole</string>
+    <string name="custom_url_scheme">com.dotheimpossible.vkole</string>
+</resources>

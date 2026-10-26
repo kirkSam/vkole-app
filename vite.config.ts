@@ -145,6 +145,16 @@ function authPopupPlugin(): Plugin {
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".
 export default defineConfig(({ command, isPreview }) => ({
+  // CLAUDE: exposes this app's own existing `BETTER_AUTH_URL` ("Public
+  // address of this app") to browser code as `__APP_ORIGIN__`, so the
+  // Capacitor native build (which bundles its screens locally instead of
+  // fetching them live) still knows the one fixed address to call for every
+  // account/sign-in/progress request. Nothing server-side changes: that env
+  // var already existed and already drives Better Auth's own `baseURL`
+  // below -- this just also hands the SAME value to the client bundle.
+  define: {
+    __APP_ORIGIN__: JSON.stringify(process.env.BETTER_AUTH_URL ?? ""),
+  },
   server: {
     host: "0.0.0.0",
     port: 8080,

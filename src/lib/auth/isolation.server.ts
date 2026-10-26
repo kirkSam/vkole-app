@@ -1,4 +1,5 @@
 import { getRequest } from "@tanstack/react-start/server";
+import { isNativeAppOrigin } from "../native-app";
 
 /**
  * Fetch-Metadata sibling isolation — **server-only** (`.server.ts` suffix).
@@ -48,5 +49,13 @@ export function assertSameSiteRequest(): void {
     dest !== "object" &&
     dest !== "embed";
   if (isTopLevelGet) return;
+  // CLAUDE: added so the bundled native app's own webview isn't rejected
+  // here — Capacitor's local bundle runs from a fixed placeholder origin
+  // (see `native-app.ts`), not a public website, so by this check's normal
+  // definition it looks "cross-site". This only lets a request from our own
+  // native shell's origin past THIS guard; it still must carry a valid
+  // bearer session token to pass `requireUserId` right after (see
+  // `middleware.ts`), the same as any other request.
+  if (isNativeAppOrigin(h.get("origin"))) return;
   throw new CrossSiteRequestError();
 }

@@ -37,6 +37,10 @@ import { emailAndPasswordEnabled } from "./email-password";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server";
 import { pgliteDialect } from "./pglite-dialect";
 import { PREVIEW_ALLOWED_HOSTS, PREVIEW_CLIENT_ID, PREVIEW_CLIENT_SECRET } from "./preview";
+// CLAUDE: see the `trustedOrigins` comment below — this file says "do not
+// rewrite", so this import plus that one line are the one deliberate,
+// additive exception, made at Sam's explicit request.
+import { NATIVE_APP_ORIGINS } from "../native-app";
 
 // Kick (and share) PGLite bootstrap as soon as the auth server module loads.
 void ensureDbReady();
@@ -103,14 +107,19 @@ const baseURL = explicitBaseURL ?? {
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
+// CLAUDE: added `...NATIVE_APP_ORIGINS` (both branches) so the Capacitor
+// native app's own bundled screens — which now run from a fixed placeholder
+// origin instead of this app's live address — can still sign in/register.
+// Nothing else on this list changed.
 const trustedOrigins: string[] = explicitBaseURL
-  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS]
+  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS, ...NATIVE_APP_ORIGINS]
   : [
       // Host wildcards (matched against Origin's host)
       ...previewAllowedHosts,
       // Full-origin wildcards (matched against Origin)
       ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
       ...LOCAL_DEV_ORIGINS,
+      ...NATIVE_APP_ORIGINS,
     ];
 
 const databaseUrl = env("DATABASE_URL");

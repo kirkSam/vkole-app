@@ -1,5 +1,12 @@
+import { Capacitor } from "@capacitor/core";
 import { createAuthClient } from "better-auth/react";
 import { runSignOut } from "../../../scripts/sign-out-plan.mjs";
+
+// CLAUDE: true only inside the Capacitor native shell (not the web app, not
+// the live preview). Used below so the native build keeps calling this
+// app's own backend and keeps its sign-in across app restarts, while every
+// other build keeps today's exact behavior.
+const isNativeApp = Capacitor.isNativePlatform();
 
 /**
  * Better Auth client for this React SPA (browser-side).
@@ -15,6 +22,14 @@ import { runSignOut } from "../../../scripts/sign-out-plan.mjs";
  * the visitor stays signed in.
  */
 export const authClient = createAuthClient({
+  // CLAUDE: the bundled native app's screens load from a local, fixed
+  // placeholder address (see `native-app.ts`), not from this app's own
+  // backend -- so unlike every other build, it must be told explicitly
+  // where to send sign-in/session calls instead of relying on "wherever
+  // this page was loaded from". `__APP_ORIGIN__` is the same
+  // `BETTER_AUTH_URL` value `auth/server.ts` already uses, injected at
+  // build time (see `vite.config.ts`).
+  ...(isNativeApp && __APP_ORIGIN__ ? { baseURL: __APP_ORIGIN__ } : {}),
   fetchOptions: {
     onRequest(ctx) {
       const token = getBearerToken();
@@ -40,21 +55,32 @@ export const authEnabled = import.meta.env.VITE_AUTH_ENABLED !== "false";
 // preview after a popup sign-in, so the cookie path is untouched elsewhere.
 const BEARER_KEY = "grok-auth.bearer-token";
 
-/** The stored preview bearer token, or null. */
-export function getBearerToken(): string | null {
+// CLAUDE: `sessionStorage` clears when a browser tab closes, which is the
+// right behavior for the live preview (a new preview session should not
+// inherit an old one's sign-in). A native app isn't a "tab" though --
+// quitting and reopening it should keep the parent signed in, same as any
+// other app -- so the native build keeps this same token in `localStorage`
+// instead, which survives an app restart.
+function bearerStorage(): Storage | null {
   if (typeof window === "undefined") return null;
+  return isNativeApp ? window.localStorage : window.sessionStorage;
+}
+
+/** The stored bearer token (preview or native app), or null. */
+export function getBearerToken(): string | null {
   try {
-    return window.sessionStorage.getItem(BEARER_KEY);
+    return bearerStorage()?.getItem(BEARER_KEY) ?? null;
   } catch {
     return null;
   }
 }
 
 function setBearerToken(token: string | null): void {
-  if (typeof window === "undefined") return;
   try {
-    if (token) window.sessionStorage.setItem(BEARER_KEY, token);
-    else window.sessionStorage.removeItem(BEARER_KEY);
+    const storage = bearerStorage();
+    if (!storage) return;
+    if (token) storage.setItem(BEARER_KEY, token);
+    else storage.removeItem(BEARER_KEY);
   } catch {
     /* storage unavailable — ignore */
   }
