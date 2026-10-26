@@ -175,7 +175,16 @@ export default defineConfig(({ command, isPreview }) => ({
     // PWA head + ?install=1 tutorial page; runs before Start/Nitro.
     grokPwaPlugin(),
     tailwindcss(),
-    tanstackStart(),
+    // CLAUDE: `spa` tells the build to also prerender one static "shell"
+    // snapshot of `/` (its initial state -- the splash screen, before any
+    // sign-in-dependent content) as an extra file alongside the normal
+    // build. It does NOT change how the live deployed site answers real
+    // visitors -- `/` is still freshly assembled by the server on every
+    // real request, exactly as before. This extra file is what the native
+    // app's bundle needs: one starting page it can open immediately,
+    // without needing to run this app's own server itself. Capacitor's
+    // `webDir` (`capacitor.config.ts`) points at it.
+    tanstackStart({ spa: { enabled: true } }),
     ...(command === "build" || isPreview
       ? [
           nitro({
