@@ -219,6 +219,7 @@ function Home() {
         }}
         onContinue={() => {
           touring.current = false;
+          if (!user) setCreateAccount(true);
           setStage(unpaid ? "trial" : "app");
         }}
       />
