@@ -25,6 +25,17 @@ import { isNativeAppOrigin } from "@/lib/native-app";
  * before it will accept a cross-origin response at all. A request whose
  * Origin isn't one of our own native origins passes through untouched.
  */
+// CLAUDE: the exact set of extra request headers this app's own client code
+// sends that a plain CORS allow-list wouldn't otherwise permit (confirmed on
+// a real device via the browser's own CORS error -- "Request header field
+// x-tsr-serverfn is not allowed by Access-Control-Allow-Headers"), and the
+// extra response headers that same client code reads back
+// (`X_TSS_RAW_RESPONSE`/`X_TSS_SERIALIZED` in
+// @tanstack/start-client-core/src/constants.ts), which a browser hides from
+// JS by default unless explicitly exposed.
+const ALLOWED_REQUEST_HEADERS = "Authorization, Content-Type, Accept, x-tsr-serverFn";
+const EXPOSED_RESPONSE_HEADERS = "x-tss-serialized, x-tss-raw, x-tss-context";
+
 const nativeAppCorsMiddleware = createMiddleware().server(async (ctx) => {
   const origin = ctx.request.headers.get("origin");
   if (!isNativeAppOrigin(origin)) return ctx.next();
@@ -34,8 +45,9 @@ const nativeAppCorsMiddleware = createMiddleware().server(async (ctx) => {
       status: 204,
       headers: {
         "Access-Control-Allow-Origin": origin!,
+        "Access-Control-Allow-Credentials": "true",
         Vary: "Origin",
-        "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept",
+        "Access-Control-Allow-Headers": ALLOWED_REQUEST_HEADERS,
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       },
     });
@@ -44,6 +56,12 @@ const nativeAppCorsMiddleware = createMiddleware().server(async (ctx) => {
   const result = await ctx.next();
   const headers = new Headers(result.response.headers);
   headers.set("Access-Control-Allow-Origin", origin!);
+  // Required whenever the client's fetch uses `credentials: "include"`
+  // (confirmed on a real device: Better Auth's own client does this for
+  // `/api/auth/*` calls) -- a browser silently blocks the whole response
+  // otherwise, which is indistinguishable from the server never answering.
+  headers.set("Access-Control-Allow-Credentials", "true");
+  headers.set("Access-Control-Expose-Headers", EXPOSED_RESPONSE_HEADERS);
   headers.append("Vary", "Origin");
   return {
     ...result,
