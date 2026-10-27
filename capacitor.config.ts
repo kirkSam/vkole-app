@@ -29,6 +29,18 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: "https",
   },
+  // CLAUDE: added after real-device testing found the Create Account
+  // screen's fields wouldn't take typed input on Android -- this native
+  // bundled-screens path (vs. the old "load the live website" shell) never
+  // had any soft-keyboard configuration at all, which Android's own WebView
+  // needs to correctly keep the on-screen keyboard bound to a focused text
+  // field. `resize: "native"` pairs with `android:windowSoftInputMode=
+  // "adjustResize"` in AndroidManifest.xml.
+  plugins: {
+    Keyboard: {
+      resize: "native",
+    },
+  },
 };
 
 export default config;
