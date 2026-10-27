@@ -10,16 +10,7 @@ export function SchoolSplash({ onEnter }: { onEnter: () => void }) {
   const go = useCallback(() => {
     if (!claimSplashAdvance(enteredRef.current)) return;
     enteredRef.current = true;
-    // Defer the actual screen swap by one tick. A tap's full event sequence
-    // (pointerdown, then the browser's own compatibility mouseup/click) can
-    // still reach whatever's newly on screen if we swap screens immediately
-    // inside the pointerdown handler below -- `preventDefault()` there is not
-    // reliably enough on every WebView to suppress that trailing click (this
-    // was confirmed on a real Android device: the stray click still landed on
-    // the next screen's payment links). Waiting one tick lets this SAME tap's
-    // whole gesture finish landing on the screen that's still showing (this
-    // one, which has no links anywhere) before anything changes.
-    window.setTimeout(() => onEnterRef.current(), 0);
+    onEnterRef.current();
   }, []);
 
   useEffect(() => {
@@ -31,19 +22,16 @@ export function SchoolSplash({ onEnter }: { onEnter: () => void }) {
     enterRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    // Suppress the trailing compatibility `click` this same tap would otherwise
-    // fire: `go()` swaps the whole screen synchronously, and without this, that
-    // trailing click lands on whatever is now under the finger on the NEW
-    // screen (reported bug: it could land on the teletype screen's "$79/year"
-    // or "$9/month" payment links and silently navigate out to the real site).
-    const onPointer = (event: PointerEvent) => {
-      if (event.cancelable) event.preventDefault();
-      go();
-    };
-    window.addEventListener("pointerdown", onPointer, { passive: false });
-    return () => window.removeEventListener("pointerdown", onPointer);
-  }, [go]);
+  // CLAUDE: removed a redundant window-level `pointerdown` listener that
+  // used to ALSO advance the screen (`.logo-splash-enter` below already
+  // covers the entire viewport and already calls `go()` on its own `onClick`,
+  // which correctly waits for a tap's press-AND-release before firing).
+  // `pointerdown` fires on first touch, before release -- so if a real tap
+  // took roughly a second (press, brief hold, release), the screen had
+  // already swapped to teletype WHILE the finger was still down, and the
+  // release's own click then landed on teletype's payment buttons instead
+  // (confirmed on a real Android device). Letting the buttons' own `onClick`
+  // be the only trigger removes this race for a tap of any length.
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
