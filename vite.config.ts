@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -144,7 +144,7 @@ function authPopupPlugin(): Plugin {
 // `0.0.0.0:8080` is the live-preview contract — don't change host/port.
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".
-export default defineConfig(({ command, isPreview }) => ({
+export default defineConfig(({ command, mode, isPreview }) => ({
   // CLAUDE: exposes this app's own existing `BETTER_AUTH_URL` ("Public
   // address of this app") to browser code as `__APP_ORIGIN__`, so the
   // Capacitor native build (which bundles its screens locally instead of
@@ -152,8 +152,16 @@ export default defineConfig(({ command, isPreview }) => ({
   // account/sign-in/progress request. Nothing server-side changes: that env
   // var already existed and already drives Better Auth's own `baseURL`
   // below -- this just also hands the SAME value to the client bundle.
+  //
+  // MUST use `loadEnv()` here, not `process.env` directly: this factory
+  // function runs before Vite's own `.env` loading has populated
+  // `process.env` for the rest of the config, so `process.env.BETTER_AUTH_URL`
+  // was always empty at exactly this point even though `.env` itself was
+  // correct and server-side code (which reads it later, lazily) saw it fine
+  // -- confirmed on a real device: the client bundle genuinely never had a
+  // real address to call at all, silently hitting nothing on every request.
   define: {
-    __APP_ORIGIN__: JSON.stringify(process.env.BETTER_AUTH_URL ?? ""),
+    __APP_ORIGIN__: JSON.stringify(loadEnv(mode, process.cwd(), "").BETTER_AUTH_URL ?? ""),
   },
   server: {
     host: "0.0.0.0",
