@@ -23,8 +23,16 @@ export function SchoolSplash({ onEnter }: { onEnter: () => void }) {
   }, []);
 
   useEffect(() => {
-    const onPointer = () => go();
-    window.addEventListener("pointerdown", onPointer);
+    // Suppress the trailing compatibility `click` this same tap would otherwise
+    // fire: `go()` swaps the whole screen synchronously, and without this, that
+    // trailing click lands on whatever is now under the finger on the NEW
+    // screen (reported bug: it could land on the teletype screen's "$79/year"
+    // or "$9/month" payment links and silently navigate out to the real site).
+    const onPointer = (event: PointerEvent) => {
+      if (event.cancelable) event.preventDefault();
+      go();
+    };
+    window.addEventListener("pointerdown", onPointer, { passive: false });
     return () => window.removeEventListener("pointerdown", onPointer);
   }, [go]);
 
