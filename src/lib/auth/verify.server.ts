@@ -1,6 +1,7 @@
 import { getRequest } from "@tanstack/react-start/server";
 import { gateIdentityEnabled } from "./gate-identity.server";
 import { auth, authConfigured } from "./server";
+import { isNativeAppOrigin } from "../native-app";
 
 /**
  * Server-side session resolution (server-only).
@@ -66,7 +67,22 @@ export async function getSessionUser(
     "../account-wipe.server.ts"
   );
   await ensureStoredAccountsWiped();
-  if (await requestNeedsAccountSignOut()) return null;
+  // CLAUDE: skipped for the native app specifically. This check relies on a
+  // cookie (`app-data-version`, SameSite=Lax) that the native app's
+  // cross-site calls to this backend structurally can never send back --
+  // not a timing issue, a SameSite=Lax cookie is excluded from every
+  // cross-site request by design -- which made every one of its
+  // authenticated calls look permanently "stale" regardless of a valid
+  // bearer token (confirmed on a real device: every sign-up and sign-in
+  // ended in a false "Unauthorized"). The actual safety this check exists
+  // for -- a wiped account's session no longer resolving -- is still
+  // enforced for real just below, by `auth.api.getSession` looking the
+  // session up directly; this cookie is only an additional nicety (forcing
+  // a clean local sign-out) that a cookie-based session benefits from but a
+  // bearer-token-based native session doesn't need the same way.
+  if (!isNativeAppOrigin(request.headers.get("origin")) && (await requestNeedsAccountSignOut())) {
+    return null;
+  }
   let headers = request.headers;
   if (bearerToken) {
     headers = new Headers(request.headers);
