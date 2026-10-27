@@ -192,7 +192,18 @@ export default defineConfig(({ command, mode, isPreview }) => ({
     // app's bundle needs: one starting page it can open immediately,
     // without needing to run this app's own server itself. Capacitor's
     // `webDir` (`capacitor.config.ts`) points at it.
-    tanstackStart({ spa: { enabled: true } }),
+    //
+    // Gated behind an explicit opt-in (`BUILD_NATIVE_SHELL=1`, set only by
+    // `npm run build:android`) because prerendering actually RUNS this
+    // app's server code once, which needs a real database -- fine on a
+    // machine building the Android app with one on hand, but the regular
+    // website publish pipeline does not have database access at build
+    // time (only the already-running live site does), and unconditionally
+    // enabling this broke that pipeline entirely: confirmed by the App
+    // Builder, which could not publish ANY update while this ran for
+    // every build. Leaving it off by default restores that to exactly how
+    // it worked before.
+    tanstackStart({ spa: { enabled: process.env.BUILD_NATIVE_SHELL === "1" } }),
     ...(command === "build" || isPreview
       ? [
           nitro({
