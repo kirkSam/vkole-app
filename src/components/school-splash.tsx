@@ -10,7 +10,16 @@ export function SchoolSplash({ onEnter }: { onEnter: () => void }) {
   const go = useCallback(() => {
     if (!claimSplashAdvance(enteredRef.current)) return;
     enteredRef.current = true;
-    onEnterRef.current();
+    // Defer the actual screen swap by one tick. A tap's full event sequence
+    // (pointerdown, then the browser's own compatibility mouseup/click) can
+    // still reach whatever's newly on screen if we swap screens immediately
+    // inside the pointerdown handler below -- `preventDefault()` there is not
+    // reliably enough on every WebView to suppress that trailing click (this
+    // was confirmed on a real Android device: the stray click still landed on
+    // the next screen's payment links). Waiting one tick lets this SAME tap's
+    // whole gesture finish landing on the screen that's still showing (this
+    // one, which has no links anywhere) before anything changes.
+    window.setTimeout(() => onEnterRef.current(), 0);
   }, []);
 
   useEffect(() => {
