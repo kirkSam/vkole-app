@@ -9,10 +9,13 @@ const CAN = "YOU CAN.";
 const PRICE = "FREE for a week, $79.00 USD + tax per YEAR or $9.00 USD + tax per month. 2 students per account.";
 const SPOKEN = `${LEAD} ${CAN} ${PRICE}`;
 
-/** Same milliseconds as the school site discover ticker: 1.5× its previous 39, 480, and 340. */
-const CHAR_MS = 58.5;
-const AFTER_LEAD_MS = 720;
-const AFTER_CAN_MS = 510;
+/**
+ * Same milliseconds as the school site discover ticker: 1.5x its previous 39, 480, and 340,
+ * then slowed to 75% speed (divided by 0.75) at Sam's request.
+ */
+const CHAR_MS = 78;
+const AFTER_LEAD_MS = 960;
+const AFTER_CAN_MS = 680;
 
 type Phase = "lead" | "can" | "price" | "done";
 
