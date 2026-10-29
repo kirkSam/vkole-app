@@ -142,7 +142,37 @@ export async function localEmailExists(email: string): Promise<boolean> {
   return Boolean(rows[0]);
 }
 
-export async function separateSignIn(userId: string): Promise<"school" | "legacy" | "separate" | "dev"> {
+/**
+ * CLAUDE: true when this email already has a LOCAL (Better Auth email/password)
+ * account -- not just any "user" row (a website-linked row also has one, see
+ * `openSchoolSession` above, which is why `localEmailExists` alone isn't
+ * precise enough here). Used by `schoolSignIn` to decide whether to check
+ * the password locally or ask the website, per Sam's and the App Builder's
+ * explicit direction: "look locally first only when that email already has
+ * a local password... If the email is not a local account, sign in through
+ * the website exactly as today."
+ */
+export async function localCredentialAccountExists(email: string): Promise<boolean> {
+  const id = email.trim().toLowerCase();
+  const sql = await getSql();
+  const rows = await sql<{ id: string }>`
+    select "account"."id"
+    from "account"
+    join "user" on "user"."id" = "account"."userId"
+    where lower("user"."email") = ${id} and "account"."providerId" = 'credential'
+    limit 1
+  `;
+  return Boolean(rows[0]);
+}
+
+// CLAUDE: added "local" -- a brand-new Better Auth email/password account.
+// Before this, its id (a random Better Auth id, not an email) and its email
+// on the "user" row made it indistinguishable from a genuine old leftover
+// row, so it was wrongly classified "legacy" and blocked with "Set the
+// password through the school reset" -- a real bug fixed by checking for a
+// `providerId = 'credential'` account row (how a local email/password
+// account is actually marked) BEFORE falling through to the legacy check.
+export async function separateSignIn(userId: string): Promise<"school" | "legacy" | "separate" | "dev" | "local"> {
   if (userId === "dev-user") return "dev";
   if (isSchoolAccountId(userId)) return "school";
   const sql = await getSql();
@@ -151,6 +181,8 @@ export async function separateSignIn(userId: string): Promise<"school" | "legacy
   `;
   const separate = accounts.some((row) => row.providerId.startsWith("grok-") || row.providerId === "grok-gate");
   if (separate) return "separate";
+  const local = accounts.some((row) => row.providerId === "credential");
+  if (local) return "local";
   const users = await sql<{ email: string | null }>`select "email" from "user" where "id" = ${userId} limit 1`;
   if (users[0]?.email) return "legacy";
   return "separate";

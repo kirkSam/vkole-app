@@ -42,45 +42,83 @@ function parse<T>(schema: z.ZodType<T>, data: unknown): T {
 }
 
 export type SchoolAuthResult =
-  | { ok: true; sessionToken: string }
+  // CLAUDE: `pendingConfirmation` is new -- true when a LOCAL account was
+  // just created (or signed into) but hasn't clicked its confirmation email
+  // yet, so there's no usable session (`sessionToken` is empty). The UI
+  // should show the existing "check your email" screen, not enter the app.
+  | { ok: true; sessionToken: string; pendingConfirmation?: boolean }
   | { ok: false; reason: SchoolFailure | "legacy" | "mail"; message: string };
 
 function failed(reason: Extract<SchoolAuthResult, { ok: false }>["reason"], message: string): SchoolAuthResult {
   return { ok: false, reason, message };
 }
 
+// CLAUDE: rewritten at Sam's and the App Builder's explicit direction. A new
+// parent now registers a LOCAL account (this app's own Better Auth
+// email/password, not the school website) -- "A new local account opens the
+// engines and never calls the website." The website path this used to call
+// (`registerSchoolAccount`) is untouched elsewhere in this file/repo; it's
+// simply no longer what sign-UP does. `requireEmailVerification: true`
+// (auth/server.ts) means no usable session exists until the parent confirms
+// by email, so this always returns `pendingConfirmation: true` on success.
 export const schoolSignUp = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(signUp, data))
   .handler(async ({ data }): Promise<SchoolAuthResult> => {
-    const { registerSchoolAccount, SchoolCallError } = await import("./school-account.server");
-    const { openSchoolSession } = await import("./school-session.server");
+    const { auth } = await import("./auth/server");
+    const { APIError } = await import("better-auth");
     try {
-      const account = await registerSchoolAccount({
-        email: data.email,
-        password: data.password,
-        name: data.name,
-        deviceId: data.deviceId,
+      await auth.api.signUpEmail({
+        body: {
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          callbackURL: "/confirmed",
+        },
       });
-      const { getSql } = await import("./db");
-      const sql = await getSql();
-      const { readSchoolMirror } = await import("./school-mirror.server");
-      if (clearsLocalProgress(account.profile, await readSchoolMirror(sql, account.id))) {
-        const { forgetLocalAccount } = await import("./account-purge.server");
-        await forgetLocalAccount(sql, account.id);
-      }
-      const { rememberAccountSession } = await import("./school-sync.server");
-      const profile = await rememberAccountSession(account);
-      const sessionToken = await openSchoolSession(account.id, profile.studentName || data.name);
-      return { ok: true, sessionToken };
+      return { ok: true, sessionToken: "", pendingConfirmation: true };
     } catch (err) {
-      if (err instanceof SchoolCallError) return failed(err.reason, err.message);
+      if (err instanceof APIError) {
+        const code = (err.body as { code?: string } | undefined)?.code ?? "";
+        if (code === "USER_ALREADY_EXISTS" || /already exists/i.test(err.message)) {
+          return failed("exists", "This email already has an account. Sign in instead.");
+        }
+        return failed("unknown", err.message || "Check the email and password and try again.");
+      }
       return failed("offline", SCHOOL_OFFLINE_MESSAGE);
     }
   });
 
+// CLAUDE: added at Sam's and the App Builder's explicit direction -- "look
+// locally first only when that email already has a local password... If the
+// email is not a local account, sign in through the website exactly as
+// today." A wrong LOCAL password fails as a wrong password; it never also
+// tries the website (and a missing local account never silently creates
+// one). This is the one new branch; everything below it (the website path)
+// is the ORIGINAL, unmodified logic for an email with no local account.
 export const schoolSignIn = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(credentials, data))
   .handler(async ({ data }): Promise<SchoolAuthResult> => {
+    const { localCredentialAccountExists } = await import("./school-session.server");
+    if (await localCredentialAccountExists(data.email)) {
+      const { auth } = await import("./auth/server");
+      const { APIError } = await import("better-auth");
+      try {
+        const result = await auth.api.signInEmail({
+          body: { email: data.email, password: data.password },
+        });
+        if (!result.token) return { ok: true, sessionToken: "", pendingConfirmation: true };
+        return { ok: true, sessionToken: result.token };
+      } catch (err) {
+        if (err instanceof APIError) {
+          const code = (err.body as { code?: string } | undefined)?.code ?? "";
+          if (code === "EMAIL_NOT_VERIFIED" || /not verified/i.test(err.message)) {
+            return { ok: true, sessionToken: "", pendingConfirmation: true };
+          }
+          return failed("password", "Check the email and password and try again.");
+        }
+        return failed("offline", SCHOOL_OFFLINE_MESSAGE);
+      }
+    }
     const { signInSchoolAccount, SchoolCallError } = await import("./school-account.server");
     const { openSchoolSession } = await import("./school-session.server");
     const { websiteSignInRefusal } = await import("./school-account");

@@ -566,7 +566,14 @@ export async function runWithSchoolBook<T>(opts: {
 export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>, opts?: { engineActive?: boolean }): Promise<T> {
   const { separateSignIn } = await import("@/lib/school-session.server");
   const kind = await separateSignIn(userId);
-  if (kind === "dev") return run();
+  // CLAUDE: "local" (a genuine new-style app-only account) runs the handler
+  // directly, same as "dev" -- it never calls the website at all, per the
+  // App Builder's explicit direction: "A new local account opens the
+  // engines and never calls the website." Its progress lives entirely in
+  // this app's own tables (`accountState()` in climbs.ts already reads the
+  // local `app_trials`/`climbs` tables whenever the id isn't email-shaped,
+  // which is exactly what a local account's id is -- no change needed there).
+  if (kind === "dev" || kind === "local") return run();
   if (kind === "legacy") throw new Error(SCHOOL_LEGACY_MESSAGE);
   if (kind !== "school") throw new Error(SCHOOL_SEPARATE_MESSAGE);
   const { getSql } = await import("@/lib/db");

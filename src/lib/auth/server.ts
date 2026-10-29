@@ -166,7 +166,45 @@ export const auth = betterAuth({
   session: { cookieCache: { enabled: true, maxAge: 300 } },
 
   // Local email/password — toggled only via `./email-password` (not a plugin).
-  ...(emailAndPasswordEnabled ? { emailAndPassword: { enabled: true } } : {}),
+  // CLAUDE: this whole block is the one addition made at Sam's explicit
+  // request (with the App Builder's agreement) -- everything else in this
+  // file is untouched. `requireEmailVerification` means a brand-new local
+  // account cannot actually sign in (so the engines stay closed) until the
+  // parent clicks the confirmation link; `afterEmailVerification` is where
+  // that click starts the real 168-hour clock and sends the welcome email --
+  // never before. `sendVerificationEmail` reuses the SAME Gmail sender this
+  // app already uses for progress reports (`sendAppMail`); no new mail setup.
+  ...(emailAndPasswordEnabled
+    ? {
+        emailAndPassword: { enabled: true, requireEmailVerification: true },
+        emailVerification: {
+          sendOnSignUp: true,
+          autoSignInAfterVerification: true,
+          sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
+            const { sendAppMail } = await import("../app-mail");
+            const subject = "Confirm your VKOLE email";
+            const text = `Confirm your email to start your free week: ${url}`;
+            const html = `<p>Confirm your email to start your free week.</p><p><a href="${url}">Confirm your email</a></p>`;
+            await sendAppMail(user.email, subject, text, html).catch(() => undefined);
+          },
+          afterEmailVerification: async (user: { id: string; email: string }) => {
+            const { getSql } = await import("../db");
+            const sql = await getSql();
+            // Starts the 168-hour clock now, not at sign-up -- "on conflict
+            // do nothing" so a double-click of the link can't restart it.
+            await sql`
+              insert into app_trials (user_id, subject, started_at)
+              values (${user.id}, 'app', now())
+              on conflict (user_id, subject) do nothing
+            `;
+            const { sendAppMail } = await import("../app-mail");
+            const welcomeSubject = "Welcome to VKOLE";
+            const welcomeText = "Your email is confirmed and your free week has started. Open the app to begin.";
+            await sendAppMail(user.email, welcomeSubject, welcomeText).catch(() => undefined);
+          },
+        },
+      }
+    : {}),
 
   // `__Host-` prefixed cookies: the browser REFUSES any same-named cookie that
   // carries a `Domain` attribute, so a sibling `*.grok.me` app cannot "toss" a

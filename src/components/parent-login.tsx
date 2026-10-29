@@ -32,6 +32,11 @@ export function ParentLogin({
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
+  // CLAUDE: true once a LOCAL sign-up/sign-in succeeds but needs email
+  // confirmation first (no session exists yet -- see `pendingConfirmation`
+  // on `SchoolAuthResult`). Shows a plain "check your email" screen instead
+  // of entering the app.
+  const [confirmPending, setConfirmPending] = useState(false);
 
   useEffect(() => {
     try {
@@ -120,6 +125,10 @@ export function ParentLogin({
           setError(res.message);
           return;
         }
+        if (res.pendingConfirmation) {
+          setConfirmPending(true);
+          return;
+        }
         await enterApp(res.sessionToken);
         return;
       }
@@ -130,6 +139,10 @@ export function ParentLogin({
           await clearStaleSignIn();
         }
         setError(res.message);
+        return;
+      }
+      if (res.pendingConfirmation) {
+        setConfirmPending(true);
         return;
       }
       await enterApp(res.sessionToken);
@@ -144,6 +157,21 @@ export function ParentLogin({
 
   if (schoolScreen(error)) {
     return <SchoolAccountScreen message={error} onRetry={() => setError("")} />;
+  }
+
+  // CLAUDE: a LOCAL account (new sign-up, or sign-in before confirming) has
+  // no session yet, so there's nothing to enter -- just the plain "check
+  // your email" message. Unlike the website's `ConfirmEmailLock`, this has
+  // no resend button: there's no signed-in session yet to attach that call
+  // to. (A resend option can be added later if needed.)
+  if (confirmPending) {
+    return (
+      <Shell onSplash={onSplash}>
+        <h1 className="font-display text-3xl text-ink">Check your email</h1>
+        <p className="mt-4 text-lg text-ink">Open the email we sent and tap the confirmation link.</p>
+        <p className="mt-3 text-lg text-ink">Your free week is 168 hours. It starts the moment you confirm.</p>
+      </Shell>
+    );
   }
 
   return (

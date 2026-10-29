@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ConfirmedRouteImport } from './routes/confirmed'
 import { Route as EnrollRouteImport } from './routes/enroll'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PracticeRouteImport } from './routes/practice'
@@ -22,6 +23,11 @@ import { Route as ApiVkolePurgeRouteImport } from './routes/api/vkole/purge'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfirmedRoute = ConfirmedRouteImport.update({
+  id: '/confirmed',
+  path: '/confirmed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EnrollRoute = EnrollRouteImport.update({
@@ -67,6 +73,7 @@ const ApiVkolePurgeRoute = ApiVkolePurgeRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/confirmed': typeof ConfirmedRoute
   '/enroll': typeof EnrollRoute
   '/login': typeof LoginRoute
   '/practice': typeof PracticeRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/confirmed': typeof ConfirmedRoute
   '/enroll': typeof EnrollRoute
   '/login': typeof LoginRoute
   '/practice': typeof PracticeRoute
@@ -90,6 +98,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/confirmed': typeof ConfirmedRoute
   '/enroll': typeof EnrollRoute
   '/login': typeof LoginRoute
   '/practice': typeof PracticeRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/confirmed'
     | '/enroll'
     | '/login'
     | '/practice'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/confirmed'
     | '/enroll'
     | '/login'
     | '/practice'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/confirmed'
     | '/enroll'
     | '/login'
     | '/practice'
@@ -137,6 +149,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConfirmedRoute: typeof ConfirmedRoute
   EnrollRoute: typeof EnrollRoute
   LoginRoute: typeof LoginRoute
   PracticeRoute: typeof PracticeRoute
@@ -154,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confirmed': {
+      id: '/confirmed'
+      path: '/confirmed'
+      fullPath: '/confirmed'
+      preLoaderRoute: typeof ConfirmedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/enroll': {
@@ -217,6 +237,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConfirmedRoute: ConfirmedRoute,
   EnrollRoute: EnrollRoute,
   LoginRoute: LoginRoute,
   PracticeRoute: PracticeRoute,
