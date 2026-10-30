@@ -1,11 +1,11 @@
-import { heardAsideFromPrompt, spellingSpokenMatches, spokenFormsForLetter } from "./match.ts";
+import { heardAsideFromPrompt, alphabetSpokenMatches, spokenFormsForLetter } from "./match.ts";
 import { speechTokens } from "../sight-words/match.ts";
 
 export const RECITE_PROMPT = "Your turn to say the alphabet.";
 export const GOOD_JOB_LINE = "Good job!";
 
 /** The celebration stays up this long after "Good job!" is shown. */
-export const SPELLING_CELEBRATION_MS = 5_000;
+export const ALPHABET_CELEBRATION_MS = 5_000;
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -54,7 +54,7 @@ function consumeLetter(letter: string, tokens: readonly string[], start: number)
     if (run.every((token, offset) => tokens[start + offset] === token)) return start + run.length;
   }
   const token = tokens[start] ?? "";
-  if (token && spellingSpokenMatches(letter, token, [])) return start + 1;
+  if (token && alphabetSpokenMatches(letter, token, [])) return start + 1;
   return null;
 }
 
@@ -64,5 +64,5 @@ function consumeLetter(letter: string, tokens: readonly string[], start: number)
  */
 export function celebrationFrame(elapsedMs: number): "celebrate" | "done" {
   const elapsed = Number.isFinite(elapsedMs) ? elapsedMs : 0;
-  return elapsed >= SPELLING_CELEBRATION_MS ? "done" : "celebrate";
+  return elapsed >= ALPHABET_CELEBRATION_MS ? "done" : "celebrate";
 }

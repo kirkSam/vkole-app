@@ -106,8 +106,8 @@ export async function dealQuestion(
     return prompt;
   }
   if (subject === "sp") {
-    const { spellingPrompt, startBand } = await import("./vkole/spelling/items.ts");
-    const prompt = spellingPrompt(startBand(), Math.max(0, Math.round(step) || 0), grade);
+    const { alphabetPrompt, startBand } = await import("./vkole/alphabet/items.ts");
+    const prompt = alphabetPrompt(startBand(), Math.max(0, Math.round(step) || 0), grade);
     await rememberPrompt(sql, userId, childName, practicePromptText("sp", { letter: prompt.answer }));
     return prompt;
   }

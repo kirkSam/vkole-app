@@ -1,6 +1,6 @@
 import type { SubjectId } from "./climb-rules";
 import { BAND_LABELS, startBandForGrade } from "./vkole/constants.ts";
-import { bandMeta, spellingPrompt, startBand as startSpellingBand } from "./vkole/spelling/items.ts";
+import { bandMeta, alphabetPrompt, startBand as startAlphabetBand } from "./vkole/alphabet/items.ts";
 import { itemAt, paPrompt, startBand as startPhonemicBand } from "./vkole/phonemic-awareness/items.ts";
 import { bandWords } from "./vkole/sight-words/words.ts";
 
@@ -738,11 +738,11 @@ function sightWordQuestion(level: number, step?: number): Question {
   };
 }
 
-function spellingQuestion(level: number, step?: number): Question {
-  const band = startSpellingBand();
+function alphabetQuestion(level: number, step?: number): Question {
+  const band = startAlphabetBand();
   const count = Math.max(1, bandMeta(band).count);
   const index = step == null ? rand(0, count - 1) : Math.max(0, Math.round(step));
-  const prompt = spellingPrompt(band, index, level);
+  const prompt = alphabetPrompt(band, index, level);
   return {
     stem: prompt.stem,
     options: [],
@@ -771,7 +771,7 @@ export function makeQuestion(subject: SubjectId, level: number, step?: number): 
   if (subject === "ela") return elaQuestion(level, step);
   if (subject === "ss") return ssQuestion(level, step);
   if (subject === "sw") return sightWordQuestion(level, step);
-  if (subject === "sp") return spellingQuestion(level, step);
+  if (subject === "sp") return alphabetQuestion(level, step);
   if (subject === "pa") return phonemicQuestion(level, step);
   return genQuestion(level, step);
 }

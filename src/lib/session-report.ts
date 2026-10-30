@@ -4,7 +4,7 @@ import type { LevelKey } from "./school-account.ts";
 /**
  * Body the app posts when it asks the school website to mail the session-end
  * parent report. `engine` is the display name already used in that report
- * (`VKOLE/M`, `VKOLE/Spelling`, and the rest). `subject` is the engine id
+ * (`VKOLE/M`, `VKOLE/Alphabet`, and the rest). `subject` is the engine id
  * (`m`, `ela`, `ss`, `gen`, `sg`, `sw`, `pa`, `mg`, `sp`). The website uses
  * `subject` to choose the practice PDF. It does not replace `engine`.
  */

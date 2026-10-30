@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   MIC_WINDOW_MS,
-  SPELLING_COUNTDOWN_MS,
+  ALPHABET_COUNTDOWN_MS,
   claimRecognizer,
   formatMicTiming,
   micAnswer,
@@ -67,7 +67,7 @@ function fakeRecognizer(): FakeRecognizer {
 describe("alphabet microphone window", () => {
   it("counts 6 seconds from audio start and closes on that same instant", () => {
     assert.equal(MIC_WINDOW_MS, 6000);
-    assert.equal(SPELLING_COUNTDOWN_MS, 6000);
+    assert.equal(ALPHABET_COUNTDOWN_MS, 6000);
     assert.equal(micDeadline(1_000), 7_000);
 
     assert.deepEqual(micCountdown(null, 0), { showCountdown: false, seconds: null, close: false });
@@ -177,7 +177,7 @@ describe("alphabet microphone window", () => {
   });
 
   it("opens the mic with the letter and shares one clock", () => {
-    const stage = readFileSync(new URL("../../components/spelling-stage.tsx", import.meta.url), "utf8");
+    const stage = readFileSync(new URL("../../components/alphabet-stage.tsx", import.meta.url), "utf8");
     assert.equal(stage.includes("MIC_WINDOW_MS"), true);
     assert.equal(stage.includes("micCountdown"), true);
     assert.equal(stage.includes("micAnswer"), true);

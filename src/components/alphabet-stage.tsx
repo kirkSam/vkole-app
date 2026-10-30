@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
-  SPELLING_HAPPY_FACE_MS,
-  SPELLING_LETTER_MS,
-  SPELLING_LISTEN_GAP_MS,
-  SPELLING_RECOGNIZER_RESTART_MS,
+  ALPHABET_HAPPY_FACE_MS,
+  ALPHABET_LETTER_MS,
+  ALPHABET_LISTEN_GAP_MS,
+  ALPHABET_RECOGNIZER_RESTART_MS,
   alphabet,
   applyLetterAnswer,
   exerciseStartIndex,
@@ -17,9 +17,9 @@ import {
   type AlphabetExercise,
   alphabetLetterShowing,
   promptAfterSpeech,
-  spellingPromptStartsListen,
-  spellingStartSecondsLeft,
-} from "@/lib/vkole/spelling/items";
+  alphabetPromptStartsListen,
+  alphabetStartSecondsLeft,
+} from "@/lib/vkole/alphabet/items";
 import { holdEngineAudio, holdEngineLetter, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LETTER_ALTERNATIVE_LIMIT, judgeLetterHear } from "@/lib/speech/letter-pronunciations";
 import {
@@ -37,9 +37,9 @@ import {
   startWhenIdle,
   type MicTimingMark,
 } from "@/lib/speech/mic-session";
-import { describeSpellingHear, heardAsideFromPrompt, recognitionErrorRelistens, spellingGrammar } from "@/lib/vkole/spelling/match";
-import { celebrationFrame, GOOD_JOB_LINE, reciteHear, SPELLING_CELEBRATION_MS } from "@/lib/vkole/spelling/recite";
-import { advanceTyping, judgeTypingKey, TYPING_TRY_AGAIN, TYPING_WAIT_MS, typingCaseLine, typingShown, typingStart, type TypingPlace } from "@/lib/vkole/spelling/typing";
+import { describeAlphabetHear, heardAsideFromPrompt, recognitionErrorRelistens, alphabetGrammar } from "@/lib/vkole/alphabet/match";
+import { celebrationFrame, GOOD_JOB_LINE, reciteHear, ALPHABET_CELEBRATION_MS } from "@/lib/vkole/alphabet/recite";
+import { advanceTyping, judgeTypingKey, TYPING_TRY_AGAIN, TYPING_WAIT_MS, typingCaseLine, typingShown, typingStart, type TypingPlace } from "@/lib/vkole/alphabet/typing";
 
 const MIC_KEY = "vkole-sp-mic";
 
@@ -95,7 +95,7 @@ function packAlternatives(result: SpeechResult): { transcript: string; confidenc
 
 function applyLetterGrammar(rec: SpeechListener, answer: string, also: readonly string[]) {
   const Ctor = grammarCtor();
-  const source = spellingGrammar(answer, also);
+  const source = alphabetGrammar(answer, also);
   if (!Ctor || !source) return;
   try {
     const list = new Ctor();
@@ -261,7 +261,7 @@ function HappyFace() {
   );
 }
 
-export function SpellingStage({
+export function AlphabetStage({
   index = 0,
   silence = 0,
   wrong = 0,
@@ -313,7 +313,7 @@ export function SpellingStage({
   const [clockOn, setClockOn] = useState(false);
   const [micTiming, setMicTiming] = useState<MicTimingMark | null>(null);
   const [heardNote, setHeardNote] = useState("");
-  const [startIn, setStartIn] = useState(spellingStartSecondsLeft(0));
+  const [startIn, setStartIn] = useState(alphabetStartSecondsLeft(0));
   const onDoneRef = useRef(onDone);
   const onHeardRef = useRef(onHeard);
   const onRecitedRef = useRef(onRecited);
@@ -378,7 +378,7 @@ export function SpellingStage({
         setPlace(after);
         setExercise(letterExercise(after.index));
         setPhase("prompt");
-      }, SPELLING_HAPPY_FACE_MS);
+      }, ALPHABET_HAPPY_FACE_MS);
       return;
     }
     const after = applyLetterAnswer(placeRef.current, outcome);
@@ -457,9 +457,9 @@ export function SpellingStage({
   useEffect(() => {
     if (!ready || phase !== "gate") return;
     const startedAt = performance.now();
-    setStartIn(spellingStartSecondsLeft(0));
+    setStartIn(alphabetStartSecondsLeft(0));
     const timer = window.setInterval(() => {
-      const left = spellingStartSecondsLeft(performance.now() - startedAt);
+      const left = alphabetStartSecondsLeft(performance.now() - startedAt);
       setStartIn((current) => (current === left ? current : left));
       if (left <= 0) begin();
     }, 200);
@@ -475,7 +475,7 @@ export function SpellingStage({
     const timer = window.setInterval(() => {
       ticks += 1;
       noteEngineActivity();
-      const songFrame = letterAtSongTime(ticks * SPELLING_LETTER_MS);
+      const songFrame = letterAtSongTime(ticks * ALPHABET_LETTER_MS);
       if (!live) return;
       if (songFrame.done) {
         window.clearInterval(timer);
@@ -489,7 +489,7 @@ export function SpellingStage({
       }
       setSongIndex(songFrame.index);
       stopLine = speakLine(songFrame.letter, () => {});
-    }, SPELLING_LETTER_MS);
+    }, ALPHABET_LETTER_MS);
     return () => {
       live = false;
       window.clearInterval(timer);
@@ -531,7 +531,7 @@ export function SpellingStage({
       // A sticky Chrome speaking flag must not keep the microphone closed forever.
       if (speechMayBlockMic(speechBusy(), busyWaits)) {
         busyWaits += 1;
-        gapTimer = window.setTimeout(listen, SPELLING_LISTEN_GAP_MS);
+        gapTimer = window.setTimeout(listen, ALPHABET_LISTEN_GAP_MS);
         return;
       }
       if (speechBusy()) {
@@ -564,17 +564,17 @@ export function SpellingStage({
       if (stuck) busyWaits += 1;
       else busyWaits = 0;
       if (step === "wait") {
-        gapTimer = window.setTimeout(afterSpeech, SPELLING_LISTEN_GAP_MS);
+        gapTimer = window.setTimeout(afterSpeech, ALPHABET_LISTEN_GAP_MS);
         return;
       }
       if (step === "again") {
-        gapTimer = window.setTimeout(beginSpeak, SPELLING_LISTEN_GAP_MS);
+        gapTimer = window.setTimeout(beginSpeak, ALPHABET_LISTEN_GAP_MS);
         return;
       }
       listen();
     };
     // A missing letter on screen is not a reason to wait. A blank line opens the mic now.
-    if (spellingPromptStartsListen(view.say) === "now") {
+    if (alphabetPromptStartsListen(view.say) === "now") {
       if (live) setPhase("listen");
       return () => {
         live = false;
@@ -659,7 +659,7 @@ export function SpellingStage({
     };
     const scheduleRestart = () => {
       if (!live || settled.current || decided || !rec) return;
-      const at = scheduleMicRestart(audioAt, performance.now(), SPELLING_RECOGNIZER_RESTART_MS);
+      const at = scheduleMicRestart(audioAt, performance.now(), ALPHABET_RECOGNIZER_RESTART_MS);
       if (at == null) return;
       restartAt = at;
     };
@@ -727,7 +727,7 @@ export function SpellingStage({
             if (!result) continue;
             const alternatives = packAlternatives(result);
             lastHeard.splice(0, lastHeard.length, ...alternatives.map(({ transcript, confidence }) => ({ transcript, confidence })));
-            const heard = describeSpellingHear(current.answer, alternatives, current.also, current.say);
+            const heard = describeAlphabetHear(current.answer, alternatives, current.also, current.say);
             const action = micAnswer(heard.judgment);
             if (action === "keep") continue;
             if (action === "reask") {
@@ -915,7 +915,7 @@ export function SpellingStage({
     };
     const scheduleRestart = () => {
       if (!live || decided || !rec) return;
-      const at = scheduleMicRestart(audioAt, performance.now(), SPELLING_RECOGNIZER_RESTART_MS);
+      const at = scheduleMicRestart(audioAt, performance.now(), ALPHABET_RECOGNIZER_RESTART_MS);
       if (at == null) return;
       restartAt = at;
     };
@@ -1158,7 +1158,7 @@ export function SpellingStage({
       setPhase("type");
     };
     const timer = window.setInterval(() => finish(performance.now() - started), 100);
-    const backup = window.setTimeout(() => finish(SPELLING_CELEBRATION_MS), SPELLING_CELEBRATION_MS);
+    const backup = window.setTimeout(() => finish(ALPHABET_CELEBRATION_MS), ALPHABET_CELEBRATION_MS);
     return () => {
       live = false;
       window.clearInterval(timer);

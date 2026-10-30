@@ -17,8 +17,8 @@ import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-histo
 import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
 import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
 import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
-import { applyLetterAnswer, formatCompletedExercises, jumpToExercise, letterExercise, letterMoveNote, letterView, normalizeCompletedExercises, normalizeLetterProgress, noteExerciseCompletion, progressAfterSong, rememberCompletedExercise, resumeAlphabetPlace } from "@/lib/vkole/spelling/items";
-import { savedSpellingReport, spellingStatsFromEvents, writeSpellingReport } from "@/lib/vkole/spelling/report";
+import { applyLetterAnswer, formatCompletedExercises, jumpToExercise, letterExercise, letterMoveNote, letterView, normalizeCompletedExercises, normalizeLetterProgress, noteExerciseCompletion, progressAfterSong, rememberCompletedExercise, resumeAlphabetPlace } from "@/lib/vkole/alphabet/items";
+import { savedAlphabetReport, alphabetStatsFromEvents, writeAlphabetReport } from "@/lib/vkole/alphabet/report";
 import { cardFromAccount as paCardFromAccount, migratePaBand, nextAfterAnswer, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
 import { cardFromAccount, nextCard, startCard } from "@/lib/vkole/sight-words/words";
 import { isSightBand } from "@/lib/vkole/constants";
@@ -350,7 +350,7 @@ async function writeAlphabetPlace(
 }
 
 /** Repair an old hidden-letter card before the student sees the saved record. Opening still starts at exercise 1. */
-async function migratedSpellingClimb(sql: Sql, userId: string, climb: Climb): Promise<Climb> {
+async function migratedAlphabetClimb(sql: Sql, userId: string, climb: Climb): Promise<Climb> {
   if (climb.subject !== "sp") return climb;
   const rows = await sql<{ question_id: string | null; current_prompt: string | null; standard_step: number | string | null }>`
     select question_id, current_prompt, standard_step
@@ -384,7 +384,7 @@ export const getClimb = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const climb = await selectOwned(sql, context.userId, data.id);
-    return migratedSpellingClimb(sql, context.userId, climb);
+    return migratedAlphabetClimb(sql, context.userId, climb);
   });
 
 export const setChildAge = createServerFn({ method: "POST" })
@@ -726,15 +726,15 @@ export const markSightWord = createServerFn({ method: "POST" })
     return selectOwned(sql, context.userId, data.id);
   });
 
-const spellingSchema = idSchema.extend({ outcome: z.enum(["correct", "miss", "timeout"]) });
+const alphabetSchema = idSchema.extend({ outcome: z.enum(["correct", "miss", "timeout"]) });
 
 /** The song opens the next exercise in order. It never opens the old hidden-letter prompt. */
-export const placeSpellingAfterSong = createServerFn({ method: "POST" })
+export const placeAlphabetAfterSong = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
   .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
-    const current = await migratedSpellingClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
+    const current = await migratedAlphabetClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
     if (current.subject !== "sp") throw new Error("This session is not alphabet.");
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
     const before = normalizeLetterProgress({
@@ -777,14 +777,14 @@ export const placeSpellingAfterSong = createServerFn({ method: "POST" })
   });
 
 /** A numbered button opens that exercise. Exercise 1 is the song and has no card. */
-export const placeSpellingExercise = createServerFn({ method: "POST" })
+export const placeAlphabetExercise = createServerFn({ method: "POST" })
   .validator((data: unknown) =>
     parse(idSchema.extend({ exercise: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5)]) }), data),
   )
   .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
-    const current = await migratedSpellingClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
+    const current = await migratedAlphabetClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
     if (current.subject !== "sp") throw new Error("This session is not alphabet.");
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
     const place = jumpToExercise(data.exercise);
@@ -803,7 +803,7 @@ export const completeAlphabetExercise = createServerFn({ method: "POST" })
   .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
-    const current = await migratedSpellingClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
+    const current = await migratedAlphabetClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
     if (current.subject !== "sp") throw new Error("This session is not alphabet.");
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
     const completed = rememberCompletedExercise(current.completedExercises, data.exercise);
@@ -818,12 +818,12 @@ export const completeAlphabetExercise = createServerFn({ method: "POST" })
     return { ...saved, completedExercises: completed };
   });
 
-export const markSpelling = createServerFn({ method: "POST" })
-  .validator((data: unknown) => parse(spellingSchema, data))
+export const markAlphabet = createServerFn({ method: "POST" })
+  .validator((data: unknown) => parse(alphabetSchema, data))
   .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
-    const current = await migratedSpellingClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
+    const current = await migratedAlphabetClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
     if (current.subject !== "sp") throw new Error("This session is not alphabet.");
     if (current.blocked) throw new Error("This app needs a parent subscription before the child can continue.");
     const before = normalizeLetterProgress({
@@ -1190,9 +1190,9 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     error: "",
     sheetNote: "",
     sheetKeys: [] as string[],
-    spellingReport: "",
+    alphabetReport: "",
   };
-  let spellingReport = "";
+  let alphabetReport = "";
   if (climb.subject === "sp") {
     await sql`alter table climb_sittings add column if not exists spelling_report text`;
     const savedRows = await sql<{ spelling_report: string | null }>`
@@ -1200,20 +1200,20 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
       where climb_id = ${climbId} and user_id = ${userId} and ended_at is null
       order by started_at desc limit 1
     `;
-    const saved = savedSpellingReport(savedRows[0]?.spelling_report);
+    const saved = savedAlphabetReport(savedRows[0]?.spelling_report);
     if (saved) {
-      spellingReport = saved;
+      alphabetReport = saved;
     } else {
-      const written = await writeSpellingReport(spellingStatsFromEvents(reportEvents));
-      spellingReport = written.text;
+      const written = await writeAlphabetReport(alphabetStatsFromEvents(reportEvents));
+      alphabetReport = written.text;
       await sql`
-        update climb_sittings set spelling_report = ${spellingReport}
+        update climb_sittings set spelling_report = ${alphabetReport}
         where climb_id = ${climbId} and user_id = ${userId} and ended_at is null
       `;
     }
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(facts.email)) {
-    return { ...empty, error: "The registration email is not a working address.", spellingReport };
+    return { ...empty, error: "The registration email is not a working address.", alphabetReport };
   }
   const mastery = await singaporeMastery(sql, userId, climbId, climb.subject);
   const reportLabel = climb.subject === "sp" || climb.subject === "pa" ? climb.standardLabel : levelTitle(climb.subject, climb.level, climb.standardStep);
@@ -1236,7 +1236,7 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     trial: { startedAt: climb.startedAt, endsAt: climb.endsAt, daysLeft: climb.daysLeft, expired: climb.expired },
     events: letterEvents,
     session: { reason, sittingSeconds: sittingSecondsValue, totalSeconds: climb.onlineSeconds },
-    spellingReport,
+    alphabetReport,
   });
   try {
     const { postSessionEndReport } = await import("@/lib/session-report.server");
@@ -1294,7 +1294,7 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     error,
     sheetNote: built ? "" : "The level stays. The assignment should be tried again.",
     sheetKeys: built?.prompts ?? [],
-    spellingReport,
+    alphabetReport,
   };
 }
 
@@ -1402,7 +1402,7 @@ export const endChildSession = createServerFn({ method: "POST" })
     if (data.reason === "inactivity") await disarmStudentClock(sql, context.userId, data.id);
     const open = await openSitting(sql, context.userId, data.id);
     if (!open) {
-      return { sent: false, recipient: "", reason: data.reason, sittingSeconds: 0, totalSeconds: 0, subject: "", body: "", error: "", sheetNote: "", spellingReport: "", alreadyClosed: true as const };
+      return { sent: false, recipient: "", reason: data.reason, sittingSeconds: 0, totalSeconds: 0, subject: "", body: "", error: "", sheetNote: "", alphabetReport: "", alreadyClosed: true as const };
     }
     const checked = await sql<{ n: number | string }>`
       select count(*) as n from climb_events
@@ -1417,7 +1417,7 @@ export const endChildSession = createServerFn({ method: "POST" })
       })
     ) {
       const closed = await closeSitting(sql, context.userId, data.id, data.reason);
-      return { sent: false, recipient: "", reason: data.reason, sittingSeconds: closed?.seconds ?? 0, totalSeconds: climb.onlineSeconds + (closed?.seconds ?? 0), subject: "", body: "", error: "", sheetNote: "", spellingReport: "", alreadyClosed: false as const };
+      return { sent: false, recipient: "", reason: data.reason, sittingSeconds: closed?.seconds ?? 0, totalSeconds: climb.onlineSeconds + (closed?.seconds ?? 0), subject: "", body: "", error: "", sheetNote: "", alphabetReport: "", alreadyClosed: false as const };
     }
     const claim = await sql<{ id: string }>`
       update climb_sittings set letter_sent = 1
@@ -1425,7 +1425,7 @@ export const endChildSession = createServerFn({ method: "POST" })
       returning id
     `;
     if (!claim[0]) {
-      return { sent: false, recipient: "", reason: data.reason, sittingSeconds: 0, totalSeconds: 0, subject: "", body: "", error: "", sheetNote: "", spellingReport: "", alreadyClosed: true as const };
+      return { sent: false, recipient: "", reason: data.reason, sittingSeconds: 0, totalSeconds: 0, subject: "", body: "", error: "", sheetNote: "", alphabetReport: "", alreadyClosed: true as const };
     }
     const mail = await deliverLetter(sql, context.userId, data.id, data.reason, sittingSeconds(open, data.reason), asIso(open.started_at));
     if (!mail.sent) {

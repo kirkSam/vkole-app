@@ -1,7 +1,7 @@
 import { APP_NAME, SCHOOL_EMAIL, SCHOOL_NAME } from "./brand.ts";
 import { levelLabel, SUBJECTS, subjectMeta, type SubjectId } from "./climb-rules.ts";
 import { alphabetFirstTryReport, letterAttemptsFromDetails, readLetterAttempt } from "./speech/letter-attempts.ts";
-import { SPELLING_REPORT_LABEL, spellingReportLines } from "./vkole/spelling/report.ts";
+import { ALPHABET_REPORT_LABEL, alphabetReportLines } from "./vkole/alphabet/report.ts";
 
 export const TRIAL_DAYS = 7;
 export const TRIAL_MS = TRIAL_DAYS * 24 * 60 * 60 * 1000;
@@ -152,7 +152,7 @@ export function academicLetter(input: {
   moved?: "up" | "down" | null;
   sheet?: string[];
   mastery?: string;
-  spellingReport?: string;
+  alphabetReport?: string;
   session?: {
     reason: EndReason;
     sittingSeconds: number;
@@ -211,8 +211,8 @@ export function academicLetter(input: {
   const sheet = (input.sheet ?? []).filter((line) => clean(line)).slice(0, 10);
   const printed = sheet.length === 10 ? sheet : [];
   const mastery = clean(input.mastery ?? "");
-  const spellingLines = input.subject === "sp" ? spellingReportLines(clean(input.spellingReport ?? "")) : [];
-  const spellingReport = spellingLines[1] ?? "";
+  const alphabetLines = input.subject === "sp" ? alphabetReportLines(clean(input.alphabetReport ?? "")) : [];
+  const alphabetReport = alphabetLines[1] ?? "";
   const firstTry = input.subject === "sp" ? alphabetFirstTryReport(letterAttemptsFromDetails(input.events.map((event) => event.detail))).text : "";
   const ended = input.session ? endReasonSentence(input.session.reason) : "";
   const sittingTime = input.session ? formatOnline(input.session.sittingSeconds) : "";
@@ -237,7 +237,7 @@ export function academicLetter(input: {
     ...(sittingTime ? [`Time in this sitting: ${sittingTime}`] : []),
     ...(engineTime ? [`Time on this engine: ${engineTime}`] : []),
     ...(movement ? ["", movement] : []),
-    ...(spellingLines.length ? ["", ...spellingLines] : []),
+    ...(alphabetLines.length ? ["", ...alphabetLines] : []),
     ...(firstTry ? ["", "First tries", firstTry] : []),
     "",
     "Account",
@@ -269,7 +269,7 @@ export function academicLetter(input: {
     sittingTime,
     engineTime,
     mastery,
-    spellingReport,
+    alphabetReport,
     firstTry,
   });
   return { subject, body, html, recipient: input.parentEmail?.trim() || "" };
@@ -372,7 +372,7 @@ function reportHtml(input: {
   sittingTime: string;
   engineTime: string;
   mastery: string;
-  spellingReport: string;
+  alphabetReport: string;
   firstTry: string;
 }): string {
   const row = (label: string, value: string) =>
@@ -404,8 +404,8 @@ function reportHtml(input: {
   const movement = input.movement
     ? `<tr><td style="padding:0 20px 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.45;color:#1d2420;">${esc(input.movement)}</td></tr>`
     : "";
-  const spellingReport = input.spellingReport
-    ? `<tr><td style="padding:12px 20px 4px;font-family:Georgia,serif;font-size:18px;color:#2c5e4a;">${esc(SPELLING_REPORT_LABEL)}</td></tr><tr><td style="padding:0 20px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.5;color:#1d2420;">${esc(input.spellingReport)}</td></tr>`
+  const alphabetReport = input.alphabetReport
+    ? `<tr><td style="padding:12px 20px 4px;font-family:Georgia,serif;font-size:18px;color:#2c5e4a;">${esc(ALPHABET_REPORT_LABEL)}</td></tr><tr><td style="padding:0 20px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.5;color:#1d2420;">${esc(input.alphabetReport)}</td></tr>`
     : "";
   const firstTry = input.firstTry
     ? `<tr><td style="padding:12px 20px 4px;font-family:Georgia,serif;font-size:18px;color:#2c5e4a;">First tries</td></tr><tr><td style="padding:0 20px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.5;color:#1d2420;">${esc(input.firstTry)}</td></tr>`
@@ -419,5 +419,5 @@ function reportHtml(input: {
           )
           .join("")}</td></tr>`
       : "";
-  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#e7efe9;"><div style="display:none;max-height:0;overflow:hidden;">Progress report for ${esc(input.name)}. ${input.reached} reached, ${input.missed} missed.</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e7efe9;padding:16px 8px;"><tr><td align="center"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fffdf8;border:1px solid #d7e0da;"><tr><td style="background:#173028;border-top:4px solid #c6a15a;padding:22px 20px;color:#f6f1e7;"><div style="font-family:Georgia,'Times New Roman',serif;font-size:13px;letter-spacing:0.08em;">${esc(SCHOOL_NAME)}</div><div style="font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1.2;margin-top:8px;">Progress report for ${esc(input.name)}</div><div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;line-height:1.4;margin-top:8px;color:#e7efe9;">${esc(APP_NAME)}</div></td></tr><tr><td style="padding:18px 20px 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.5;color:#1d2420;">${esc(input.privacy)}</td></tr><tr><td style="padding:8px 20px 4px;font-family:Georgia,'Times New Roman',serif;font-size:18px;color:#2c5e4a;">Sitting</td></tr><tr><td style="padding:0 20px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${row("Student", input.name)}${row("Date", input.date)}${row("Engine", input.engine)}${row("Starting grade", String(input.start))}${row("Current level", input.current)}${row("This sitting", `${input.reached} reached, ${input.missed} missed`)}${input.ended ? row("How this sitting ended", input.ended) : ""}${input.sittingTime ? row("Time in this sitting", input.sittingTime) : ""}${input.engineTime ? row("Time on this engine", input.engineTime) : ""}</table></td></tr>${movement}${mastery}${spellingReport}${firstTry}<tr><td style="padding:12px 20px 4px;font-family:Georgia,serif;font-size:18px;color:#2c5e4a;">Account</td></tr><tr><td style="padding:0 20px 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.5;color:#1d2420;">${input.account.map((line) => `<p style="margin:0 0 10px;">${esc(line)}</p>`).join("")}</td></tr><tr><td style="padding:12px 20px 8px;font-family:Georgia,serif;font-size:18px;color:#2c5e4a;">Work</td></tr><tr><td style="padding:0 20px 18px;">${cards}</td></tr>${sheet}<tr><td style="background:#173028;padding:16px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;color:#f6f1e7;">${esc(SCHOOL_EMAIL)}</td></tr></table></td></tr></table></body></html>`;
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#e7efe9;"><div style="display:none;max-height:0;overflow:hidden;">Progress report for ${esc(input.name)}. ${input.reached} reached, ${input.missed} missed.</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#e7efe9;padding:16px 8px;"><tr><td align="center"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#fffdf8;border:1px solid #d7e0da;"><tr><td style="background:#173028;border-top:4px solid #c6a15a;padding:22px 20px;color:#f6f1e7;"><div style="font-family:Georgia,'Times New Roman',serif;font-size:13px;letter-spacing:0.08em;">${esc(SCHOOL_NAME)}</div><div style="font-family:Georgia,'Times New Roman',serif;font-size:26px;line-height:1.2;margin-top:8px;">Progress report for ${esc(input.name)}</div><div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;line-height:1.4;margin-top:8px;color:#e7efe9;">${esc(APP_NAME)}</div></td></tr><tr><td style="padding:18px 20px 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.5;color:#1d2420;">${esc(input.privacy)}</td></tr><tr><td style="padding:8px 20px 4px;font-family:Georgia,'Times New Roman',serif;font-size:18px;color:#2c5e4a;">Sitting</td></tr><tr><td style="padding:0 20px 8px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${row("Student", input.name)}${row("Date", input.date)}${row("Engine", input.engine)}${row("Starting grade", String(input.start))}${row("Current level", input.current)}${row("This sitting", `${input.reached} reached, ${input.missed} missed`)}${input.ended ? row("How this sitting ended", input.ended) : ""}${input.sittingTime ? row("Time in this sitting", input.sittingTime) : ""}${input.engineTime ? row("Time on this engine", input.engineTime) : ""}</table></td></tr>${movement}${mastery}${alphabetReport}${firstTry}<tr><td style="padding:12px 20px 4px;font-family:Georgia,serif;font-size:18px;color:#2c5e4a;">Account</td></tr><tr><td style="padding:0 20px 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.5;color:#1d2420;">${input.account.map((line) => `<p style="margin:0 0 10px;">${esc(line)}</p>`).join("")}</td></tr><tr><td style="padding:12px 20px 8px;font-family:Georgia,serif;font-size:18px;color:#2c5e4a;">Work</td></tr><tr><td style="padding:0 20px 18px;">${cards}</td></tr>${sheet}<tr><td style="background:#173028;padding:16px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;color:#f6f1e7;">${esc(SCHOOL_EMAIL)}</td></tr></table></td></tr></table></body></html>`;
 }

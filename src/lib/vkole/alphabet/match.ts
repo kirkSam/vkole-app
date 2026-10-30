@@ -74,7 +74,7 @@ export function heardAsideFromPrompt(say: string, heard: string): string {
   return withoutPromptEdges(withoutRun(tokens, prompt), prompt).join(" ");
 }
 
-export function spellingSpokenMatches(answer: string, heard: string, also: readonly string[] = []): boolean {
+export function alphabetSpokenMatches(answer: string, heard: string, also: readonly string[] = []): boolean {
   const forms = aliasList(answer, also);
   const singles = forms.filter((alias) => speechTokens(alias).length <= 1);
   if (spokenMatches(answer, heard, singles)) return true;
@@ -94,7 +94,7 @@ export function spellingSpokenMatches(answer: string, heard: string, also: reado
  * A transcript that is only the spoken prompt also waits: the microphone heard the question, not the child.
  * A live non-match waits. Only a finished transcript that still has real words and does not match is a miss.
  */
-export function judgeSpellingSpoken(
+export function judgeAlphabetSpoken(
   answer: string,
   heard: string,
   final: boolean,
@@ -103,7 +103,7 @@ export function judgeSpellingSpoken(
 ): "correct" | "miss" | "wait" {
   const aside = heardAsideFromPrompt(say, heard);
   if (speechTokens(aside).length === 0) return "wait";
-  if (spellingSpokenMatches(answer, aside, also)) return "correct";
+  if (alphabetSpokenMatches(answer, aside, also)) return "correct";
   return final ? "miss" : "wait";
 }
 
@@ -112,7 +112,7 @@ export function judgeSpellingSpoken(
  * A result counts as a miss only when it is finished, some alternative has real words, and none match.
  * Confidence and length are not inputs. A one-letter transcript is a real answer.
  */
-export function judgeSpellingAlternatives(
+export function judgeAlphabetAlternatives(
   answer: string,
   alternatives: readonly { transcript?: string; final?: boolean; confidence?: number | null }[],
   also: readonly string[] = [],
@@ -131,7 +131,7 @@ export function judgeSpellingAlternatives(
     const aside = alternative.transcript ?? "";
     if (speechTokens(aside).length === 0) continue;
     anyAside = true;
-    if (spellingSpokenMatches(answer, aside, also)) {
+    if (alphabetSpokenMatches(answer, aside, also)) {
       // A live low score must stay a wait. Promoting it would accept the same interim match.
       if (lowScoreAsk(alternative.final, alternative.confidence) === "wait") continue;
       return "correct";
@@ -144,7 +144,7 @@ export function judgeSpellingAlternatives(
 }
 
 /** Phrases to bias the recognizer toward this letter. The letter itself is included. */
-export function spellingBiasPhrases(answer: string, also: readonly string[] = []): string[] {
+export function alphabetBiasPhrases(answer: string, also: readonly string[] = []): string[] {
   const phrases: string[] = [];
   const seen = new Set<string>();
   const add = (value: string) => {
@@ -159,8 +159,8 @@ export function spellingBiasPhrases(answer: string, also: readonly string[] = []
 }
 
 /** JSGF grammar for browsers that still accept SpeechGrammarList. Empty when there is nothing to hint. */
-export function spellingGrammar(answer: string, also: readonly string[] = []): string {
-  const parts = spellingBiasPhrases(answer, also).filter((phrase) => /^[a-z]+(?: [a-z]+)*$/.test(phrase));
+export function alphabetGrammar(answer: string, also: readonly string[] = []): string {
+  const parts = alphabetBiasPhrases(answer, also).filter((phrase) => /^[a-z]+(?: [a-z]+)*$/.test(phrase));
   if (parts.length === 0) return "";
   return `#JSGF V1.0; grammar letter; public <answer> = ${parts.join(" | ")} ;`;
 }
@@ -170,13 +170,13 @@ export function spellingGrammar(answer: string, also: readonly string[] = []): s
  * A matching alternative is preferred, then the first transcript that has words.
  * Punctuation-only and empty results are "I didn't hear anything".
  */
-export function describeSpellingHear(
+export function describeAlphabetHear(
   answer: string,
   alternatives: readonly { transcript?: string; final?: boolean; confidence?: number | null }[],
   also: readonly string[] = [],
   say = "",
 ): { judgment: LetterJudgment; status: string } {
-  const judgment = judgeSpellingAlternatives(answer, alternatives, also, say);
+  const judgment = judgeAlphabetAlternatives(answer, alternatives, also, say);
   if (judgment === "again") return { judgment, status: "Try again" };
   let matched = "";
   let top = "";
@@ -185,7 +185,7 @@ export function describeSpellingHear(
     const aside = heardAsideFromPrompt(say, text);
     if (speechTokens(aside).length === 0) continue;
     if (!top) top = text;
-    if (!matched && spellingSpokenMatches(answer, aside, also)) matched = text;
+    if (!matched && alphabetSpokenMatches(answer, aside, also)) matched = text;
   }
   const spoken = judgment === "correct" ? matched || top : top;
   return { judgment, status: spoken ? `I heard: ${spoken}` : "I didn't hear anything" };

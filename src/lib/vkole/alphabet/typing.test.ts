@@ -82,7 +82,7 @@ describe("alphabet exercise 6 typing", () => {
   });
 
   it("shows the exercise 5 Good job celebration after lowercase z, then ends the sitting", () => {
-    const stage = readFileSync(new URL("../../../components/spelling-stage.tsx", import.meta.url), "utf8");
+    const stage = readFileSync(new URL("../../../components/alphabet-stage.tsx", import.meta.url), "utf8");
     const typed = stage.slice(stage.indexOf("function takeTyped"), stage.indexOf("function noteHeard"));
     assert.equal(typed.includes('setPhase("good-job")'), true);
     assert.equal(typed.includes('onDoneRef.current("correct")'), false);
@@ -91,7 +91,7 @@ describe("alphabet exercise 6 typing", () => {
     assert.equal(goodJob.includes('setPhase("celebrate")'), true);
     const celebrate = stage.slice(stage.indexOf('if (phase !== "celebrate") return;'), stage.indexOf("function allowMic"));
     assert.equal(celebrate.includes("celebrationFrame"), true);
-    assert.equal(celebrate.includes("SPELLING_CELEBRATION_MS"), true);
+    assert.equal(celebrate.includes("ALPHABET_CELEBRATION_MS"), true);
     assert.equal(celebrate.includes("exerciseRef.current === 6"), true);
     assert.equal(celebrate.includes('onDoneRef.current("correct")'), true);
     assert.equal(celebrate.includes("onRecitedRef"), true);

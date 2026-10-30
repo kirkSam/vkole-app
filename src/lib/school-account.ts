@@ -13,7 +13,7 @@ import { levelFieldsForWebsite } from "./level-pair.ts";
 import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC } from "./day-clock-math.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, SIGHT_WORD_BANDS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
-import { bandMeta, cardFromAccount as spCardFromAccount, isSpBand, letterView, migrateAlphabetIndex, normalizeCompletedExercises, resumeAlphabetPlace, SPELLING_BANDS, spCard, type SpBand } from "./vkole/spelling/items.ts";
+import { bandMeta, cardFromAccount as spCardFromAccount, isSpBand, letterView, migrateAlphabetIndex, normalizeCompletedExercises, resumeAlphabetPlace, ALPHABET_BANDS, spCard, type SpBand } from "./vkole/alphabet/items.ts";
 import { cardFromAccount as paCardFromAccount, migratePaBand, PA_BANDS, type PaBand } from "./vkole/phonemic-awareness/items.ts";
 import { sightCard } from "./vkole/sight-words/words.ts";
 
@@ -227,7 +227,8 @@ export type EngineId = (typeof ENGINE_IDS)[number];
 
 /**
  * Level keys on the website family. `mg` is stored and sent back with the
- * others. It is not one of this app's eight engines. `sp` is spelling.
+ * others. It is not one of this app's eight engines. `sp` is Alphabet
+ * (named "spelling" internally before this rename; see AGENT-NOTES.md).
  */
 export const LEVEL_KEYS = ["m", "ela", "ss", "gen", "sg", "sw", "pa", "mg", "sp"] as const;
 export type LevelKey = (typeof LEVEL_KEYS)[number];
@@ -604,7 +605,7 @@ function alphabetIndex(level: Pick<EngineLevel, "index" | "word">): number {
 }
 
 /**
- * The spelling engine tracks alphabet letters as band LK and a prompt id.
+ * The Alphabet engine tracks alphabet letters as band LK and a prompt id.
  * The website drops LK and refuses a word that is not letters.
  * Alphabet progress is sent as band cvc, grade 1-12, and word set to the letter.
  * index, streak, and missStreak stay so a cue in progress can be restored.
@@ -1216,10 +1217,10 @@ function bandRank(engine: LevelKey, band: string | undefined): number {
     return at < 0 ? 0 : at;
   }
   if (engine === "sp") {
-    const local = (SPELLING_BANDS as readonly string[]).indexOf(id);
+    const local = (ALPHABET_BANDS as readonly string[]).indexOf(id);
     if (local >= 0) return local;
     const website = (WEBSITE_SP_BANDS as readonly string[]).indexOf(id.toLowerCase());
-    return website < 0 ? 0 : website + SPELLING_BANDS.length;
+    return website < 0 ? 0 : website + ALPHABET_BANDS.length;
   }
   return 0;
 }

@@ -1,14 +1,14 @@
 /**
- * One short parent report at the end of a spelling sitting.
+ * One short parent report at the end of an alphabet sitting.
  * The xAI call stays on the server. The key is read from XAI_API_KEY and is never logged.
  * A missing key or a failed call uses the local template instead.
  */
 
-export const SPELLING_REPORT_LABEL = "Report written by Space XSI (Grok)";
-export const SPELLING_REPORT_MODEL = "grok-4-1-fast-non-reasoning";
-export const SPELLING_REPORT_MAX_TOKENS = 160;
+export const ALPHABET_REPORT_LABEL = "Report written by Space XSI (Grok)";
+export const ALPHABET_REPORT_MODEL = "grok-4-1-fast-non-reasoning";
+export const ALPHABET_REPORT_MAX_TOKENS = 160;
 
-export type SpellingSessionStats = {
+export type AlphabetSessionStats = {
   practiced: string[];
   mastered: string[];
   practice: string[];
@@ -17,7 +17,7 @@ export type SpellingSessionStats = {
   silent: number;
 };
 
-export type SpellingReport = {
+export type AlphabetReport = {
   text: string;
   source: "grok" | "template";
 };
@@ -42,18 +42,18 @@ export function reportSentences(text: string): string[] {
 }
 
 /** A saved report is reused so a mail retry does not call the API again. */
-export function savedSpellingReport(saved: string | null | undefined): string {
+export function savedAlphabetReport(saved: string | null | undefined): string {
   return saved?.replace(/\s+/g, " ").trim() ?? "";
 }
 
 /** Plain-text lines for this account's progress email. Empty when there is no report. */
-export function spellingReportLines(text: string): string[] {
+export function alphabetReportLines(text: string): string[] {
   const body = text.replace(/\s+/g, " ").trim();
   if (!body) return [];
-  return [SPELLING_REPORT_LABEL, body];
+  return [ALPHABET_REPORT_LABEL, body];
 }
 
-export function spellingStatsFromEvents(events: { detail: string; correct?: boolean }[]): SpellingSessionStats {
+export function alphabetStatsFromEvents(events: { detail: string; correct?: boolean }[]): AlphabetSessionStats {
   const last = new Map<string, "correct" | "miss" | "timeout">();
   const order: string[] = [];
   let correct = 0;
@@ -82,7 +82,7 @@ export function spellingStatsFromEvents(events: { detail: string; correct?: bool
   return { practiced, mastered, practice, correct, missed, silent };
 }
 
-export function templateSpellingReport(stats: SpellingSessionStats): string {
+export function templateAlphabetReport(stats: AlphabetSessionStats): string {
   const practiced = letterList(stats.practiced);
   const mastered = letterList(stats.mastered);
   const practice = letterList(stats.practice);
@@ -111,7 +111,7 @@ function acceptReport(text: string, key: string): string | null {
   return sentences.slice(0, 5).join(" ");
 }
 
-function statsPayload(stats: SpellingSessionStats): SpellingSessionStats {
+function statsPayload(stats: AlphabetSessionStats): AlphabetSessionStats {
   return {
     practiced: stats.practiced.filter((letter) => /^[A-Z]$/.test(letter)),
     mastered: stats.mastered.filter((letter) => /^[A-Z]$/.test(letter)),
@@ -126,8 +126,8 @@ function statsPayload(stats: SpellingSessionStats): SpellingSessionStats {
  * One chat completion for this sitting. The request body is the letter stats only.
  * It does not send names, mail addresses, or audio.
  */
-export async function writeSpellingReport(stats: SpellingSessionStats, fetchImpl?: FetchLike): Promise<SpellingReport> {
-  const fallback = templateSpellingReport(statsPayload(stats));
+export async function writeAlphabetReport(stats: AlphabetSessionStats, fetchImpl?: FetchLike): Promise<AlphabetReport> {
+  const fallback = templateAlphabetReport(statsPayload(stats));
   const key = process.env.XAI_API_KEY?.trim() ?? "";
   if (!key) return { text: fallback, source: "template" };
   const call = fetchImpl ?? fetch;
@@ -140,9 +140,9 @@ export async function writeSpellingReport(stats: SpellingSessionStats, fetchImpl
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: SPELLING_REPORT_MODEL,
+        model: ALPHABET_REPORT_MODEL,
         temperature: 0.3,
-        max_tokens: SPELLING_REPORT_MAX_TOKENS,
+        max_tokens: ALPHABET_REPORT_MAX_TOKENS,
         messages: [
           {
             role: "system",

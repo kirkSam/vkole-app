@@ -17,9 +17,9 @@ import {
   completeAlphabetExercise,
   markPhonemic,
   markSightWord,
-  markSpelling,
+  markAlphabet,
   recordAlphabetAttempt,
-  placeSpellingExercise,
+  placeAlphabetExercise,
   recordAnswer,
   revealNextQuestion,
   setChildAge,
@@ -32,13 +32,13 @@ import { GRADING_PAUSE_MESSAGE, NO_REPLY_MESSAGE } from "@/lib/grading-pause";
 import { showAsSpaceXsi } from "@/lib/space-xsi";
 import { VKOLE_MOVEMENT } from "@/lib/vkole-cap";
 import { SIGHT_WORD_NOTE } from "@/lib/vkole/constants";
-import { SPELLING_NOTE } from "@/lib/vkole/spelling/items";
-import { SPELLING_REPORT_LABEL } from "@/lib/vkole/spelling/report";
+import { ALPHABET_NOTE } from "@/lib/vkole/alphabet/items";
+import { ALPHABET_REPORT_LABEL } from "@/lib/vkole/alphabet/report";
 import { PA_NOTE } from "@/lib/vkole/phonemic-awareness/items";
 import { PhonemicStage } from "@/components/phonemic-stage";
 import { SightWordStage } from "@/components/sight-word-stage";
 import { HeadphoneNotice } from "@/components/headphone-notice";
-import { SpellingStage } from "@/components/spelling-stage";
+import { AlphabetStage } from "@/components/alphabet-stage";
 import { SG_STAGE_NOTE, sgCodeLabel, singaporePlace } from "@/lib/vkole-singapore";
 import { SgFigure, splitFigures } from "@/components/sg-figure";
 import { deviceTimeZone } from "@/lib/day-clock-math";
@@ -58,7 +58,7 @@ type Closure = {
   sittingSeconds: number;
   totalSeconds: number;
   sheetNote: string;
-  spellingReport: string;
+  alphabetReport: string;
 };
 
 let pendingLeave: { id: string; cancel: () => void } | null = null;
@@ -117,8 +117,8 @@ function SessionPage() {
   const [closure, setClosure] = useState<Closure | null>(null);
   const [levelPassword, setLevelPassword] = useState("");
   const [sightRound, setSightRound] = useState(0);
-  const [spellingRound, setSpellingRound] = useState(0);
-  const [spellingHeard, setSpellingHeard] = useState("");
+  const [alphabetRound, setAlphabetRound] = useState(0);
+  const [alphabetHeard, setAlphabetHeard] = useState("");
   const [paRound, setPaRound] = useState(0);
   const finishRef = useRef<(reason: EndReason, explicitLogout?: boolean) => void>(() => {});
 
@@ -213,7 +213,7 @@ function SessionPage() {
         .then(() => endChildSession({ data: { id: climbId, reason, explicitLogout } }))
         .then((result) => {
           const leaveThisEngine = reason !== "inactivity";
-          if (!result || (result.alreadyClosed && !result.body && !result.spellingReport)) {
+          if (!result || (result.alreadyClosed && !result.body && !result.alphabetReport)) {
             if (!stopped && leaveThisEngine) void navigate({ to: "/" });
             return;
           }
@@ -227,7 +227,7 @@ function SessionPage() {
             sittingSeconds: result.sittingSeconds,
             totalSeconds: result.totalSeconds,
             sheetNote: result.sheetNote,
-            spellingReport: result.spellingReport,
+            alphabetReport: result.alphabetReport,
           };
           try {
             if (leaveThisEngine || stopped) sessionStorage.setItem("vkole-last-mail", JSON.stringify(note));
@@ -468,7 +468,7 @@ function SessionPage() {
           </span>
         ) : null}
       </div>
-      <p className="mt-3 text-sm text-muted">{climb.subject === "sw" ? SIGHT_WORD_NOTE : climb.subject === "sp" ? SPELLING_NOTE : climb.subject === "pa" ? PA_NOTE : VKOLE_MOVEMENT}</p>
+      <p className="mt-3 text-sm text-muted">{climb.subject === "sw" ? SIGHT_WORD_NOTE : climb.subject === "sp" ? ALPHABET_NOTE : climb.subject === "pa" ? PA_NOTE : VKOLE_MOVEMENT}</p>
       {climb.subject === "sg" ? <p className="mt-2 text-sm text-muted">{SG_STAGE_NOTE}</p> : null}
       <SchoolPath />
       {closure ? (
@@ -483,10 +483,10 @@ function SessionPage() {
               : closure.error || "The academic email was not sent."}
           </p>
           {closure.sheetNote ? <p className="mt-2 text-sm text-miss">{closure.sheetNote}</p> : null}
-          {closure.spellingReport ? (
+          {closure.alphabetReport ? (
             <div className="mt-4 rounded-xl border border-line bg-paper p-4">
-              <h3 className="font-display text-xl text-ink">{SPELLING_REPORT_LABEL}</h3>
-              <p className="mt-2 text-ink">{closure.spellingReport}</p>
+              <h3 className="font-display text-xl text-ink">{ALPHABET_REPORT_LABEL}</h3>
+              <p className="mt-2 text-ink">{closure.alphabetReport}</p>
             </div>
           ) : null}
           {closure.body ? (
@@ -544,14 +544,14 @@ function SessionPage() {
             }}
           />
         ) : climb.subject === "sp" ? (
-          <SpellingStage
-            key={`${climb.id}:${spellingRound}`}
+          <AlphabetStage
+            key={`${climb.id}:${alphabetRound}`}
             timingDebug={climb.fullAccess}
             index={climb.standardStep}
             silence={climb.correctAtLevel}
             wrong={climb.incorrectStreak}
-            heard={spellingHeard}
-            onHeard={setSpellingHeard}
+            heard={alphabetHeard}
+            onHeard={setAlphabetHeard}
             onAttempt={(attempt) => {
               void recordAlphabetAttempt({
                 data: {
@@ -565,8 +565,8 @@ function SessionPage() {
             }}
             onRecited={() => {
               noteEngineActivity();
-              void placeSpellingExercise({ data: { id: climb.id, exercise: 5 } })
-                .then(() => markSpelling({ data: { id: climb.id, outcome: "correct" } }))
+              void placeAlphabetExercise({ data: { id: climb.id, exercise: 5 } })
+                .then(() => markAlphabet({ data: { id: climb.id, outcome: "correct" } }))
                 .then((row) => setClimb(row))
                 .catch((err: unknown) => {
                   setError(err instanceof Error ? err.message : "Could not save that answer.");
@@ -585,7 +585,7 @@ function SessionPage() {
                 })
                 .catch((err: unknown) => {
                   setError(err instanceof Error ? err.message : "Could not save that answer.");
-                  setSpellingRound((round) => round + 1);
+                  setAlphabetRound((round) => round + 1);
                 })
                 .finally(() => setPendingAnswer(false));
             }}

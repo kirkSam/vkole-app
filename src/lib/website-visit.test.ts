@@ -73,7 +73,7 @@ describe("website visit", () => {
     for (const path of [
       "../components/phonemic-stage.tsx",
       "../components/sight-word-stage.tsx",
-      "../components/spelling-stage.tsx",
+      "../components/alphabet-stage.tsx",
       "../components/shell.tsx",
     ]) {
       assert.equal(source(path).includes("WebsiteVisit"), false, path);

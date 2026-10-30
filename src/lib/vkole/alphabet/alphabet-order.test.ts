@@ -15,7 +15,7 @@ import {
   runFromButton,
 } from "./items.ts";
 
-const stageFile = fileURLToPath(new URL("../../../components/spelling-stage.tsx", import.meta.url));
+const stageFile = fileURLToPath(new URL("../../../components/alphabet-stage.tsx", import.meta.url));
 const sessionFile = fileURLToPath(new URL("../../../routes/session.$id.tsx", import.meta.url));
 const cssFile = fileURLToPath(new URL("../../../styles.css", import.meta.url));
 
@@ -125,7 +125,7 @@ describe("alphabet exercise buttons", () => {
     assert.equal(stage.includes('"play"'), false);
     assert.equal(stage.includes("takeAnswer"), true);
     assert.equal(stage.includes("applyLetterAnswer"), true);
-    assert.equal(stage.includes("SPELLING_LISTEN_GAP_MS"), true);
+    assert.equal(stage.includes("ALPHABET_LISTEN_GAP_MS"), true);
     assert.equal(stage.includes('setPhase("listen")'), true);
     const begin = stage.slice(stage.indexOf("function beginExercise"), stage.indexOf("function takeAnswer"));
     assert.equal(begin.includes("clearTimeout(advanceRef.current)"), true);
@@ -134,7 +134,7 @@ describe("alphabet exercise buttons", () => {
     assert.equal(begin.includes("exerciseStartIndex(next)"), true);
     const take = stage.slice(stage.indexOf("function takeAnswer"), stage.indexOf("function takeTyped"));
     assert.equal(take.includes('setPhase("happy")'), true);
-    assert.equal(take.includes("SPELLING_HAPPY_FACE_MS"), true);
+    assert.equal(take.includes("ALPHABET_HAPPY_FACE_MS"), true);
     assert.equal(take.includes("applyLetterAnswer"), true);
     assert.equal(take.includes("onDone"), false);
     const score = stage.slice(
@@ -179,12 +179,12 @@ describe("alphabet exercise buttons", () => {
     assert.equal(jumpCss.includes("#d9f3d4"), true);
     assert.equal(jumpCss.includes("#d7e8fb"), true);
     assert.equal(jumpCss.includes(".is-current"), true);
-    assert.equal(session.includes("placeSpellingAfterSong"), false);
-    assert.equal(session.includes("placeSpellingExercise"), true);
+    assert.equal(session.includes("placeAlphabetAfterSong"), false);
+    assert.equal(session.includes("placeAlphabetExercise"), true);
     assert.equal(session.includes("exercise: 5"), true);
     assert.equal(session.includes("completeAlphabetExercise"), true);
     assert.equal(session.includes("exercise: 6"), true);
-    assert.equal(session.includes('key={`${climb.id}:${spellingRound}`}'), true);
+    assert.equal(session.includes('key={`${climb.id}:${alphabetRound}`}'), true);
     assert.equal(session.includes("standardStep}:${climb.correctAtLevel"), false);
   });
 });

@@ -3,16 +3,16 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
-  SPELLING_REPORT_LABEL,
-  SPELLING_REPORT_MAX_TOKENS,
-  SPELLING_REPORT_MODEL,
+  ALPHABET_REPORT_LABEL,
+  ALPHABET_REPORT_MAX_TOKENS,
+  ALPHABET_REPORT_MODEL,
   reportSentences,
-  savedSpellingReport,
-  spellingReportLines,
-  spellingStatsFromEvents,
-  templateSpellingReport,
-  writeSpellingReport,
-  type SpellingSessionStats,
+  savedAlphabetReport,
+  alphabetReportLines,
+  alphabetStatsFromEvents,
+  templateAlphabetReport,
+  writeAlphabetReport,
+  type AlphabetSessionStats,
 } from "./report.ts";
 
 const LABEL = "Report written by Space XSI (Grok)";
@@ -22,7 +22,7 @@ const emailFile = fileURLToPath(new URL("../../academic-email.ts", import.meta.u
 const climbsFile = fileURLToPath(new URL("../../climbs.ts", import.meta.url));
 const reportFile = fileURLToPath(new URL("./report.ts", import.meta.url));
 
-const stats: SpellingSessionStats = {
+const stats: AlphabetSessionStats = {
   practiced: ["A", "B", "C"],
   mastered: ["A", "B"],
   practice: ["C"],
@@ -35,25 +35,25 @@ const grokText = "This sitting practiced A, B, and C. A and B were mastered. C s
 
 describe("spelling parent report", () => {
   it("uses the label Report written by Space XSI (Grok) on the screen, in the email, and in the tests", () => {
-    assert.equal(SPELLING_REPORT_LABEL, LABEL);
+    assert.equal(ALPHABET_REPORT_LABEL, LABEL);
     assert.equal(LABEL, "Report written by Space XSI (Grok)");
     const session = readFileSync(sessionFile, "utf8");
     const home = readFileSync(homeFile, "utf8");
     const email = readFileSync(emailFile, "utf8");
-    assert.equal(session.includes("{SPELLING_REPORT_LABEL}"), true);
-    assert.equal(home.includes("{SPELLING_REPORT_LABEL}"), true);
-    assert.equal(email.includes("SPELLING_REPORT_LABEL"), true);
+    assert.equal(session.includes("{ALPHABET_REPORT_LABEL}"), true);
+    assert.equal(home.includes("{ALPHABET_REPORT_LABEL}"), true);
+    assert.equal(email.includes("ALPHABET_REPORT_LABEL"), true);
     assert.equal(email.includes('input.subject === "sp"'), true);
-    assert.equal(session.includes("showAsSpaceXsi(SPELLING_REPORT_LABEL)"), false);
-    assert.equal(home.includes("showAsSpaceXsi(SPELLING_REPORT_LABEL)"), false);
-    assert.deepEqual(spellingReportLines(grokText), [LABEL, grokText]);
-    assert.deepEqual(spellingReportLines("  "), []);
-    assert.equal(email.includes("spellingReportLines"), true);
-    assert.equal(email.includes("${spellingReport}"), true);
+    assert.equal(session.includes("showAsSpaceXsi(ALPHABET_REPORT_LABEL)"), false);
+    assert.equal(home.includes("showAsSpaceXsi(ALPHABET_REPORT_LABEL)"), false);
+    assert.deepEqual(alphabetReportLines(grokText), [LABEL, grokText]);
+    assert.deepEqual(alphabetReportLines("  "), []);
+    assert.equal(email.includes("alphabetReportLines"), true);
+    assert.equal(email.includes("${alphabetReport}"), true);
   });
 
   it("builds letter stats from this sitting only, and writes a 3 to 5 sentence template", () => {
-    const built = spellingStatsFromEvents([
+    const built = alphabetStatsFromEvents([
       { detail: JSON.stringify({ letter: "A", outcome: "correct" }), correct: true },
       { detail: JSON.stringify({ letter: "B", outcome: "timeout" }), correct: false },
       { detail: JSON.stringify({ letter: "B", outcome: "miss" }), correct: false },
@@ -67,17 +67,17 @@ describe("spelling parent report", () => {
     assert.equal(built.correct, 3);
     assert.equal(built.missed, 1);
     assert.equal(built.silent, 1);
-    const text = templateSpellingReport(built);
+    const text = templateAlphabetReport(built);
     const count = reportSentences(text).length;
     assert.ok(count >= 3 && count <= 5);
     assert.equal(text.includes("A, B, and C"), true);
     assert.equal(text.includes("A and C"), true);
     assert.equal(text.includes("B"), true);
     assert.equal(text.includes("@"), false);
-    const quiet = reportSentences(templateSpellingReport({ practiced: [], mastered: [], practice: [], correct: 0, missed: 0, silent: 0 }));
+    const quiet = reportSentences(templateAlphabetReport({ practiced: [], mastered: [], practice: [], correct: 0, missed: 0, silent: 0 }));
     assert.ok(quiet.length >= 3 && quiet.length <= 5);
-    assert.equal(savedSpellingReport("  Already written.  "), "Already written.");
-    assert.equal(savedSpellingReport("   "), "");
+    assert.equal(savedAlphabetReport("  Already written.  "), "Already written.");
+    assert.equal(savedAlphabetReport("   "), "");
   });
 
   it("calls Grok once with only this student's letter stats, and never logs the key", async () => {
@@ -103,7 +103,7 @@ describe("spelling parent report", () => {
     console.debug = record;
     const calls: { url: string; init: { headers: Record<string, string>; body: string } }[] = [];
     try {
-      const written = await writeSpellingReport({ ...stats, practiced: ["A", "B", "C", "Bea Other"] }, async (url, init) => {
+      const written = await writeAlphabetReport({ ...stats, practiced: ["A", "B", "C", "Bea Other"] }, async (url, init) => {
         calls.push({ url, init });
         return new Response(JSON.stringify({ choices: [{ message: { content: grokText } }] }), { status: 200 });
       });
@@ -119,13 +119,13 @@ describe("spelling parent report", () => {
         max_tokens: number;
         messages: { role: string; content: string }[];
       };
-      assert.equal(body.model, SPELLING_REPORT_MODEL);
+      assert.equal(body.model, ALPHABET_REPORT_MODEL);
       assert.equal(body.model, "grok-4-1-fast-non-reasoning");
-      assert.equal(body.max_tokens, SPELLING_REPORT_MAX_TOKENS);
+      assert.equal(body.max_tokens, ALPHABET_REPORT_MAX_TOKENS);
       assert.ok(body.max_tokens <= 200);
       assert.equal(body.messages.length, 2);
       const user = body.messages.find((message) => message.role === "user")?.content ?? "";
-      const payload = JSON.parse(user) as SpellingSessionStats;
+      const payload = JSON.parse(user) as AlphabetSessionStats;
       assert.deepEqual(payload, { practiced: ["A", "B", "C"], mastered: ["A", "B"], practice: ["C"], correct: 2, missed: 1, silent: 1 });
       const packed = JSON.stringify(body);
       assert.equal(packed.includes("Bea"), false);
@@ -138,8 +138,8 @@ describe("spelling parent report", () => {
       assert.equal(source.includes(LABEL), true);
       assert.equal(source.includes("console."), false);
       const climbs = readFileSync(climbsFile, "utf8");
-      const savedAt = climbs.indexOf("savedSpellingReport");
-      const writeAt = climbs.indexOf("await writeSpellingReport");
+      const savedAt = climbs.indexOf("savedAlphabetReport");
+      const writeAt = climbs.indexOf("await writeAlphabetReport");
       assert.ok(savedAt > 0);
       assert.ok(writeAt > savedAt);
       assert.equal(climbs.includes("if (saved)"), true);
@@ -159,7 +159,7 @@ describe("spelling parent report", () => {
     const previous = process.env.XAI_API_KEY;
     delete process.env.XAI_API_KEY;
     let calls = 0;
-    const missing = await writeSpellingReport(stats, async () => {
+    const missing = await writeAlphabetReport(stats, async () => {
       calls += 1;
       return new Response("{}", { status: 200 });
     });
@@ -167,20 +167,20 @@ describe("spelling parent report", () => {
     assert.equal(missing.source, "template");
     assert.ok(reportSentences(missing.text).length >= 3);
     process.env.XAI_API_KEY = "test-key-do-not-log";
-    const failed = await writeSpellingReport(stats, async () => new Response("no", { status: 503 }));
+    const failed = await writeAlphabetReport(stats, async () => new Response("no", { status: 503 }));
     assert.equal(failed.source, "template");
-    const thrown = await writeSpellingReport(stats, async () => {
+    const thrown = await writeAlphabetReport(stats, async () => {
       throw new Error("network");
     });
     assert.equal(thrown.source, "template");
     assert.equal(thrown.text.includes("test-key-do-not-log"), false);
-    const leaked = await writeSpellingReport(stats, async () => {
+    const leaked = await writeAlphabetReport(stats, async () => {
       return new Response(JSON.stringify({ choices: [{ message: { content: "The key is test-key-do-not-log. Then more. And more." } }] }), {
         status: 200,
       });
     });
     assert.equal(leaked.source, "template");
-    const short = await writeSpellingReport(stats, async () => {
+    const short = await writeAlphabetReport(stats, async () => {
       return new Response(JSON.stringify({ choices: [{ message: { content: "Only one sentence." } }] }), { status: 200 });
     });
     assert.equal(short.source, "template");

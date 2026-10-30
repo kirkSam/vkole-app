@@ -53,7 +53,7 @@ describe("engine picker", () => {
     for (const path of [
       "../components/phonemic-stage.tsx",
       "../components/sight-word-stage.tsx",
-      "../components/spelling-stage.tsx",
+      "../components/alphabet-stage.tsx",
     ]) {
       assert.equal(source(path).includes("Other engines"), false, path);
       assert.equal(source(path).includes("openEnginePicker"), false, path);

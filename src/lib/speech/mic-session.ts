@@ -6,14 +6,14 @@
  * The 6 second countdown and the mic close share one start and one deadline,
  * measured with performance.now() from onaudiostart. A restart for no-speech,
  * aborted, or network stays inside that deadline and does not move it.
- * Copy this file with the spelling stage handler. It does not import the app.
+ * Copy this file with the alphabet stage handler. It does not import the app.
  */
 
 /** How long the microphone stays open after audio actually starts. */
 export const MIC_WINDOW_MS = 6_000;
 
 /** The visible countdown is this same window. It reaches 0 when the mic closes. */
-export const SPELLING_COUNTDOWN_MS = MIC_WINDOW_MS;
+export const ALPHABET_COUNTDOWN_MS = MIC_WINDOW_MS;
 
 export type MicHear = "correct" | "miss" | "wait" | "again";
 

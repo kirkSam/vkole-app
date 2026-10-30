@@ -9,7 +9,7 @@ import { TRIAL_MS } from "@/lib/academic-email";
 import { dealQuestion } from "@/lib/question-history";
 import { practicePromptText, rememberPrompt } from "@/lib/next-sheet";
 import { isSubject, type SubjectId } from "@/lib/climb-rules";
-import { cardFromAccount as spCardFromAccount, letterView } from "@/lib/vkole/spelling/items";
+import { cardFromAccount as spCardFromAccount, letterView } from "@/lib/vkole/alphabet/items";
 import { cardFromAccount as paCardFromAccount, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
 import { cardFromAccount, sightPrompt } from "@/lib/vkole/sight-words/words";
 import { localDayKey, PACIFIC, projectTodayClock, type ClockProjection } from "@/lib/day-clock-math";
@@ -338,8 +338,8 @@ export const enterEngine = createServerFn({ method: "POST" })
       if (opening.resumeSite) siteLevel = facts.site;
       id = crypto.randomUUID();
       const sight = data.subject === "sw" ? cardFromAccount(siteLevel ?? { grade }, grade) : null;
-      const spellingCard = data.subject === "sp" ? spCardFromAccount(siteLevel ?? { grade }, grade) : null;
-      const spellingView =
+      const alphabetCard = data.subject === "sp" ? spCardFromAccount(siteLevel ?? { grade }, grade) : null;
+      const alphabetView =
         data.subject === "sp"
           ? letterView({ index: siteLevel?.index ?? 0, silence: siteLevel?.streak ?? 0, wrong: siteLevel?.missStreak ?? 0 })
           : null;
@@ -351,9 +351,9 @@ export const enterEngine = createServerFn({ method: "POST" })
         grade = sight.grade;
         step = sight.index;
       }
-      if (spellingCard && spellingView) {
-        grade = Math.min(12, Math.max(1, Math.round(spellingCard.grade) || grade));
-        step = spellingView.index;
+      if (alphabetCard && alphabetView) {
+        grade = Math.min(12, Math.max(1, Math.round(alphabetCard.grade) || grade));
+        step = alphabetView.index;
       }
       if (phonemic) {
         grade = Math.min(12, Math.max(1, Math.round(phonemic.grade) || grade));
@@ -361,22 +361,22 @@ export const enterEngine = createServerFn({ method: "POST" })
       }
       const item = sight
         ? sightPrompt(sight.band, sight.index)
-        : spellingView
+        : alphabetView
           ? {
-              id: `sp:${spellingView.band}:${spellingView.id}:s${spellingView.silence}:w${spellingView.wrong}`,
-              stem: spellingView.show,
-              answer: spellingView.answer,
-              aliases: spellingView.also,
-              standard: spellingView.band,
-              note: spellingView.name,
+              id: `sp:${alphabetView.band}:${alphabetView.id}:s${alphabetView.silence}:w${alphabetView.wrong}`,
+              stem: alphabetView.show,
+              answer: alphabetView.answer,
+              aliases: alphabetView.also,
+              standard: alphabetView.band,
+              note: alphabetView.name,
             }
           : phonemic
             ? paPrompt(phonemic.band, phonemic.index, grade)
             : await dealQuestion(sql, scopeId, data.firstName.trim(), data.subject, grade, step);
       const practice = sight
         ? practicePromptText("sw", { word: item.stem })
-        : spellingView
-          ? practicePromptText("sp", { letter: spellingView.letter })
+        : alphabetView
+          ? practicePromptText("sp", { letter: alphabetView.letter })
           : phonemic
             ? practicePromptText("pa", { say: item.stem })
             : "";
@@ -409,7 +409,7 @@ export const enterEngine = createServerFn({ method: "POST" })
           ${id}, ${scopeId}, ${data.firstName.trim()}, ${data.subject}, ${grade}, ${grade}, ${age},
           ${grade}, ${item.standard}, ${item.note}, ${item.stem}, ${registrationEmail || null},
           ${item.answer}, ${JSON.stringify(item.aliases)}, ${item.note}, ${item.id},
-          ${spellingView?.silence ?? 0}, ${spellingView?.wrong ?? 0}
+          ${alphabetView?.silence ?? 0}, ${alphabetView?.wrong ?? 0}
         )
       `;
       await sql`

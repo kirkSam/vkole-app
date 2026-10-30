@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { academicLetter, trialState } from "../academic-email.ts";
-import lists from "../vkole/spelling/data.json" with { type: "json" };
+import lists from "../vkole/alphabet/data.json" with { type: "json" };
 import {
   LETTER_ALTERNATIVE_LIMIT,
   LETTER_CONFIDENCE_FLOOR,
@@ -251,7 +251,7 @@ describe("alphabet miss log wiring", () => {
     assert.equal(listFn.includes("studentId"), false);
     assert.equal(listFn.includes("child_name"), false);
     assert.equal(climbs.includes("recordAlphabetAttempt"), true);
-    const stage = readFileSync(new URL("../../components/spelling-stage.tsx", import.meta.url), "utf8");
+    const stage = readFileSync(new URL("../../components/alphabet-stage.tsx", import.meta.url), "utf8");
     assert.equal(stage.includes("LETTER_ALTERNATIVE_LIMIT"), true);
     assert.equal(stage.includes("onAttemptRef"), true);
     const home = readFileSync(new URL("../../routes/index.tsx", import.meta.url), "utf8");

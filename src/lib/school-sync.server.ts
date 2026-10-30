@@ -26,8 +26,8 @@ import { readSchoolAccount, SchoolCallError, writeSchoolAccount } from "@/lib/sc
 import { readAccountGrant, readSchoolMirror, saveAccountGrant, saveActiveStudentIndex, saveSchoolMirror } from "@/lib/school-mirror.server";
 import { masteryFromDetails, richerMastery } from "@/lib/vkole-singapore-report";
 import { isSightBand } from "@/lib/vkole/constants";
-import { spAccountLevel } from "@/lib/vkole/spelling/level";
-import { isSpBand, letterView, resumeAlphabetPlace } from "@/lib/vkole/spelling/items";
+import { spAccountLevel } from "@/lib/vkole/alphabet/level";
+import { isSpBand, letterView, resumeAlphabetPlace } from "@/lib/vkole/alphabet/items";
 import { ensureAlphabetCompletedColumn } from "@/lib/climbs";
 import { paAccountLevel } from "@/lib/vkole/phonemic-awareness/level";
 import { cardFromAccount as paCardFromAccount, migratePaBand } from "@/lib/vkole/phonemic-awareness/items";

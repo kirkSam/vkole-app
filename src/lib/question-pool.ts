@@ -7,7 +7,7 @@ import { type Cell } from "./pool-shared.ts";
 import { sgCell } from "./vkole-singapore-pool.ts";
 import { ssCell } from "./pool-ss.ts";
 import { BAND_LABELS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
-import { bandMeta as spellingBandMeta, spellingPrompt, startBand as startSpellingBand } from "./vkole/spelling/items.ts";
+import { bandMeta as alphabetBandMeta, alphabetPrompt, startBand as startAlphabetBand } from "./vkole/alphabet/items.ts";
 import { bandMeta as phonemicBandMeta, itemAt, startBand as startPhonemicBand } from "./vkole/phonemic-awareness/items.ts";
 import { bandWords } from "./vkole/sight-words/words.ts";
 
@@ -64,12 +64,12 @@ function swCell(grade: number): Cell {
 }
 
 function spCell(grade: number): Cell {
-  const band = startSpellingBand();
-  const meta = spellingBandMeta(band);
+  const band = startAlphabetBand();
+  const meta = alphabetBandMeta(band);
   return {
     count: Math.max(1, meta.count),
     build(index) {
-      const item = spellingPrompt(band, index, grade);
+      const item = alphabetPrompt(band, index, grade);
       return { stem: item.stem, answer: item.answer, aliases: item.aliases, standard: item.standard, note: item.note };
     },
   };

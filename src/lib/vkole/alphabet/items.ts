@@ -1,43 +1,43 @@
 import lists from "./data.json" with { type: "json" };
 import { spokenFormsForLetter } from "./match.ts";
 
-export const SPELLING_ENGINE = "sp" as const;
+export const ALPHABET_ENGINE = "sp" as const;
 
-export const SPELLING_LETTER_MS = lists.letterMs;
-export const SPELLING_SONG_MS = lists.songMs;
-export const SPELLING_HAPPY_FACE_MS = lists.answerFlow.happyFaceMs;
-export const SPELLING_RESPONSE_MS = lists.answerFlow.responseMs;
-export const SPELLING_MAX_CHANGES_PER_SECOND = lists.maxChangesPerSecond;
+export const ALPHABET_LETTER_MS = lists.letterMs;
+export const ALPHABET_SONG_MS = lists.songMs;
+export const ALPHABET_HAPPY_FACE_MS = lists.answerFlow.happyFaceMs;
+export const ALPHABET_RESPONSE_MS = lists.answerFlow.responseMs;
+export const ALPHABET_MAX_CHANGES_PER_SECOND = lists.maxChangesPerSecond;
 
 /** The opening waits this long, then starts on its own if START was not pressed. */
-export const SPELLING_START_MS = 30_000;
+export const ALPHABET_START_MS = 30_000;
 
 /**
  * Chrome ends a SpeechRecognition session often, and start() in that same turn throws.
  * A short pause lets the next listen begin on the same letter.
  */
-export const SPELLING_RECOGNIZER_RESTART_MS = 250;
+export const ALPHABET_RECOGNIZER_RESTART_MS = 250;
 
 /**
  * The microphone stays closed for this long after the prompt finishes.
  * Opening in the same turn as speech end hears the question itself.
  */
-export const SPELLING_LISTEN_GAP_MS = 400;
+export const ALPHABET_LISTEN_GAP_MS = 400;
 
-export const SPELLING_NOTE =
+export const ALPHABET_NOTE =
   "Opening the alphabet plays exercises 1 through 6 in order. Exercise 1 is the song. Exercise 2 shows a capital letter and waits for you to say the next one. Exercise 3 shows a small letter and waits. Exercise 4 asks with no letter, then shows both after you answer. Exercise 5 asks you to say the alphabet. At Z, the app says Good job! Exercise 6 shows each capital letter to type, then each small letter. After lowercase z, the app says Good job! The six buttons start at that exercise and continue through exercise 6. The microphone opens after the question and does not save the sound.";
 
 /** Whole seconds left before the alphabet starts itself. 0 means start now. */
-export function spellingStartSecondsLeft(elapsedMs: number): number {
+export function alphabetStartSecondsLeft(elapsedMs: number): number {
   const elapsed = Number.isFinite(elapsedMs) && elapsedMs > 0 ? elapsedMs : 0;
-  const left = SPELLING_START_MS - elapsed;
+  const left = ALPHABET_START_MS - elapsed;
   if (left <= 0) return 0;
   return Math.ceil(left / 1000);
 }
 
-export const SPELLING_BANDS = ["LK", "LS", "CVC", "DOLCH", "FRY"] as const;
+export const ALPHABET_BANDS = ["LK", "LS", "CVC", "DOLCH", "FRY"] as const;
 
-export type SpBand = (typeof SPELLING_BANDS)[number];
+export type SpBand = (typeof ALPHABET_BANDS)[number];
 
 export type SpItem = {
   id: string;
@@ -82,7 +82,7 @@ const BANDS = lists.bands as RawBand[];
 const NO_ALSO: string[] = [];
 
 export function isSpBand(value: string | undefined | null): value is SpBand {
-  return !!value && (SPELLING_BANDS as readonly string[]).includes(value);
+  return !!value && (ALPHABET_BANDS as readonly string[]).includes(value);
 }
 
 export function alphabet(): readonly string[] {
@@ -94,7 +94,7 @@ export function letterColors(): readonly { letter: string; background: string }[
 }
 
 export function reviewChangesPerSecond(): number {
-  return 1000 / SPELLING_LETTER_MS;
+  return 1000 / ALPHABET_LETTER_MS;
 }
 
 /**
@@ -105,11 +105,11 @@ export function reviewChangesPerSecond(): number {
 export function letterAtSongTime(ms: number): { index: number; letter: string; done: boolean } {
   const letters = alphabet();
   const last = letters.length - 1;
-  if (Number.isFinite(ms) && ms >= SPELLING_SONG_MS) {
+  if (Number.isFinite(ms) && ms >= ALPHABET_SONG_MS) {
     return { index: last, letter: letters[last] ?? "Z", done: true };
   }
   const elapsed = Number.isFinite(ms) && ms > 0 ? ms : 0;
-  const index = Math.min(last, Math.floor(elapsed / SPELLING_LETTER_MS));
+  const index = Math.min(last, Math.floor(elapsed / ALPHABET_LETTER_MS));
   return { index, letter: letters[index] ?? "A", done: false };
 }
 
@@ -123,25 +123,25 @@ export function micListensDuring(phase: string): boolean {
  * Waiting on the speech queue for it never opens the microphone,
  * which is how a card with no letter on screen stays stuck.
  */
-export function spellingPromptStartsListen(say: string): "now" | "after-speech" {
+export function alphabetPromptStartsListen(say: string): "now" | "after-speech" {
   return say.trim() ? "after-speech" : "now";
 }
 
 /** True only after the prompt has finished and the listen gap has elapsed. */
 export function micOpensAfterPrompt(speechEnded: boolean, sinceEndMs: number): boolean {
   const elapsed = Number.isFinite(sinceEndMs) ? sinceEndMs : 0;
-  return speechEnded && elapsed >= SPELLING_LISTEN_GAP_MS;
+  return speechEnded && elapsed >= ALPHABET_LISTEN_GAP_MS;
 }
 
 /**
  * Chrome drops a prompt when cancel() and the next speak overlap, which is the handoff
  * onto the first "What letter comes next?" card. An end that fast means the line did not play.
  */
-export const SPELLING_PROMPT_MIN_MS = 200;
+export const ALPHABET_PROMPT_MIN_MS = 200;
 
 export function promptPlayedLongEnough(elapsedMs: number): boolean {
   const elapsed = Number.isFinite(elapsedMs) ? elapsedMs : 0;
-  return elapsed >= SPELLING_PROMPT_MIN_MS;
+  return elapsed >= ALPHABET_PROMPT_MIN_MS;
 }
 
 /**
@@ -181,7 +181,7 @@ export function alphabetLetterShowing(input: {
  */
 export function earlyHandoffMiss(elapsedMs: number, judgment: "correct" | "miss" | "wait"): boolean {
   const elapsed = Number.isFinite(elapsedMs) ? elapsedMs : 0;
-  return judgment === "miss" && elapsed < SPELLING_LISTEN_GAP_MS;
+  return judgment === "miss" && elapsed < ALPHABET_LISTEN_GAP_MS;
 }
 
 export function bandMeta(band: SpBand): { name: string; label: string; count: number; kinds: string[]; note: string } {
@@ -220,7 +220,7 @@ function bandItems(band: SpBand): RawItem[] {
 
 /** Bands with items, in file order. Empty later bands stay in the file and are skipped. */
 export function filledBands(): SpBand[] {
-  return SPELLING_BANDS.filter((band) => bandMeta(band).count > 0);
+  return ALPHABET_BANDS.filter((band) => bandMeta(band).count > 0);
 }
 
 export function itemAt(band: SpBand, index: number): SpItem & { index: number } {
@@ -418,7 +418,7 @@ export function songSpokenLines(): string[] {
   const letters = alphabet();
   const lines = [letters[0] ?? "A"];
   for (let ticks = 1; ticks < letters.length + 2; ticks += 1) {
-    const frame = letterAtSongTime(ticks * SPELLING_LETTER_MS);
+    const frame = letterAtSongTime(ticks * ALPHABET_LETTER_MS);
     if (frame.done) break;
     lines.push(frame.letter);
   }
@@ -684,7 +684,7 @@ export function letterMoveNote(before: LetterProgress, outcome: LetterOutcome, a
   return "Not yet.";
 }
 
-export function spellingPrompt(band: SpBand, index: number, grade = 1): {
+export function alphabetPrompt(band: SpBand, index: number, grade = 1): {
   id: string;
   stem: string;
   answer: string;

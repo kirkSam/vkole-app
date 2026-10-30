@@ -148,7 +148,7 @@ describe("engine activity keeps a sitting open", () => {
 
   it("wires every voice engine and the sitting page to the idle clock", () => {
     const session = source("../routes/session.$id.tsx");
-    const spelling = source("../components/spelling-stage.tsx");
+    const spelling = source("../components/alphabet-stage.tsx");
     const phonemic = source("../components/phonemic-stage.tsx");
     const sight = source("../components/sight-word-stage.tsx");
     const middleware = source("./school-middleware.ts");
