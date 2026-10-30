@@ -21,7 +21,9 @@ function Confirmed() {
     <main className="flex min-h-svh flex-col items-center justify-center gap-4 bg-[#05070d] px-6 text-center text-[#f4f1ea]">
       <h1 className="font-display text-2xl font-semibold">Email confirmed</h1>
       <p className="max-w-md text-[#cfc6b8]">
-        Your email is confirmed and your free week has started.
+        Your email is confirmed and your free week has started. To keep working on a laptop click the Open the
+        Engines button below. To continue on the phone, tap on one of the engines and sign-in using the information
+        with which you created the account.
       </p>
       <a
         href={ENGINE_PICKER_ROUTE}
