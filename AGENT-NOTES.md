@@ -60,6 +60,33 @@ table below and the "Known history" note).
   `src/lib/academic-email.ts`, converts a sitting that still has
   `"VKOLE/Spelling"` stored to show `"VKOLE/Alphabet"`) — left untouched.
 
+## Website-side (School Site) findings and decisions
+
+A read-only scan of the website (2026-10-30) found no visitor-facing
+"Spelling" labels for this engine — pages, menus, report emails, and
+practice PDFs all correctly say "VKOLE/Alphabet." Five internal findings,
+decided as follows:
+
+1. **Fix.** The website currently matches any engine name *containing*
+   "spelling" and treats it as Alphabet. Once a real Spelling engine exists,
+   that loose match would mislabel its content as Alphabet too. Fixing to
+   match by engine code first, exact old name second.
+2. **Fix.** Alphabet currently borrows old phonics-level names (e.g. "Short
+   vowels · 1st") on the roster/report/practice sheet instead of its own
+   letter-level labels. Those names go back to the future Spelling engine.
+3. No separate action — old saved sittings still showing "VKOLE/Spelling
+   ZPD" keep displaying correctly once #1 is fixed; this isn't a thing to
+   fix on its own.
+4. **Left alone, by design.** Each child's saved Alphabet progress is
+   stored on the website under the data name `spelling`. This matches the
+   app side exactly: the engine code `sp` and the `spelling_report` database
+   column here were also left unchanged (see above) — both sides
+   independently reached the same call. The new Spelling engine gets its
+   own data name; this one doesn't move.
+5. **Fix** (after 1 and 2) — website-side internal code identifiers like
+   `SPELLING_ENGINE = "sp"`, cosmetic-only, same category as the app-side
+   rename already done.
+
 ## Resolved: the empty LS/CVC/DOLCH/FRY slots
 
 The `sp`/Alphabet engine's own data (`src/lib/vkole/alphabet/items.ts`,
