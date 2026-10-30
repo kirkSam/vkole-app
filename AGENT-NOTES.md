@@ -87,6 +87,18 @@ decided as follows:
    `SPELLING_ENGINE = "sp"`, cosmetic-only, same category as the app-side
    rename already done.
 
+**Merged and verified live, 2026-10-30.** School Site's fix shipped as
+[online-school #81](https://github.com/kirkSam/online-school/pull/81),
+merged as `7e3541d`. Claude reviewed the diff, independently re-ran the
+relevant tests (61/61 passed) and confirmed zero new typecheck errors
+before approving. After deploy, Sam — a real child with Alphabet history
+from before this fix (173 reached, 127 missed) — was checked directly on
+the live site and now shows `Working: Alphabet · say the letter · G`
+instead of the old phonics-style label. This was the exact case the
+original bug affected, confirmed on real pre-existing data, not just a
+fresh account. This whole naming mix-up is now fully closed on both the
+app and the website.
+
 ## Resolved: the empty LS/CVC/DOLCH/FRY slots
 
 The `sp`/Alphabet engine's own data (`src/lib/vkole/alphabet/items.ts`,
