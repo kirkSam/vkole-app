@@ -45,7 +45,7 @@ table below and the "Known history" note).
 | `gen` | general | General | Science, basic numeracy, civics | |
 | `sg` | singapore | Singapore Math | Singapore bar-model method, grades 1–12 | No AI used |
 | `sw` | sight-words | Sight Words | 16 word-recognition bands | No AI used |
-| `sp` | **alphabet** (folder: `src/lib/vkole/alphabet/`) | Alphabet (was "Spelling" in older sittings) | Alphabet: song, letter recognition, recall, recitation, typing | AI used for one end-of-session parent summary only. Still has empty `LS`/`CVC`/`DOLCH`/`FRY` content slots originally meant for real spelling words — see below. |
+| `sp` | **alphabet** (folder: `src/lib/vkole/alphabet/`) | Alphabet (was "Spelling" in older sittings) | Alphabet: song, letter recognition, recall, recitation, typing | AI used for one end-of-session parent summary only. Empty `LS`/`CVC`/`DOLCH`/`FRY` content slots are staying empty/unused here — decided 2026-10-30, see below. |
 | `pa` | phonemic-awareness | Phonemic Awareness | 88 bands of sound-awareness skill | No AI used |
 
 ## Known history
@@ -60,17 +60,20 @@ table below and the "Known history" note).
   `src/lib/academic-email.ts`, converts a sitting that still has
   `"VKOLE/Spelling"` stored to show `"VKOLE/Alphabet"`) — left untouched.
 
-## Open item worth a decision
+## Resolved: the empty LS/CVC/DOLCH/FRY slots
 
 The `sp`/Alphabet engine's own data (`src/lib/vkole/alphabet/items.ts`,
-`ALPHABET_BANDS`) still lists three content bands — `LS` (letter sounds),
-`CVC` (three-letter words), `DOLCH`, `FRY` (sight-word-style word lists) —
-with zero items in any of them. They read like they were meant to grow this
-same engine from "alphabet" into "real spelling," before the plan changed to
-a separate new Spelling engine. Worth deciding, before the new Spelling
-engine is built, whether those empty slots move into the new engine or get
-removed from Alphabet — otherwise there's a second, smaller version of
-today's confusion waiting inside the Alphabet engine's own code.
+`ALPHABET_BANDS`) lists three content bands — `LS` (letter sounds), `CVC`
+(three-letter words), `DOLCH`, `FRY` (sight-word-style word lists) — with
+zero items in any of them, left over from before the plan changed to a
+separate new Spelling engine.
+
+**Decision (App Builder, 2026-10-30):** leave them empty inside Alphabet —
+do not move them into the new Spelling engine as placeholders. The new
+engine starts fresh with its own content and its own engine code (never
+`sp`). These four band ids inside Alphabet are therefore permanently unused
+scaffolding; a future cleanup pass could remove them from `ALPHABET_BANDS`
+entirely, but nothing depends on that happening soon.
 
 ## Adding a new engine
 
