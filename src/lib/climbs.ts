@@ -128,9 +128,7 @@ async function accountState(sql: Sql, userId: string) {
     });
     const startedAt = decision.fullAccess
       ? new Date().toISOString()
-      : decision.confirmEmail
-        ? (mirror?.freeWeekStart ?? new Date().toISOString())
-        : (mirror?.freeWeekStart ?? new Date(0).toISOString());
+      : (mirror?.freeWeekStart ?? new Date(0).toISOString());
     const trial = trialState(startedAt);
     const office = {
       officePurchased: mirror?.officePurchased === true,

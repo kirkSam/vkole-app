@@ -69,7 +69,27 @@ describe("two students and the website level shape", () => {
       freeWeekStart: null,
       emailConfirmed: false,
     });
-    assert.equal(unconfirmed.confirmEmail, true);
+    assert.equal(unconfirmed.confirmEmail, false);
+    const websiteLock = schoolAccessDecision({
+      email: "ada@family.test",
+      access: "closed",
+      freeWeekStart: "2026-10-24T06:17:15.245Z",
+      lockReason: "confirm-email",
+      emailConfirmed: false,
+      now: Date.parse("2026-10-24T06:17:20.000Z"),
+    });
+    assert.equal(websiteLock.confirmEmail, true);
+    assert.equal(websiteLock.showTrialPage, false);
+    const confirmed = schoolAccessDecision({
+      email: "ada@family.test",
+      access: "open",
+      freeWeekStart: "2026-10-24T06:17:22.050Z",
+      lockReason: "",
+      emailConfirmed: true,
+      now: Date.parse("2026-10-24T06:17:30.000Z"),
+    });
+    assert.equal(confirmed.confirmEmail, false);
+    assert.equal(confirmed.showTrialPage, false);
     const payment = schoolAccessDecision({
       email: "ada@family.test",
       access: "closed",
@@ -90,6 +110,12 @@ describe("two students and the website level shape", () => {
       clearsLocalProgress({ access: "open", studentName: "", level: {}, lockReason: "confirm-email" }),
       false,
     );
+    const climbs = readFileSync(new URL("./climbs.ts", import.meta.url), "utf8");
+    assert.equal(climbs.includes("decision.confirmEmail"), true);
+    assert.equal(climbs.includes("mirror?.freeWeekStart ?? new Date().toISOString()"), false);
+    const auth = readFileSync(new URL("./school-auth.ts", import.meta.url), "utf8");
+    const signIn = auth.slice(auth.indexOf("export const schoolSignIn"), auth.indexOf("export const resendSchoolConfirmation"));
+    assert.equal(signIn.includes("resend"), false);
   });
 
   it("reads the published working and earned objects", () => {
