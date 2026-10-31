@@ -4,7 +4,7 @@ import { beginSharedTrial } from "@/lib/climbs";
 import { PAY_MONTH_URL, PAY_YEAR_URL } from "@/lib/pre-account";
 
 const LEAD =
-  "What if you and your child could access a \"State of the Art\" learning engine, VKOLE/ZPD - the Space XSI Integrated Learning Engine? It is developed in conjunction with Space XSI and a team of educators dedicated to bringing applied Superintelligence to parents at an affordable cost. Additionally, what if your educational agent stored your child's levels, and gave you control of your child's levels to send you a private email report of your child's progress and achievements?";
+  "What if you and your child could access a \"State of the Art\" learning engine, VKOLE/ZPD - the Space XAI Integrated Learning Engine developed in coordination with Anthropic's Claude? Guided by a team of classroom proven educators, Anthropic's Claude and Space XAI's Grok work to bring applied super-intelligence to parents at an affordable cost. Additionally, what if your educational agent stored your child's levels, and gave you control of your child's levels to send you a private email report of your child's progress and achievements?";
 const CAN = "YOU CAN.";
 const PRICE = "FREE for a week, $79.00 USD + tax per YEAR or $9.00 USD + tax per month. 2 students per account.";
 const SPOKEN = `${LEAD} ${CAN} ${PRICE}`;
