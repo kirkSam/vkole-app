@@ -153,6 +153,12 @@ export function TeletypeIntro({
           $9.00 USD + tax a month · 2 students per account · Stripe Secure Pay
         </a>
         <p className="mt-3 text-sm text-[#cfc6b8]">Pay on the school website. This app does not charge the card.</p>
+        <p className="mt-4 text-sm text-[#cfc6b8]">
+          This phone app is best for practice on the go. The VKOLE Learning Engines on the Do the Impossible Alpha
+          Academy website are best for practice at home, or anywhere there is a laptop. You get both platforms with
+          one account — register once, and your 2 students can use either. Your student's progress is private and
+          protected: only your own sign-in is ever shared between the app and the website.
+        </p>
         <div className="mt-4 flex items-center justify-between">
           <button
             type="button"

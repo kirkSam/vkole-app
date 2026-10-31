@@ -31,10 +31,10 @@ export function ParentLogin({
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
-  // CLAUDE: true once a LOCAL sign-up/sign-in succeeds but needs email
-  // confirmation first (no session exists yet -- see `pendingConfirmation`
-  // on `SchoolAuthResult`). Shows a plain "check your email" screen instead
-  // of entering the app.
+  // CLAUDE: true once sign-up/sign-in succeeds but the website account
+  // still needs email confirmation (no session exists yet -- see
+  // `pendingConfirmation` on `SchoolAuthResult`). Shows a plain "check your
+  // email" screen instead of entering the app.
   const [confirmPending, setConfirmPending] = useState(false);
 
   useEffect(() => {
@@ -157,11 +157,11 @@ export function ParentLogin({
     return <SchoolAccountScreen message={error} onRetry={() => setError("")} />;
   }
 
-  // CLAUDE: a LOCAL account (new sign-up, or sign-in before confirming) has
-  // no session yet, so there's nothing to enter -- just the plain "check
-  // your email" message. Unlike the website's `ConfirmEmailLock`, this has
-  // no resend button: there's no signed-in session yet to attach that call
-  // to. (A resend option can be added later if needed.)
+  // CLAUDE: a new sign-up, or a sign-in before confirming, has no session
+  // yet, so there's nothing to enter -- just the plain "check your email"
+  // message. Unlike the website's `ConfirmEmailLock`, this has no resend
+  // button: there's no signed-in session yet to attach that call to. (A
+  // resend option can be added later if needed.)
   if (confirmPending) {
     return (
       <Shell onSplash={onSplash}>
@@ -177,6 +177,12 @@ export function ParentLogin({
       <p className="text-sm font-semibold tracking-wide text-accent uppercase">Parent</p>
       <h1 className="mt-1 font-display text-4xl text-ink">{title}</h1>
       <p className="mt-3 max-w-prose text-muted">{mode === "in" || mode === "up" ? LEAD : "A code is emailed only to the address on the account."}</p>
+      {mode === "in" || mode === "up" ? (
+        <p className="mt-2 max-w-prose text-sm text-muted">
+          You get both platforms with one account. Your student's progress is private and protected — not shared
+          between the app and the website.
+        </p>
+      ) : null}
       <form onSubmit={submit} className="mt-6 space-y-3 rounded-2xl border border-line bg-surface p-5">
         {mode === "reset" ? (
           <p className="text-sm text-ink">
