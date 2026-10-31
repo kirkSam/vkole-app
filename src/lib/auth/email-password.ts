@@ -1,13 +1,13 @@
 /**
- * Local email/password sign-in is ON.
+ * Local email/password sign-in is OFF.
  *
- * CLAUDE: flipped at Sam's explicit direction (with the App Builder's
- * agreement) as step one of making this app keep its own parent accounts,
- * instead of the school website being the only password check. New parents
- * register locally from now on (see school-auth.ts); an email that already
- * has a LOCAL account signs in locally too. An email with no local account
- * still signs in through the website exactly as before -- existing parents
- * are unaffected until there's a deliberate migration later.
+ * CLAUDE: flipped back at Sam's explicit direction, reversing the brief
+ * local-account experiment -- the app and the school website now share one
+ * parent account book (the website's), so a parent can create an account or
+ * sign in from either place. See school-auth.ts: schoolSignUp/schoolSignIn
+ * always call the website now. Only the parent's login is shared; student
+ * levels/progress are never pulled or pushed between the two systems (see
+ * school-sync.server.ts's withSchoolAccount).
  * Student clock passwords use `better-auth/crypto` directly and do not need this flag.
  */
-export const emailAndPasswordEnabled = true;
+export const emailAndPasswordEnabled = false;

@@ -566,38 +566,17 @@ export async function runWithSchoolBook<T>(opts: {
 export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>, opts?: { engineActive?: boolean }): Promise<T> {
   const { separateSignIn } = await import("@/lib/school-session.server");
   const kind = await separateSignIn(userId);
-  // CLAUDE: "local" (a genuine new-style app-only account) runs the handler
-  // directly, same as "dev" -- it never calls the website at all, per the
-  // App Builder's explicit direction: "A new local account opens the
-  // engines and never calls the website." Its progress lives entirely in
-  // this app's own tables (`accountState()` in climbs.ts already reads the
-  // local `app_trials`/`climbs` tables whenever the id isn't email-shaped,
-  // which is exactly what a local account's id is -- no change needed there).
-  if (kind === "dev" || kind === "local") return run();
+  // CLAUDE: changed at Sam's explicit direction -- the app and the school
+  // website now share one parent account book, but never share a student's
+  // level/progress. "school" (an account whose identity comes from the
+  // website) now runs the handler directly, same as "dev"/"local" -- it
+  // never pulls or pushes progress to the website. This is the one change
+  // that actually guarantees "only the login is shared, nothing about a
+  // student is" -- every account's progress now lives solely in this app's
+  // own tables, regardless of where its identity came from.
+  if (kind === "dev" || kind === "local" || kind === "school") return run();
   if (kind === "legacy") throw new Error(SCHOOL_LEGACY_MESSAGE);
-  if (kind !== "school") throw new Error(SCHOOL_SEPARATE_MESSAGE);
-  const { getSql } = await import("@/lib/db");
-  const sql = await getSql();
-  const engineActive = opts?.engineActive === true;
-  return runWithSchoolBook({
-    engineActive,
-    pull: () => pullSchoolAccount(sql, userId, { engineActive }),
-    run,
-    push: () => pushSchoolAccount(sql, userId),
-    endSession: (message) => endWebsiteSession(sql, userId, message),
-    onAccountGone: async () => {
-      try {
-        const { expireLocalSignInCookies, forgetLocalAccount } = await import("./account-purge.server.ts");
-        const account = accountIdOf(userId);
-        await forgetLocalAccount(sql, account);
-        if (account !== userId) await forgetLocalAccount(sql, userId);
-        await expireLocalSignInCookies();
-      } catch {
-        throw new Error(SCHOOL_OFFLINE_MESSAGE);
-      }
-      throw new Error(SCHOOL_ACCOUNT_GONE_MESSAGE);
-    },
-  });
+  throw new Error(SCHOOL_SEPARATE_MESSAGE);
 }
 
 async function endWebsiteSession(sql: Sql, userId: string, website: string): Promise<Error> {

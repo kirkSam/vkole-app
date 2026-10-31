@@ -53,72 +53,51 @@ function failed(reason: Extract<SchoolAuthResult, { ok: false }>["reason"], mess
   return { ok: false, reason, message };
 }
 
-// CLAUDE: rewritten at Sam's and the App Builder's explicit direction. A new
-// parent now registers a LOCAL account (this app's own Better Auth
-// email/password, not the school website) -- "A new local account opens the
-// engines and never calls the website." The website path this used to call
-// (`registerSchoolAccount`) is untouched elsewhere in this file/repo; it's
-// simply no longer what sign-UP does. `requireEmailVerification: true`
-// (auth/server.ts) means no usable session exists until the parent confirms
-// by email, so this always returns `pendingConfirmation: true` on success.
+// CLAUDE: reverted at Sam's explicit direction -- the app and the school
+// website now share one parent account book (the website's), so sign-up
+// always registers through the website (`registerSchoolAccount`,
+// school-account.server.ts), the same way schoolSignIn's website branch
+// already does for sign-in. Only the parent's login is shared this way --
+// no student name/level/progress is sent or received here beyond the
+// optional `studentName` field the website's own register call already
+// supports, and withSchoolAccount (school-sync.server.ts) never pulls or
+// pushes progress for any account, so nothing about a student crosses
+// between the two systems.
 export const schoolSignUp = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(signUp, data))
   .handler(async ({ data }): Promise<SchoolAuthResult> => {
-    const { auth } = await import("./auth/server");
-    const { APIError } = await import("better-auth");
+    const { registerSchoolAccount, SchoolCallError } = await import("./school-account.server");
+    const { openSchoolSession } = await import("./school-session.server");
     try {
-      await auth.api.signUpEmail({
-        body: {
-          name: data.name,
-          email: data.email,
-          password: data.password,
-          callbackURL: "/confirmed",
-        },
+      const account = await registerSchoolAccount({
+        email: data.email,
+        password: data.password,
+        name: data.name,
       });
-      return { ok: true, sessionToken: "", pendingConfirmation: true };
+      const { rememberAccountSession } = await import("./school-sync.server");
+      const profile = await rememberAccountSession(account);
+      const sessionToken = await openSchoolSession(account.id, profile.studentName || "Parent");
+      return { ok: true, sessionToken };
     } catch (err) {
-      if (err instanceof APIError) {
-        const code = (err.body as { code?: string } | undefined)?.code ?? "";
-        if (code === "USER_ALREADY_EXISTS" || /already exists/i.test(err.message)) {
+      if (err instanceof SchoolCallError) {
+        if (err.reason === "rejected" || /already exists/i.test(err.message)) {
           return failed("exists", "This email already has an account. Sign in instead.");
         }
-        return failed("unknown", err.message || "Check the email and password and try again.");
+        if (err.reason === "wait") return failed("wait", SCHOOL_WAIT_MESSAGE);
+        if (err.reason === "offline") return failed("offline", SCHOOL_OFFLINE_MESSAGE);
+        return failed(err.reason, err.message || "Check the email and password and try again.");
       }
       return failed("offline", SCHOOL_OFFLINE_MESSAGE);
     }
   });
 
-// CLAUDE: added at Sam's and the App Builder's explicit direction -- "look
-// locally first only when that email already has a local password... If the
-// email is not a local account, sign in through the website exactly as
-// today." A wrong LOCAL password fails as a wrong password; it never also
-// tries the website (and a missing local account never silently creates
-// one). This is the one new branch; everything below it (the website path)
-// is the ORIGINAL, unmodified logic for an email with no local account.
+// CLAUDE: reverted at Sam's explicit direction, back to the ORIGINAL,
+// unmodified website-only sign-in -- the brief local-account branch that
+// used to sit here (check a local Better Auth credential first) is removed.
+// Every sign-in now goes through the website, the one shared account book.
 export const schoolSignIn = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(credentials, data))
   .handler(async ({ data }): Promise<SchoolAuthResult> => {
-    const { localCredentialAccountExists } = await import("./school-session.server");
-    if (await localCredentialAccountExists(data.email)) {
-      const { auth } = await import("./auth/server");
-      const { APIError } = await import("better-auth");
-      try {
-        const result = await auth.api.signInEmail({
-          body: { email: data.email, password: data.password },
-        });
-        if (!result.token) return { ok: true, sessionToken: "", pendingConfirmation: true };
-        return { ok: true, sessionToken: result.token };
-      } catch (err) {
-        if (err instanceof APIError) {
-          const code = (err.body as { code?: string } | undefined)?.code ?? "";
-          if (code === "EMAIL_NOT_VERIFIED" || /not verified/i.test(err.message)) {
-            return { ok: true, sessionToken: "", pendingConfirmation: true };
-          }
-          return failed("password", "Check the email and password and try again.");
-        }
-        return failed("offline", SCHOOL_OFFLINE_MESSAGE);
-      }
-    }
     const { signInSchoolAccount, SchoolCallError } = await import("./school-account.server");
     const { openSchoolSession } = await import("./school-session.server");
     const { websiteSignInRefusal } = await import("./school-account");

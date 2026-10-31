@@ -122,3 +122,42 @@ When the real Spelling engine (or anything else) is built:
 2. Add a row to the table above the same day you name it anywhere else.
 3. Tell School Site and App Builder about the new row explicitly — this file
    doesn't push itself to anyone.
+
+## Shared parent identity (2026-10-30)
+
+The app and the school website now share one parent account book — the
+website's. Create an account or sign in on either one and it works on both.
+**Only the login is shared. No student name, level, or progress ever moves
+between the two systems**, in either direction. This is a deliberate product
+and privacy decision, not an oversight.
+
+**What changed, app side (`vkole-app`):**
+- `src/lib/auth/email-password.ts`: `emailAndPasswordEnabled` is back to
+  `false`. The app's brief local-only Better Auth credential system (built
+  days earlier, then retired) no longer creates new accounts.
+- `src/lib/school-auth.ts`: `schoolSignUp` now calls the website's
+  `registerSchoolAccount` (same function this file already used before the
+  local-account experiment); `schoolSignIn` is back to being website-only,
+  with no local-credential check first.
+- `src/lib/school-sync.server.ts`: `withSchoolAccount()` no longer pulls or
+  pushes student progress for *any* account kind, including `"school"`
+  (website-identity) accounts — this is the actual mechanism that keeps the
+  "no progress is shared" promise true. `pullSchoolAccount`/
+  `pushSchoolAccount` are left defined but are now unused; a later cleanup
+  pass could remove them.
+
+**What's needed, website side (School Site):** nothing structural — the
+existing `/api/account/register`/`sign-in` already supports an identity-only
+call (`studentName` is optional) and is already what this reuses. The one
+ask: make the page a parent lands on after clicking the email confirmation
+link clearly say to open the VKOLE app next, since that link still opens on
+the website (no app deep-linking yet — a deliberate, scoped-down choice for
+now, not a gap).
+
+**Why the trial/access clock needed no new code:** `src/lib/subscription.ts`
+(`childAccess`) already reads the website's account-level `access`/
+`lockReason` as the source of truth for any email-shaped account id — which
+is exactly what every account gets now that identity always comes from the
+website (`openSchoolSession` assigns the id). The app's own separate trial
+table (`app_trials`) simply stops being used for real accounts; no migration
+needed since there are zero real accounts today.
