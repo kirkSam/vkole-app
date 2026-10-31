@@ -38,7 +38,7 @@ export function singleAccountNotice(account: { email: string; name?: string }): 
   const line = name ? `${email} · ${name}` : email;
   return {
     email,
-    subject: `VKOLE/ZPD - Space XSI Integrated Learning Engine registration: ${email}`,
+    subject: `VKOLE/ZPD - Space XAI Integrated Learning Engine registration: ${email}`,
     body: ["A registration was saved for this account.", "", line, "", "This notice names only this account."].join("\n"),
   };
 }

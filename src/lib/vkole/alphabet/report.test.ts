@@ -15,7 +15,7 @@ import {
   type AlphabetSessionStats,
 } from "./report.ts";
 
-const LABEL = "Report written by Space XSI (Grok)";
+const LABEL = "Report written by Space XAI (Grok)";
 const sessionFile = fileURLToPath(new URL("../../../routes/session.$id.tsx", import.meta.url));
 const homeFile = fileURLToPath(new URL("../../../routes/index.tsx", import.meta.url));
 const emailFile = fileURLToPath(new URL("../../academic-email.ts", import.meta.url));
@@ -34,9 +34,9 @@ const stats: AlphabetSessionStats = {
 const grokText = "This sitting practiced A, B, and C. A and B were mastered. C still needs practice. Keep the practice short and kind.";
 
 describe("spelling parent report", () => {
-  it("uses the label Report written by Space XSI (Grok) on the screen, in the email, and in the tests", () => {
+  it("uses the label Report written by Space XAI (Grok) on the screen, in the email, and in the tests", () => {
     assert.equal(ALPHABET_REPORT_LABEL, LABEL);
-    assert.equal(LABEL, "Report written by Space XSI (Grok)");
+    assert.equal(LABEL, "Report written by Space XAI (Grok)");
     const session = readFileSync(sessionFile, "utf8");
     const home = readFileSync(homeFile, "utf8");
     const email = readFileSync(emailFile, "utf8");

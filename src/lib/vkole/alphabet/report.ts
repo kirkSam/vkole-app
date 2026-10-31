@@ -4,7 +4,7 @@
  * A missing key or a failed call uses the local template instead.
  */
 
-export const ALPHABET_REPORT_LABEL = "Report written by Space XSI (Grok)";
+export const ALPHABET_REPORT_LABEL = "Report written by Space XAI (Grok)";
 export const ALPHABET_REPORT_MODEL = "grok-4-1-fast-non-reasoning";
 export const ALPHABET_REPORT_MAX_TOKENS = 160;
 

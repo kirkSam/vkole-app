@@ -98,7 +98,7 @@ describe("session-end report subject", () => {
       events: [],
     });
     assert.match(letter.subject, /progress report for Ada/);
-    assert.equal(letter.subject, "VKOLE/ZPD - Space XSI Integrated Learning Engine progress report for Ada");
+    assert.equal(letter.subject, "VKOLE/ZPD - Space XAI Integrated Learning Engine progress report for Ada");
     assert.match(letter.body, /Engine: VKOLE\/Alphabet/);
     assert.equal(letter.body.includes("Engine: sp"), false);
   });

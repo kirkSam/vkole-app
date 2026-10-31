@@ -65,8 +65,8 @@ export function TrialFinished({
         <p className="text-sm font-semibold tracking-wide text-[#e6c65c]">{wholeApp ? APP_NAME : `VKOLE/${meta.code}`}</p>
         <h1 className="mt-4 font-display text-5xl leading-tight">{copy.title}</h1>
         <p className="mt-5 text-xl leading-snug">
-          Continue tracking your child's progress and give your child direct access to Space XSI Superintelligence
-          with VKOLE/ZPD - Space XSI Integrated Learning Engine.
+          Continue tracking your child's progress and give your child direct access to applied super-intelligence
+          with VKOLE/ZPD - the Space XAI Integrated Learning Engine.
         </p>
         <p className="mt-4 text-sm leading-relaxed text-[#cfc6b8]">{detailFor(reason, stopped)}</p>
         {office ? <StudentOffice purchased={office.purchased} slug={office.slug} tone="night" /> : null}

@@ -54,7 +54,7 @@ export function SchoolSplash({ onEnter }: { onEnter: () => void }) {
 
   return (
     <main className="logo-splash">
-      <h1 className="sr-only">ADOL with VKOLE/ZPD - Space XSI Integrated Learning Engine</h1>
+      <h1 className="sr-only">ADOL with VKOLE/ZPD - Space XAI Integrated Learning Engine</h1>
       <button ref={enterRef} type="button" className="logo-splash-enter" onClick={go}>
         <picture>
           <source srcSet="/logo-splash.webp" type="image/webp" />

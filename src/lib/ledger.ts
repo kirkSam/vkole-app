@@ -115,7 +115,7 @@ export const allowGmail = createServerFn({ method: "POST" })
     await saveAppMailPassword(sql, email, data.password);
     const sent = await sendAppMail(
       email,
-      "VKOLE/ZPD - Space XSI Integrated Learning Engine: Gmail is allowed",
+      "VKOLE/ZPD - Space XAI Integrated Learning Engine: Gmail is allowed",
       "Gmail is allowed for this app. Student reports can be sent from this account. This note names only this account.",
     );
     if (sent !== "sent") throw new Error("That app password was not accepted. Create a new one and try again.");
