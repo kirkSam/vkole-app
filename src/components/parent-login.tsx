@@ -130,20 +130,40 @@ export function ParentLogin({
         await enterApp(res.sessionToken);
         return;
       }
-      const res = await schoolSignIn({ data: { email: email.trim(), password, ...(deviceId ? { deviceId } : {}) } });
-      if (!res.ok) {
-        if (res.reason === "gone") {
-          const { clearStaleSignIn } = await import("@/lib/account-purge");
-          await clearStaleSignIn();
-        }
-        setError(res.message);
-        return;
+      await attemptSignIn(deviceId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "That step failed.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  // Shared by the sign-in form and the "I confirmed" retry below: both end
+  // in the same call, since confirming only unblocks the website side --
+  // the app still needs its own successful sign-in to get a session token.
+  async function attemptSignIn(deviceId: string) {
+    const res = await schoolSignIn({ data: { email: email.trim(), password, ...(deviceId ? { deviceId } : {}) } });
+    if (!res.ok) {
+      if (res.reason === "gone") {
+        const { clearStaleSignIn } = await import("@/lib/account-purge");
+        await clearStaleSignIn();
       }
-      if (res.pendingConfirmation) {
-        setConfirmPending(true);
-        return;
-      }
-      await enterApp(res.sessionToken);
+      setError(res.message);
+      return;
+    }
+    if (res.pendingConfirmation) {
+      setConfirmPending(true);
+      setError("Still waiting on the confirmation. Open the email and tap the link, then try again.");
+      return;
+    }
+    await enterApp(res.sessionToken);
+  }
+
+  async function continueAfterConfirm() {
+    setError("");
+    setPending(true);
+    try {
+      await attemptSignIn(readDeviceId());
     } catch (err) {
       setError(err instanceof Error ? err.message : "That step failed.");
     } finally {
@@ -168,6 +188,15 @@ export function ParentLogin({
         <h1 className="font-display text-3xl text-ink">Check your email</h1>
         <p className="mt-4 text-lg text-ink">Open the email we sent and tap the confirmation link.</p>
         <p className="mt-3 text-lg text-ink">Your free week is 168 hours. It starts the moment you confirm.</p>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => void continueAfterConfirm()}
+          className="mt-6 min-h-11 w-full rounded-xl bg-accent px-4 text-base font-semibold text-accent-ink disabled:opacity-50"
+        >
+          {pending ? "Working…" : "I confirmed — continue"}
+        </button>
+        {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
       </Shell>
     );
   }
