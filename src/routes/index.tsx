@@ -529,8 +529,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       {loadError ? <p className="mt-4 rounded-2xl border border-line bg-surface p-4 text-sm text-miss">{loadError}</p> : null}
       <SchoolPath className="mt-6" />
       <p className="mt-4 text-sm text-muted">
-        One account works on both the app and the website. Your student's progress is private and protected — not
-        shared between them.
+        One account works on both the app and the website — the same email and password sign in on either one.
       </p>
       <EnginePicks />
       <div className="mt-3 grid gap-4">

@@ -443,6 +443,9 @@ export async function rememberAccountSession(session: AccountSession): Promise<S
     profile = await readSchoolAccount(scope, { token: session.token, expiresAt: session.expiresAt });
   } catch (err) {
     if (err instanceof SchoolCallError && (err.reason === "unauthorized" || err.reason === "gone")) throw err;
+    // Falls back to the sign-in response's own profile (computed the same way by the website),
+    // but this failure is otherwise invisible — log it so a mismatch has a trail to follow.
+    console.error("rememberAccountSession: family refresh failed, using the sign-in profile instead", err);
   }
   await saveActiveStudentIndex(sql, session.id, profile.activeStudent ?? index);
   const mirror = await readSchoolMirror(sql, scope);

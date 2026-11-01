@@ -77,7 +77,7 @@ export function TrialFinished({
           Enroll now
         </Link>
         <button type="button" onClick={onSplash} className="mt-4 min-h-11 text-sm text-[#e6c65c]">
-          Splash
+          {APP_NAME}
         </button>
         <button
           type="button"

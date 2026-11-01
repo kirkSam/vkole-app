@@ -179,8 +179,7 @@ export function ParentLogin({
       <p className="mt-3 max-w-prose text-muted">{mode === "in" || mode === "up" ? LEAD : "A code is emailed only to the address on the account."}</p>
       {mode === "in" || mode === "up" ? (
         <p className="mt-2 max-w-prose text-sm text-muted">
-          You get both platforms with one account. Your student's progress is private and protected — not shared
-          between the app and the website.
+          You get both platforms with one account — the same email and password sign in on either one.
         </p>
       ) : null}
       <form onSubmit={submit} className="mt-6 space-y-3 rounded-2xl border border-line bg-surface p-5">
