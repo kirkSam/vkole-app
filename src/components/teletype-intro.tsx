@@ -136,22 +136,25 @@ export function TeletypeIntro({
         <p className="mt-2 text-center text-sm text-[#cfc6b8]">
           No credit card. Email registration only.
         </p>
-        <a
-          className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
-          href={PAY_YEAR_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          $79.00 USD + tax a year · 2 students per account · Stripe Secure Pay
-        </a>
-        <a
-          className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
-          href={PAY_MONTH_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          $9.00 USD + tax a month · 2 students per account · Stripe Secure Pay
-        </a>
+        <div className="mt-3 flex gap-3">
+          <a
+            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
+            href={PAY_YEAR_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            $79.00 USD + tax a year
+          </a>
+          <a
+            className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl bg-[#e6c65c] px-4 py-2 text-center text-base font-semibold leading-tight text-[#1c1408]"
+            href={PAY_MONTH_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            $9.00 USD + tax a month
+          </a>
+        </div>
+        <p className="mt-3 text-sm text-[#cfc6b8]">2 students per account · Stripe Secure Pay</p>
         <p className="mt-3 text-sm text-[#cfc6b8]">Pay on the school website. This app does not charge the card.</p>
         <p className="mt-4 text-sm text-[#cfc6b8]">
           This phone app is best for practice on the go. The VKOLE Learning Engines on the Do the Impossible Alpha
