@@ -6,41 +6,22 @@ import {
   PAY_MONTH_URL,
   PAY_YEAR_URL,
   SPLASH_ADVANCE_MS,
-  SPLASH_ONCE_KEY,
   claimSplashAdvance,
-  markSplashShown,
-  splashAlreadyShown,
 } from "./pre-account.ts";
 
-function memoryStore() {
-  const bag = new Map<string, string>();
-  return {
-    getItem(key: string) {
-      return bag.has(key) ? bag.get(key)! : null;
-    },
-    setItem(key: string, value: string) {
-      bag.set(key, value);
-    },
-  };
-}
-
 describe("pre-account flow", () => {
-  it("leaves the splash after 7 seconds or the first tap, and only once", () => {
+  it("leaves the splash after 7 seconds or the first tap, every time", () => {
     assert.equal(SPLASH_ADVANCE_MS, 7000);
     assert.equal(claimSplashAdvance(false), true);
     assert.equal(claimSplashAdvance(true), false);
-    const storage = memoryStore();
-    assert.equal(splashAlreadyShown(storage), false);
-    markSplashShown(storage);
-    assert.equal(storage.getItem(SPLASH_ONCE_KEY), "1");
-    assert.equal(splashAlreadyShown(storage), true);
     const splash = readFileSync(new URL("../components/school-splash.tsx", import.meta.url), "utf8");
     const home = readFileSync(new URL("../routes/index.tsx", import.meta.url), "utf8");
     assert.equal(splash.includes("SPLASH_ADVANCE_MS"), true);
     assert.equal(splash.includes("claimSplashAdvance"), true);
     assert.equal(splash.includes("pointerdown"), true);
     assert.equal(home.includes('setStage("teletype")'), true);
-    assert.equal(home.includes('setStage(trialClosed() ? "trial" : "teletype")'), false);
+    assert.equal(home.includes("splashAlreadyShown"), false);
+    assert.equal(home.includes("markSplashShown"), false);
   });
 
   it("keeps Skip, Sign in, and One week free working", () => {

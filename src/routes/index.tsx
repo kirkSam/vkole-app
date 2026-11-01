@@ -29,7 +29,6 @@ import { ACCOUNT_GONE_FLAG } from "@/lib/account-purge";
 import { clearStayInApp, ENGINE_PICKER_PARAM, isEnginePickerSearch, markStayInApp, shouldStayInApp } from "@/lib/engine-picker";
 import { takeZpdReturn } from "@/lib/zpd-info";
 import { PASTEL_NAV } from "@/lib/pastel-nav";
-import { markSplashShown, splashAlreadyShown } from "@/lib/pre-account";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -79,11 +78,6 @@ function Home() {
     if (!openedApp && shouldStayInApp(sessionStorage)) {
       setStage("app");
       return;
-    }
-    try {
-      if (!openedApp && splashAlreadyShown(sessionStorage)) setStage("teletype");
-    } catch {
-      /* storage may be unavailable */
     }
   }, []);
 
@@ -205,11 +199,6 @@ function Home() {
     return (
       <SchoolSplash
         onEnter={() => {
-          try {
-            markSplashShown(sessionStorage);
-          } catch {
-            /* storage may be unavailable */
-          }
           setStage("teletype");
         }}
       />
