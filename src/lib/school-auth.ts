@@ -153,6 +153,21 @@ export const resendSchoolConfirmation = createServerFn({ method: "POST" })
     }
   });
 
+/** Re-pulls the family profile so a parent who just confirmed their email in another tab can continue without signing out. */
+export const checkEmailConfirmed = createServerFn({ method: "POST" })
+  .middleware([schoolMiddleware])
+  .handler(async ({ context }) => {
+    const { refreshSchoolAccount } = await import("./school-sync.server");
+    const { SchoolCallError } = await import("./school-account.server");
+    try {
+      const profile = await refreshSchoolAccount(accountIdOf(context.userId));
+      return { ok: true as const, confirmed: profile.emailConfirmed === true };
+    } catch (err) {
+      const message = err instanceof SchoolCallError ? err.message : "Could not reach the school website. Try again.";
+      return { ok: false as const, message };
+    }
+  });
+
 export const switchSchoolStudent = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
     const parsed = z.object({ index: z.number().int().min(1).max(99) }).safeParse(data);

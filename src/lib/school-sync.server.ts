@@ -458,6 +458,27 @@ export async function rememberAccountSession(session: AccountSession): Promise<S
   return kept;
 }
 
+/**
+ * Re-pull the family profile for an already-signed-in parent, using the
+ * stored sign-in token instead of a fresh password. A parent who confirms
+ * their email in a separate tab has no other way to make the app notice --
+ * nothing refreshes `school_mirror` between sign-ins otherwise.
+ */
+export async function refreshSchoolAccount(accountId: string): Promise<SchoolProfile> {
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  const grant = await readAccountGrant(sql, accountId);
+  if (!grant) throw new SchoolCallError("unauthorized", "Sign in again.");
+  const { readActiveStudentIndex } = await import("@/lib/school-mirror.server");
+  const index = await readActiveStudentIndex(sql, accountId);
+  const scope = studentScopeId(accountId, index);
+  const profile = await readSchoolAccount(scope, { token: grant.token, expiresAt: grant.expiresAt });
+  const mirror = await readSchoolMirror(sql, scope);
+  const kept = profileKeepingProgress(mirror, profile);
+  await saveSchoolMirror(sql, scope, kept, false);
+  return kept;
+}
+
 export async function pushSchoolAccount(sql: Sql, userId: string): Promise<void> {
   const mirror = await readSchoolMirror(sql, userId);
   // A locked family is not playing. Posting now would send an empty or starter
