@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { APP_NAME } from "@/lib/brand";
+import { APP_NAME, SCHOOL_SITE } from "@/lib/brand";
 import { beginSharedTrial } from "@/lib/climbs";
 import { PAY_MONTH_URL, PAY_YEAR_URL } from "@/lib/pre-account";
 
@@ -157,7 +157,10 @@ export function TeletypeIntro({
           This phone app is best for practice on the go. The VKOLE Learning Engines on the Do the Impossible Alpha
           Academy website are best for practice at home, or anywhere there is a laptop. You get both platforms with
           one account — register once, and your 2 students can use either. Your student's progress is private and
-          protected: only your own sign-in is ever shared between the app and the website.
+          protected: only your own sign-in is ever shared between the app and the website.{" "}
+          <a className="text-[#e6c65c]" href={SCHOOL_SITE}>
+            {SCHOOL_SITE}
+          </a>
         </p>
         <div className="mt-4 flex items-center justify-between">
           <button
