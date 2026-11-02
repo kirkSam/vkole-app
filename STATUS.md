@@ -1,3 +1,10 @@
+## 2026-11-02 08:54 PT (session by App Builder)
+**Shipped (merged):** nothing a parent will notice
+**Open, needs Sam:** one shared engine package, only if you still want it
+**Mirrors needed on website:** none
+**Blocked:** store work stays paused; the app stays in this repo
+**Next:** online-school #2 closed as a stale draft
+
 ## 2026-10-26 (note from Sam, via Claude)
 **Decision:** Store/App Store/Google Play publish is paused indefinitely. Do not work on
 the Capacitor/mobile shell, store listing assets, or store-submission checklist items
