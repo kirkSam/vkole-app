@@ -1,3 +1,7 @@
+## 2026-11-04 later (from Sam, via Claude)
+**Decision:** The earlier Nov 4 memo is replaced by the final memo in docs/team-memo-2026-11-04.md. Google Play first. Student information stays separate. Paid access, the free week, and Student 1 or Student 2 places stay shared.
+**Next:** Sam reviews the stay and stop field list before any separation code is merged.
+
 ## 2026-11-04 (from Sam, via Claude)
 **Decision:** Store release is active. Focus: get the app ready to release. Engines identical; student information separate; only parent account and sign-in shared. This replaces the Oct 26 pause note.
 **Next:** map shared data (Task 1), wording change, update the store branch.
