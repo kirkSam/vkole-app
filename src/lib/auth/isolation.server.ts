@@ -1,5 +1,5 @@
 import { getRequest } from "@tanstack/react-start/server";
-import { isNativeAppOrigin } from "../native-app";
+import { isNativeAppOrigin } from "../native-app.ts";
 
 /**
  * Fetch-Metadata sibling isolation — **server-only** (`.server.ts` suffix).

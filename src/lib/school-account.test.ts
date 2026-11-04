@@ -45,7 +45,7 @@ import {
 
 const SECRET = "unit-test-secret-do-not-ship";
 const TOKEN = "account-token";
-const EXPIRES = "2026-10-19T04:00:00.000Z";
+const EXPIRES = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
 
 function session(email: string, family: Record<string, unknown> = {}, token = TOKEN) {
   return { token, expiresAt: EXPIRES, family: { email, ...family } };

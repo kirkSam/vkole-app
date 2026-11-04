@@ -1,4 +1,7 @@
 // Schema source: migrations/*.sql, including saved registration emails.
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { pendingMigrations } from "../../scripts/migration-plan.mjs";
 
 /** Which database backend is active. */
@@ -10,6 +13,27 @@ const rawDatabaseUrl =
   typeof process !== "undefined" ? process.env.DATABASE_URL : undefined;
 const databaseUrl =
   rawDatabaseUrl && rawDatabaseUrl.trim() ? rawDatabaseUrl : undefined;
+
+/** Vite inlines a direct import.meta.glob call. Node tests have no glob, so they read the same files. */
+function loadMigrationSql(): Record<string, string> {
+  try {
+    const migrations = import.meta.glob("/migrations/*.sql", {
+      query: "?raw",
+      import: "default",
+      eager: true,
+    }) as Record<string, string>;
+    if (migrations && typeof migrations === "object") return migrations;
+  } catch {
+    // The test runner is not Vite. Fall through to the files on disk.
+  }
+  const dir = join(dirname(fileURLToPath(import.meta.url)), "../../migrations");
+  const out: Record<string, string> = {};
+  for (const name of readdirSync(dir)) {
+    if (!name.endsWith(".sql")) continue;
+    out[`/migrations/${name}`] = readFileSync(join(dir, name), "utf8");
+  }
+  return out;
+}
 
 /**
  * Active backend: real **Neon** when `DATABASE_URL` is set (deployed / configured
@@ -133,18 +157,10 @@ async function createPgliteSql(): Promise<Sql> {
   // Apply migrations/ (the single schema source) so preview matches production.
   // A reload of this module picks up a new migrations/*.sql file against the
   // same in-memory database, including each saved registration email.
-  // SQL is inlined by the bundler via import.meta.glob (no runtime fs); applied
-  // files are tracked in _migrations. The glob does not descend, so the opt-in
-  // auth schema under migrations/auth/ stays out. Runs once per module instance
-  // — so an HMR reload after adding a migration file applies it live — with
-  // passes serialized on a global chain so concurrent callers never
-  // double-apply.
+  // Vite inlines migrations/*.sql through import.meta.glob. Node tests read
+  // the same files from disk. Neither path descends, so migrations/auth/ stays out.
   const migrate = async (): Promise<void> => {
-    const migrations = import.meta.glob("/migrations/*.sql", {
-      query: "?raw",
-      import: "default",
-      eager: true,
-    }) as Record<string, string>;
+    const migrations = loadMigrationSql();
     const doneRows = await pg.query<{ name: string }>(
       "select name from _migrations",
     );

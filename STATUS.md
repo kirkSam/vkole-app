@@ -1,3 +1,7 @@
+## 2026-11-04 later still (from Sam, via Claude)
+**Decision:** Stay/stop lists are approved. FamilyStudent keeps only `index` (stop name, age, startingGrade). `clockLimit` stops. Both sides use the built-in daily limit: 8 hours, DAY_LIMIT_SECONDS = 28800. The shortened memo is filled back in with the dropped instructions (data safety form, report form, the "not shared" sentence stays down, shared-engine recommendation, and the two task lists).
+**Next:** One test-fix pull request, not merged. Separation stays on its own branch until Claude checks the diff.
+
 ## 2026-11-04 test rule (from Sam, via Claude)
 **Decision:** Before Google Play, main has zero code errors and zero failing tests. A new change reports the error count before and after.
 **Next:** App main today is typecheck clean. The full test command stops on 10 host title checks. The learning-engine tests have 1 real failure, about saving a child name to the website.
