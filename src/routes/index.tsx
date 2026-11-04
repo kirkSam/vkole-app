@@ -13,6 +13,7 @@ import { AlphabetMisses } from "@/components/alphabet-misses";
 import { WebsiteVisit } from "@/components/website-visit";
 import { HeadphoneNotice } from "@/components/headphone-notice";
 import { StudentSwitcher } from "@/components/student-switcher";
+import { studentPlaceChoices } from "@/lib/student-card";
 import { EnginePicks, PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
 import { SUBJECTS, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
@@ -538,6 +539,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
             key={`${activeStudent}-${subject.id}`}
             subject={subject.id}
             studentName={students.find((student) => student.index === activeStudent)?.name ?? ""}
+            students={students}
             roster={(climbs ?? []).filter((climb) => climb.subject === subject.id)}
             onTrialFinished={() => setClosedApp(subject.id)}
             onLevelsChanged={() => setRevision((n) => n + 1)}
@@ -552,6 +554,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
 function AppGate({
   subject,
   studentName,
+  students,
   roster,
   onTrialFinished,
   onLevelsChanged,
@@ -559,6 +562,7 @@ function AppGate({
 }: {
   subject: SubjectId;
   studentName: string;
+  students: FamilyStudent[];
   roster: Climb[];
   onTrialFinished: () => void;
   onLevelsChanged: () => void;
@@ -569,6 +573,7 @@ function AppGate({
   const [firstName, setFirstName] = useState(studentName);
   const [age, setAge] = useState(8);
   const [gradeText, setGradeText] = useState("");
+  const [place, setPlace] = useState<1 | 2 | null>(null);
   const [needsNew, setNeedsNew] = useState(false);
   const [accountPassword, setAccountPassword] = useState("");
   const [error, setError] = useState("");
@@ -597,6 +602,10 @@ function AppGate({
       }
       grade = typed;
     }
+    if (needsNew && place !== 1 && place !== 2) {
+      setError("Pick Student 1 or Student 2.");
+      return;
+    }
     setPending(true);
     try {
       const found = await enterEngine({
@@ -605,6 +614,7 @@ function AppGate({
           firstName: name,
           age: needsNew ? age : undefined,
           grade: needsNew ? grade : undefined,
+          ...(needsNew && (place === 1 || place === 2) ? { place } : {}),
           timeZone: deviceTimeZone(),
         },
       });
@@ -612,8 +622,15 @@ function AppGate({
         onTrialFinished();
         return;
       }
-      if (found.status === "new") {
+      if (found.status === "new" || found.status === "pick") {
         setNeedsNew(true);
+        if (found.status === "pick") setError("Pick Student 1 or Student 2.");
+        setPending(false);
+        return;
+      }
+      if (found.status === "taken") {
+        setNeedsNew(true);
+        setError("That place already has a child. Pick the open place.");
         setPending(false);
         return;
       }
@@ -765,6 +782,28 @@ function AppGate({
       ) : null}
       {needsNew ? (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <p className="text-sm text-muted">Pick the same place for the same child on the app and the website.</p>
+            <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Student place">
+              {studentPlaceChoices(students).map((choice) => (
+                <button
+                  key={choice.index}
+                  type="button"
+                  aria-pressed={place === choice.index}
+                  disabled={!choice.open}
+                  data-student-place={choice.index}
+                  data-student-place-state={choice.open ? "open" : "used"}
+                  className="min-h-12 rounded-xl border border-line bg-paper px-4 text-base font-semibold text-ink disabled:opacity-60"
+                  onClick={() => {
+                    if (!choice.open) return;
+                    setPlace(choice.index);
+                  }}
+                >
+                  Student {choice.index} — {choice.name}
+                </button>
+              ))}
+            </div>
+          </div>
           <label className="block text-sm text-muted">
             Age
             <input
@@ -787,7 +826,7 @@ function AppGate({
               className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
             />
           </label>
-          <p className="text-sm text-muted sm:col-span-2">Pick the same place for the same child on the app and the website. Type the age and a starting grade from 1 to 12. Then press the button below.</p>
+          <p className="text-sm text-muted sm:col-span-2">Type the age and a starting grade from 1 to 12. Then press the button below.</p>
         </div>
       ) : null}
       {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}

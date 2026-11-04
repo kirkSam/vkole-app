@@ -3,12 +3,14 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   OPEN_ACCT_LABEL,
+  OPEN_PLACE_LABEL,
   acceptStudentSwitch,
   climbsForActiveStudent,
   engineWorkedLevel,
   mergeFamilyStudents,
   openingForNewClimb,
   studentCardButtons,
+  studentPlaceChoices,
 } from "./student-card.ts";
 
 const ada = { index: 1, name: "Ada", age: 8, startingGrade: 3 };
@@ -29,6 +31,24 @@ describe("two-student card", () => {
     assert.equal(right.kind, "student");
     assert.equal(right.kind === "student" && right.label, "Bea");
     assert.equal(right.kind === "student" && right.index, 2);
+  });
+
+  it("shows a used place by name and an empty place as open", () => {
+    const [first, second] = studentPlaceChoices([ada]);
+    assert.equal(first.index, 1);
+    assert.equal(first.open, false);
+    assert.equal(first.name, "Ada");
+    assert.equal(second.index, 2);
+    assert.equal(second.open, true);
+    assert.equal(second.name, OPEN_PLACE_LABEL);
+    const both = studentPlaceChoices([ada, bea]);
+    assert.equal(both[0].name, "Ada");
+    assert.equal(both[1].name, "Bea");
+    assert.equal(both[1].open, false);
+    const home = readFileSync(new URL("../routes/index.tsx", import.meta.url), "utf8");
+    assert.equal(home.includes("Pick the same place for the same child on the app and the website."), true);
+    assert.equal(home.includes("studentPlaceChoices"), true);
+    assert.equal(home.includes("Student {choice.index} — {choice.name}"), true);
   });
 
   it("uses the first word on the button and keeps the saved name for sign-in", () => {

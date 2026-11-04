@@ -223,10 +223,10 @@ export async function disarmStudentClock(sql: Sql, userId: string, climbId: stri
 async function placeWebsiteStudent(
   sql: Sql,
   userId: string,
-  data: { firstName: string; age?: number; grade?: number },
-): Promise<{ status: "extra" | "new" } | { status: "ready"; scopeId: string }> {
+  data: { firstName: string; age?: number; grade?: number; place?: 1 | 2 },
+): Promise<{ status: "extra" | "new" | "pick" | "taken" } | { status: "ready"; scopeId: string }> {
   const { readSchoolAccount } = await import("@/lib/school-account.server");
-  const { decideStudent, indexForName, isWebsiteMasterEmail, profileKeepingProgress, studentIndexToAdd, studentScopeId } = await import("@/lib/school-account");
+  const { chosenStudentPlace, decideStudent, indexForName, isWebsiteMasterEmail, profileKeepingProgress, studentScopeId } = await import("@/lib/school-account");
   const { saveActiveStudentIndex, saveSchoolMirror, readSchoolMirror } = await import("@/lib/school-mirror.server");
   const { mergeFamilyStudents } = await import("@/lib/student-card");
   const account = accountIdOf(userId);
@@ -253,11 +253,13 @@ async function placeWebsiteStudent(
     }
     return { status: "ready", scopeId };
   }
+  const openPlaces = [1, 2].filter((index) => !roster.some((student) => student.index === index && student.name.trim()));
+  if (openPlaces.length === 0) return { status: "extra" };
   if (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12) return { status: "new" };
-  const index = gate === "new" ? 1 : studentIndexToAdd(roster, isWebsiteMasterEmail(account, process.env.VKOLE_MASTER_EMAIL));
-  if (index == null) return { status: "extra" };
-  const scopeId = studentScopeId(account, index);
-  await saveActiveStudentIndex(sql, account, index);
+  const choice = chosenStudentPlace(roster, data.place);
+  if (choice === "pick" || choice === "taken") return { status: choice };
+  const scopeId = studentScopeId(account, choice);
+  await saveActiveStudentIndex(sql, account, choice);
   const existing = await readSchoolMirror(sql, scopeId);
   const localName = data.firstName.trim();
   const kept = profileKeepingProgress(existing ?? local, website);
@@ -268,7 +270,7 @@ async function placeWebsiteStudent(
       ...kept,
       studentName: existing?.studentName?.trim() || localName,
       students: mergeFamilyStudents(existing?.students, kept.students, [
-        { index, name: localName, age: data.age ?? null, startingGrade: data.grade },
+        { index: choice, name: localName, age: data.age ?? null, startingGrade: data.grade },
       ]),
     },
     false,
@@ -297,6 +299,7 @@ const enterSchema = z.object({
   firstName: z.string().trim().min(1).max(40),
   age: z.number().int().min(4).max(18).optional(),
   grade: z.number().int().min(1).max(12).optional(),
+  place: z.union([z.literal(1), z.literal(2)]).optional(),
   timeZone: z.string().trim().min(1).max(80).optional(),
 });
 

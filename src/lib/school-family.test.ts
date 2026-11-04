@@ -12,12 +12,12 @@ import {
   isSchoolAccountId,
   parseSchoolProfile,
   schoolAccessDecision,
-  schoolWriteBody,
+  chosenStudentPlace,
   studentIndexOf,
   studentIndexToAdd,
   studentScopeId,
 } from "./school-account.ts";
-import { registerSchoolAccount, resendConfirmationEmail, writeSchoolAccount } from "./school-account.server.ts";
+import { registerSchoolAccount, resendConfirmationEmail } from "./school-account.server.ts";
 
 const TOKEN = "account-token";
 const EXPIRES = "2027-01-01T00:00:00.000Z";
@@ -50,6 +50,13 @@ describe("two students and the website level shape", () => {
     assert.equal(decideStudent("Ada", "Cam", [{ name: "Ada" }, { name: "Bea" }]), "extra");
     assert.equal(studentIndexToAdd([{ index: 1 }], false), 2);
     assert.equal(studentIndexToAdd([{ index: 1 }, { index: 2 }], false), null);
+    assert.equal(chosenStudentPlace([], undefined), "pick");
+    assert.equal(chosenStudentPlace([{ index: 1, name: "" }], null), "pick");
+    assert.equal(chosenStudentPlace([], 1), 1);
+    assert.equal(chosenStudentPlace([{ index: 1, name: "Ada" }], 2), 2);
+    assert.equal(chosenStudentPlace([{ index: 1, name: "Ada" }], 1), "taken");
+    assert.equal(chosenStudentPlace([{ index: 2, name: "Bea" }], 1), 1);
+    assert.equal(chosenStudentPlace([{ index: 1, name: "Ada" }, { index: 2, name: "Bea" }], 2), "taken");
     assert.equal(THIRD_STUDENT_MESSAGE.includes("2 students"), true);
   });
 
@@ -157,23 +164,14 @@ describe("two students and the website level shape", () => {
     assert.equal(spoken?.profile.level.sp?.step, 0);
   });
 
-  it("sends earnedGrade with the working grade and step for math, reading, history, and general study", () => {
-    const body = schoolWriteBody({ m: { grade: 3, step: 2, earnedGrade: 6 }, ela: { grade: 4, step: 1, earnedGrade: 4 } }, 0, 0, []);
-    assert.equal(body.levels.m?.grade, 3);
-    assert.equal(body.levels.m?.step, 2);
-    assert.equal(body.levels.m?.earnedGrade, 6);
-    assert.deepEqual(body.levels.m?.working, { grade: 3, step: 2, label: "Grade 3" });
-    assert.deepEqual(body.levels.m?.earned, { grade: 6 });
-    assert.equal(body.levels.ela?.earnedGrade, 4);
+  it("keeps earnedGrade beside the working grade", () => {
     assert.deepEqual(levelFieldsForWebsite({ grade: 3, step: 2, earnedGrade: 6 }).earned, { grade: 6 });
-    const kept = schoolWriteBody({ ss: { grade: 5, step: 0 }, gen: { grade: 1, step: 2 } }, 0, 0, []);
-    assert.equal(kept.levels.ss?.earnedGrade, undefined);
-    assert.equal(kept.levels.ss?.earned, undefined);
-    assert.equal(kept.levels.gen?.grade, 1);
-    assert.equal(kept.levels.gen?.step, 2);
-    const second = schoolWriteBody({ m: { grade: 2, step: 0, earnedGrade: 2 } }, 0, 0, [], undefined, undefined, 2);
-    assert.equal(second.studentIndex, 2);
-    assert.equal("studentIndex" in schoolWriteBody({ m: { grade: 2, step: 0, earnedGrade: 2 } }, 0, 0, []), false);
+    assert.deepEqual(levelFieldsForWebsite({ grade: 3, step: 2, earnedGrade: 6 }).working, {
+      grade: 3,
+      step: 2,
+      label: "Grade 3",
+    });
+    assert.equal(levelFieldsForWebsite({ grade: 5, step: 0 }).earnedGrade, undefined);
   });
 
   it("asks the website to send the welcome email and does not send one itself", async () => {
@@ -213,25 +211,6 @@ describe("two students and the website level shape", () => {
     });
     assert.equal(path, "https://www.dotheimpossible.ai/api/account/confirm-email/resend");
     assert.equal(sent, "{}");
-  });
-
-  it("posts student 2 on the family save and omits the index for student 1", async () => {
-    let body: Record<string, unknown> = {};
-    await writeSchoolAccount(
-      "ada@family.test#student-2",
-      schoolWriteBody({ m: { grade: 2, step: 1, earnedGrade: 3 } }, 0, 0, [], undefined, undefined, 2),
-      {
-        token: TOKEN,
-        expiresAt: EXPIRES,
-        fetch: async (input, init) => {
-          assert.equal(String(input), "https://www.dotheimpossible.ai/api/account/family");
-          body = JSON.parse(String(init?.body));
-          return jsonResponse(200, family("ada@family.test", { levels: body.levels }));
-        },
-      },
-    );
-    assert.equal(body.studentIndex, 2);
-    assert.equal((body.levels as { m: { earnedGrade: number } }).m.earnedGrade, 3);
   });
 
   it("sends the session-end report when Finish is pressed on every engine", () => {

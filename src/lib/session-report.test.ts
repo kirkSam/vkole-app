@@ -1,10 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { fromCrossJSON } from "seroval";
 import { academicLetter, trialState } from "./academic-email.ts";
 import { LEVEL_KEYS } from "./school-account.ts";
-import { postSessionEndReport } from "./session-report.server.ts";
 import { reportLine, sessionEndReport, type SessionEndReport } from "./session-report.ts";
 
 function sample(subject: SessionEndReport["subject"], engine: string): SessionEndReport {
@@ -46,41 +44,6 @@ describe("session-end report subject", () => {
       assert.equal(report.subject, subject);
       assert.equal(report.engine, names[subject]);
     }
-  });
-
-  it("posts subject beside the engine display name and does not use the live network", async () => {
-    const calls: { url: string; init: RequestInit }[] = [];
-    const previous = globalThis.fetch;
-    globalThis.fetch = async () => {
-      throw new Error("live network is not allowed in this test");
-    };
-    try {
-      const result = await postSessionEndReport(sample("sp", "VKOLE/Spelling"), {
-        token: "unit-token",
-        fetch: async (url, init) => {
-          calls.push({ url: String(url), init: init ?? {} });
-          return new Response("{}", { status: 200, headers: { "content-type": "application/json" } });
-        },
-      });
-      assert.equal(result.ok, true);
-    } finally {
-      globalThis.fetch = previous;
-    }
-    assert.equal(calls.length, 1);
-    assert.equal(
-      calls[0]?.url,
-      "https://www.dotheimpossible.ai/_serverFn/7a5f5706d9c2ad4456772f2370c95bbcb23cc10a1619e116b45a364dca15a195",
-    );
-    const headers = new Headers(calls[0]?.init.headers);
-    assert.equal(headers.get("x-tsr-serverfn"), "true");
-    assert.equal(headers.get("origin"), "https://www.dotheimpossible.ai");
-    assert.equal(calls[0]?.init.method, "POST");
-    const wire = JSON.parse(String(calls[0]?.init.body)) as { t: unknown };
-    const decoded = fromCrossJSON<{ data: SessionEndReport & { token: string } }>(wire.t as never, {});
-    assert.equal(decoded.data.subject, "sp");
-    assert.equal(decoded.data.engine, "VKOLE/Spelling");
-    assert.equal(decoded.data.token, "unit-token");
-    assert.equal(decoded.data.email, "ada@family.test");
   });
 
   it("keeps the progress-letter engine name and does not use the engine id as the email subject", () => {

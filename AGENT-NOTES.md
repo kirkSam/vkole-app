@@ -142,9 +142,9 @@ and privacy decision, not an oversight.
 - `src/lib/school-sync.server.ts`: `withSchoolAccount()` no longer pulls or
   pushes student progress for *any* account kind, including `"school"`
   (website-identity) accounts — this is the actual mechanism that keeps the
-  "no progress is shared" promise true. `pullSchoolAccount`/
-  `pushSchoolAccount` are left defined but are now unused; a later cleanup
-  pass could remove them.
+  "no progress is shared" promise true. `pullSchoolAccount` and
+  `pushSchoolAccount` have been removed. The app does not POST or PATCH
+  `/api/account/family`.
 
 **What's needed, website side (School Site):** nothing structural — the
 existing `/api/account/register`/`sign-in` already supports an identity-only

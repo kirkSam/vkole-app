@@ -5,7 +5,7 @@
  * The website account routes take no shared secret and no cookies.
  * A browser request that sends X-Vkole-Secret is refused, so this client
  * does not send that header. The bearer token from sign-in or register
- * authorizes GET, POST, and PATCH /api/account/family.
+ * authorizes GET /api/account/family. This file does not POST or PATCH that address.
  */
 import { accountEmailForms, normalizeAccountEmail, sameAccount } from "./account-scope.ts";
 import {
@@ -26,7 +26,6 @@ import {
   studentIndexOf,
   websiteErrorText,
   type AccountSession,
-  type FamilyWrite,
   type SchoolFailure,
   type SchoolProfile,
 } from "./school-account.ts";
@@ -164,11 +163,6 @@ function familyPath(index: number): string {
   return index > 1 ? `${PATHS.family}?studentIndex=${index}` : PATHS.family;
 }
 
-function withStudentIndex<T extends object>(body: T, index: number): T & { studentIndex?: number } {
-  if (!Number.isInteger(index) || index <= 1) return body;
-  return { ...body, studentIndex: index };
-}
-
 async function storedGrant(email: string): Promise<{ token: string; expiresAt: string } | null> {
   const { getSql } = await import("./db");
   const { readAccountGrant } = await import("./school-mirror.server");
@@ -296,40 +290,6 @@ export async function readSchoolAccount(id: string, deps?: CallDeps): Promise<Sc
   const parsed = parseSchoolProfile(body, email);
   if (!parsed) throw new SchoolCallError("rejected", "The school website did not open the account.");
   return masterProfile(email, parsed.profile);
-}
-
-/**
- * The child's name, age, and starting grade stay on this app.
- * This does not send them to the website.
- */
-export async function saveSchoolStudent(
-  id: string,
-  input: { name: string; startingGrade: number; age?: number; studentIndex?: number },
-  deps?: CallDeps,
-): Promise<SchoolProfile> {
-  void input;
-  const email = accountId(id);
-  const token = await tokenFor(email, deps);
-  const index = deps?.studentIndex ?? studentIndexOf(id);
-  return readSchoolAccount(email, { ...deps, token, studentIndex: index });
-}
-
-export async function writeSchoolAccount(id: string, body: FamilyWrite, deps?: CallDeps): Promise<SchoolProfile | null> {
-  const email = accountId(id);
-  const token = await tokenFor(email, deps);
-  const index = body.studentIndex ?? deps?.studentIndex ?? studentIndexOf(id);
-  let response: unknown;
-  try {
-    response = await callSchool("POST", PATHS.family, withStudentIndex(body, index), { ...deps, token });
-  } catch (err) {
-    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
-      await clearStoredGrant(email);
-    }
-    throw err;
-  }
-  noteRotatedGrant(response, deps);
-  const parsed = parseSchoolProfile(response, email);
-  return parsed ? masterProfile(email, parsed.profile) : null;
 }
 
 /** Ask the website to send the confirmation email again. The website sends that mail. */

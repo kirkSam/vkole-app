@@ -3,6 +3,22 @@ import type { FamilyStudent } from "@/lib/school-account";
 /** Second slot when the family has not registered a second student. A tap does nothing. */
 export const OPEN_ACCT_LABEL = "Open acct.";
 
+/** An empty Student 1 or Student 2 place, when a parent is adding a child. */
+export const OPEN_PLACE_LABEL = "open";
+
+export type StudentPlaceChoice = { index: 1 | 2; name: string; open: boolean };
+
+/** Two places. A used place shows the child's name. An empty place says "open". */
+export function studentPlaceChoices(students: { index: number; name: string }[]): [StudentPlaceChoice, StudentPlaceChoice] {
+  return ([1, 2] as const).map((index) => {
+    const named = students.find((student) => student.index === index && student.name.trim());
+    const name = named?.name.trim() ?? "";
+    return name
+      ? { index, name, open: false }
+      : { index, name: OPEN_PLACE_LABEL, open: true };
+  }) as [StudentPlaceChoice, StudentPlaceChoice];
+}
+
 export type StudentCardButton =
   | { kind: "student"; index: number; label: string; name: string }
   | { kind: "open"; label: typeof OPEN_ACCT_LABEL };

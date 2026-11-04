@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -28,7 +28,6 @@ import {
   schoolAccessDecision,
   schoolFailureMessage,
   schoolPassword,
-  schoolWriteBody,
   websiteMasterEmail,
 } from "./school-account.ts";
 import {
@@ -37,10 +36,8 @@ import {
   readSchoolAccount,
   registerSchoolAccount,
   requestSchoolReset,
-  saveSchoolStudent,
   signInSchoolAccount,
   studentCheck,
-  writeSchoolAccount,
 } from "./school-account.server.ts";
 
 const SECRET = "unit-test-secret-do-not-ship";
@@ -167,31 +164,6 @@ describe("clock and seen writes", () => {
     });
     assert.equal(plain?.profile.clockLimit, 28800);
     assert.equal(plain?.profile.clockSeconds, 90);
-  });
-
-  it("sends the higher clock and the displayed prompt, not the pool variant id", () => {
-    const body = schoolWriteBody({ m: { grade: 2, step: 0 }, sp: { grade: 1, step: 0, band: "LK", index: 0 } }, 100, 40, [
-      { key: "m:1:0:0", text: "What is 2 + 2?" },
-      { key: "m:1:0:1", text: "What is 2 + 2?" },
-      { key: "m:1:0:2", text: "" },
-      { key: "", text: "m:2:0:0" },
-      { key: "sw:PP:1", text: "the" },
-    ]);
-    assert.equal(body.clock.seconds, 100);
-    assert.equal(body.clock.dayKey, localDayKey(PACIFIC));
-    assert.deepEqual(body.seenQuestions, [{ prompt: "What is 2 + 2?" }, { prompt: "the" }]);
-    assert.equal("seen" in body, false);
-    assert.equal(JSON.stringify(body).includes("m:1:0:0"), false);
-    assert.equal(JSON.stringify(body).includes("m:2:0:0"), false);
-    assert.equal(body.levels.sp?.band, "cvc");
-    assert.equal(body.levels.sp?.word, "a");
-    assert.equal(body.levels.sp?.grade, 1);
-    assert.equal("student" in body, false);
-    assert.equal("id" in body, false);
-    const enrolled = schoolWriteBody({ m: { grade: 2, step: 0 } }, 0, 0, [], { name: "Ada", age: 8, startingGrade: 2 });
-    assert.deepEqual(enrolled.student, { name: "Ada", age: 8, startingGrade: 2 });
-    const many = Array.from({ length: 401 }, (_, index) => ({ key: `m:1:0:${index}`, text: `Prompt ${index}` }));
-    assert.equal(schoolWriteBody({}, 0, 0, many).seenQuestions.length, 400);
   });
 
   it("keeps website practice-sheet text for sight words, phonemic lines, math game, and alphabet letters", () => {
@@ -444,76 +416,8 @@ describe("server calls", () => {
     );
   });
 
-  it("saves phonemic progress on level pa with the bearer token and no adult flag", async () => {
-    await writeSchoolAccount(
-      "a@b.co",
-      schoolWriteBody(
-        { pa: { grade: 1, step: 0, band: "PS", index: 1, word: "ps-sun", streak: 1, missStreak: 0 } },
-        0,
-        0,
-        [],
-      ),
-      {
-        token: TOKEN,
-        fetch: async (input, init) => {
-          assert.equal(String(input), "https://www.dotheimpossible.ai/api/account/family");
-          assert.equal(init?.method, "POST");
-          const headers = new Headers(init?.headers);
-          assert.equal(headers.get("authorization"), `Bearer ${TOKEN}`);
-          assert.equal(headers.get("x-vkole-secret"), null);
-          assert.equal(headers.get("cookie"), null);
-          const body = JSON.parse(String(init?.body));
-          assert.equal(body.levels.pa.band, "PS");
-          assert.equal(body.levels.pa.index, 1);
-          assert.equal(body.levels.pa.word, "ps-sun");
-          assert.equal(body.levels.pa.streak, 1);
-          assert.equal(body.levels.pa.missStreak, 0);
-          assert.equal(body.levels.pa.adult, undefined);
-          assert.equal(body.levels.pa.approved, undefined);
-          assert.equal(JSON.stringify(body).includes("adult"), false);
-          return jsonResponse(200, session("a@b.co", { levels: body.levels }));
-        },
-      },
-    );
-  });
-
-  it("saves spelling on level sp and asks the website to send the reset code", async () => {
+  it("asks the website to send the reset code and does not post the family", async () => {
     const paths: string[] = [];
-    await writeSchoolAccount(
-      "a@b.co",
-      schoolWriteBody(
-        { m: { grade: 2, step: 1 }, sp: { grade: 1, step: 0, band: "LK", index: 2, word: "lk-next-c" }, mg: { grade: 3, step: 0 } },
-        40,
-        0,
-        [{ key: "k", text: "t" }],
-      ),
-      {
-        token: TOKEN,
-        fetch: async (input, init) => {
-          paths.push(String(input));
-          assert.equal(init?.method, "POST");
-          const headers = new Headers(init?.headers);
-          assert.equal(headers.get("origin"), null);
-          assert.equal(headers.get("x-vkole-secret"), null);
-          assert.equal(headers.get("cookie"), null);
-          assert.equal(headers.get("authorization"), `Bearer ${TOKEN}`);
-          const body = JSON.parse(String(init?.body));
-          assert.equal(body.email, undefined);
-          assert.equal(body.clock.seconds, 40);
-          assert.equal(body.levels.sp.band, "cvc");
-          assert.equal(body.levels.sp.word, "c");
-          assert.equal(body.levels.sp.grade, 1);
-          assert.equal(body.levels.mg.grade, 3);
-          assert.deepEqual(body.seenQuestions, [{ prompt: "t" }]);
-          assert.equal(body.seen, undefined);
-          assert.equal(JSON.stringify(body).includes("m:1:0:0"), false);
-          assert.equal(String(input).includes("/api/vkole/"), false);
-          assert.equal(String(input).includes("resend"), false);
-          assert.equal(String(input).includes("gmail"), false);
-          return jsonResponse(200, session("a@b.co", { levels: body.levels, clock: body.clock, seenQuestions: body.seenQuestions }));
-        },
-      },
-    );
     const reset = await requestSchoolReset("A@B.co", {
       fetch: async (input, init) => {
         paths.push(String(input));
@@ -524,8 +428,8 @@ describe("server calls", () => {
       },
     });
     assert.equal(reset.message, "Code sent");
-    assert.equal(paths[0], "https://www.dotheimpossible.ai/api/account/family");
-    assert.equal(paths[1], "https://www.dotheimpossible.ai/api/account/forgot-password/send-code");
+    assert.equal(paths[0], "https://www.dotheimpossible.ai/api/account/forgot-password/send-code");
+    assert.equal(paths.some((path) => path.includes("/api/account/family")), false);
     assert.equal(paths.some((path) => path.includes("/api/vkole/password-reset")), false);
     assert.equal(JSON.stringify(reset).includes(SECRET), false);
   });
@@ -694,7 +598,7 @@ describe("server calls", () => {
     );
   });
 
-  it("registers, then saves the child name with that same token", async () => {
+  it("registers without posting a child to the family address", async () => {
     const email = "ada@family.test";
     const calls: { path: string; method: string; authorization: string | null; body: unknown }[] = [];
     const fetchImpl = async (input: string, init?: RequestInit) => {
@@ -721,16 +625,10 @@ describe("server calls", () => {
     );
     assert.equal(account.token, "register-token");
     assert.equal(account.expiresAt, EXPIRES);
-    const saved = await saveSchoolStudent(
-      account.id,
-      { name: "Ada", startingGrade: 2, age: 8 },
-      { token: account.token, expiresAt: account.expiresAt, fetch: fetchImpl },
-    );
-    assert.equal(saved.studentName, "");
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 1);
     assert.equal(calls[0]?.path, "https://www.dotheimpossible.ai/api/account/register");
-    assert.equal(calls[1]?.method, "GET");
     assert.equal(calls.some((call) => call.method === "PATCH"), false);
+    assert.equal(calls.some((call) => String(call.path).includes("/api/account/family")), false);
     assert.equal(JSON.stringify(calls).includes("Ada"), false);
   });
 
@@ -1010,6 +908,80 @@ describe("progress after a lapse", () => {
       now: Date.parse("2026-10-20T00:00:00.000Z"),
     }).blocked, true);
   });
+
+  it("drops a website child's name, levels, clock, and seen questions", () => {
+    const website = {
+      ...freshProfile,
+      access: "open" as const,
+      studentName: "Website Child",
+      level: {
+        m: { grade: 9, step: 2 },
+        sw: { grade: 2, step: 0, band: "D-1", index: 3, word: "after" },
+      },
+      clockSeconds: 50,
+      clockDayKey: "2026-11-03",
+      clockLimit: 1000,
+      seen: [{ key: "site", text: "website prompt" }],
+      plan: "year" as const,
+      emailConfirmed: true,
+      freeWeekGranted: true,
+      lockReason: "" as const,
+      students: [
+        { index: 1, name: "Website Child", age: 11, startingGrade: 5 },
+        { index: 2, name: "Other", age: 7, startingGrade: 1 },
+      ],
+    };
+    const kept = profileKeepingProgress(
+      {
+        ...stored,
+        clockDayKey: "2026-11-04",
+        seen: [{ key: "local", text: "local prompt" }],
+        students: [{ index: 1, name: "Ada", age: 8, startingGrade: 3 }],
+      },
+      website,
+    );
+    assert.equal(kept.studentName, "Ada");
+    assert.equal(kept.level.m?.grade, 4);
+    assert.equal(kept.level.sw?.word, "enough");
+    assert.equal(kept.clockSeconds, 120);
+    assert.equal(kept.clockDayKey, "2026-11-04");
+    assert.equal(kept.clockLimit, DAY_LIMIT_SECONDS);
+    assert.deepEqual(kept.seen, [{ key: "local", text: "local prompt" }]);
+    assert.equal(kept.students?.find((student) => student.index === 1)?.name, "Ada");
+    assert.equal(kept.students?.find((student) => student.index === 1)?.age, 8);
+    assert.equal(kept.students?.find((student) => student.index === 1)?.startingGrade, 3);
+    assert.equal(kept.students?.find((student) => student.index === 2)?.name, "");
+    assert.equal(kept.students?.find((student) => student.index === 2)?.age, null);
+    assert.equal(kept.students?.find((student) => student.index === 2)?.startingGrade, null);
+    assert.equal(kept.access, "open");
+    assert.equal(kept.plan, "year");
+    assert.equal(kept.emailConfirmed, true);
+    const dumped = JSON.stringify(kept);
+    assert.equal(dumped.includes("Website Child"), false);
+    assert.equal(dumped.includes("Other"), false);
+    assert.equal(dumped.includes("website prompt"), false);
+    assert.equal(dumped.includes("after"), false);
+    const blank = profileKeepingProgress(undefined, website);
+    assert.equal(blank.studentName, "");
+    assert.deepEqual(blank.level, {});
+    assert.equal(blank.clockSeconds, 0);
+    assert.equal(blank.clockDayKey, "");
+    assert.deepEqual(blank.seen, []);
+    assert.equal(blank.clockLimit, DAY_LIMIT_SECONDS);
+    assert.equal(
+      blank.students?.every((student) => student.name === "" && student.age == null && student.startingGrade == null),
+      true,
+    );
+    assert.deepEqual(
+      blank.students?.map((student) => student.index),
+      [1, 2],
+    );
+    assert.equal(JSON.stringify(blank).includes("Website"), false);
+    assert.equal(JSON.stringify(blank).includes("after"), false);
+    assert.equal(JSON.stringify(blank).includes("website prompt"), false);
+    assert.equal(blank.access, "open");
+    assert.equal(blank.plan, "year");
+  });
 });
 
 describe("pacific day clock", () => {
@@ -1070,18 +1042,43 @@ describe("pacific day clock", () => {
     assert.equal(profile.clockSeconds, 28800);
   });
 
-  it("keeps a previous Pacific day's seconds and still posts a clock", () => {
+  it("keeps a previous Pacific day's seconds", () => {
     const loaded = projectTodayClock({ day_key: yesterday, used_seconds: 28800, armed: 1 }, today);
     assert.equal(loaded.used, 28800);
     assert.equal(loaded.closed, false);
     assert.equal(projectTodayClock({ day_key: today, used_seconds: 90, armed: 0 }, today).used, 90);
     assert.equal(projectTodayClock(undefined, today).used, 0);
-    const body = schoolWriteBody({}, 90, 0, [], undefined, undefined, undefined, today);
-    assert.deepEqual(body.clock, { seconds: 90, dayKey: today });
-    const uncapped = schoolWriteBody({}, 40000, 10, [], undefined, 1000, undefined, today);
-    assert.deepEqual(uncapped.clock, { seconds: 40000, dayKey: today });
-    const posted = schoolWriteBody({}, 0, 0, []);
-    assert.equal(posted.clock.dayKey, localDayKey(PACIFIC));
-    assert.equal(posted.clock.seconds, 0);
+  });
+});
+
+describe("family post is gone", () => {
+  it("does not post or patch /api/account/family", () => {
+    const root = dirname(fileURLToPath(import.meta.url));
+    const names = [
+      "school-account.ts",
+      "school-account.server.ts",
+      "school-sync.server.ts",
+      "day-clock.ts",
+      "climbs.ts",
+    ];
+    const banned = [
+      "function schoolWriteBody",
+      "function writeSchoolAccount",
+      "function saveSchoolStudent",
+      "function pullSchoolAccount",
+      "function pushSchoolAccount",
+      "function postSessionEndReport",
+    ];
+    for (const name of names) {
+      const source = readFileSync(join(root, name), "utf8");
+      for (const needle of banned) {
+        assert.equal(source.includes(needle), false, `${name} still has ${needle}`);
+      }
+    }
+    const server = readFileSync(join(root, "school-account.server.ts"), "utf8");
+    assert.equal(/callSchool\(\s*"POST"\s*,\s*PATHS\.family/.test(server), false);
+    assert.equal(/callSchool\(\s*"PATCH"/.test(server), false);
+    assert.equal(server.includes("GET"), true);
+    assert.equal(existsSync(join(root, "session-report.server.ts")), false);
   });
 });

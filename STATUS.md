@@ -1,3 +1,7 @@
+## 2026-11-04 place picker on the separation branch (App Builder)
+**Decision:** Same pull request as the separation. A parent picks Student 1 or Student 2. A used place on this side shows the child's name. An empty place says open. Old crossing functions are deleted. Not merged.
+**Next:** Claude checks the diff. School Site stops sending child names and levels.
+
 ## 2026-11-04 separation branch (App Builder)
 **Decision:** Student information stays on the app. Account fields still come from the website. Not merged. Claude checks this diff first.
 **Next:** Sam republishes main (the test fix). This branch waits.

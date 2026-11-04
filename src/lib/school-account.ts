@@ -9,7 +9,6 @@
  */
 
 import { normalizeAccountEmail, sameAccount } from "./account-scope.ts";
-import { levelFieldsForWebsite } from "./level-pair.ts";
 import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC } from "./day-clock-math.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, SIGHT_WORD_BANDS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
@@ -89,6 +88,21 @@ export function studentIndexToAdd(students: { index: number }[], master: boolean
   if (!indexes.includes(2)) return 2;
   if (!master) return null;
   return Math.max(2, ...indexes) + 1;
+}
+
+/**
+ * The place a parent picked for a new child.
+ * Only Student 1 or Student 2. Nothing is guessed.
+ * A place that already has a name on this side is refused.
+ */
+export function chosenStudentPlace(
+  roster: { index: number; name: string }[],
+  picked: number | null | undefined,
+): 1 | 2 | "pick" | "taken" {
+  if (picked !== 1 && picked !== 2) return "pick";
+  const occupied = roster.some((student) => student.index === picked && student.name.trim().length > 0);
+  if (occupied) return "taken";
+  return picked;
 }
 
 /** The roster index for a typed first name. Student 1 when the name is the only saved child. */
@@ -345,17 +359,6 @@ export type AccountSession = {
   expiresAt: string;
 };
 
-export type FamilyWrite = {
-  levels: Partial<Record<LevelKey, EngineLevel>>;
-  clock: { seconds: number; dayKey: string };
-  /** The website rebuilds its practice-sheet key from this prompt text. */
-  seenQuestions: { prompt: string }[];
-  /** Set on the first child-name save. The website ignores a bare studentName field. */
-  student?: { name: string; age: number | null; startingGrade: number | null };
-  /** Omitted for student 1. Student 2 and later send this. */
-  studentIndex?: number;
-};
-
 /**
  * A leftover local user row does not make a website account unrecognized.
  * The website's own reason is what sign-in shows. Reset is a separate step
@@ -462,17 +465,6 @@ function earnedGradeFrom(row: Record<string, unknown>): number | null {
   if (direct != null) return direct;
   const earned = asRecord(row.earned);
   return earned ? wholeNumber(earned.grade) : null;
-}
-
-/** Put the website working and earned objects on a level that is about to be saved. */
-function publishLevel(level: EngineLevel): EngineLevel {
-  const fields = levelFieldsForWebsite(level);
-  const step = wholeNumber(level.step);
-  return {
-    ...level,
-    ...fields,
-    step: step != null && step >= 0 && step <= 2 ? step : fields.step,
-  };
 }
 
 function readFigure(value: unknown): SgFigure | undefined {
@@ -1429,63 +1421,6 @@ export function decideStudent(
   if (names.length === 0) return "new";
   if (names.some((name) => name.toLowerCase() === typedFirstName.trim().toLowerCase())) return "same";
   return names.length < cap ? "add" : "extra";
-}
-
-const POOL_VARIANT_ID = /^(m|ela|ss|gen|sg):\d+:\d+:\d+$/;
-
-/** The displayed prompt. A pool variant id is not a prompt. */
-function seenWirePrompt(item: { key?: string; text?: string }): string {
-  const text = (item.text ?? "").replace(/\s+/g, " ").trim();
-  if (!text || POOL_VARIANT_ID.test(text)) return "";
-  return text;
-}
-
-/** Body for POST /api/account/family. Levels include alphabet on `sp`. */
-export function schoolWriteBody(
-  level: Partial<Record<LevelKey, EngineLevel>>,
-  localClock: number,
-  remoteClock: number,
-  seen: SeenQuestion[],
-  student?: { name: string; age?: number | null; startingGrade?: number | null },
-  limit = CLOCK_LIMIT_SECONDS,
-  studentIndex?: number,
-  dayKey = localDayKey(PACIFIC),
-): FamilyWrite {
-  const seenQuestions: { prompt: string }[] = [];
-  const prompts = new Set<string>();
-  for (const item of seen) {
-    const prompt = seenWirePrompt(item);
-    const dedupe = prompt.toLowerCase();
-    if (!prompt || prompts.has(dedupe)) continue;
-    prompts.add(dedupe);
-    seenQuestions.push({ prompt });
-    if (seenQuestions.length >= 400) break;
-  }
-  const levels: FamilyWrite["levels"] = { ...level };
-  if (levels.sp) levels.sp = toWebsiteSpLevel(levels.sp);
-  for (const key of LEVEL_KEYS) {
-    const item = levels[key];
-    if (item) levels[key] = publishLevel(item);
-  }
-  const name = student?.name.trim() ?? "";
-  const age = student?.age;
-  const starting = student?.startingGrade;
-  const index = Math.round(studentIndex ?? 1);
-  return {
-    levels,
-    clock: { seconds: clockToWrite(localClock, remoteClock, limit), dayKey: clockDayKeyOf(dayKey) || localDayKey(PACIFIC) },
-    seenQuestions,
-    ...(name
-      ? {
-          student: {
-            name,
-            age: Number.isInteger(age) ? (age as number) : null,
-            startingGrade: Number.isInteger(starting) && (starting as number) >= 1 && (starting as number) <= 12 ? (starting as number) : null,
-          },
-        }
-      : {}),
-    ...(Number.isInteger(index) && index > 1 ? { studentIndex: index } : {}),
-  };
 }
 
 /**

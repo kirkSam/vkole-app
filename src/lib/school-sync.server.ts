@@ -6,7 +6,6 @@ import {
   SCHOOL_OFFLINE_MESSAGE,
   SCHOOL_SEPARATE_MESSAGE,
   accountIdOf,
-  clearsLocalProgress,
   profileKeepingProgress,
   sgAccountLevel,
   studentScopeId,
@@ -27,18 +26,6 @@ import { paAccountLevel } from "@/lib/vkole/phonemic-awareness/level";
 import { cardFromAccount as paCardFromAccount, migratePaBand } from "@/lib/vkole/phonemic-awareness/items";
 import { swAccountLevel } from "@/lib/vkole/sight-words/level";
 import { cardFromAccount } from "@/lib/vkole/sight-words/words";
-
-async function applyProfile(sql: Sql, userId: string, profile: SchoolProfile): Promise<SchoolProfile> {
-  await ensureAlphabetCompletedColumn(sql);
-  const mirror = await readSchoolMirror(sql, userId);
-  const kept = profileKeepingProgress(mirror, profile);
-  if (Object.keys(kept.level).length === 0) {
-    const fromClimbs = await collectLevel(sql, userId, {});
-    if (Object.keys(fromClimbs).length > 0) kept.level = fromClimbs;
-  }
-  await saveSchoolMirror(sql, userId, kept, false);
-  return kept;
-}
 
 async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<LevelKey, EngineLevel>>) {
   await ensureAlphabetCompletedColumn(sql);
@@ -191,29 +178,6 @@ async function collectLevel(sql: Sql, userId: string, remote: Partial<Record<Lev
   return level;
 }
 
-export async function pullSchoolAccount(sql: Sql, userId: string, opts?: { engineActive?: boolean }): Promise<SchoolProfile> {
-  const account = accountIdOf(userId);
-  const grant = await readAccountGrant(sql, account);
-  if (!grant) throw new SchoolCallError("unauthorized", "Sign in again.");
-  let spun: { token: string; expiresAt: string } | null = null;
-  const profile = await readSchoolAccount(userId, {
-    token: grant.token,
-    expiresAt: grant.expiresAt,
-    engineActive: opts?.engineActive === true,
-    onGrant: (next) => {
-      spun = next;
-    },
-  });
-  const mirror = await readSchoolMirror(sql, userId);
-  if (clearsLocalProgress(profile, mirror)) {
-    const { clearFreshLocalRows } = await import("./account-purge.server.ts");
-    await clearFreshLocalRows(sql, userId);
-  }
-  const kept = await applyProfile(sql, userId, profile);
-  await saveAccountGrant(sql, account, spun ?? grant);
-  return kept;
-}
-
 /**
  * Store the register or sign-in token before any family read, then fill the
  * mirror from GET /api/account/family. Account fields stay. The child does not.
@@ -264,12 +228,6 @@ export async function refreshSchoolAccount(accountId: string): Promise<SchoolPro
   await saveSchoolMirror(sql, scope, kept, false);
   return kept;
 }
-
-export async function pushSchoolAccount(_sql: Sql, _userId: string): Promise<void> {
-  // The child name, age, starting grade, engine levels, day clock, seen questions,
-  // and clock limit stay on this app. They are not posted to the website.
-}
-
 
 /**
  * Pull, run the local handler, then push.
