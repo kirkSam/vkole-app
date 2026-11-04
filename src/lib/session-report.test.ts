@@ -114,10 +114,9 @@ describe("session-end report subject", () => {
     assert.equal(line.question, "1 + 1");
   });
 
-  it("asks for the website mail from the sitting close with climb.subject", () => {
+  it("sends the app's own progress letter and does not post the sitting to the website", () => {
     const source = readFileSync(new URL("./climbs.ts", import.meta.url), "utf8");
-    assert.match(source, /subject: climb\.subject/);
-    assert.match(source, /engine: `VKOLE\/\$\{subjectMeta\(climb\.subject\)\.code\}`/);
-    assert.match(source, /postSessionEndReport/);
+    assert.match(source, /sendAcademicMail/);
+    assert.equal(source.includes("postSessionEndReport"), false);
   });
 });

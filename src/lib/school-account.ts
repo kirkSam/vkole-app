@@ -393,13 +393,9 @@ export function clockToWrite(localSeconds: number, remoteSeconds: number, limit 
   return Math.max(0, Math.floor(localSeconds) || 0, Math.floor(remoteSeconds) || 0);
 }
 
-/** A limit from a website clock payload. Missing values stay at the stored placeholder. */
-export function clockLimitFrom(clock: unknown): number {
-  const row = asRecord(clock);
-  const raw = row?.limit ?? row?.limitSeconds ?? row?.maxSeconds ?? row?.dayLimit;
-  const n = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() ? Number(raw) : Number.NaN;
-  if (!Number.isFinite(n) || n <= 0) return CLOCK_LIMIT_SECONDS;
-  return Math.floor(n);
+/** A limit from a website clock payload is not used. Both sides use the built-in day. */
+export function clockLimitFrom(_clock: unknown): number {
+  return CLOCK_LIMIT_SECONDS;
 }
 
 export function isLevelKey(value: string): value is LevelKey {
@@ -1187,21 +1183,14 @@ export type StoredSchoolProgress = {
 };
 
 /**
- * Local climbs, seen prompts, and history are cleared only for a brand-new
- * open account that has never stored a student or an engine.
- * A closed family is a finished free week or a lapsed subscription. It keeps
- * its place even when the website omits the student and the levels.
+ * The website's empty student book does not delete this app's child.
+ * Student name, levels, and the day clock stay on the app.
  */
 export function clearsLocalProgress(
-  profile: Pick<SchoolProfile, "access" | "studentName" | "level"> & { lockReason?: LockReason | null },
-  stored?: StoredSchoolProgress | null,
+  _profile: Pick<SchoolProfile, "access" | "studentName" | "level"> & { lockReason?: LockReason | null },
+  _stored?: StoredSchoolProgress | null,
 ): boolean {
-  if (profile.lockReason === "confirm-email" || profile.lockReason === "payment") return false;
-  if (profile.access !== "open") return false;
-  if (!isFreshSchoolProfile(profile)) return false;
-  if ((stored?.studentName ?? "").trim()) return false;
-  if (stored?.level && Object.keys(stored.level).length > 0) return false;
-  return true;
+  return false;
 }
 
 function bandRank(engine: LevelKey, band: string | undefined): number {
@@ -1359,22 +1348,44 @@ export function keptClock(
 
 /**
  * The family to store after a read.
- * Access follows the website, so a lapse still locks the engines.
- * The student, the levels, the free-week start, and the plan
- * stay when the website sends an empty or earlier value.
- * The clock keeps the higher second total. A new Pacific day does not zero it.
+ * Access, the plan, the free week, email confirmation, the lock, and the office
+ * follow the website.
+ * The child name, the levels, the day clock, and seen questions stay on this app.
+ * A website student place shares its index only. It does not bring a name, age, or grade.
  */
-export function profileKeepingProgress(stored: StoredSchoolProgress | null | undefined, incoming: SchoolProfile): SchoolProfile {
-  const clock = keptClock(stored, incoming);
+export function profileKeepingProgress(
+  stored: (StoredSchoolProgress & { students?: FamilyStudent[]; seen?: SchoolProfile["seen"] }) | null | undefined,
+  incoming: SchoolProfile,
+): SchoolProfile {
+  const localStudents = stored?.students ?? [];
+  const places = (incoming.students ?? [])
+    .filter((student) => Number.isInteger(student.index) && student.index >= 1)
+    .map((student) => ({ index: student.index, name: "", age: null as number | null, startingGrade: null as number | null }));
   return {
     ...incoming,
-    studentName: incoming.studentName.trim() || stored?.studentName?.trim() || "",
-    level: keptLevels(stored?.level ?? {}, incoming.level),
+    studentName: stored?.studentName?.trim() || "",
+    level: stored?.level ?? {},
     freeWeekStart: incoming.freeWeekStart ?? stored?.freeWeekStart ?? null,
-    clockSeconds: clock.clockSeconds,
-    clockDayKey: clock.clockDayKey,
+    clockSeconds: Math.max(0, Math.floor(stored?.clockSeconds ?? 0) || 0),
+    clockDayKey: stored?.clockDayKey ?? "",
+    clockLimit: DAY_LIMIT_SECONDS,
+    seen: stored?.seen ?? [],
     plan: incoming.plan ?? stored?.plan ?? null,
+    students: mergePlaces(localStudents, places),
   };
+}
+
+function mergePlaces(local: FamilyStudent[], places: FamilyStudent[]): FamilyStudent[] {
+  const byIndex = new Map<number, FamilyStudent>();
+  for (const student of local) {
+    if (!Number.isInteger(student.index) || student.index < 1) continue;
+    byIndex.set(student.index, student);
+  }
+  for (const place of places) {
+    if (byIndex.has(place.index)) continue;
+    byIndex.set(place.index, place);
+  }
+  return [...byIndex.values()].sort((a, b) => a.index - b.index);
 }
 
 /**

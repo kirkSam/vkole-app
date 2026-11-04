@@ -153,14 +153,14 @@ describe("clock and seen writes", () => {
     assert.equal(website.closed, false);
   });
 
-  it("stores a website limit and does not cap the seconds", () => {
+  it("ignores a website clock limit and does not cap the seconds", () => {
     assert.equal(clockLimitFrom({ seconds: 10 }), 28800);
-    assert.equal(clockLimitFrom({ seconds: 10, limit: 12000 }), 12000);
-    assert.equal(clockLimitFrom({ limitSeconds: "14400" }), 14400);
+    assert.equal(clockLimitFrom({ seconds: 10, limit: 12000 }), 28800);
+    assert.equal(clockLimitFrom({ limitSeconds: "14400" }), 28800);
     const capped = parseSchoolProfile({
       family: { email: "a@b.co", access: "open", clock: { seconds: 40000, limit: 10000 } },
     });
-    assert.equal(capped?.profile.clockLimit, 10000);
+    assert.equal(capped?.profile.clockLimit, 28800);
     assert.equal(capped?.profile.clockSeconds, 40000);
     const plain = parseSchoolProfile({
       family: { email: "a@b.co", access: "open", clock: { seconds: 90 } },
@@ -708,14 +708,9 @@ describe("server calls", () => {
         return jsonResponse(200, session(email, { access: "closed", studentName: "", student: { name: "" } }, "register-token"));
       }
       assert.equal(headers.get("authorization"), "Bearer register-token");
-      if (body && typeof body === "object" && "student" in body) {
+      if (String(init?.method ?? "GET") === "GET") {
         return jsonResponse(200, {
-          family: {
-            email,
-            access: "closed",
-            studentName: "Ada",
-            student: { name: "Ada", age: 8, startingGrade: 2 },
-          },
+          family: { email, access: "closed", studentName: "" },
         });
       }
       return jsonResponse(400, { error: "Enter a starting grade from 1 to 12." });
@@ -731,26 +726,12 @@ describe("server calls", () => {
       { name: "Ada", startingGrade: 2, age: 8 },
       { token: account.token, expiresAt: account.expiresAt, fetch: fetchImpl },
     );
-    assert.equal(saved.studentName, "Ada");
-    assert.equal(isFreshSchoolProfile(saved), false);
+    assert.equal(saved.studentName, "");
+    assert.equal(calls.length, 2);
     assert.equal(calls[0]?.path, "https://www.dotheimpossible.ai/api/account/register");
-    assert.equal(calls[1]?.path, "https://www.dotheimpossible.ai/api/account/family");
-    assert.equal(calls[1]?.method, "PATCH");
-    assert.equal(calls[1]?.authorization, "Bearer register-token");
-    assert.deepEqual(calls[1]?.body, { student: { name: "Ada", startingGrade: 2, age: 8 } });
-    await assert.rejects(
-      () =>
-        saveSchoolStudent(
-          account.id,
-          { name: "Ada", startingGrade: 2 },
-          {
-            token: account.token,
-            expiresAt: account.expiresAt,
-            fetch: async () => jsonResponse(400, { error: "Enter a starting grade from 1 to 12." }),
-          },
-        ),
-      (err: unknown) => err instanceof SchoolCallError && err.message === "Enter a starting grade from 1 to 12.",
-    );
+    assert.equal(calls[1]?.method, "GET");
+    assert.equal(calls.some((call) => call.method === "PATCH"), false);
+    assert.equal(JSON.stringify(calls).includes("Ada"), false);
   });
 
   it("registers on the website, then signs in with the same email and password", async () => {
@@ -991,7 +972,7 @@ describe("progress after a lapse", () => {
     assert.equal(isFreshSchoolProfile(lapsed), true);
     assert.equal(clearsLocalProgress(lapsed), false);
     assert.equal(clearsLocalProgress(lapsed, stored), false);
-    assert.equal(clearsLocalProgress(freshProfile), true);
+    assert.equal(clearsLocalProgress(freshProfile), false);
     assert.equal(clearsLocalProgress(freshProfile, stored), false);
     assert.equal(clearsLocalProgress({ ...freshProfile, studentName: "Ada" }), false);
   });

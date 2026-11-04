@@ -787,7 +787,7 @@ function AppGate({
               className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
             />
           </label>
-          <p className="text-sm text-muted sm:col-span-2">Type the age and a starting grade from 1 to 12. Then press the button below.</p>
+          <p className="text-sm text-muted sm:col-span-2">Pick the same place for the same child on the app and the website. Type the age and a starting grade from 1 to 12. Then press the button below.</p>
         </div>
       ) : null}
       {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}

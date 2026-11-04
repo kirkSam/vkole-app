@@ -299,44 +299,19 @@ export async function readSchoolAccount(id: string, deps?: CallDeps): Promise<Sc
 }
 
 /**
- * Save the child on the website before a level is opened.
- * The website keeps `{ student: { name, startingGrade } }`.
- * `{ studentName }` alone comes back unchanged. `{ student: { name } }`
- * without a grade is refused with "Enter a starting grade from 1 to 12."
+ * The child's name, age, and starting grade stay on this app.
+ * This does not send them to the website.
  */
 export async function saveSchoolStudent(
   id: string,
   input: { name: string; startingGrade: number; age?: number; studentIndex?: number },
   deps?: CallDeps,
 ): Promise<SchoolProfile> {
+  void input;
   const email = accountId(id);
-  const name = input.name.trim().replace(/\s+/g, " ");
-  const startingGrade = Math.round(input.startingGrade);
-  if (!name) throw new SchoolCallError("rejected", "Enter the student’s first name.");
-  if (!Number.isInteger(startingGrade) || startingGrade < 1 || startingGrade > 12) {
-    throw new SchoolCallError("rejected", "Enter a starting grade from 1 to 12.");
-  }
-  const student: { name: string; startingGrade: number; age?: number } = { name, startingGrade };
-  if (input.age != null && Number.isInteger(input.age)) student.age = input.age;
   const token = await tokenFor(email, deps);
-  const index = input.studentIndex ?? studentIndexOf(id);
-  let response: unknown;
-  try {
-    response = await callSchool("PATCH", PATHS.family, withStudentIndex({ student }, index), { ...deps, token });
-  } catch (err) {
-    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
-      await clearStoredGrant(email);
-    }
-    throw err;
-  }
-  noteRotatedGrant(response, deps);
-  const parsed = parseSchoolProfile(response, email);
-  const saved = parsed ? masterProfile(email, parsed.profile) : null;
-  if (!saved?.studentName) {
-    const spoken = websiteErrorText(response);
-    throw new SchoolCallError("rejected", spoken || "The school website did not save the student.");
-  }
-  return saved;
+  const index = deps?.studentIndex ?? studentIndexOf(id);
+  return readSchoolAccount(email, { ...deps, token, studentIndex: index });
 }
 
 export async function writeSchoolAccount(id: string, body: FamilyWrite, deps?: CallDeps): Promise<SchoolProfile | null> {

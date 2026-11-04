@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { IDLE_MS, academicLetter, parentLogoutLetter, parentProgressMail, trialState, type AppTime, type EndReason, type ReportEvent } from "@/lib/academic-email";
-import { reportLine } from "@/lib/session-report";
 import { schoolMiddleware } from "@/lib/school-middleware";
 import { aggregateLetterMisses, missSamplesFromDetails } from "@/lib/speech/letter-attempts";
 import { accountIdOf, isSchoolAccountId, isWebsiteMasterEmail, schoolAccessDecision, studentIndexOf, studentScopeId, type FamilyStudent } from "@/lib/school-account";
@@ -1236,32 +1235,6 @@ async function deliverLetter(sql: Sql, userId: string, climbId: string, reason: 
     session: { reason, sittingSeconds: sittingSecondsValue, totalSeconds: climb.onlineSeconds },
     alphabetReport,
   });
-  try {
-    const { postSessionEndReport } = await import("@/lib/session-report.server");
-    await postSessionEndReport(
-      {
-        name: climb.childName,
-        email: facts.email,
-        engine: `VKOLE/${subjectMeta(climb.subject).code}`,
-        subject: climb.subject,
-        startedAt: Date.parse(startedAt),
-        untimed: true,
-        startingGrade: climb.startGrade ?? climb.level,
-        grade: climb.level,
-        code: climb.standardCode,
-        label: reportLabel,
-        reached: reportEvents.filter((event) => event.correct).length,
-        missed: reportEvents.filter((event) => !event.correct).length,
-        trialEndsAt: Date.parse(climb.endsAt),
-        lines: reportEvents.map((event) => reportLine(event)),
-        sheet: climb.subject === "gen" ? (built?.prompts ?? []) : [],
-        ...(climb.subject === "sg" && mastery ? { masteryText: mastery } : {}),
-      },
-      { userId },
-    );
-  } catch {
-    /* The progress letter still sends if the website report is refused. */
-  }
   let sent = false;
   let error = "";
   try {

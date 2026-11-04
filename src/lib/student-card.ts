@@ -33,15 +33,18 @@ export function studentCardButtons(students: { index: number; name: string }[]):
   return [left, right];
 }
 
-/** Keep every child. A later read for one child must not drop the other. */
+/** Keep every place. A name stays with the side that saved it. An index with no name is still in use. */
 export function mergeFamilyStudents(...lists: (FamilyStudent[] | undefined | null)[]): FamilyStudent[] {
   const byIndex = new Map<number, FamilyStudent>();
   for (const list of lists) {
     for (const student of list ?? []) {
       if (!student || !Number.isInteger(student.index) || student.index < 1) continue;
       const name = student.name?.trim() ?? "";
-      if (!name) continue;
       const prev = byIndex.get(student.index);
+      if (!name) {
+        if (!prev) byIndex.set(student.index, { index: student.index, name: "", age: null, startingGrade: null });
+        continue;
+      }
       byIndex.set(student.index, {
         index: student.index,
         name,

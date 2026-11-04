@@ -63,11 +63,11 @@ export function StudentSwitcher({
             )}
           </div>
           {students.length < 2 ? (
-            <p className="mt-2 text-sm text-muted">Type a new first name on an engine to add the second student.</p>
+            <p className="mt-2 text-sm text-muted">Pick the same place for the same child on the app and the website. Type a new first name on an engine to add the second student.</p>
           ) : null}
         </>
       ) : (
-        <p className="mt-2 text-sm text-muted">Type a first name on an engine to add the first student.</p>
+        <p className="mt-2 text-sm text-muted">Pick the same place for the same child on the app and the website. Type a first name on an engine to add the first student.</p>
       )}
       {error ? <p className="mt-2 text-sm text-miss">{error}</p> : null}
     </div>

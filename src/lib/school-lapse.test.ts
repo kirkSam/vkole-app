@@ -199,19 +199,7 @@ describe("keep progress after a lapse", () => {
       assert.equal(Number(still.rows[0]?.level), 4);
 
       await pushSchoolAccount(sql, EMAIL);
-      assert.equal(posts.length, 1);
-      const body = posts[0] as {
-        levels: { m?: { grade?: number; step?: number }; sp?: { index?: number; word?: string; band?: string } };
-        seenQuestions: { prompt: string }[];
-      };
-      assert.equal(body.levels.m?.grade, 4);
-      assert.equal(body.levels.m?.step, 2);
-      assert.equal(body.levels.sp?.index, 12);
-      assert.equal(body.levels.sp?.word, "m");
-      assert.deepEqual(
-        body.seenQuestions.map((item) => item.prompt).sort(),
-        ["4 + 4 = ?", "the"],
-      );
+      assert.equal(posts.length, 0);
       const after = await pg.query<{ n: number }>("select count(*)::int as n from climb_events");
       assert.equal(Number(after.rows[0]?.n), 1);
     } finally {
@@ -275,11 +263,11 @@ describe("keep progress after a lapse", () => {
       access = "open";
       const fresh = await pullSchoolAccount(sql, EMAIL);
       assert.equal(fresh.access, "open");
-      assert.equal(fresh.level.m, undefined);
+      assert.equal(fresh.level.m?.grade, 2);
       const leftClimbs = await pg.query<{ n: number }>("select count(*)::int as n from climbs");
       const leftSeen = await pg.query<{ n: number }>("select count(*)::int as n from seen_prompts");
-      assert.equal(Number(leftClimbs.rows[0]?.n), 0);
-      assert.equal(Number(leftSeen.rows[0]?.n), 0);
+      assert.equal(Number(leftClimbs.rows[0]?.n), 1);
+      assert.equal(Number(leftSeen.rows[0]?.n), 1);
     } finally {
       globalThis.fetch = previous;
       await pg.close();
@@ -332,10 +320,7 @@ describe("keep progress after a lapse", () => {
       assert.equal(mirror?.clockDayKey, yesterday);
       assert.equal(mirror?.clockSeconds, 28800);
       await pushSchoolAccount(sql, EMAIL);
-      assert.equal(posts.length, 1);
-      const body = posts[0] as { clock?: { seconds?: number; dayKey?: string } };
-      assert.equal(body.clock?.seconds, 28800);
-      assert.equal(body.clock?.dayKey, today);
+      assert.equal(posts.length, 0);
     } finally {
       globalThis.fetch = previous;
       await pg.close();

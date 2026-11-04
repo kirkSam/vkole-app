@@ -1,3 +1,7 @@
+## 2026-11-04 separation branch (App Builder)
+**Decision:** Student information stays on the app. Account fields still come from the website. Not merged. Claude checks this diff first.
+**Next:** Sam republishes main (the test fix). This branch waits.
+
 ## 2026-11-04 later still (from Sam, via Claude)
 **Decision:** Stay/stop lists are approved. FamilyStudent keeps only `index` (stop name, age, startingGrade). `clockLimit` stops. Both sides use the built-in daily limit: 8 hours, DAY_LIMIT_SECONDS = 28800. The shortened memo is filled back in with the dropped instructions (data safety form, report form, the "not shared" sentence stays down, shared-engine recommendation, and the two task lists).
 **Next:** One test-fix pull request, not merged. Separation stays on its own branch until Claude checks the diff.
