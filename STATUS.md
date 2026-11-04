@@ -1,3 +1,7 @@
+## 2026-11-04 test rule (from Sam, via Claude)
+**Decision:** Before Google Play, main has zero code errors and zero failing tests. A new change reports the error count before and after.
+**Next:** App main today is typecheck clean. The full test command stops on 10 host title checks. The learning-engine tests have 1 real failure, about saving a child name to the website.
+
 ## 2026-11-04 later (from Sam, via Claude)
 **Decision:** The earlier Nov 4 memo is replaced by the final memo in docs/team-memo-2026-11-04.md. Google Play first. Student information stays separate. Paid access, the free week, and Student 1 or Student 2 places stay shared.
 **Next:** Sam reviews the stay and stop field list before any separation code is merged.
