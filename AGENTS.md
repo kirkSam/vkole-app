@@ -3,9 +3,9 @@ From: Sam Kirkpatrick (owner, VKOLE)
 Effective: Oct 23, 2026
 
 ## Later decision (kept on purpose)
-The Oct 26 note below is newer than these orders. It overrides every store instruction in this file. Do not work on the Capacitor shell, store listings, or store submission unless Sam asks again. Do not move this app into the website repo unless Sam says so.
+The Oct 26 store pause was replaced by Sam's Nov 4 memo. Store release is active. Do not move this app into the website repo unless Sam says so.
 
-## 2026-10-26 (note from Sam, via Claude)
+## 2026-10-26 (note from Sam, via Claude) — REPLACED by the Nov 4, 2026 memo
 **Decision:** Store/App Store/Google Play publish is paused indefinitely. Do not work on
 the Capacitor/mobile shell, store listing assets, or store-submission checklist items
 unless Sam explicitly asks for that again.
