@@ -41,6 +41,8 @@ describe("website visit", () => {
     const shell = source("../components/shell.tsx");
     const root = source("../routes/__root.tsx");
     const middleware = source("../../server/middleware/grok-pwa.ts");
+    const build = source("./app-build.ts");
+    assert.equal(build.includes('export const APP_BUILD_SOURCE = "c86d24f"'), true);
     assert.equal(shell.includes("appBuildId"), true);
     assert.equal(shell.includes("Build {appBuildId()}"), true);
     assert.equal(root.includes('httpEquiv: "Cache-Control"'), true);

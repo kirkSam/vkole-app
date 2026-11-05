@@ -1,5 +1,5 @@
 /** Short id at the bottom of every screen. A git build replaces it when one is available. */
-export const APP_BUILD_SOURCE = "pending";
+export const APP_BUILD_SOURCE = "c86d24f";
 
 declare const __APP_BUILD__: string | undefined;
 
