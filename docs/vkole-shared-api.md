@@ -1,6 +1,6 @@
 # VKOLE shared account API
 
-The school website is the account book. The app calls `https://www.dotheimpossible.ai/api/account/*` from its own server. No cookies. Sign-in and register return `{ token, expiresAt, family }`. Family reads and saves send `Authorization: Bearer`. The token lasts 12 hours. There is no refresh URL. A family response that includes `token` and `expiresAt` replaces the stored grant with no sign-in screen. Outside an engine, a 401 clears the stored token and returns the parent to sign-in. During an open engine, a 401 or an expired grant does not end the app session or the sitting; the local answer is kept and the next call tries the website again. The browser never sends `X-Vkole-Secret`. The account id is the lowercase parent email.
+The school website is the account book. The app calls `https://www.dotheimpossible.ai/api/account/*` from its own server. No cookies. Sign-in and register return `{ token, expiresAt, family }`. Family reads send `Authorization: Bearer`. The app does not POST or PATCH `/api/account/family`. The token lasts 12 hours. There is no refresh URL. A family response that includes `token` and `expiresAt` replaces the stored grant with no sign-in screen. Outside an engine, a 401 clears the stored token and returns the parent to sign-in. During an open engine, a 401 or an expired grant does not end the app session or the sitting; the local answer is kept and the next call tries the website again. The browser never sends `X-Vkole-Secret`. The account id is the lowercase parent email.
 
 `POST /api/vkole/purge` on this app still accepts `X-Vkole-Secret` or a signed-in admin email. That header is not sent to the website.
 
@@ -11,9 +11,9 @@ The school website is the account book. The app calls `https://www.dotheimpossib
 | `POST /api/account/forgot-password/send-code` | `{ email }` returns `{ message: "Code sent" }` |
 | `POST /api/account/forgot-password/confirm` | `{ email, code, newPassword }` returns `{ message: "Password updated" }` |
 | `POST /api/account/confirm-email/resend` | bearer token, body `{}` |
-| `GET /api/account/family` | bearer token. `?studentIndex=N` selects that child. Omitting it reads student 1. Returns `{ family }` |
-| `PATCH /api/account/family` | bearer token. A new child is `{ student: { name, startingGrade, age? } }`. `studentIndex` is sent for student 2 and later, and omitted for student 1. `startingGrade` is 1–12. `{ studentName }` alone is ignored. `{ student: { name } }` without a grade is refused: `Enter a starting grade from 1 to 12.` A third child on an ordinary account is refused: `This account already has 2 students. A third child needs a separate registration.` The master account has no cap. |
-| `POST /api/account/family` | bearer token, `{ levels, clock, seenQuestions, studentIndex? }`, returns `{ family }` |
+| `GET /api/account/family` | bearer token. `?studentIndex=N` selects that place. Omitting it reads place 1. Returns `{ family }`. The app keeps account fields and place numbers only. A name, age, grade, level, clock, or seen question in this answer is thrown away. |
+| `PATCH /api/account/family` | The app does not call this. |
+| `POST /api/account/family` | The app does not call this. |
 
 `deviceId` is one random UUID stored on the install. It is sent on register and sign-in and is never shown.
 
@@ -25,11 +25,11 @@ The same level object is returned at `family.levels.<engine>`, `family.level.<en
 {"grade":3,"step":2,"earnedGrade":6,"working":{"grade":3,"step":2,"label":"Grade 3"},"earned":{"grade":6}}
 ```
 
-`grade` and `step` are the working level. Questions use them. `step` is 0, 1, or 2. `earnedGrade` is the earned grade. This app sends `earnedGrade` on every write that knows it. If `earnedGrade` is missing, the stored earned grade stays. `earned.grade` is the fallback when reading. Correct and missed answers move the earned grade by the same grade step. Parent buttons change only the working level. The button says `Lower the working level. The earned level stays.` Spoken engines keep the working place on `levelCode`, `band`, `index`, and `word`. `earnedGrade` is still the grade number. `step` stays 0 for those engines.
+`grade` and `step` are the working level. Questions use them. `step` is 0, 1, or 2. `earnedGrade` is the earned grade. The app no longer writes levels to the website. `earned.grade` is the fallback when reading. Correct and missed answers move the earned grade by the same grade step. Parent buttons change only the working level. The button says `Lower the working level. The earned level stays.` Spoken engines keep the working place on `levelCode`, `band`, `index`, and `word`. `earnedGrade` is still the grade number. `step` stays 0 for those engines.
 
 Local climbs, seen prompts, the day clock, reports, and the family mirror are keyed by the account email plus `studentIndex`. Student 1 stays on the email. Student 2 uses that email with a `#student-2` suffix. The bearer token stays on the account row.
 
-Level keys are `m`, `ela`, `ss`, `gen`, `sg`, `sw`, `pa`, `mg`, and `sp`. Alphabet progress is `levels.sp`. This app does not call `/api/vkole/password-reset`. Pressing Finished on any of the eight engines posts the session-end report so the website can email the parent. That post still happens when the sitting has no answers. Logout and idle still wait for at least one answer.
+Level keys are `m`, `ela`, `ss`, `gen`, `sg`, `sw`, `pa`, `mg`, and `sp`. Alphabet progress is `levels.sp`. This app does not call `/api/vkole/password-reset`. The app sends its own progress letter. It does not post the sitting to the website.
 
 The account id is the email after trimming and lowercasing. Dots in the address stay. Register and sign-in both send that lowercase id. Sign-in tries the typed spelling only when the lowercase id is unknown.
 
@@ -37,7 +37,7 @@ The password is the typed password with trailing newlines removed. It is not tri
 
 `VKOLE_MASTER_EMAIL`, or `kirksamalpha@dotheimpossible.ai` when that variable is empty, is never on a free week and never has to pay. Register, sign-in, and the family read for that email return `access: "open"` and do not send a finished free week.
 
-A family save sends each engine object the app has, including alphabet on `sp` and a stored `mg` level when one was read. `seenQuestions` is the last 400 questions, `{ "prompt" }`, using the text the child saw. The website builds the practice-sheet key from that text. `clock.seconds` is that student's practiced seconds, and `clock.dayKey` is the Pacific day sent with the save. The app does not cap those seconds, does not reset them at midnight, and does not close an engine because of them. `clock.limit`, when the website sends one, is stored and is not a lock.
+The app does not save a family to the website. A name, age, grade, level, day clock, and seen question stay on the app. `clock.limit`, when the website sends one, is not used. Both sides use the built-in limit of 28800 seconds.
 
 Errors are JSON `{ "error": "..." }` and are shown as sent. Those sentences include `No account for this email`, `Invalid email or password`, `Account already exists`, and token errors.
 

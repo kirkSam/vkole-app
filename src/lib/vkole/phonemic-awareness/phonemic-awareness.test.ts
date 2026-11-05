@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { academicLetter, parentLogoutLetter, trialState } from "../../academic-email.ts";
 import { engineNavLabel, enginePickLabel } from "../../climb-rules.ts";
-import { parseSchoolProfile, schoolWriteBody } from "../../school-account.ts";
+import { parseSchoolProfile } from "../../school-account.ts";
 import { paAccountLevel } from "./level.ts";
 import {
   PA_ADVANCE_MS,
@@ -357,8 +357,7 @@ describe("stretched sounds and a full-bank run", () => {
       missStreak: moved.missStreak,
       updatedAt: 10,
     });
-    const body = schoolWriteBody({ pa: pushed }, 0, 0, []);
-    const reloaded = parseSchoolProfile({ family: { email: "ada@family.test", level: body.levels } });
+    const reloaded = parseSchoolProfile({ family: { email: "ada@family.test", level: { pa: pushed } } });
     const pa = reloaded?.profile.level.pa;
     assert.equal(pa?.band, "d-sh");
     assert.equal(pa?.index, 4);
@@ -469,16 +468,11 @@ describe("level.pa", () => {
     assert.equal(written.levelLabel, "K");
     assert.equal(written.grade, 1);
     assert.equal(written.step, 0);
-    const body = schoolWriteBody({ pa: written }, 0, 0, []);
-    const saved = body.levels.pa as Record<string, unknown> | undefined;
-    assert.equal(saved?.band, "RH");
-    assert.equal(saved?.streak, 0);
-    assert.equal(saved?.missStreak, 0);
-    assert.equal(saved?.adult, undefined);
-    assert.equal(saved?.approved, undefined);
-    assert.equal("sw" in body.levels, false);
-    assert.equal(JSON.stringify(body).includes("bea@other.test"), false);
-    assert.equal(JSON.stringify(body).includes("adult"), false);
+    assert.equal(written.band, "RH");
+    assert.equal(written.streak, 0);
+    assert.equal(written.missStreak, 0);
+    assert.equal(JSON.stringify(written).includes("bea@other.test"), false);
+    assert.equal(JSON.stringify(written).includes("adult"), false);
   });
 
   it("lets age 4 win, and a saved band win over age", () => {

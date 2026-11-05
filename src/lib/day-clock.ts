@@ -223,40 +223,58 @@ export async function disarmStudentClock(sql: Sql, userId: string, climbId: stri
 async function placeWebsiteStudent(
   sql: Sql,
   userId: string,
-  data: { firstName: string; age?: number; grade?: number },
-): Promise<{ status: "extra" | "new" } | { status: "ready"; scopeId: string }> {
-  const { readSchoolAccount, saveSchoolStudent } = await import("@/lib/school-account.server");
-  const { decideStudent, indexForName, isWebsiteMasterEmail, studentIndexToAdd, studentScopeId } = await import("@/lib/school-account");
-  const profile = await readSchoolAccount(userId);
-  const roster = profile.students?.length ? profile.students : profile.studentName ? [{ name: profile.studentName }] : [];
-  const cap = isWebsiteMasterEmail(userId, process.env.VKOLE_MASTER_EMAIL) ? Number.POSITIVE_INFINITY : 2;
-  const gate = decideStudent(profile.studentName, data.firstName, roster, cap);
-  if (gate === "extra") return { status: "extra" };
+  data: { firstName: string; age?: number; grade?: number; place?: 1 | 2 },
+): Promise<{ status: "extra" | "new" | "pick" | "taken" } | { status: "ready"; scopeId: string }> {
+  const { readSchoolAccount } = await import("@/lib/school-account.server");
+  const { chosenStudentPlace, decideStudent, indexForName, isWebsiteMasterEmail, profileKeepingProgress, studentScopeId } = await import("@/lib/school-account");
+  const { saveActiveStudentIndex, saveSchoolMirror, readSchoolMirror } = await import("@/lib/school-mirror.server");
+  const { mergeFamilyStudents } = await import("@/lib/student-card");
   const account = accountIdOf(userId);
+  const website = await readSchoolAccount(userId);
+  const local = await readSchoolMirror(sql, account);
+  const places = (website.students ?? [])
+    .filter((student) => Number.isInteger(student.index) && student.index >= 1)
+    .map((student) => ({ index: student.index, name: "", age: null as number | null, startingGrade: null as number | null }));
+  const roster = mergeFamilyStudents(local?.students, places);
+  const cap = isWebsiteMasterEmail(userId, process.env.VKOLE_MASTER_EMAIL) ? Number.POSITIVE_INFINITY : 2;
+  const gate = decideStudent(local?.studentName, data.firstName, roster, cap);
+  if (gate === "extra") return { status: "extra" };
   if (gate === "same") {
-    const index = indexForName(profile, data.firstName);
+    const index = indexForName(
+      { studentName: local?.studentName, activeStudent: local?.activeStudent, students: roster },
+      data.firstName,
+    );
     const scopeId = studentScopeId(account, index);
     if (scopeId !== userId) {
-      const { saveActiveStudentIndex, saveSchoolMirror } = await import("@/lib/school-mirror.server");
       await saveActiveStudentIndex(sql, account, index);
-      const next = await readSchoolAccount(scopeId);
-      await saveSchoolMirror(sql, scopeId, next, false);
+      const scopeLocal = await readSchoolMirror(sql, scopeId);
+      const scopeSite = await readSchoolAccount(scopeId);
+      await saveSchoolMirror(sql, scopeId, profileKeepingProgress(scopeLocal, scopeSite), false);
     }
     return { status: "ready", scopeId };
   }
+  const openPlaces = [1, 2].filter((index) => !roster.some((student) => student.index === index && student.name.trim()));
+  if (openPlaces.length === 0) return { status: "extra" };
   if (data.age == null || data.grade == null || data.grade < 1 || data.grade > 12) return { status: "new" };
-  const index = gate === "new" ? 1 : studentIndexToAdd(profile.students ?? [], isWebsiteMasterEmail(account, process.env.VKOLE_MASTER_EMAIL));
-  if (index == null) return { status: "extra" };
-  const saved = await saveSchoolStudent(account, {
-    name: data.firstName.trim(),
-    startingGrade: data.grade,
-    ...(data.age != null ? { age: data.age } : {}),
-    ...(index > 1 ? { studentIndex: index } : {}),
-  });
-  const scopeId = studentScopeId(account, index);
-  const { saveActiveStudentIndex, saveSchoolMirror } = await import("@/lib/school-mirror.server");
-  await saveActiveStudentIndex(sql, account, index);
-  await saveSchoolMirror(sql, scopeId, { ...saved, studentName: saved.studentName || data.firstName.trim() }, false);
+  const choice = chosenStudentPlace(roster, data.place);
+  if (choice === "pick" || choice === "taken") return { status: choice };
+  const scopeId = studentScopeId(account, choice);
+  await saveActiveStudentIndex(sql, account, choice);
+  const existing = await readSchoolMirror(sql, scopeId);
+  const localName = data.firstName.trim();
+  const kept = profileKeepingProgress(existing ?? local, website);
+  await saveSchoolMirror(
+    sql,
+    scopeId,
+    {
+      ...kept,
+      studentName: existing?.studentName?.trim() || localName,
+      students: mergeFamilyStudents(existing?.students, kept.students, [
+        { index: choice, name: localName, age: data.age ?? null, startingGrade: data.grade },
+      ]),
+    },
+    false,
+  );
   return { status: "ready", scopeId };
 }
 
@@ -281,6 +299,7 @@ const enterSchema = z.object({
   firstName: z.string().trim().min(1).max(40),
   age: z.number().int().min(4).max(18).optional(),
   grade: z.number().int().min(1).max(12).optional(),
+  place: z.union([z.literal(1), z.literal(2)]).optional(),
   timeZone: z.string().trim().min(1).max(80).optional(),
 });
 

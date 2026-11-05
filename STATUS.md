@@ -1,3 +1,19 @@
+## 2026-11-04 accounts are experimental (from Sam, via Claude)
+**Decision:** Update 2 is saved with the Nov 4 memos. There are no real student or parent accounts. Test rows may be cleared if they are in the way. Do not drop tables, delete migrations, or change the database setup. Do not touch Stripe live settings, keys, or prices. Tell Sam in one line when anything is cleared. Tell Sam first before clearing the master account.
+**Next:** School Site gets the same text. Nothing was cleared today.
+
+## 2026-11-04 place wording on the separation branch (App Builder)
+**Decision:** The engine screen uses the website's place sentences word for word. A used place says "Student 1, Ada". An empty place says "Student 1, open". A taken place says "Student 1 is taken." or "Student 2 is taken." Not merged.
+**Next:** Claude checks the diff. The six crossing functions stay deleted. The profileKeepingProgress guard test stays.
+
+## 2026-11-04 place picker on the separation branch (App Builder)
+**Decision:** Same pull request as the separation. A parent picks Student 1 or Student 2. A used place on this side shows the child's name. An empty place says open. Old crossing functions are deleted. Not merged.
+**Next:** Claude checks the diff. School Site stops sending child names and levels.
+
+## 2026-11-04 separation branch (App Builder)
+**Decision:** Student information stays on the app. Account fields still come from the website. Not merged. Claude checks this diff first.
+**Next:** Sam republishes main (the test fix). This branch waits.
+
 ## 2026-11-04 later still (from Sam, via Claude)
 **Decision:** Stay/stop lists are approved. FamilyStudent keeps only `index` (stop name, age, startingGrade). `clockLimit` stops. Both sides use the built-in daily limit: 8 hours, DAY_LIMIT_SECONDS = 28800. The shortened memo is filled back in with the dropped instructions (data safety form, report form, the "not shared" sentence stays down, shared-engine recommendation, and the two task lists).
 **Next:** One test-fix pull request, not merged. Separation stays on its own branch until Claude checks the diff.

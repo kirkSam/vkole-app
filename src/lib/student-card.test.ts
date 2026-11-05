@@ -3,12 +3,18 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   OPEN_ACCT_LABEL,
+  OPEN_PLACE_LABEL,
+  PICK_PLACE_LINE,
+  SAME_PLACE_LINE,
   acceptStudentSwitch,
   climbsForActiveStudent,
   engineWorkedLevel,
   mergeFamilyStudents,
   openingForNewClimb,
+  placeChoiceLabel,
+  placeTakenMessage,
   studentCardButtons,
+  studentPlaceChoices,
 } from "./student-card.ts";
 
 const ada = { index: 1, name: "Ada", age: 8, startingGrade: 3 };
@@ -29,6 +35,30 @@ describe("two-student card", () => {
     assert.equal(right.kind, "student");
     assert.equal(right.kind === "student" && right.label, "Bea");
     assert.equal(right.kind === "student" && right.index, 2);
+  });
+
+  it("uses the website place sentences word for word", () => {
+    assert.equal(SAME_PLACE_LINE, "Pick the same place for the same child on the app and the website.");
+    assert.equal(PICK_PLACE_LINE, "Pick Student 1 or Student 2.");
+    assert.equal(placeChoiceLabel(1, "Ada"), "Student 1, Ada");
+    assert.equal(placeChoiceLabel(2, "Ben"), "Student 2, Ben");
+    assert.equal(placeChoiceLabel(1, ""), "Student 1, open");
+    assert.equal(placeChoiceLabel(2, "  "), "Student 2, open");
+    assert.equal(placeTakenMessage(1), "Student 1 is taken.");
+    assert.equal(placeTakenMessage(2), "Student 2 is taken.");
+    const [first, second] = studentPlaceChoices([ada]);
+    assert.equal(placeChoiceLabel(first.index, first.open ? "" : first.name), "Student 1, Ada");
+    assert.equal(placeChoiceLabel(second.index, second.open ? "" : second.name), "Student 2, open");
+    assert.equal(second.name, OPEN_PLACE_LABEL);
+    const home = readFileSync(new URL("../routes/index.tsx", import.meta.url), "utf8");
+    const card = readFileSync(new URL("../components/student-switcher.tsx", import.meta.url), "utf8");
+    assert.equal(home.includes("SAME_PLACE_LINE"), true);
+    assert.equal(home.includes("placeChoiceLabel"), true);
+    assert.equal(home.includes("placeTakenMessage"), true);
+    assert.equal(home.includes("PICK_PLACE_LINE"), true);
+    assert.equal(home.includes("Student {choice.index} — {choice.name}"), false);
+    assert.equal(home.includes("That place already has a child"), false);
+    assert.equal(card.includes("SAME_PLACE_LINE"), true);
   });
 
   it("uses the first word on the button and keeps the saved name for sign-in", () => {

@@ -9,7 +9,6 @@
  */
 
 import { normalizeAccountEmail, sameAccount } from "./account-scope.ts";
-import { levelFieldsForWebsite } from "./level-pair.ts";
 import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC } from "./day-clock-math.ts";
 import { heuristicIdOf, strandIdOf, HEURISTICS, STRANDS, type HeuristicId, type StrandId } from "./vkole-singapore.ts";
 import { BAND_LABELS, isSightBand, SIGHT_WORD_BANDS, startBandForGrade, type SightBand } from "./vkole/constants.ts";
@@ -89,6 +88,21 @@ export function studentIndexToAdd(students: { index: number }[], master: boolean
   if (!indexes.includes(2)) return 2;
   if (!master) return null;
   return Math.max(2, ...indexes) + 1;
+}
+
+/**
+ * The place a parent picked for a new child.
+ * Only Student 1 or Student 2. Nothing is guessed.
+ * A place that already has a name on this side is refused.
+ */
+export function chosenStudentPlace(
+  roster: { index: number; name: string }[],
+  picked: number | null | undefined,
+): 1 | 2 | "pick" | "taken" {
+  if (picked !== 1 && picked !== 2) return "pick";
+  const occupied = roster.some((student) => student.index === picked && student.name.trim().length > 0);
+  if (occupied) return "taken";
+  return picked;
 }
 
 /** The roster index for a typed first name. Student 1 when the name is the only saved child. */
@@ -345,17 +359,6 @@ export type AccountSession = {
   expiresAt: string;
 };
 
-export type FamilyWrite = {
-  levels: Partial<Record<LevelKey, EngineLevel>>;
-  clock: { seconds: number; dayKey: string };
-  /** The website rebuilds its practice-sheet key from this prompt text. */
-  seenQuestions: { prompt: string }[];
-  /** Set on the first child-name save. The website ignores a bare studentName field. */
-  student?: { name: string; age: number | null; startingGrade: number | null };
-  /** Omitted for student 1. Student 2 and later send this. */
-  studentIndex?: number;
-};
-
 /**
  * A leftover local user row does not make a website account unrecognized.
  * The website's own reason is what sign-in shows. Reset is a separate step
@@ -393,13 +396,9 @@ export function clockToWrite(localSeconds: number, remoteSeconds: number, limit 
   return Math.max(0, Math.floor(localSeconds) || 0, Math.floor(remoteSeconds) || 0);
 }
 
-/** A limit from a website clock payload. Missing values stay at the stored placeholder. */
-export function clockLimitFrom(clock: unknown): number {
-  const row = asRecord(clock);
-  const raw = row?.limit ?? row?.limitSeconds ?? row?.maxSeconds ?? row?.dayLimit;
-  const n = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() ? Number(raw) : Number.NaN;
-  if (!Number.isFinite(n) || n <= 0) return CLOCK_LIMIT_SECONDS;
-  return Math.floor(n);
+/** A limit from a website clock payload is not used. Both sides use the built-in day. */
+export function clockLimitFrom(_clock: unknown): number {
+  return CLOCK_LIMIT_SECONDS;
 }
 
 export function isLevelKey(value: string): value is LevelKey {
@@ -466,17 +465,6 @@ function earnedGradeFrom(row: Record<string, unknown>): number | null {
   if (direct != null) return direct;
   const earned = asRecord(row.earned);
   return earned ? wholeNumber(earned.grade) : null;
-}
-
-/** Put the website working and earned objects on a level that is about to be saved. */
-function publishLevel(level: EngineLevel): EngineLevel {
-  const fields = levelFieldsForWebsite(level);
-  const step = wholeNumber(level.step);
-  return {
-    ...level,
-    ...fields,
-    step: step != null && step >= 0 && step <= 2 ? step : fields.step,
-  };
 }
 
 function readFigure(value: unknown): SgFigure | undefined {
@@ -1187,21 +1175,14 @@ export type StoredSchoolProgress = {
 };
 
 /**
- * Local climbs, seen prompts, and history are cleared only for a brand-new
- * open account that has never stored a student or an engine.
- * A closed family is a finished free week or a lapsed subscription. It keeps
- * its place even when the website omits the student and the levels.
+ * The website's empty student book does not delete this app's child.
+ * Student name, levels, and the day clock stay on the app.
  */
 export function clearsLocalProgress(
-  profile: Pick<SchoolProfile, "access" | "studentName" | "level"> & { lockReason?: LockReason | null },
-  stored?: StoredSchoolProgress | null,
+  _profile: Pick<SchoolProfile, "access" | "studentName" | "level"> & { lockReason?: LockReason | null },
+  _stored?: StoredSchoolProgress | null,
 ): boolean {
-  if (profile.lockReason === "confirm-email" || profile.lockReason === "payment") return false;
-  if (profile.access !== "open") return false;
-  if (!isFreshSchoolProfile(profile)) return false;
-  if ((stored?.studentName ?? "").trim()) return false;
-  if (stored?.level && Object.keys(stored.level).length > 0) return false;
-  return true;
+  return false;
 }
 
 function bandRank(engine: LevelKey, band: string | undefined): number {
@@ -1359,22 +1340,44 @@ export function keptClock(
 
 /**
  * The family to store after a read.
- * Access follows the website, so a lapse still locks the engines.
- * The student, the levels, the free-week start, and the plan
- * stay when the website sends an empty or earlier value.
- * The clock keeps the higher second total. A new Pacific day does not zero it.
+ * Access, the plan, the free week, email confirmation, the lock, and the office
+ * follow the website.
+ * The child name, the levels, the day clock, and seen questions stay on this app.
+ * A website student place shares its index only. It does not bring a name, age, or grade.
  */
-export function profileKeepingProgress(stored: StoredSchoolProgress | null | undefined, incoming: SchoolProfile): SchoolProfile {
-  const clock = keptClock(stored, incoming);
+export function profileKeepingProgress(
+  stored: (StoredSchoolProgress & { students?: FamilyStudent[]; seen?: SchoolProfile["seen"] }) | null | undefined,
+  incoming: SchoolProfile,
+): SchoolProfile {
+  const localStudents = stored?.students ?? [];
+  const places = (incoming.students ?? [])
+    .filter((student) => Number.isInteger(student.index) && student.index >= 1)
+    .map((student) => ({ index: student.index, name: "", age: null as number | null, startingGrade: null as number | null }));
   return {
     ...incoming,
-    studentName: incoming.studentName.trim() || stored?.studentName?.trim() || "",
-    level: keptLevels(stored?.level ?? {}, incoming.level),
+    studentName: stored?.studentName?.trim() || "",
+    level: stored?.level ?? {},
     freeWeekStart: incoming.freeWeekStart ?? stored?.freeWeekStart ?? null,
-    clockSeconds: clock.clockSeconds,
-    clockDayKey: clock.clockDayKey,
+    clockSeconds: Math.max(0, Math.floor(stored?.clockSeconds ?? 0) || 0),
+    clockDayKey: stored?.clockDayKey ?? "",
+    clockLimit: DAY_LIMIT_SECONDS,
+    seen: stored?.seen ?? [],
     plan: incoming.plan ?? stored?.plan ?? null,
+    students: mergePlaces(localStudents, places),
   };
+}
+
+function mergePlaces(local: FamilyStudent[], places: FamilyStudent[]): FamilyStudent[] {
+  const byIndex = new Map<number, FamilyStudent>();
+  for (const student of local) {
+    if (!Number.isInteger(student.index) || student.index < 1) continue;
+    byIndex.set(student.index, student);
+  }
+  for (const place of places) {
+    if (byIndex.has(place.index)) continue;
+    byIndex.set(place.index, place);
+  }
+  return [...byIndex.values()].sort((a, b) => a.index - b.index);
 }
 
 /**
@@ -1418,63 +1421,6 @@ export function decideStudent(
   if (names.length === 0) return "new";
   if (names.some((name) => name.toLowerCase() === typedFirstName.trim().toLowerCase())) return "same";
   return names.length < cap ? "add" : "extra";
-}
-
-const POOL_VARIANT_ID = /^(m|ela|ss|gen|sg):\d+:\d+:\d+$/;
-
-/** The displayed prompt. A pool variant id is not a prompt. */
-function seenWirePrompt(item: { key?: string; text?: string }): string {
-  const text = (item.text ?? "").replace(/\s+/g, " ").trim();
-  if (!text || POOL_VARIANT_ID.test(text)) return "";
-  return text;
-}
-
-/** Body for POST /api/account/family. Levels include alphabet on `sp`. */
-export function schoolWriteBody(
-  level: Partial<Record<LevelKey, EngineLevel>>,
-  localClock: number,
-  remoteClock: number,
-  seen: SeenQuestion[],
-  student?: { name: string; age?: number | null; startingGrade?: number | null },
-  limit = CLOCK_LIMIT_SECONDS,
-  studentIndex?: number,
-  dayKey = localDayKey(PACIFIC),
-): FamilyWrite {
-  const seenQuestions: { prompt: string }[] = [];
-  const prompts = new Set<string>();
-  for (const item of seen) {
-    const prompt = seenWirePrompt(item);
-    const dedupe = prompt.toLowerCase();
-    if (!prompt || prompts.has(dedupe)) continue;
-    prompts.add(dedupe);
-    seenQuestions.push({ prompt });
-    if (seenQuestions.length >= 400) break;
-  }
-  const levels: FamilyWrite["levels"] = { ...level };
-  if (levels.sp) levels.sp = toWebsiteSpLevel(levels.sp);
-  for (const key of LEVEL_KEYS) {
-    const item = levels[key];
-    if (item) levels[key] = publishLevel(item);
-  }
-  const name = student?.name.trim() ?? "";
-  const age = student?.age;
-  const starting = student?.startingGrade;
-  const index = Math.round(studentIndex ?? 1);
-  return {
-    levels,
-    clock: { seconds: clockToWrite(localClock, remoteClock, limit), dayKey: clockDayKeyOf(dayKey) || localDayKey(PACIFIC) },
-    seenQuestions,
-    ...(name
-      ? {
-          student: {
-            name,
-            age: Number.isInteger(age) ? (age as number) : null,
-            startingGrade: Number.isInteger(starting) && (starting as number) >= 1 && (starting as number) <= 12 ? (starting as number) : null,
-          },
-        }
-      : {}),
-    ...(Number.isInteger(index) && index > 1 ? { studentIndex: index } : {}),
-  };
 }
 
 /**

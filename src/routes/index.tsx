@@ -13,6 +13,7 @@ import { AlphabetMisses } from "@/components/alphabet-misses";
 import { WebsiteVisit } from "@/components/website-visit";
 import { HeadphoneNotice } from "@/components/headphone-notice";
 import { StudentSwitcher } from "@/components/student-switcher";
+import { PICK_PLACE_LINE, placeChoiceLabel, placeTakenMessage, SAME_PLACE_LINE, studentPlaceChoices } from "@/lib/student-card";
 import { EnginePicks, PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
 import { SUBJECTS, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
@@ -538,6 +539,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
             key={`${activeStudent}-${subject.id}`}
             subject={subject.id}
             studentName={students.find((student) => student.index === activeStudent)?.name ?? ""}
+            students={students}
             roster={(climbs ?? []).filter((climb) => climb.subject === subject.id)}
             onTrialFinished={() => setClosedApp(subject.id)}
             onLevelsChanged={() => setRevision((n) => n + 1)}
@@ -552,6 +554,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
 function AppGate({
   subject,
   studentName,
+  students,
   roster,
   onTrialFinished,
   onLevelsChanged,
@@ -559,6 +562,7 @@ function AppGate({
 }: {
   subject: SubjectId;
   studentName: string;
+  students: FamilyStudent[];
   roster: Climb[];
   onTrialFinished: () => void;
   onLevelsChanged: () => void;
@@ -569,6 +573,7 @@ function AppGate({
   const [firstName, setFirstName] = useState(studentName);
   const [age, setAge] = useState(8);
   const [gradeText, setGradeText] = useState("");
+  const [place, setPlace] = useState<1 | 2 | null>(null);
   const [needsNew, setNeedsNew] = useState(false);
   const [accountPassword, setAccountPassword] = useState("");
   const [error, setError] = useState("");
@@ -597,6 +602,10 @@ function AppGate({
       }
       grade = typed;
     }
+    if (needsNew && place !== 1 && place !== 2) {
+      setError(PICK_PLACE_LINE);
+      return;
+    }
     setPending(true);
     try {
       const found = await enterEngine({
@@ -605,6 +614,7 @@ function AppGate({
           firstName: name,
           age: needsNew ? age : undefined,
           grade: needsNew ? grade : undefined,
+          ...(needsNew && (place === 1 || place === 2) ? { place } : {}),
           timeZone: deviceTimeZone(),
         },
       });
@@ -612,8 +622,15 @@ function AppGate({
         onTrialFinished();
         return;
       }
-      if (found.status === "new") {
+      if (found.status === "new" || found.status === "pick") {
         setNeedsNew(true);
+        if (found.status === "pick") setError(PICK_PLACE_LINE);
+        setPending(false);
+        return;
+      }
+      if (found.status === "taken") {
+        setNeedsNew(true);
+        setError(place === 2 ? placeTakenMessage(2) : placeTakenMessage(1));
         setPending(false);
         return;
       }
@@ -763,6 +780,32 @@ function AppGate({
           </div>
         </div>
       ) : null}
+      <div className="mt-3">
+        <p className="text-sm text-muted">{SAME_PLACE_LINE}</p>
+        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Student place">
+          {studentPlaceChoices(students).map((choice) => (
+            <button
+              key={choice.index}
+              type="button"
+              aria-pressed={place === choice.index && choice.open}
+              data-student-place={choice.index}
+              data-student-place-state={choice.open ? "open" : "used"}
+              className="min-h-12 rounded-xl border border-line bg-paper px-4 text-base font-semibold text-ink"
+              onClick={() => {
+                if (!choice.open) {
+                  setPlace(null);
+                  setError(placeTakenMessage(choice.index));
+                  return;
+                }
+                setError("");
+                setPlace(choice.index);
+              }}
+            >
+              {placeChoiceLabel(choice.index, choice.open ? "" : choice.name)}
+            </button>
+          ))}
+        </div>
+      </div>
       {needsNew ? (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="block text-sm text-muted">

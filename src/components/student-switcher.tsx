@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TWO_STUDENTS_LINE, type FamilyStudent } from "@/lib/school-account";
 import { switchSchoolStudent } from "@/lib/school-auth";
-import { OPEN_ACCT_LABEL, studentCardButtons } from "@/lib/student-card";
+import { OPEN_ACCT_LABEL, SAME_PLACE_LINE, studentCardButtons } from "@/lib/student-card";
 
 /** A tap on this slot does nothing. It is not a sign-in. */
 function ignoreOpenAcct() {}
@@ -69,6 +69,7 @@ export function StudentSwitcher({
       ) : (
         <p className="mt-2 text-sm text-muted">Type a first name on an engine to add the first student.</p>
       )}
+      <p className="mt-2 text-sm text-muted">{SAME_PLACE_LINE}</p>
       {error ? <p className="mt-2 text-sm text-miss">{error}</p> : null}
     </div>
   );

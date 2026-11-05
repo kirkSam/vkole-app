@@ -3,6 +3,38 @@ import type { FamilyStudent } from "@/lib/school-account";
 /** Second slot when the family has not registered a second student. A tap does nothing. */
 export const OPEN_ACCT_LABEL = "Open acct.";
 
+/** Shown when a parent adds a child. The words stay exact, same as the website. */
+export const SAME_PLACE_LINE =
+  "Pick the same place for the same child on the app and the website.";
+
+export const PICK_PLACE_LINE = "Pick Student 1 or Student 2.";
+
+/** A used place: "Student 1, Ada". An empty place: "Student 1, open". The name is from this side only. */
+export function placeChoiceLabel(slot: 1 | 2, childName: string): string {
+  const who = childName.trim().replace(/\s+/g, " ");
+  return who ? `Student ${slot}, ${who}` : `Student ${slot}, open`;
+}
+
+export function placeTakenMessage(place: 1 | 2): string {
+  return place === 1 ? "Student 1 is taken." : "Student 2 is taken.";
+}
+
+/** An empty Student 1 or Student 2 place, when a parent is adding a child. */
+export const OPEN_PLACE_LABEL = "open";
+
+export type StudentPlaceChoice = { index: 1 | 2; name: string; open: boolean };
+
+/** Two places. A used place shows the child's name. An empty place says "open". */
+export function studentPlaceChoices(students: { index: number; name: string }[]): [StudentPlaceChoice, StudentPlaceChoice] {
+  return ([1, 2] as const).map((index) => {
+    const named = students.find((student) => student.index === index && student.name.trim());
+    const name = named?.name.trim() ?? "";
+    return name
+      ? { index, name, open: false }
+      : { index, name: OPEN_PLACE_LABEL, open: true };
+  }) as [StudentPlaceChoice, StudentPlaceChoice];
+}
+
 export type StudentCardButton =
   | { kind: "student"; index: number; label: string; name: string }
   | { kind: "open"; label: typeof OPEN_ACCT_LABEL };
@@ -33,15 +65,18 @@ export function studentCardButtons(students: { index: number; name: string }[]):
   return [left, right];
 }
 
-/** Keep every child. A later read for one child must not drop the other. */
+/** Keep every place. A name stays with the side that saved it. An index with no name is still in use. */
 export function mergeFamilyStudents(...lists: (FamilyStudent[] | undefined | null)[]): FamilyStudent[] {
   const byIndex = new Map<number, FamilyStudent>();
   for (const list of lists) {
     for (const student of list ?? []) {
       if (!student || !Number.isInteger(student.index) || student.index < 1) continue;
       const name = student.name?.trim() ?? "";
-      if (!name) continue;
       const prev = byIndex.get(student.index);
+      if (!name) {
+        if (!prev) byIndex.set(student.index, { index: student.index, name: "", age: null, startingGrade: null });
+        continue;
+      }
       byIndex.set(student.index, {
         index: student.index,
         name,

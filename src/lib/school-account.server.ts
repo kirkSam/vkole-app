@@ -5,7 +5,7 @@
  * The website account routes take no shared secret and no cookies.
  * A browser request that sends X-Vkole-Secret is refused, so this client
  * does not send that header. The bearer token from sign-in or register
- * authorizes GET, POST, and PATCH /api/account/family.
+ * authorizes GET /api/account/family. This file does not POST or PATCH that address.
  */
 import { accountEmailForms, normalizeAccountEmail, sameAccount } from "./account-scope.ts";
 import {
@@ -26,7 +26,6 @@ import {
   studentIndexOf,
   websiteErrorText,
   type AccountSession,
-  type FamilyWrite,
   type SchoolFailure,
   type SchoolProfile,
 } from "./school-account.ts";
@@ -164,11 +163,6 @@ function familyPath(index: number): string {
   return index > 1 ? `${PATHS.family}?studentIndex=${index}` : PATHS.family;
 }
 
-function withStudentIndex<T extends object>(body: T, index: number): T & { studentIndex?: number } {
-  if (!Number.isInteger(index) || index <= 1) return body;
-  return { ...body, studentIndex: index };
-}
-
 async function storedGrant(email: string): Promise<{ token: string; expiresAt: string } | null> {
   const { getSql } = await import("./db");
   const { readAccountGrant } = await import("./school-mirror.server");
@@ -296,65 +290,6 @@ export async function readSchoolAccount(id: string, deps?: CallDeps): Promise<Sc
   const parsed = parseSchoolProfile(body, email);
   if (!parsed) throw new SchoolCallError("rejected", "The school website did not open the account.");
   return masterProfile(email, parsed.profile);
-}
-
-/**
- * Save the child on the website before a level is opened.
- * The website keeps `{ student: { name, startingGrade } }`.
- * `{ studentName }` alone comes back unchanged. `{ student: { name } }`
- * without a grade is refused with "Enter a starting grade from 1 to 12."
- */
-export async function saveSchoolStudent(
-  id: string,
-  input: { name: string; startingGrade: number; age?: number; studentIndex?: number },
-  deps?: CallDeps,
-): Promise<SchoolProfile> {
-  const email = accountId(id);
-  const name = input.name.trim().replace(/\s+/g, " ");
-  const startingGrade = Math.round(input.startingGrade);
-  if (!name) throw new SchoolCallError("rejected", "Enter the student’s first name.");
-  if (!Number.isInteger(startingGrade) || startingGrade < 1 || startingGrade > 12) {
-    throw new SchoolCallError("rejected", "Enter a starting grade from 1 to 12.");
-  }
-  const student: { name: string; startingGrade: number; age?: number } = { name, startingGrade };
-  if (input.age != null && Number.isInteger(input.age)) student.age = input.age;
-  const token = await tokenFor(email, deps);
-  const index = input.studentIndex ?? studentIndexOf(id);
-  let response: unknown;
-  try {
-    response = await callSchool("PATCH", PATHS.family, withStudentIndex({ student }, index), { ...deps, token });
-  } catch (err) {
-    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
-      await clearStoredGrant(email);
-    }
-    throw err;
-  }
-  noteRotatedGrant(response, deps);
-  const parsed = parseSchoolProfile(response, email);
-  const saved = parsed ? masterProfile(email, parsed.profile) : null;
-  if (!saved?.studentName) {
-    const spoken = websiteErrorText(response);
-    throw new SchoolCallError("rejected", spoken || "The school website did not save the student.");
-  }
-  return saved;
-}
-
-export async function writeSchoolAccount(id: string, body: FamilyWrite, deps?: CallDeps): Promise<SchoolProfile | null> {
-  const email = accountId(id);
-  const token = await tokenFor(email, deps);
-  const index = body.studentIndex ?? deps?.studentIndex ?? studentIndexOf(id);
-  let response: unknown;
-  try {
-    response = await callSchool("POST", PATHS.family, withStudentIndex(body, index), { ...deps, token });
-  } catch (err) {
-    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
-      await clearStoredGrant(email);
-    }
-    throw err;
-  }
-  noteRotatedGrant(response, deps);
-  const parsed = parseSchoolProfile(response, email);
-  return parsed ? masterProfile(email, parsed.profile) : null;
 }
 
 /** Ask the website to send the confirmation email again. The website sends that mail. */

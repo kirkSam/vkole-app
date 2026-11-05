@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { academicLetter, parentLogoutLetter, trialState } from "../../academic-email.ts";
 import { engineNavLabel, enginePickLabel } from "../../climb-rules.ts";
-import { parseSchoolProfile, schoolWriteBody } from "../../school-account.ts";
+import { parseSchoolProfile, toWebsiteSpLevel } from "../../school-account.ts";
 import { spAccountLevel } from "./level.ts";
 import {
   ALPHABET_BANDS,
@@ -979,17 +979,16 @@ describe("level.sp", () => {
     assert.equal(written.levelCode, "LK");
     assert.equal(written.levelLabel, "Letter knowledge");
     assert.equal(written.step, 0);
-    const body = schoolWriteBody({ sp: written }, 0, 0, []);
-    assert.equal(body.levels.sp?.band, "cvc");
-    assert.equal(body.levels.sp?.word, "c");
-    assert.equal(body.levels.sp?.index, 2);
-    assert.equal(body.levels.sp?.streak, 1);
-    assert.equal(body.levels.sp?.missStreak, 2);
+    const sent = toWebsiteSpLevel(written);
+    assert.equal(sent.band, "cvc");
+    assert.equal(sent.word, "c");
+    assert.equal(sent.index, 2);
+    assert.equal(sent.streak, 1);
+    assert.equal(sent.missStreak, 2);
     assert.equal(written.band, "LK");
     assert.equal(written.word, cue.id);
-    assert.equal("sw" in body.levels, false);
-    assert.equal(JSON.stringify(body).includes("bea@other.test"), false);
-    assert.equal(JSON.stringify(body).includes("after"), false);
+    assert.equal(JSON.stringify(sent).includes("bea@other.test"), false);
+    assert.equal(JSON.stringify(sent).includes("after"), false);
   });
 
   it("starts a numeric grade at the first letter, and keeps a saved index", () => {
@@ -1048,8 +1047,7 @@ describe("level.sp", () => {
       missed: 0,
       updatedAt: 10,
     });
-    const body = schoolWriteBody({ sp: written }, 0, 0, []);
-    const sp = body.levels.sp;
+    const sp = toWebsiteSpLevel(written);
     assert.ok(sp);
     assert.equal(websiteBands.includes(String(sp.band)), true);
     assert.equal(sp.band, "cvc");
@@ -1063,9 +1061,9 @@ describe("level.sp", () => {
     assert.equal(sp.levelCode, "cvc");
     assert.equal(wordRule.test("lk-next-m"), false);
     assert.equal(wordRule.test("don't"), true);
-    const capped = schoolWriteBody({ sp: high }, 0, 0, []);
-    assert.equal(capped.levels.sp?.grade, 12);
-    assert.equal(capped.levels.sp?.word, "a");
+    const capped = toWebsiteSpLevel(high);
+    assert.equal(capped.grade, 12);
+    assert.equal(capped.word, "a");
     const restored = parseSchoolProfile({
       family: {
         email: "ada@family.test",
@@ -1089,10 +1087,10 @@ describe("level.sp", () => {
     const keptWord = parseSchoolProfile({
       family: { email: "ada@family.test", level: { sp: { grade: 2, band: "blends", word: "bl" } } },
     });
-    const kept = schoolWriteBody({ sp: keptWord?.profile.level.sp ?? { grade: 1, step: 0 } }, 0, 0, []);
-    assert.equal(kept.levels.sp?.band, "blends");
-    assert.equal(kept.levels.sp?.word, "bl");
-    assert.match(kept.levels.sp?.word ?? "", wordRule);
+    const kept = toWebsiteSpLevel(keptWord?.profile.level.sp ?? { grade: 1, step: 0 });
+    assert.equal(kept.band, "blends");
+    assert.equal(kept.word, "bl");
+    assert.match(kept.word ?? "", wordRule);
   });
 
   it("shows Alphabet to parents, including a sitting stored as VKOLE/Spelling", () => {
