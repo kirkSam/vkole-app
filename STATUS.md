@@ -1,3 +1,7 @@
+## 2026-11-05 phone test merged (App Builder)
+**Decision:** Pull request #69 is merged. When a build has no git version, the bottom line is the Pacific minute of that build. This publish's ready build says Build 2026-11-05 11:38 PT.
+**Next:** Sam publishes once and checks that line. An old copy has no Build line.
+
 ## 2026-11-05 phone test (App Builder)
 **Decision:** Pull request #69 shows Build c86d24f, asks the phone not to keep an old page, and says why enroll did not open. The website line no longer says the two sides share progress. Not merged.
 **Next:** Claude checks the diff. School Site checks issue #96.
