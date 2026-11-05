@@ -1,3 +1,7 @@
+## 2026-11-05 phone test (App Builder)
+**Decision:** Pull request #69 shows Build c86d24f, asks the phone not to keep an old page, and says why enroll did not open. The website line no longer says the two sides share progress. Not merged.
+**Next:** Claude checks the diff. School Site checks issue #96.
+
 ## 2026-11-04 accounts are experimental (from Sam, via Claude)
 **Decision:** Update 2 is saved with the Nov 4 memos. There are no real student or parent accounts. Test rows may be cleared if they are in the way. Do not drop tables, delete migrations, or change the database setup. Do not touch Stripe live settings, keys, or prices. Tell Sam in one line when anything is cleared. Tell Sam first before clearing the master account.
 **Next:** School Site gets the same text. Nothing was cleared today.
