@@ -9,6 +9,7 @@ import {
   androidWebViewIntent,
   visitUsesSystemBrowser,
 } from "./website-visit.ts";
+import { appBuildId, pacificBuildStamp } from "./app-build.ts";
 
 function source(path: string): string {
   return readFileSync(new URL(path, import.meta.url), "utf8");
@@ -16,7 +17,7 @@ function source(path: string): string {
 
 describe("website visit", () => {
   it("uses the plain sentence, the button, and the parents pricing pay page", () => {
-    assert.equal(WEBSITE_VISIT_LINE, "Your account works on our website too, with the same progress.");
+    assert.equal(WEBSITE_VISIT_LINE, "Your account works on our website too. Each side keeps its own progress.");
     assert.equal(WEBSITE_VISIT_BUTTON, "Visit dotheimpossible.ai");
     assert.equal(WEBSITE_PARENTS, "https://www.dotheimpossible.ai/parents");
     const visit = source("./website-visit.ts");
@@ -35,6 +36,34 @@ describe("website visit", () => {
     assert.equal(view.includes('rel="noopener noreferrer"'), true);
     assert.equal(view.includes("role=\"dialog\""), false);
     assert.equal(view.includes("window.alert"), false);
+  });
+
+  it("shows a build id and tells the phone not to keep an old copy", () => {
+    const shell = source("../components/shell.tsx");
+    const root = source("../routes/__root.tsx");
+    const middleware = source("../../server/middleware/grok-pwa.ts");
+    const build = source("./app-build.ts");
+    assert.equal(build.includes("c86d24f"), false);
+    assert.equal(build.includes("APP_BUILD_SOURCE"), false);
+    assert.equal(shell.includes("appBuildId"), true);
+    assert.equal(shell.includes("Build {appBuildId()}"), true);
+    assert.equal(root.includes('httpEquiv: "Cache-Control"'), true);
+    assert.equal(root.includes('content: "no-store"'), true);
+    assert.equal(middleware.includes('headers.set("cache-control", "no-store")'), true);
+  });
+
+  it("the build fallback is not a fixed string", () => {
+    const early = new Date("2026-11-05T22:32:00Z");
+    const later = new Date("2026-11-05T22:33:00Z");
+    assert.equal(pacificBuildStamp(early), "2026-11-05 14:32 PT");
+    assert.equal(pacificBuildStamp(later), "2026-11-05 14:33 PT");
+    assert.notEqual(appBuildId(early), appBuildId(later));
+    assert.equal(appBuildId(early), pacificBuildStamp(early));
+    const build = source("./app-build.ts");
+    const vite = source("../../vite.config.ts");
+    assert.equal(/APP_BUILD_SOURCE\s*=\s*["'][^"']+["']/.test(build), false);
+    assert.equal(vite.includes("pacificBuildStamp(new Date())"), true);
+    assert.equal(vite.includes('return ""'), false);
   });
 
   it("opens a new tab on a computer and the system browser on a phone or installed app", () => {

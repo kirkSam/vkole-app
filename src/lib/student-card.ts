@@ -9,6 +9,13 @@ export const SAME_PLACE_LINE =
 
 export const PICK_PLACE_LINE = "Pick Student 1 or Student 2.";
 
+/** The server still said the child is new after the age and grade were sent. */
+export const ENROLL_STILL_CLOSED =
+  "The app did not open. Check the age and the starting grade, then try again.";
+
+/** Any answer other than an open engine, when no more specific sentence applies. */
+export const ENROLL_DID_NOT_OPEN = "The app did not open. Try again.";
+
 /** A used place: "Student 1, Ada". An empty place: "Student 1, open". The name is from this side only. */
 export function placeChoiceLabel(slot: 1 | 2, childName: string): string {
   const who = childName.trim().replace(/\s+/g, " ");
