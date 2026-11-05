@@ -1,3 +1,7 @@
+## 2026-11-04 place wording on the separation branch (App Builder)
+**Decision:** The engine screen uses the website's place sentences word for word. A used place says "Student 1, Ada". An empty place says "Student 1, open". A taken place says "Student 1 is taken." or "Student 2 is taken." Not merged.
+**Next:** Claude checks the diff. The six crossing functions stay deleted. The profileKeepingProgress guard test stays.
+
 ## 2026-11-04 place picker on the separation branch (App Builder)
 **Decision:** Same pull request as the separation. A parent picks Student 1 or Student 2. A used place on this side shows the child's name. An empty place says open. Old crossing functions are deleted. Not merged.
 **Next:** Claude checks the diff. School Site stops sending child names and levels.

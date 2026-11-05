@@ -3,6 +3,22 @@ import type { FamilyStudent } from "@/lib/school-account";
 /** Second slot when the family has not registered a second student. A tap does nothing. */
 export const OPEN_ACCT_LABEL = "Open acct.";
 
+/** Shown when a parent adds a child. The words stay exact, same as the website. */
+export const SAME_PLACE_LINE =
+  "Pick the same place for the same child on the app and the website.";
+
+export const PICK_PLACE_LINE = "Pick Student 1 or Student 2.";
+
+/** A used place: "Student 1, Ada". An empty place: "Student 1, open". The name is from this side only. */
+export function placeChoiceLabel(slot: 1 | 2, childName: string): string {
+  const who = childName.trim().replace(/\s+/g, " ");
+  return who ? `Student ${slot}, ${who}` : `Student ${slot}, open`;
+}
+
+export function placeTakenMessage(place: 1 | 2): string {
+  return place === 1 ? "Student 1 is taken." : "Student 2 is taken.";
+}
+
 /** An empty Student 1 or Student 2 place, when a parent is adding a child. */
 export const OPEN_PLACE_LABEL = "open";
 

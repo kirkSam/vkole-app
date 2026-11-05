@@ -13,7 +13,7 @@ import { AlphabetMisses } from "@/components/alphabet-misses";
 import { WebsiteVisit } from "@/components/website-visit";
 import { HeadphoneNotice } from "@/components/headphone-notice";
 import { StudentSwitcher } from "@/components/student-switcher";
-import { studentPlaceChoices } from "@/lib/student-card";
+import { PICK_PLACE_LINE, placeChoiceLabel, placeTakenMessage, SAME_PLACE_LINE, studentPlaceChoices } from "@/lib/student-card";
 import { EnginePicks, PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
 import { SUBJECTS, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
@@ -603,7 +603,7 @@ function AppGate({
       grade = typed;
     }
     if (needsNew && place !== 1 && place !== 2) {
-      setError("Pick Student 1 or Student 2.");
+      setError(PICK_PLACE_LINE);
       return;
     }
     setPending(true);
@@ -624,13 +624,13 @@ function AppGate({
       }
       if (found.status === "new" || found.status === "pick") {
         setNeedsNew(true);
-        if (found.status === "pick") setError("Pick Student 1 or Student 2.");
+        if (found.status === "pick") setError(PICK_PLACE_LINE);
         setPending(false);
         return;
       }
       if (found.status === "taken") {
         setNeedsNew(true);
-        setError("That place already has a child. Pick the open place.");
+        setError(place === 2 ? placeTakenMessage(2) : placeTakenMessage(1));
         setPending(false);
         return;
       }
@@ -780,30 +780,34 @@ function AppGate({
           </div>
         </div>
       ) : null}
+      <div className="mt-3">
+        <p className="text-sm text-muted">{SAME_PLACE_LINE}</p>
+        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Student place">
+          {studentPlaceChoices(students).map((choice) => (
+            <button
+              key={choice.index}
+              type="button"
+              aria-pressed={place === choice.index && choice.open}
+              data-student-place={choice.index}
+              data-student-place-state={choice.open ? "open" : "used"}
+              className="min-h-12 rounded-xl border border-line bg-paper px-4 text-base font-semibold text-ink"
+              onClick={() => {
+                if (!choice.open) {
+                  setPlace(null);
+                  setError(placeTakenMessage(choice.index));
+                  return;
+                }
+                setError("");
+                setPlace(choice.index);
+              }}
+            >
+              {placeChoiceLabel(choice.index, choice.open ? "" : choice.name)}
+            </button>
+          ))}
+        </div>
+      </div>
       {needsNew ? (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <p className="text-sm text-muted">Pick the same place for the same child on the app and the website.</p>
-            <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Student place">
-              {studentPlaceChoices(students).map((choice) => (
-                <button
-                  key={choice.index}
-                  type="button"
-                  aria-pressed={place === choice.index}
-                  disabled={!choice.open}
-                  data-student-place={choice.index}
-                  data-student-place-state={choice.open ? "open" : "used"}
-                  className="min-h-12 rounded-xl border border-line bg-paper px-4 text-base font-semibold text-ink disabled:opacity-60"
-                  onClick={() => {
-                    if (!choice.open) return;
-                    setPlace(choice.index);
-                  }}
-                >
-                  Student {choice.index} — {choice.name}
-                </button>
-              ))}
-            </div>
-          </div>
           <label className="block text-sm text-muted">
             Age
             <input
