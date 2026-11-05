@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { pacificBuildStamp } from "./src/lib/app-build.ts";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
@@ -25,10 +26,12 @@ function appBuildFromEnv(): string {
   const fromEnv = process.env.VITE_APP_BUILD || process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || "";
   if (fromEnv.trim()) return fromEnv.trim().slice(0, 7);
   try {
-    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim().slice(0, 7);
+    const sha = execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim().slice(0, 7);
+    if (sha) return sha;
   } catch {
-    return "";
+    /* This build has no git version. The Pacific minute keeps each publish distinct. */
   }
+  return pacificBuildStamp(new Date());
 }
 
 /**
