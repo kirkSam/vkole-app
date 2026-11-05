@@ -53,16 +53,12 @@ function failed(reason: Extract<SchoolAuthResult, { ok: false }>["reason"], mess
   return { ok: false, reason, message };
 }
 
-// CLAUDE: reverted at Sam's explicit direction -- the app and the school
-// website now share one parent account book (the website's), so sign-up
-// always registers through the website (`registerSchoolAccount`,
+// Sign-up registers through the website (`registerSchoolAccount`,
 // school-account.server.ts), the same way schoolSignIn's website branch
-// already does for sign-in. Only the parent's login is shared this way --
-// no student name/level/progress is sent or received here beyond the
-// optional `studentName` field the website's own register call already
-// supports, and withSchoolAccount (school-sync.server.ts) never pulls or
-// pushes progress for any account, so nothing about a student crosses
-// between the two systems.
+// already does for sign-in. Only the parent's login is shared. Register
+// does not take a student name. withSchoolAccount (school-sync.server.ts)
+// never pulls or pushes progress for any account, so nothing about a
+// student crosses between the two systems.
 export const schoolSignUp = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(signUp, data))
   .handler(async ({ data }): Promise<SchoolAuthResult> => {

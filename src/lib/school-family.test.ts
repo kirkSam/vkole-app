@@ -178,6 +178,11 @@ describe("two students and the website level shape", () => {
     const source = readFileSync(new URL("./school-account.server.ts", import.meta.url), "utf8");
     assert.equal(source.includes("sendAcademicMail"), false);
     assert.equal(source.includes("sendAppMail"), false);
+    const register = source.slice(
+      source.indexOf("export async function registerSchoolAccount"),
+      source.indexOf("export async function signInSchoolAccount"),
+    );
+    assert.equal(register.includes("studentName"), false);
     const urls: string[] = [];
     let body: Record<string, unknown> = {};
     await registerSchoolAccount(
