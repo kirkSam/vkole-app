@@ -21,6 +21,18 @@ import {
   alphabetStartSecondsLeft,
 } from "@/lib/vkole/alphabet/items";
 import { holdEngineAudio, holdEngineLetter, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
+import {
+  MIC_ASK_LINE,
+  SPEAK_FAILED_LINE,
+  createListener,
+  isNativeApp,
+  listenFailureLine,
+  listenerReady,
+  nativeSpeechActive,
+  setCannotSpeakHook,
+  speakAloud,
+  stopSpeaking,
+} from "@/lib/speech/listener";
 import { LETTER_ALTERNATIVE_LIMIT, judgeLetterHear } from "@/lib/speech/letter-pronunciations";
 import {
   MIC_WINDOW_MS,
@@ -143,19 +155,6 @@ const CONFETTI = [
 
 let pendingSpeech: (() => void) | null = null;
 
-function recognitionCtor(): (new () => SpeechListener) | null {
-  if (typeof window === "undefined") return null;
-  const host = window as Window & {
-    SpeechRecognition?: new () => SpeechListener;
-    webkitSpeechRecognition?: new () => SpeechListener;
-  };
-  return host.SpeechRecognition ?? host.webkitSpeechRecognition ?? null;
-}
-
-function canSpeak(): boolean {
-  return typeof window !== "undefined" && !!window.speechSynthesis;
-}
-
 function speechQueueBusy(): boolean {
   const synth = typeof window === "undefined" ? undefined : window.speechSynthesis;
   return Boolean(synth && (synth.speaking || synth.pending));
@@ -191,10 +190,8 @@ function beginWhenReady(rec: SpeechListener, again: () => void, opened: () => bo
 }
 
 function speakLine(line: string, done: () => void): () => void {
-  if (!canSpeak() || !line.trim()) {
-    noteEngineActivity();
-    done();
-    return () => {};
+  if (isNativeApp() || typeof window === "undefined" || !window.speechSynthesis) {
+    return speakAloud(line, done, { rate: 0.95, capMs: 8000 });
   }
   const release = holdEngineAudio();
   let finished = false;
@@ -299,6 +296,8 @@ export function AlphabetStage({
   const colors = letterColors();
   const [ready, setReady] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
+  const [listenNote, setListenNote] = useState("Speech recognition is not available on this device. An adult can mark this answer.");
+  const [quiet, setQuiet] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const [phase, setPhase] = useState<Phase>("gate");
   const [typing, setTyping] = useState<TypingPlace>(typingStart());
@@ -337,7 +336,7 @@ export function AlphabetStage({
 
   function beginExercise(next: AlphabetExercise) {
     noteEngineActivity();
-    window.speechSynthesis?.cancel();
+    stopSpeaking();
     window.clearTimeout(advanceRef.current);
     setRunToken((value) => value + 1);
     heardRef.current = "";
@@ -424,7 +423,7 @@ export function AlphabetStage({
   }
 
   useEffect(() => {
-    const supported = recognitionCtor() != null;
+    const supported = listenerReady();
     setUnsupported(!supported);
     try {
       setAllowed(window.sessionStorage.getItem(MIC_KEY) === "1");
@@ -433,6 +432,8 @@ export function AlphabetStage({
     }
     setReady(true);
   }, []);
+
+  useEffect(() => setCannotSpeakHook(() => setQuiet(true)), []);
 
   useEffect(() => {
     noteEngineActivity();
@@ -523,7 +524,7 @@ export function AlphabetStage({
     let stop = () => {};
     const speechBusy = () => {
       const synth = window.speechSynthesis;
-      return Boolean(synth && (synth.speaking || synth.pending));
+      return Boolean(synth && (synth.speaking || synth.pending)) || nativeSpeechActive();
     };
     const listen = () => {
       if (!live || opened) return;
@@ -536,7 +537,8 @@ export function AlphabetStage({
       }
       if (speechBusy()) {
         try {
-          window.speechSynthesis.cancel();
+          window.speechSynthesis?.cancel();
+          stopSpeaking();
         } catch {
           /* The prompt callback already ran. Cancel so the microphone can open. */
         }
@@ -708,9 +710,8 @@ export function AlphabetStage({
     };
 
     if (listening) {
-      const Ctor = recognitionCtor();
-      if (Ctor) {
-        rec = new Ctor();
+      rec = createListener() as SpeechListener | null;
+      if (rec) {
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
@@ -796,12 +797,18 @@ export function AlphabetStage({
             releaseRecognizer(serial);
             scheduleRestart();
           };
+          if (error === "not-available") {
+            setListenNote(listenFailureLine("private"));
+            setUnsupported(true);
+            return;
+          }
           if (error === "not-allowed" || error === "service-not-allowed") {
             if (permissionTries < 2) {
               permissionTries += 1;
               restartListening();
               return;
             }
+            setListenNote(listenFailureLine("denied"));
             setUnsupported(true);
             return;
           }
@@ -986,9 +993,8 @@ export function AlphabetStage({
       noteHeard("");
     };
     if (listening) {
-      const Ctor = recognitionCtor();
-      if (Ctor) {
-        rec = new Ctor();
+      rec = createListener() as SpeechListener | null;
+      if (rec) {
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
@@ -1069,12 +1075,18 @@ export function AlphabetStage({
             releaseRecognizer(serial);
             scheduleRestart();
           };
+          if (error === "not-available") {
+            setListenNote(listenFailureLine("private"));
+            setUnsupported(true);
+            return;
+          }
           if (error === "not-allowed" || error === "service-not-allowed") {
             if (permissionTries < 2) {
               permissionTries += 1;
               restartListening();
               return;
             }
+            setListenNote(listenFailureLine("denied"));
             setUnsupported(true);
             return;
           }
@@ -1169,7 +1181,7 @@ export function AlphabetStage({
   useEffect(() => {
     return () => {
       window.clearTimeout(advanceRef.current);
-      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+      if (typeof window !== "undefined") stopSpeaking();
     };
   }, [token]);
 
@@ -1202,6 +1214,12 @@ export function AlphabetStage({
       }
       setAllowed(true);
     };
+    // The Android app asks through the speech plugin, on the phone.
+    // A WebView getUserMedia failure must not skip that and show the adult buttons.
+    if (isNativeApp()) {
+      open();
+      return;
+    }
     // Ask during this click. recognition.start() later runs from a timer, and Chrome
     // reports not-allowed when that timer is the first time the microphone is used.
     const ask = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
@@ -1379,18 +1397,17 @@ export function AlphabetStage({
       {needsMic ? (
         <div className="mt-6 max-w-md text-center">
           <h2 className="font-display text-2xl text-ink">Microphone</h2>
-          <p className="mt-2 text-ink">
-            The microphone listens only while a prompt is waiting for an answer. It does not record or save the sound. Allow it once for this sitting.
-          </p>
+          <p className="mt-2 text-ink">{MIC_ASK_LINE}</p>
           <button type="button" onClick={allowMic} className="mt-4 min-h-11 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
             Allow the microphone
           </button>
         </div>
       ) : null}
+      {quiet ? <p className="mt-4 text-center text-sm text-ink">{SPEAK_FAILED_LINE}</p> : null}
       {phase === "listen" && !needsMic ? (
         unsupported ? (
           <div className="mt-6 w-full max-w-md">
-            <p className="text-sm text-ink">Speech recognition is not available on this device. An adult can mark this answer.</p>
+            <p className="text-sm text-ink">{listenNote}</p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <button type="button" onClick={() => finishRef.current("correct")} className="min-h-11 flex-1 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
                 Correct
