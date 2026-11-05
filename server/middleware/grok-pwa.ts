@@ -53,6 +53,7 @@ function injectHeadStreaming(response: Response, host: string): Response {
   );
   const headers = new Headers(response.headers);
   headers.delete("content-length");
+  headers.set("cache-control", "no-store");
   return new Response(transformed, {
     status: response.status,
     statusText: response.statusText,
@@ -74,7 +75,7 @@ export default async function grokPwaMiddleware(
     return new Response(renderWebManifest(requestHost(event)), {
       headers: {
         "content-type": "application/manifest+json; charset=utf-8",
-        "cache-control": "no-cache",
+        "cache-control": "no-store",
       },
     });
   }
@@ -91,7 +92,7 @@ export default async function grokPwaMiddleware(
     return new Response(html, {
       headers: {
         "content-type": "text/html; charset=utf-8",
-        "cache-control": "no-cache",
+        "cache-control": "no-store",
       },
     });
   }
@@ -101,11 +102,18 @@ export default async function grokPwaMiddleware(
   const result = await next();
   if (
     result instanceof Response &&
-    result.body &&
-    String(result.headers.get("content-type") ?? "").includes("text/html") &&
-    !result.headers.get("content-encoding")
+    String(result.headers.get("content-type") ?? "").includes("text/html")
   ) {
-    return injectHeadStreaming(result, requestHost(event));
+    if (result.body && !result.headers.get("content-encoding")) {
+      return injectHeadStreaming(result, requestHost(event));
+    }
+    const headers = new Headers(result.headers);
+    headers.set("cache-control", "no-store");
+    return new Response(result.body, {
+      status: result.status,
+      statusText: result.statusText,
+      headers,
+    });
   }
   return result;
 }

@@ -37,7 +37,7 @@ function sendHtml(res, html) {
   const body = Buffer.from(html, "utf8");
   res.statusCode = 200;
   res.setHeader("content-type", "text/html; charset=utf-8");
-  res.setHeader("cache-control", "no-cache");
+  res.setHeader("cache-control", "no-store");
   res.setHeader("content-length", String(body.byteLength));
   res.end(body);
 }
@@ -56,7 +56,7 @@ function serveGrokPwa(middlewares) {
       const body = Buffer.from(renderWebManifest(requestHost(req)), "utf8");
       res.statusCode = 200;
       res.setHeader("content-type", "application/manifest+json; charset=utf-8");
-      res.setHeader("cache-control", "no-cache");
+      res.setHeader("cache-control", "no-store");
       res.setHeader("content-length", String(body.byteLength));
       res.end(body);
       return;
@@ -115,7 +115,10 @@ function wrapHtmlResponses(middlewares, cwd) {
       mode = isHtml && !encoded ? "inject" : "passthrough";
       // Streaming SSR flushes headers before the first body chunk, so the
       // header may no longer be removable — chunked responses don't carry one.
-      if (mode === "inject" && !res.headersSent) res.removeHeader("content-length");
+      if (mode === "inject" && !res.headersSent) {
+        res.setHeader("cache-control", "no-store");
+        res.removeHeader("content-length");
+      }
       return mode;
     };
 

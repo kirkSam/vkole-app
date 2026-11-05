@@ -16,7 +16,7 @@ function source(path: string): string {
 
 describe("website visit", () => {
   it("uses the plain sentence, the button, and the parents pricing pay page", () => {
-    assert.equal(WEBSITE_VISIT_LINE, "Your account works on our website too, with the same progress.");
+    assert.equal(WEBSITE_VISIT_LINE, "Your account works on our website too. Each side keeps its own progress.");
     assert.equal(WEBSITE_VISIT_BUTTON, "Visit dotheimpossible.ai");
     assert.equal(WEBSITE_PARENTS, "https://www.dotheimpossible.ai/parents");
     const visit = source("./website-visit.ts");
@@ -35,6 +35,17 @@ describe("website visit", () => {
     assert.equal(view.includes('rel="noopener noreferrer"'), true);
     assert.equal(view.includes("role=\"dialog\""), false);
     assert.equal(view.includes("window.alert"), false);
+  });
+
+  it("shows a build id and tells the phone not to keep an old copy", () => {
+    const shell = source("../components/shell.tsx");
+    const root = source("../routes/__root.tsx");
+    const middleware = source("../../server/middleware/grok-pwa.ts");
+    assert.equal(shell.includes("appBuildId"), true);
+    assert.equal(shell.includes("Build {appBuildId()}"), true);
+    assert.equal(root.includes('httpEquiv: "Cache-Control"'), true);
+    assert.equal(root.includes('content: "no-store"'), true);
+    assert.equal(middleware.includes('headers.set("cache-control", "no-store")'), true);
   });
 
   it("opens a new tab on a computer and the system browser on a phone or installed app", () => {

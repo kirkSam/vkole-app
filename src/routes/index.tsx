@@ -13,7 +13,7 @@ import { AlphabetMisses } from "@/components/alphabet-misses";
 import { WebsiteVisit } from "@/components/website-visit";
 import { HeadphoneNotice } from "@/components/headphone-notice";
 import { StudentSwitcher } from "@/components/student-switcher";
-import { PICK_PLACE_LINE, placeChoiceLabel, placeTakenMessage, SAME_PLACE_LINE, studentPlaceChoices } from "@/lib/student-card";
+import { ENROLL_DID_NOT_OPEN, ENROLL_STILL_CLOSED, PICK_PLACE_LINE, placeChoiceLabel, placeTakenMessage, SAME_PLACE_LINE, studentPlaceChoices } from "@/lib/student-card";
 import { EnginePicks, PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
 import { SUBJECTS, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
@@ -625,6 +625,7 @@ function AppGate({
       if (found.status === "new" || found.status === "pick") {
         setNeedsNew(true);
         if (found.status === "pick") setError(PICK_PLACE_LINE);
+        else if (typeof grade === "number") setError(ENROLL_STILL_CLOSED);
         setPending(false);
         return;
       }
@@ -641,6 +642,7 @@ function AppGate({
       }
       onClock();
       if (found.status !== "open") {
+        setError(ENROLL_DID_NOT_OPEN);
         setPending(false);
         return;
       }
@@ -782,6 +784,7 @@ function AppGate({
       ) : null}
       <div className="mt-3">
         <p className="text-sm text-muted">{SAME_PLACE_LINE}</p>
+        <p className="mt-1 text-base font-semibold text-ink">{PICK_PLACE_LINE}</p>
         <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Student place">
           {studentPlaceChoices(students).map((choice) => (
             <button

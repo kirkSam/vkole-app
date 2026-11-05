@@ -1,7 +1,7 @@
 /** Parents, Pricing & Pay. The live nav item is /parents. /pricing and /pay redirect to this page. */
 export const WEBSITE_PARENTS = "https://www.dotheimpossible.ai/parents";
 
-export const WEBSITE_VISIT_LINE = "Your account works on our website too, with the same progress.";
+export const WEBSITE_VISIT_LINE = "Your account works on our website too. Each side keeps its own progress.";
 
 export const WEBSITE_VISIT_BUTTON = "Visit dotheimpossible.ai";
 

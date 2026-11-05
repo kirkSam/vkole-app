@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { APP_NAME, SCHOOL_EMAIL, SCHOOL_SITE } from "@/lib/brand";
+import { appBuildId } from "@/lib/app-build";
 import { WEBSITE_PARENTS } from "@/lib/website-visit";
 import { markZpdReturn } from "@/lib/zpd-info";
 import { SUBJECTS, engineNavLabel, enginePickLabel, type SubjectId } from "@/lib/climb-rules";
@@ -199,6 +200,9 @@ function SchoolFooter() {
         <p className="school-footer-meta">
           <a href={`mailto:${SCHOOL_EMAIL}`}>{SCHOOL_EMAIL}</a>
           <span>© 2026 ADOL with {APP_NAME}</span>
+        </p>
+        <p className="school-footer-meta" data-app-build={appBuildId()}>
+          Build {appBuildId()}
         </p>
       </div>
     </footer>

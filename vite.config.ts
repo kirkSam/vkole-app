@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
@@ -12,12 +13,21 @@ import { grokPwaPlugin } from "./scripts/grok-pwa-plugin.mjs";
 import { appEnvPlugin } from "./scripts/app-env-plugin.mjs";
 import { isMigrationFile } from "./scripts/migration-plan.mjs";
 
-/** The files `src/lib/db.ts` globs — same directory, same non-recursive scope. */
 function hasGlobbedMigrations(root: string): boolean {
   try {
     return readdirSync(join(root, "migrations")).some(isMigrationFile);
   } catch {
     return false;
+  }
+}
+
+function appBuildFromEnv(): string {
+  const fromEnv = process.env.VITE_APP_BUILD || process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || "";
+  if (fromEnv.trim()) return fromEnv.trim().slice(0, 7);
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim().slice(0, 7);
+  } catch {
+    return "";
   }
 }
 
@@ -162,6 +172,7 @@ export default defineConfig(({ command, mode, isPreview }) => ({
   // real address to call at all, silently hitting nothing on every request.
   define: {
     __APP_ORIGIN__: JSON.stringify(loadEnv(mode, process.cwd(), "").BETTER_AUTH_URL ?? ""),
+    __APP_BUILD__: JSON.stringify(appBuildFromEnv()),
   },
   server: {
     host: "0.0.0.0",

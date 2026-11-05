@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
+  ENROLL_DID_NOT_OPEN,
+  ENROLL_STILL_CLOSED,
   OPEN_ACCT_LABEL,
   OPEN_PLACE_LABEL,
   PICK_PLACE_LINE,
@@ -56,6 +58,14 @@ describe("two-student card", () => {
     assert.equal(home.includes("placeChoiceLabel"), true);
     assert.equal(home.includes("placeTakenMessage"), true);
     assert.equal(home.includes("PICK_PLACE_LINE"), true);
+    const placeAt = home.indexOf('aria-label="Student place"');
+    const pickAt = home.indexOf("{PICK_PLACE_LINE}");
+    assert.equal(pickAt > 0 && placeAt > pickAt, true);
+    assert.equal(home.includes("setError(ENROLL_STILL_CLOSED)"), true);
+    assert.equal(home.includes("setError(ENROLL_DID_NOT_OPEN)"), true);
+    assert.equal(home.includes('if (found.status !== "open") {\n        setPending(false);'), false);
+    assert.equal(ENROLL_STILL_CLOSED, "The app did not open. Check the age and the starting grade, then try again.");
+    assert.equal(ENROLL_DID_NOT_OPEN, "The app did not open. Try again.");
     assert.equal(home.includes("Student {choice.index} — {choice.name}"), false);
     assert.equal(home.includes("That place already has a child"), false);
     assert.equal(card.includes("SAME_PLACE_LINE"), true);
