@@ -1,3 +1,7 @@
+## 2026-11-04 accounts are experimental (from Sam, via Claude)
+**Decision:** Update 2 is saved with the Nov 4 memos. There are no real student or parent accounts. Test rows may be cleared if they are in the way. Do not drop tables, delete migrations, or change the database setup. Do not touch Stripe live settings, keys, or prices. Tell Sam in one line when anything is cleared. Tell Sam first before clearing the master account.
+**Next:** School Site gets the same text. Nothing was cleared today.
+
 ## 2026-11-04 place wording on the separation branch (App Builder)
 **Decision:** The engine screen uses the website's place sentences word for word. A used place says "Student 1, Ada". An empty place says "Student 1, open". A taken place says "Student 1 is taken." or "Student 2 is taken." Not merged.
 **Next:** Claude checks the diff. The six crossing functions stay deleted. The profileKeepingProgress guard test stays.
