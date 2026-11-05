@@ -201,15 +201,13 @@ async function tokenFor(email: string, deps?: CallDeps): Promise<string> {
 }
 
 export async function registerSchoolAccount(
-  input: { email: string; password: string; name: string; studentName?: string; deviceId?: string },
+  input: { email: string; password: string; name: string; deviceId?: string },
   deps?: CallDeps,
 ): Promise<AccountSession> {
   const email = accountId(input.email);
   const password = schoolPassword(input.password);
-  const studentName = input.studentName?.trim() ?? "";
   const deviceId = input.deviceId?.trim() ?? "";
-  const payload: { email: string; password: string; studentName?: string; deviceId?: string } = { email, password };
-  if (studentName) payload.studentName = studentName;
+  const payload: { email: string; password: string; deviceId?: string } = { email, password };
   if (deviceId) payload.deviceId = deviceId;
   const body = await callSchool("POST", PATHS.register, payload, deps);
   const session = parseAccountSession(body, email);
