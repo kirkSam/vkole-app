@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { schoolPasswordConfirm, schoolPasswordReset, schoolSignIn, schoolSignUp } from "@/lib/school-auth";
 import { readDeviceId } from "@/lib/device-id";
-import { schoolScreen } from "@/lib/school-account";
+import { schoolPassword, schoolScreen } from "@/lib/school-account";
 import { SIGN_IN_AGAIN_NOTE } from "@/lib/account-purge";
 import { rememberAppSession } from "@/lib/auth/client";
 import { recordLogin } from "@/lib/ledger";
@@ -9,6 +9,10 @@ import { ENGINE_PICKER_ROUTE } from "@/lib/engine-picker";
 import { CREATE_ACCOUNT_BUTTON_CLASS } from "@/lib/pre-account";
 import { SchoolAccountScreen } from "@/components/school-account-screen";
 import { Shell } from "@/components/shell";
+import { VoiceAnswers } from "@/components/voice-answers";
+import { readVoiceConsent, saveVoiceConsent } from "@/lib/voice-consent-api";
+import { VOICE_CONSENT_VERSION, VOICE_NOT_ASKED, publishVoiceConsent, type VoiceConsent } from "@/lib/voice-consent";
+import { clearSignInPassword, holdSignInPassword, peekSignInPassword } from "@/lib/voice-password";
 
 type Mode = "in" | "up" | "forgot" | "reset";
 
@@ -31,6 +35,10 @@ export function ParentLogin({
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
+  const [voiceAsk, setVoiceAsk] = useState(false);
+  const [voicePending, setVoicePending] = useState(false);
+  const [voiceNote, setVoiceNote] = useState("");
+  const [askVoicePassword, setAskVoicePassword] = useState(false);
   // CLAUDE: true once sign-up/sign-in succeeds but the website account
   // still needs email confirmation (no session exists yet -- see
   // `pendingConfirmation` on `SchoolAuthResult`). Shows a plain "check your
@@ -56,12 +64,59 @@ export function ParentLogin({
   }
 
   async function enterApp(sessionToken: string) {
+    holdSignInPassword(password);
     if (sessionToken) rememberAppSession(sessionToken);
     await recordLogin({ data: { kind: mode === "up" ? "sign-up" : "sign-in" } }).catch(() => undefined);
     sessionStorage.removeItem("vkole-sync-trial");
     sessionStorage.removeItem("vkole-account-gone");
     onAccountReady?.();
+    let row: VoiceConsent = VOICE_NOT_ASKED;
+    try {
+      row = await readVoiceConsent();
+    } catch {
+      row = VOICE_NOT_ASKED;
+    }
+    if (row.status === "not_asked") {
+      setAskVoicePassword(peekSignInPassword().length < 8);
+      setVoiceAsk(true);
+      return;
+    }
+    clearSignInPassword();
     window.location.assign(ENGINE_PICKER_ROUTE);
+  }
+
+  function chooseVoice(choice: "allowed" | "declined", typed: string) {
+    const typedPassword = schoolPassword(typed);
+    const accountPassword = typedPassword.length >= 8 ? typedPassword : peekSignInPassword();
+    if (schoolPassword(accountPassword).length < 8) {
+      setAskVoicePassword(true);
+      setVoiceNote("Enter the password of the account that registered.");
+      return;
+    }
+    if (choice === "declined") {
+      publishVoiceConsent({
+        status: "declined",
+        decidedAt: new Date().toISOString(),
+        wordingVersion: VOICE_CONSENT_VERSION,
+      });
+    }
+    setVoicePending(true);
+    setVoiceNote("");
+    void saveVoiceConsent({ data: { choice, password: accountPassword } })
+      .then(() => {
+        clearSignInPassword();
+        window.location.assign(ENGINE_PICKER_ROUTE);
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : "Voice answers could not be saved.";
+        if (/password/i.test(message)) {
+          clearSignInPassword();
+          setAskVoicePassword(true);
+        }
+        publishVoiceConsent(VOICE_NOT_ASKED);
+        setVoiceNote(message);
+        setVoicePending(false);
+      });
   }
 
   async function sendCode() {
@@ -197,6 +252,16 @@ export function ParentLogin({
           {pending ? "Working…" : "I confirmed — continue"}
         </button>
         {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
+      </Shell>
+    );
+  }
+
+  if (voiceAsk) {
+    return (
+      <Shell onSplash={onSplash}>
+        <p className="text-sm font-semibold tracking-wide text-accent uppercase">Parent</p>
+        <VoiceAnswers pending={voicePending} needsPassword={askVoicePassword} onChoose={chooseVoice} />
+        {voiceNote ? <p className="mt-3 text-sm text-ink">{voiceNote}</p> : null}
       </Shell>
     );
   }

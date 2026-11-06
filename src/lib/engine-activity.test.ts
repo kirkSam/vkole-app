@@ -157,8 +157,10 @@ describe("engine activity keeps a sitting open", () => {
     assert.match(session, /if \(engineIsBusy\(\)\) stamp\(\)/);
     assert.equal(session.includes("next.closed"), false);
     assert.equal(session.includes("!next.armed"), false);
+    const listener = source("./speech/listener.ts");
+    assert.match(listener, /holdEngineAudio/);
     for (const stage of [spelling, phonemic, sight]) {
-      assert.match(stage, /holdEngineAudio/);
+      assert.match(stage, /holdEngineAudio|speakAloud/);
       assert.match(stage, /holdEngineMic/);
       assert.match(stage, /noteEngineActivity/);
     }

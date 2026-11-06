@@ -35,6 +35,22 @@ The account id is the email after trimming and lowercasing. Dots in the address 
 
 The password is the typed password with trailing newlines removed. It is not trimmed and it is not lowercased. Register, sign-in, and password confirm all send that same value.
 
+## Voice answers
+
+A parent agrees once, for the whole account, at registration or at the first sign-in. The child never sees that question. `family.voiceConsent` is the website's object:
+
+```json
+{ "status": "not_asked", "decidedAt": null, "wordingVersion": null }
+```
+
+`status` is `allowed`, `declined`, or `not_asked`. `decidedAt` is the ISO date and time, or null while `not_asked`. `wordingVersion` is `v2` after a choice, or null while `not_asked`. The same v2 wording is on the app and the website. A missing object, a v1 row, or a choice without `decidedAt` is `not_asked`. The microphone stays off unless `status` is `allowed`, `wordingVersion` is `v2`, and `decidedAt` is set. The app does not keep a phone-only yes.
+
+`POST /api/account/voice-consent` with the bearer token and `{ "status": "allowed", "password": "the account password" }` saves that answer. The password is required for every change, including the first one. `Not now` is `declined`. The app does not POST or PATCH `/api/account/family` for this. One answer covers the app and the website. Turning it off takes effect at once. Until it is allowed at wording v2, no microphone engine listens.
+
+The password the parent just typed to sign in stays in memory only. It is not written to the account, to session storage, or to local storage. The first Allow or Not now uses that copy, then clears it. The app reloads after that save, which also clears it. If the copy is already gone, the voice-answer screen asks for the password.
+
+On Android 13 and newer, with the English on-device speech pack, the sound becomes text on the phone. In a web browser, and on older Android phones, Google's speech service turns the answer into text. Google's privacy policy covers that step, and Google may keep the audio if the Google account saves voice activity. VKOLE does not record or save the voice. Android still asks its own microphone question once per phone.
+
 `VKOLE_MASTER_EMAIL`, or `kirksamalpha@dotheimpossible.ai` when that variable is empty, is never on a free week and never has to pay. Register, sign-in, and the family read for that email return `access: "open"` and do not send a finished free week.
 
 The app does not save a family to the website. A name, age, grade, level, day clock, and seen question stay on the app. `clock.limit`, when the website sends one, is not used. Both sides use the built-in limit of 28800 seconds.

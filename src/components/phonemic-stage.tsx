@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { holdEngineAudio, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
+import { holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
+import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
+import {
+  PA_NEEDS_SOUND_LINE,
+  createListener,
+  isNativeApp,
+  listenFailureLine,
+  listenKind,
+  listenerReady,
+  setCannotSpeakHook,
+  speakAloud,
+  stopSpeaking,
+} from "@/lib/speech/listener";
 import { PA_ADVANCE_MS, PA_MAX_SHOW_MS, itemAt, migratePaBand, type PaBand } from "@/lib/vkole/phonemic-awareness/items";
 import { judgePaSpoken } from "@/lib/vkole/phonemic-awareness/match";
 import { speechTokens } from "@/lib/vkole/sight-words/match";
-
-const MIC_KEY = "vkole-pa-mic";
 
 type SpeechAlternative = { transcript?: string };
 type SpeechResult = ArrayLike<SpeechAlternative> & { isFinal?: boolean };
@@ -22,72 +32,33 @@ type SpeechListener = {
 
 type Outcome = "correct" | "miss" | "timeout";
 
-function recognitionCtor(): (new () => SpeechListener) | null {
-  if (typeof window === "undefined") return null;
-  const host = window as Window & {
-    SpeechRecognition?: new () => SpeechListener;
-    webkitSpeechRecognition?: new () => SpeechListener;
-  };
-  return host.SpeechRecognition ?? host.webkitSpeechRecognition ?? null;
-}
-
 function canSpeak(): boolean {
-  return typeof window !== "undefined" && !!window.speechSynthesis;
+  return isNativeApp() || (typeof window !== "undefined" && !!window.speechSynthesis);
 }
 
 function speakLine(line: string, done: () => void): () => void {
-  if (!canSpeak() || !line.trim()) {
-    noteEngineActivity();
-    done();
-    return () => {};
-  }
-  const release = holdEngineAudio();
-  let finished = false;
-  const finish = () => {
-    if (finished) return;
-    finished = true;
-    window.clearTimeout(cap);
-    release();
-    done();
-  };
-  const cap = window.setTimeout(finish, 20000);
-  const stop = () => {
-    if (finished) return;
-    finished = true;
-    window.clearTimeout(cap);
-    try {
-      window.speechSynthesis.cancel();
-    } catch {
-      /* already quiet */
-    }
-    release();
-  };
-  window.speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance(line);
-  utter.lang = "en-US";
-  utter.rate = 0.9;
-  utter.onend = finish;
-  utter.onerror = finish;
-  window.speechSynthesis.speak(utter);
-  return stop;
+  return speakAloud(line, done, { rate: 0.9, capMs: 20000 });
 }
 
 export function PhonemicStage({
   band,
   index = 0,
+  voiceAllowed = false,
   onDone,
 }: {
   band?: string;
   index?: number;
+  voiceAllowed?: boolean;
   onDone: (outcome: Outcome) => void;
 }) {
   const resolved: PaBand = migratePaBand(band) ?? "WA";
   const item = itemAt(resolved, index);
   const [ready, setReady] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
-  const [allowed, setAllowed] = useState(false);
   const [phase, setPhase] = useState<"prompt" | "listen" | "sparkle" | "model">("prompt");
   const [spoken, setSpoken] = useState(true);
+  const [listenNote, setListenNote] = useState(PHONE_CANNOT_HEAR);
+  const [quiet, setQuiet] = useState(false);
   const onDoneRef = useRef(onDone);
   const itemRef = useRef(item);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
@@ -96,13 +67,8 @@ export function PhonemicStage({
   itemRef.current = item;
 
   useEffect(() => {
-    const supported = recognitionCtor() != null;
+    const supported = listenerReady();
     setUnsupported(!supported);
-    try {
-      setAllowed(window.sessionStorage.getItem(MIC_KEY) === "1");
-    } catch {
-      setAllowed(false);
-    }
     setSpoken(canSpeak());
     setReady(true);
   }, []);
@@ -115,9 +81,14 @@ export function PhonemicStage({
     noteEngineActivity();
   }, [phase, item.id]);
 
+  useEffect(() => setCannotSpeakHook(() => {
+    setQuiet(true);
+    setSpoken(false);
+  }), []);
+
   // The microphone is on only while the child should answer. It stays off while the prompt or the model is spoken.
-  const listening = ready && !unsupported && allowed && phase === "listen";
-  const waiting = ready && (unsupported || allowed) && (phase === "prompt" || phase === "listen");
+  const listening = ready && !unsupported && voiceAllowed && phase === "listen";
+  const waiting = ready && (unsupported || voiceAllowed || !voiceAllowed) && (phase === "prompt" || phase === "listen");
 
   useEffect(() => {
     if (!listening) return;
@@ -133,7 +104,7 @@ export function PhonemicStage({
     return () => {
       live = false;
       stop();
-      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+      stopSpeaking();
     };
   }, [item.say, phase, ready, waiting]);
 
@@ -168,9 +139,8 @@ export function PhonemicStage({
     };
 
     if (listening) {
-      const Ctor = recognitionCtor();
-      if (Ctor) {
-        rec = new Ctor();
+      rec = createListener();
+      if (rec) {
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
@@ -191,7 +161,10 @@ export function PhonemicStage({
           }
         };
         rec.onerror = (event) => {
-          if (event.error === "not-allowed" || event.error === "service-not-allowed") setUnsupported(true);
+          const kind = listenKind(event.error);
+          if (!kind) return;
+          setListenNote(listenFailureLine(kind));
+          setUnsupported(true);
         };
         rec.onend = () => {
           noteEngineActivity();
@@ -219,44 +192,42 @@ export function PhonemicStage({
         /* already stopped */
       }
     };
-  }, [item.id, listening, phase, ready]);
+  }, [item.id, listening, phase, ready, voiceAllowed]);
 
   useEffect(() => {
     return () => {
       window.clearTimeout(advanceRef.current);
-      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+      stopSpeaking();
     };
   }, [item.id]);
 
-  function allowMic() {
-    try {
-      window.sessionStorage.setItem(MIC_KEY, "1");
-    } catch {
-      /* storage may be unavailable */
-    }
-    setAllowed(true);
-  }
-
   if (!ready) return <p className="mt-6 text-sm text-muted">Phonemic awareness</p>;
 
-  if (!unsupported && !allowed) {
-    return (
-      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
-        <h2 className="font-display text-2xl text-ink">Microphone</h2>
-        <p className="mt-2 text-ink">
-          The microphone listens only while a prompt is waiting for an answer. It does not record or save the sound. Allow it once for this sitting.
-        </p>
-        <button type="button" onClick={allowMic} className="mt-4 min-h-11 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
-          Allow the microphone
-        </button>
-      </section>
-    );
-  }
-
   const showModel = phase === "model" && !spoken;
+  const adult = phase === "listen" && (!voiceAllowed || unsupported);
 
   return (
     <section className="mt-6" aria-live="polite">
+      <p className="text-center text-sm text-ink">{LISTENING_BEST}</p>
+      {quiet ? (
+        <div className="mt-4 text-center">
+          <p className="text-sm text-ink">{PA_NEEDS_SOUND_LINE}</p>
+          <p className="mt-2 text-lg text-ink">{item.say}</p>
+        </div>
+      ) : null}
+      {adult ? (
+        <div className="mt-6">
+          <p className="text-sm text-ink">{voiceAllowed ? listenNote : PARENT_NEEDS_VOICE}</p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <button type="button" onClick={() => finishRef.current("correct")} className="min-h-11 flex-1 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
+              Correct
+            </button>
+            <button type="button" onClick={() => finishRef.current("miss")} className="min-h-11 flex-1 rounded-xl border border-ink bg-paper px-5 font-semibold text-ink">
+              Miss
+            </button>
+          </div>
+        </div>
+      ) : null}
       <p className="text-center text-xs tracking-wide text-muted uppercase">
         {phase === "prompt" ? "Speaking" : phase === "listen" ? "Listening" : phase === "sparkle" ? "Heard" : "Answer"}
       </p>
