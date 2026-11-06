@@ -47,9 +47,9 @@ A parent agrees once, for the whole account, at registration or at the first sig
 
 `POST /api/account/voice-consent` with the bearer token and `{ "status": "allowed", "password": "the account password" }` saves that answer. The password is required for every change, including the first one. `Not now` is `declined`. The app does not POST or PATCH `/api/account/family` for this. One answer covers the app and the website. Turning it off takes effect at once. Until it is allowed at wording v2, no microphone engine listens.
 
-The password the parent just typed to sign in is used for that first save, then cleared. It is not stored on the account. If that copy is gone, the voice-answer screen asks for the password.
+The password the parent just typed to sign in stays in memory only. It is not written to the account, to session storage, or to local storage. The first Allow or Not now uses that copy, then clears it. The app reloads after that save, which also clears it. If the copy is already gone, the voice-answer screen asks for the password.
 
-On Android 13 and newer, with the English on-device speech pack, the sound becomes text on the phone. In a web browser, and on older Android phones, Google's speech service turns the answer into text. The voice is not recorded and is not saved. Android still asks its own microphone question once per phone.
+On Android 13 and newer, with the English on-device speech pack, the sound becomes text on the phone. In a web browser, and on older Android phones, Google's speech service turns the answer into text. Google's privacy policy covers that step, and Google may keep the audio if the Google account saves voice activity. VKOLE does not record or save the voice. Android still asks its own microphone question once per phone.
 
 `VKOLE_MASTER_EMAIL`, or `kirksamalpha@dotheimpossible.ai` when that variable is empty, is never on a free week and never has to pay. Register, sign-in, and the family read for that email return `access: "open"` and do not send a finished free week.
 

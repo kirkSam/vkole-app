@@ -6,7 +6,7 @@ The sentences below are the same words as the parent consent screen. Do not shor
 
 **Voice answers**
 
-Some VKOLE engines let your child answer out loud. When your child answers, the microphone listens for a few seconds, turns the answer into text, and then stops. We do not record or save your child's voice. On newer Android phones, this happens on the phone. In a web browser and on older Android phones, Google's speech service turns the answer into text. You can turn voice answers off at any time. If voice answers are off, an adult marks each answer.
+Some VKOLE engines let your child answer out loud. When your child answers, the microphone listens for a few seconds, turns the answer into text, and then stops. VKOLE does not record or save your child's voice. On newer Android phones, this happens on the phone. In a web browser and on older Android phones, Google's speech service turns the answer into text. Google's privacy policy covers that step, and Google may keep the audio if your Google account saves voice activity. You can turn voice answers off at any time. If voice answers are off, an adult marks each answer.
 
 On the three microphone engines, the card also says: "Listening works best on Android 13 or newer."
 

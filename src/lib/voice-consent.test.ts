@@ -71,9 +71,19 @@ describe("parent voice consent", () => {
     const home = source("../routes/index.tsx");
     const consent = source("../components/voice-answers.tsx");
     assert.equal(password.includes("localStorage"), false);
+    assert.equal(password.includes("sessionStorage"), false);
     assert.equal(login.includes("holdSignInPassword"), true);
+    assert.equal(login.includes("peekSignInPassword"), true);
+    assert.equal(login.includes("readVoiceConsent"), true);
+    assert.equal(login.includes("VoiceAnswers"), true);
+    assert.equal(login.includes("window.location.assign(ENGINE_PICKER_ROUTE)"), true);
+    assert.equal(login.includes("vkole-voice-password"), false);
+    const readAt = login.indexOf("readVoiceConsent");
+    const assignAt = login.indexOf("window.location.assign(ENGINE_PICKER_ROUTE)");
+    assert.equal(readAt > 0 && readAt < assignAt, true);
     assert.equal(home.includes("clearSignInPassword"), true);
     assert.equal(home.includes("peekSignInPassword"), true);
+    assert.equal(home.includes("peekSignInPassword().length < 8"), true);
     assert.equal(consent.includes('type="password"'), true);
     assert.equal(source("../lib/auth/client.ts").includes("clearSignInPassword"), true);
   });
@@ -87,8 +97,10 @@ describe("parent voice consent", () => {
     assert.equal(PARENT_NEEDS_VOICE, "A parent needs to turn on voice answers. Until then, an adult marks each answer.");
     assert.equal(PHONE_CANNOT_HEAR, "This phone cannot hear the student. Android 13 or newer lets the app hear the student. An adult evaluates and marks each answer.");
     assert.equal(LISTENING_BEST, "Listening works best on Android 13 or newer.");
-    assert.equal(VOICE_CONSENT_TEXT.includes("We do not record or save your child's voice."), true);
-    assert.equal(VOICE_CONSENT_TEXT.includes("Google's speech service turns the answer into text."), true);
+    assert.equal(
+      VOICE_CONSENT_TEXT,
+      "Some VKOLE engines let your child answer out loud. When your child answers, the microphone listens for a few seconds, turns the answer into text, and then stops. VKOLE does not record or save your child's voice. On newer Android phones, this happens on the phone. In a web browser and on older Android phones, Google's speech service turns the answer into text. Google's privacy policy covers that step, and Google may keep the audio if your Google account saves voice activity. You can turn voice answers off at any time. If voice answers are off, an adult marks each answer.",
+    );
     const home = source("../routes/index.tsx");
     const session = source("../routes/session.$id.tsx");
     const consent = source("../components/voice-answers.tsx");
