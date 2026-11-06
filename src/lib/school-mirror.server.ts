@@ -2,7 +2,6 @@ import type { Sql } from "@/lib/db";
 import type { EngineLevel, FamilyStudent, LevelKey, LockReason, SchoolProfile } from "@/lib/school-account";
 import { CLOCK_LIMIT_SECONDS, LEVEL_KEYS, accountIdOf, clockDayKeyOf, normalizeEngineLevel } from "@/lib/school-account";
 import { mergeFamilyStudents } from "@/lib/student-card";
-import { parseVoiceConsent, type VoiceConsent, type VoiceConsentRecord } from "@/lib/voice-consent";
 
 export type SchoolMirror = {
   access: "open" | "closed";
@@ -22,9 +21,6 @@ export type SchoolMirror = {
   confirmationExpiresAt: string | null;
   freeWeekGranted: boolean;
   lockReason: LockReason;
-  voiceConsent: VoiceConsent;
-  voiceConsentAt: string | null;
-  voiceConsentVersion: string | null;
 };
 
 /** The website bearer token, stored on the same row as the family mirror. */
@@ -51,9 +47,6 @@ type MirrorRow = {
   confirmation_expires_at?: unknown;
   free_week_granted?: boolean | number | string | null;
   lock_reason?: string | null;
-  voice_consent?: string | null;
-  voice_consent_at?: unknown;
-  voice_consent_version?: string | null;
 };
 
 export async function ensureSchoolMirror(sql: Sql): Promise<void> {
@@ -82,53 +75,6 @@ export async function ensureSchoolMirror(sql: Sql): Promise<void> {
   await sql`alter table school_mirror add column if not exists confirmation_expires_at timestamptz`;
   await sql`alter table school_mirror add column if not exists free_week_granted boolean not null default false`;
   await sql`alter table school_mirror add column if not exists lock_reason text not null default ''`;
-  await sql`alter table school_mirror add column if not exists voice_consent text not null default 'not-asked'`;
-  await sql`alter table school_mirror add column if not exists voice_consent_at timestamptz`;
-  await sql`alter table school_mirror add column if not exists voice_consent_version text`;
-}
-
-function voiceFromRow(row: Pick<MirrorRow, "voice_consent" | "voice_consent_at" | "voice_consent_version">): VoiceConsentRecord {
-  const voiceConsent = parseVoiceConsent(row.voice_consent) ?? "not-asked";
-  return {
-    voiceConsent,
-    voiceConsentAt: row.voice_consent_at ? new Date(String(row.voice_consent_at)).toISOString() : null,
-    voiceConsentVersion: typeof row.voice_consent_version === "string" ? row.voice_consent_version : null,
-  };
-}
-
-async function voiceOnAccount(sql: Sql, userId: string, row: MirrorRow): Promise<VoiceConsentRecord> {
-  const account = accountIdOf(userId);
-  if (account === userId) return voiceFromRow(row);
-  const parent = await sql<MirrorRow>`
-    select voice_consent, voice_consent_at, voice_consent_version
-    from school_mirror
-    where user_id = ${account}
-  `;
-  return parent[0] ? voiceFromRow(parent[0]) : voiceFromRow(row);
-}
-
-/** The parent account holds the one voice answer. Student rows do not. */
-export async function saveVoiceConsentRow(sql: Sql, userId: string, record: VoiceConsentRecord): Promise<void> {
-  await ensureSchoolMirror(sql);
-  const account = accountIdOf(userId);
-  await sql`
-    insert into school_mirror (
-      user_id, access, voice_consent, voice_consent_at, voice_consent_version, updated_at
-    )
-    values (
-      ${account},
-      'closed',
-      ${record.voiceConsent},
-      ${record.voiceConsentAt},
-      ${record.voiceConsentVersion},
-      now()
-    )
-    on conflict (user_id) do update
-    set voice_consent = excluded.voice_consent,
-        voice_consent_at = excluded.voice_consent_at,
-        voice_consent_version = excluded.voice_consent_version,
-        updated_at = now()
-  `;
 }
 
 function flag(value: boolean | number | string | null | undefined): boolean {
@@ -171,8 +117,7 @@ export async function readSchoolMirror(sql: Sql, userId: string): Promise<School
   const rows = await sql<MirrorRow>`
     select access, free_week_start, clock_seconds, clock_day, clock_limit, student_name, plan, levels, last_push_at,
       office_purchased, office_slug, active_student, students, email_confirmed,
-      confirmation_expires_at, free_week_granted, lock_reason,
-      voice_consent, voice_consent_at, voice_consent_version
+      confirmation_expires_at, free_week_granted, lock_reason
     from school_mirror
     where user_id = ${userId}
   `;
@@ -197,7 +142,6 @@ export async function readSchoolMirror(sql: Sql, userId: string): Promise<School
     confirmationExpiresAt: row.confirmation_expires_at ? new Date(String(row.confirmation_expires_at)).toISOString() : null,
     freeWeekGranted: flag(row.free_week_granted),
     lockReason: asLock(row.lock_reason),
-    ...(await voiceOnAccount(sql, userId, row)),
   };
 }
 
@@ -254,13 +198,6 @@ export async function saveSchoolMirror(sql: Sql, userId: string, profile: School
         lock_reason = excluded.lock_reason,
         updated_at = now()
   `;
-  if (profile.voiceConsent) {
-    await saveVoiceConsentRow(sql, userId, {
-      voiceConsent: profile.voiceConsent,
-      voiceConsentAt: profile.voiceConsentAt ?? null,
-      voiceConsentVersion: profile.voiceConsentVersion ?? null,
-    });
-  }
 }
 
 /** Keep the whole family list on the parent row. A one-child read must not erase the other child. */

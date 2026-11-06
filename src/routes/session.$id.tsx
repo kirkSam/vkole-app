@@ -46,7 +46,7 @@ import { SchoolPath } from "@/components/school-path";
 import { WebsiteVisit } from "@/components/website-visit";
 import { openEnginePicker, takeHeldSitting } from "@/lib/engine-picker";
 import { readVoiceConsent } from "@/lib/voice-consent-api";
-import { mayListen } from "@/lib/voice-consent";
+import { subscribeVoiceConsent, voiceAnswersAllowed } from "@/lib/voice-consent";
 
 export const Route = createFileRoute("/session/$id")({ component: SessionPage });
 
@@ -150,7 +150,7 @@ function SessionPage() {
     const pull = () => {
       void readVoiceConsent()
         .then((row) => {
-          if (live) setVoiceAllowed(mayListen(row));
+          if (live) setVoiceAllowed(voiceAnswersAllowed(row));
         })
         .catch(() => {
           if (live) setVoiceAllowed(false);
@@ -158,9 +158,13 @@ function SessionPage() {
     };
     pull();
     const timer = window.setInterval(pull, 1000);
+    const stop = subscribeVoiceConsent((row) => {
+      if (live) setVoiceAllowed(voiceAnswersAllowed(row));
+    });
     return () => {
       live = false;
       window.clearInterval(timer);
+      stop();
     };
   }, [userId]);
 

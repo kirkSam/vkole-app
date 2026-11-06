@@ -29,7 +29,7 @@ import {
   type SchoolFailure,
   type SchoolProfile,
 } from "./school-account.ts";
-import type { VoiceConsentRecord } from "./voice-consent.ts";
+import { parseWebsiteVoiceConsent, type VoiceConsent } from "./voice-consent.ts";
 
 const PATHS = {
   register: "/api/account/register",
@@ -329,20 +329,24 @@ export async function confirmSchoolReset(
   return { message: websiteErrorText(body) || "Password updated" };
 }
 
-/** Store the parent's voice answer on the website. One answer covers both sides. */
-export async function shareVoiceConsent(id: string, record: VoiceConsentRecord, deps?: CallDeps): Promise<void> {
+/** Store the parent's voice answer on the website. The password is required every time. */
+export async function shareVoiceConsent(
+  id: string,
+  status: "allowed" | "declined",
+  password: string,
+  deps?: CallDeps,
+): Promise<VoiceConsent> {
   const email = accountId(id);
   const token = await tokenFor(email, deps);
-  const body = {
-    voiceConsent: record.voiceConsent,
-    voiceConsentAt: record.voiceConsentAt,
-    voiceConsentVersion: record.voiceConsentVersion,
-  };
+  const body = { status, password: schoolPassword(password) };
   try {
     const response = await callSchool("POST", PATHS.voiceConsent, body, { ...deps, token });
     noteRotatedGrant(response, deps);
+    const root = response && typeof response === "object" ? (response as { voiceConsent?: unknown }) : null;
+    return parseWebsiteVoiceConsent(root?.voiceConsent);
   } catch (err) {
-    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
+    const passwordMiss = err instanceof SchoolCallError && /password/i.test(err.message);
+    if (!passwordMiss && err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
       await clearStoredGrant(email);
     }
     throw err;

@@ -9,6 +9,7 @@ import { ENGINE_PICKER_ROUTE } from "@/lib/engine-picker";
 import { CREATE_ACCOUNT_BUTTON_CLASS } from "@/lib/pre-account";
 import { SchoolAccountScreen } from "@/components/school-account-screen";
 import { Shell } from "@/components/shell";
+import { holdSignInPassword } from "@/lib/voice-password";
 
 type Mode = "in" | "up" | "forgot" | "reset";
 
@@ -56,6 +57,7 @@ export function ParentLogin({
   }
 
   async function enterApp(sessionToken: string) {
+    holdSignInPassword(password);
     if (sessionToken) rememberAppSession(sessionToken);
     await recordLogin({ data: { kind: mode === "up" ? "sign-up" : "sign-in" } }).catch(() => undefined);
     sessionStorage.removeItem("vkole-sync-trial");

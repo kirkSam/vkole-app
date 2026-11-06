@@ -1,6 +1,6 @@
 /** Parent decision for spoken answers. One answer covers the app and the website. */
 
-export const VOICE_CONSENT_VERSION = "v1";
+export const VOICE_CONSENT_VERSION = "v2" as const;
 
 export const VOICE_CONSENT_TITLE = "Voice answers";
 
@@ -21,55 +21,54 @@ export const LISTENING_BEST = "Listening works best on Android 13 or newer.";
 
 export const VOICE_SETTINGS_LABEL = "Voice answers: On / Off";
 
-export type VoiceConsent = "allowed" | "declined" | "not-asked";
+export type VoiceConsentStatus = "allowed" | "declined" | "not_asked";
 
-export type VoiceConsentRecord = {
-  voiceConsent: VoiceConsent;
-  voiceConsentAt: string | null;
-  voiceConsentVersion: string | null;
+/** The website object. A phone-only copy is not a yes. */
+export type VoiceConsent = {
+  status: VoiceConsentStatus;
+  decidedAt: string | null;
+  wordingVersion: typeof VOICE_CONSENT_VERSION | null;
 };
 
-export function mayListen(record: { voiceConsent?: VoiceConsent | null } | null | undefined): boolean {
-  return record?.voiceConsent === "allowed";
+export const VOICE_NOT_ASKED: VoiceConsent = {
+  status: "not_asked",
+  decidedAt: null,
+  wordingVersion: null,
+};
+
+const listeners = new Set<(value: VoiceConsent) => void>();
+
+/** Tell an open engine at once. This is not stored on the phone. */
+export function publishVoiceConsent(value: VoiceConsent): void {
+  for (const listener of listeners) listener(value);
 }
 
-/** Not now is a decline. The date, time, and wording version are stored with that answer. */
-export function recordVoiceConsent(choice: "allowed" | "declined", now: Date): VoiceConsentRecord {
-  return {
-    voiceConsent: choice,
-    voiceConsentAt: now.toISOString(),
-    voiceConsentVersion: VOICE_CONSENT_VERSION,
+export function subscribeVoiceConsent(listener: (value: VoiceConsent) => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
   };
 }
 
-export function parseVoiceConsent(value: unknown): VoiceConsent | undefined {
-  if (value === "allowed" || value === "declined" || value === "not-asked") return value;
-  return undefined;
+/**
+ * The microphone opens only for a complete allowed decision at wording v2.
+ * A saved listen flag, a v1 row, or a missing date does not.
+ */
+export function voiceAnswersAllowed(consent: VoiceConsent | null | undefined): boolean {
+  if (!consent || consent.status !== "allowed") return false;
+  if (consent.wordingVersion !== VOICE_CONSENT_VERSION) return false;
+  if (typeof consent.decidedAt !== "string" || Number.isNaN(Date.parse(consent.decidedAt))) return false;
+  return true;
 }
 
-/**
- * The website wins when it sends an answer. A missing field keeps the answer
- * already stored here, so an older website does not wipe a decision.
- */
-export function keepVoiceConsent(
-  stored: Partial<VoiceConsentRecord> | null | undefined,
-  incoming: Partial<VoiceConsentRecord> | null | undefined,
-): VoiceConsentRecord {
-  const sent = parseVoiceConsent(incoming?.voiceConsent);
-  if (sent) {
-    return {
-      voiceConsent: sent,
-      voiceConsentAt: typeof incoming?.voiceConsentAt === "string" ? incoming.voiceConsentAt : null,
-      voiceConsentVersion: sent === "not-asked" ? null : incoming?.voiceConsentVersion ?? null,
-    };
-  }
-  const kept = parseVoiceConsent(stored?.voiceConsent);
-  if (kept) {
-    return {
-      voiceConsent: kept,
-      voiceConsentAt: typeof stored?.voiceConsentAt === "string" ? stored.voiceConsentAt : null,
-      voiceConsentVersion: stored?.voiceConsentVersion ?? null,
-    };
-  }
-  return { voiceConsent: "not-asked", voiceConsentAt: null, voiceConsentVersion: null };
+/** Missing, v1, or an incomplete object is not asked. The website's object wins. */
+export function parseWebsiteVoiceConsent(value: unknown): VoiceConsent {
+  if (!value || typeof value !== "object") return VOICE_NOT_ASKED;
+  const row = value as { status?: unknown; decidedAt?: unknown; wordingVersion?: unknown };
+  const status = row.status === "allowed" || row.status === "declined" ? row.status : null;
+  const decidedAt = typeof row.decidedAt === "string" && !Number.isNaN(Date.parse(row.decidedAt))
+    ? new Date(row.decidedAt).toISOString()
+    : null;
+  if (!status || !decidedAt || row.wordingVersion !== VOICE_CONSENT_VERSION) return VOICE_NOT_ASKED;
+  return { status, decidedAt, wordingVersion: VOICE_CONSENT_VERSION };
 }
