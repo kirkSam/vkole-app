@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
+import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import {
-  MIC_ASK_LINE,
   SPEAK_FAILED_LINE,
   createListener,
   listenFailureLine,
@@ -15,7 +15,6 @@ import { SIGHT_WORD_ADVANCE_MS, SIGHT_WORD_MAX_SHOW_MS } from "@/lib/vkole/const
 import { judgeSpoken, speechTokens } from "@/lib/vkole/sight-words/match";
 import { entryFor } from "@/lib/vkole/sight-words/words";
 
-const MIC_KEY = "vkole-sw-mic";
 const WORD_COLORS = ["#2c5e4a", "#7a2e1f", "#1d4e89", "#8a5a12", "#5c3d8f", "#0e6b6b", "#9a3d62", "#3d6b1f"];
 
 type SpeechAlternative = { transcript?: string };
@@ -47,18 +46,19 @@ export function SightWordStage({
   word,
   band,
   index = 0,
+  voiceAllowed = false,
   onDone,
 }: {
   word: string;
   band?: string;
   index?: number;
+  voiceAllowed?: boolean;
   onDone: (outcome: Outcome) => void;
 }) {
   const [ready, setReady] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
-  const [allowed, setAllowed] = useState(false);
   const [phase, setPhase] = useState<"show" | "sparkle" | "speak">("show");
-  const [listenNote, setListenNote] = useState("Speech recognition is not available on this device. An adult can mark this word.");
+  const [listenNote, setListenNote] = useState(PHONE_CANNOT_HEAR);
   const [quiet, setQuiet] = useState(false);
   const onDoneRef = useRef(onDone);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
@@ -68,11 +68,6 @@ export function SightWordStage({
   useEffect(() => {
     const supported = listenerReady();
     setUnsupported(!supported);
-    try {
-      setAllowed(window.sessionStorage.getItem(MIC_KEY) === "1");
-    } catch {
-      setAllowed(false);
-    }
     setReady(true);
   }, []);
 
@@ -87,7 +82,7 @@ export function SightWordStage({
   }, [phase, word]);
 
   const entry = entryFor(band, index, word);
-  const listening = ready && !unsupported && allowed && phase === "show";
+  const listening = ready && !unsupported && voiceAllowed && phase === "show";
 
   useEffect(() => {
     if (!listening) return;
@@ -95,7 +90,7 @@ export function SightWordStage({
   }, [listening]);
 
   useEffect(() => {
-    if (!ready || phase !== "show" || (!listening && !unsupported)) return;
+    if (!ready || phase !== "show" || (voiceAllowed && !listening && !unsupported)) return;
     let live = true;
     const settled = { current: false };
     let rec: SpeechListener | null = null;
@@ -177,7 +172,7 @@ export function SightWordStage({
         /* already stopped */
       }
     };
-  }, [entry.also, listening, phase, ready, unsupported, word]);
+  }, [entry.also, listening, phase, ready, unsupported, voiceAllowed, word]);
 
   useEffect(() => {
     return () => {
@@ -186,34 +181,15 @@ export function SightWordStage({
     };
   }, [word]);
 
-  function allowMic() {
-    try {
-      window.sessionStorage.setItem(MIC_KEY, "1");
-    } catch {
-      /* storage may be unavailable */
-    }
-    setAllowed(true);
-  }
-
   if (!ready) return <p className="mt-6 text-sm text-muted">Sight words</p>;
 
-  if (!unsupported && !allowed) {
-    return (
-      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
-        <h2 className="font-display text-2xl text-ink">Microphone</h2>
-        <p className="mt-2 text-ink">{MIC_ASK_LINE}</p>
-        <button type="button" onClick={allowMic} className="mt-4 min-h-11 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
-          Allow the microphone
-        </button>
-      </section>
-    );
-  }
-
   const shown = phase !== "speak";
+  const adult = !voiceAllowed || unsupported;
 
   return (
     <section className="mt-6" aria-live="polite">
       <p className="text-center text-xs tracking-wide text-muted uppercase">{listening ? "Listening" : "Sight word"}</p>
+      <p className="mt-2 text-center text-sm text-ink">{LISTENING_BEST}</p>
       <div className={phase === "sparkle" ? "sight-sparkle relative mt-4" : "relative mt-4"}>
         {shown ? (
           <p className="sight-word font-display font-semibold" style={{ color: colorFor(word) }}>
@@ -228,9 +204,9 @@ export function SightWordStage({
         )}
       </div>
       {quiet ? <p className="mt-4 text-center text-sm text-ink">{SPEAK_FAILED_LINE}</p> : null}
-      {unsupported ? (
+      {adult ? (
         <div className="mt-6">
-          <p className="text-sm text-ink">{listenNote}</p>
+          <p className="text-sm text-ink">{voiceAllowed ? listenNote : PARENT_NEEDS_VOICE}</p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <button type="button" onClick={() => finishRef.current("correct")} className="min-h-11 flex-1 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
               Correct

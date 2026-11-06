@@ -45,6 +45,8 @@ import { deviceTimeZone } from "@/lib/day-clock-math";
 import { SchoolPath } from "@/components/school-path";
 import { WebsiteVisit } from "@/components/website-visit";
 import { openEnginePicker, takeHeldSitting } from "@/lib/engine-picker";
+import { readVoiceConsent } from "@/lib/voice-consent-api";
+import { mayListen } from "@/lib/voice-consent";
 
 export const Route = createFileRoute("/session/$id")({ component: SessionPage });
 
@@ -120,6 +122,7 @@ function SessionPage() {
   const [alphabetRound, setAlphabetRound] = useState(0);
   const [alphabetHeard, setAlphabetHeard] = useState("");
   const [paRound, setPaRound] = useState(0);
+  const [voiceAllowed, setVoiceAllowed] = useState(false);
   const finishRef = useRef<(reason: EndReason, explicitLogout?: boolean) => void>(() => {});
 
   const userId = user?.id;
@@ -140,6 +143,26 @@ function SessionPage() {
       live = false;
     };
   }, [id, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    const pull = () => {
+      void readVoiceConsent()
+        .then((row) => {
+          if (live) setVoiceAllowed(mayListen(row));
+        })
+        .catch(() => {
+          if (live) setVoiceAllowed(false);
+        });
+    };
+    pull();
+    const timer = window.setInterval(pull, 1000);
+    return () => {
+      live = false;
+      window.clearInterval(timer);
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (!climb || climb.blocked || climb.fullAccess) return;
@@ -529,6 +552,7 @@ function SessionPage() {
             word={climb.currentPrompt}
             band={climb.standardCode}
             index={climb.standardStep}
+            voiceAllowed={voiceAllowed}
             onDone={(outcome) => {
               noteEngineActivity();
               if (pendingAnswer) return;
@@ -551,6 +575,7 @@ function SessionPage() {
             silence={climb.correctAtLevel}
             wrong={climb.incorrectStreak}
             heard={alphabetHeard}
+            voiceAllowed={voiceAllowed}
             onHeard={setAlphabetHeard}
             onAttempt={(attempt) => {
               void recordAlphabetAttempt({
@@ -595,6 +620,7 @@ function SessionPage() {
             key={`${climb.standardCode}:${climb.standardStep}:${paRound}`}
             band={climb.standardCode}
             index={climb.standardStep}
+            voiceAllowed={voiceAllowed}
             onDone={(outcome) => {
               noteEngineActivity();
               if (pendingAnswer) return;

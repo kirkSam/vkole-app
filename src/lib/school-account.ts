@@ -15,6 +15,7 @@ import { BAND_LABELS, isSightBand, SIGHT_WORD_BANDS, startBandForGrade, type Sig
 import { bandMeta, cardFromAccount as spCardFromAccount, isSpBand, letterView, migrateAlphabetIndex, normalizeCompletedExercises, resumeAlphabetPlace, ALPHABET_BANDS, spCard, type SpBand } from "./vkole/alphabet/items.ts";
 import { cardFromAccount as paCardFromAccount, migratePaBand, PA_BANDS, type PaBand } from "./vkole/phonemic-awareness/items.ts";
 import { sightCard } from "./vkole/sight-words/words.ts";
+import { keepVoiceConsent, parseVoiceConsent, type VoiceConsent } from "./voice-consent.ts";
 
 /**
  * The school site's login field. Trailing newlines come off. The rest of the
@@ -339,6 +340,10 @@ export type SchoolProfile = {
   confirmationExpiresAt?: string | null;
   freeWeekGranted?: boolean;
   lockReason?: LockReason;
+  /** Missing on an older website payload. The stored answer is kept. */
+  voiceConsent?: VoiceConsent;
+  voiceConsentAt?: string | null;
+  voiceConsentVersion?: string | null;
 };
 
 export type SchoolFailure =
@@ -1069,6 +1074,22 @@ function asActiveStudent(value: unknown): number {
   return Number.isInteger(n) && n >= 1 ? n : 1;
 }
 
+function voiceFromFamily(family: Record<string, unknown>): {
+  voiceConsent?: VoiceConsent;
+  voiceConsentAt?: string | null;
+  voiceConsentVersion?: string | null;
+} {
+  const voiceConsent = parseVoiceConsent(family.voiceConsent);
+  if (!voiceConsent) return {};
+  const at = family.voiceConsentAt;
+  const version = family.voiceConsentVersion;
+  return {
+    voiceConsent,
+    voiceConsentAt: typeof at === "string" && !Number.isNaN(Date.parse(at)) ? new Date(at).toISOString() : null,
+    voiceConsentVersion: voiceConsent === "not-asked" ? null : typeof version === "string" ? version : null,
+  };
+}
+
 /**
  * Read `{ family }` from a sign-in, register, or family response.
  * The old `{ ok, id, profile }` shape is not an account.
@@ -1129,6 +1150,7 @@ export function parseSchoolProfile(body: unknown, knownEmail?: string): { id: st
       confirmationExpiresAt: expiresAtOf(family.confirmationExpiresAt),
       freeWeekGranted: family.freeWeekGranted === true,
       lockReason: asLockReason(family.lockReason),
+      ...voiceFromFamily(family),
     },
   };
 }
@@ -1172,6 +1194,10 @@ export type StoredSchoolProgress = {
   /** Pacific day for `clockSeconds`. Empty on a mirror saved before days were stored. */
   clockDayKey?: string;
   plan?: "month" | "year" | null;
+  /** Parent voice answer. Omitted by an older mirror row. */
+  voiceConsent?: VoiceConsent;
+  voiceConsentAt?: string | null;
+  voiceConsentVersion?: string | null;
 };
 
 /**
@@ -1353,6 +1379,7 @@ export function profileKeepingProgress(
   const places = (incoming.students ?? [])
     .filter((student) => Number.isInteger(student.index) && student.index >= 1)
     .map((student) => ({ index: student.index, name: "", age: null as number | null, startingGrade: null as number | null }));
+  const kept = keepVoiceConsent(stored, incoming);
   return {
     ...incoming,
     studentName: stored?.studentName?.trim() || "",
@@ -1364,6 +1391,9 @@ export function profileKeepingProgress(
     seen: stored?.seen ?? [],
     plan: incoming.plan ?? stored?.plan ?? null,
     students: mergePlaces(localStudents, places),
+    voiceConsent: kept.voiceConsent,
+    voiceConsentAt: kept.voiceConsentAt,
+    voiceConsentVersion: kept.voiceConsentVersion,
   };
 }
 

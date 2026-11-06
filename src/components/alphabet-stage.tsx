@@ -21,12 +21,11 @@ import {
   alphabetStartSecondsLeft,
 } from "@/lib/vkole/alphabet/items";
 import { holdEngineAudio, holdEngineLetter, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
+import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import {
-  MIC_ASK_LINE,
   SPEAK_FAILED_LINE,
   createListener,
   isNativeApp,
-  listenFailureLine,
   listenerReady,
   nativeSpeechActive,
   setCannotSpeakHook,
@@ -52,8 +51,6 @@ import {
 import { describeAlphabetHear, heardAsideFromPrompt, recognitionErrorRelistens, alphabetGrammar } from "@/lib/vkole/alphabet/match";
 import { celebrationFrame, GOOD_JOB_LINE, reciteHear, ALPHABET_CELEBRATION_MS } from "@/lib/vkole/alphabet/recite";
 import { advanceTyping, judgeTypingKey, TYPING_TRY_AGAIN, TYPING_WAIT_MS, typingCaseLine, typingShown, typingStart, type TypingPlace } from "@/lib/vkole/alphabet/typing";
-
-const MIC_KEY = "vkole-sp-mic";
 
 /** useLayoutEffect before paint on the client. The server render keeps useEffect so the hook order stays valid. */
 const useLetterLayout = typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -268,6 +265,7 @@ export function AlphabetStage({
   onAttempt,
   onDone,
   timingDebug = false,
+  voiceAllowed = false,
 }: {
   index?: number;
   silence?: number;
@@ -284,6 +282,7 @@ export function AlphabetStage({
   onDone: (outcome: Outcome) => void;
   /** Website master only. Shows letter, mic start, audio start, and mic close. */
   timingDebug?: boolean;
+  voiceAllowed?: boolean;
 }) {
   const opening = openingAlphabetExercise({ index, silence, wrong });
   const [exercise, setExercise] = useState<AlphabetExercise>(opening);
@@ -296,9 +295,8 @@ export function AlphabetStage({
   const colors = letterColors();
   const [ready, setReady] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
-  const [listenNote, setListenNote] = useState("Speech recognition is not available on this device. An adult can mark this answer.");
+  const [listenNote, setListenNote] = useState(PHONE_CANNOT_HEAR);
   const [quiet, setQuiet] = useState(false);
-  const [allowed, setAllowed] = useState(false);
   const [phase, setPhase] = useState<Phase>("gate");
   const [typing, setTyping] = useState<TypingPlace>(typingStart());
   const [typeNote, setTypeNote] = useState("");
@@ -425,15 +423,29 @@ export function AlphabetStage({
   useEffect(() => {
     const supported = listenerReady();
     setUnsupported(!supported);
-    try {
-      setAllowed(window.sessionStorage.getItem(MIC_KEY) === "1");
-    } catch {
-      setAllowed(false);
-    }
     setReady(true);
   }, []);
 
   useEffect(() => setCannotSpeakHook(() => setQuiet(true)), []);
+
+  useEffect(() => {
+    if (!voiceAllowed || isNativeApp()) return;
+    const ask = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
+    if (!ask) return;
+    let live = true;
+    void ask({ audio: true })
+      .then((stream) => {
+        for (const track of stream.getTracks()) track.stop();
+      })
+      .catch(() => {
+        if (!live) return;
+        setListenNote(PHONE_CANNOT_HEAR);
+        setUnsupported(true);
+      });
+    return () => {
+      live = false;
+    };
+  }, [voiceAllowed]);
 
   useEffect(() => {
     noteEngineActivity();
@@ -498,8 +510,8 @@ export function AlphabetStage({
     };
   }, [letters, phase, runToken]);
 
-  const listening = ready && !unsupported && allowed && micListensDuring(phase);
-  const canScore = ready && phase === "listen" && (unsupported || allowed);
+  const listening = ready && !unsupported && voiceAllowed && micListensDuring(phase);
+  const canScore = ready && phase === "listen";
   const letterOnScreen = alphabetLetterShowing({ phase, shown: view.shown, pair: view.pair, cue: view.cue });
 
   useEffect(() => {
@@ -797,18 +809,8 @@ export function AlphabetStage({
             releaseRecognizer(serial);
             scheduleRestart();
           };
-          if (error === "not-available") {
-            setListenNote(listenFailureLine("private"));
-            setUnsupported(true);
-            return;
-          }
-          if (error === "not-allowed" || error === "service-not-allowed") {
-            if (permissionTries < 2) {
-              permissionTries += 1;
-              restartListening();
-              return;
-            }
-            setListenNote(listenFailureLine("denied"));
+          if (error === "not-available" || error === "not-allowed" || error === "service-not-allowed") {
+            setListenNote(PHONE_CANNOT_HEAR);
             setUnsupported(true);
             return;
           }
@@ -1075,18 +1077,8 @@ export function AlphabetStage({
             releaseRecognizer(serial);
             scheduleRestart();
           };
-          if (error === "not-available") {
-            setListenNote(listenFailureLine("private"));
-            setUnsupported(true);
-            return;
-          }
-          if (error === "not-allowed" || error === "service-not-allowed") {
-            if (permissionTries < 2) {
-              permissionTries += 1;
-              restartListening();
-              return;
-            }
-            setListenNote(listenFailureLine("denied"));
+          if (error === "not-available" || error === "not-allowed" || error === "service-not-allowed") {
+            setListenNote(PHONE_CANNOT_HEAR);
             setUnsupported(true);
             return;
           }
@@ -1205,38 +1197,6 @@ export function AlphabetStage({
     typeRef.current?.focus();
   }, [phase, typing.index, typing.letterCase]);
 
-  function allowMic() {
-    const open = () => {
-      try {
-        window.sessionStorage.setItem(MIC_KEY, "1");
-      } catch {
-        /* storage may be unavailable */
-      }
-      setAllowed(true);
-    };
-    // The Android app asks through the speech plugin, on the phone.
-    // A WebView getUserMedia failure must not skip that and show the adult buttons.
-    if (isNativeApp()) {
-      open();
-      return;
-    }
-    // Ask during this click. recognition.start() later runs from a timer, and Chrome
-    // reports not-allowed when that timer is the first time the microphone is used.
-    const ask = navigator.mediaDevices?.getUserMedia?.bind(navigator.mediaDevices);
-    if (!ask) {
-      open();
-      return;
-    }
-    void ask({ audio: true })
-      .then((stream) => {
-        for (const track of stream.getTracks()) track.stop();
-        open();
-      })
-      .catch(() => {
-        setUnsupported(true);
-      });
-  }
-
   if (!ready) return <p className="mt-6 text-sm text-muted">VKOLE/Alphabet ZPD</p>;
 
   if (phase === "gate") {
@@ -1308,7 +1268,6 @@ export function AlphabetStage({
 
   const shownSwatch = view.shown ? colors[letters.indexOf(view.shown.toUpperCase())] : undefined;
   const pairSwatch = colors[letters.indexOf(view.letter)] ?? colors[0];
-  const needsMic = phase === "listen" && !unsupported && !allowed;
   const background = view.kind === "ask" && shownSwatch ? shownSwatch.background : undefined;
   const status = phase === "prompt" ? "Speaking" : phase === "listen" ? (micLive ? "Listening" : "") : phase === "good-job" || phase === "celebrate" ? "Good job" : "Happy Face";
 
@@ -1317,6 +1276,7 @@ export function AlphabetStage({
       <AlphabetJumps current={exercise} onPick={beginExercise} />
       <p className="text-center text-base font-semibold text-ink">Exercise {view.exercise}</p>
       <p className="text-center text-xs tracking-wide text-muted uppercase">{status}</p>
+      <p className="mt-2 text-center text-sm text-ink">{LISTENING_BEST}</p>
       {phase === "celebrate" ? (
         <div className="sp-celebrate" aria-label={GOOD_JOB_LINE}>
           <p className="sp-prompt">{GOOD_JOB_LINE}</p>
@@ -1373,7 +1333,7 @@ export function AlphabetStage({
           <p className="sp-prompt">{view.show}</p>
         </>
       )}
-      {phase === "listen" && !needsMic && view.exercise >= 2 && clockOn ? (
+      {phase === "listen" && voiceAllowed && !unsupported && view.exercise >= 2 && clockOn ? (
         <div className="mt-3 w-full max-w-xs" aria-label="Microphone">
           <p className="text-center text-sm text-muted">Microphone · {secondsLeft} seconds</p>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-line" aria-hidden="true">
@@ -1394,20 +1354,11 @@ export function AlphabetStage({
           {heardNote || heard}
         </p>
       ) : null}
-      {needsMic ? (
-        <div className="mt-6 max-w-md text-center">
-          <h2 className="font-display text-2xl text-ink">Microphone</h2>
-          <p className="mt-2 text-ink">{MIC_ASK_LINE}</p>
-          <button type="button" onClick={allowMic} className="mt-4 min-h-11 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
-            Allow the microphone
-          </button>
-        </div>
-      ) : null}
       {quiet ? <p className="mt-4 text-center text-sm text-ink">{SPEAK_FAILED_LINE}</p> : null}
-      {phase === "listen" && !needsMic ? (
-        unsupported ? (
+      {phase === "listen" ? (
+        !voiceAllowed || unsupported ? (
           <div className="mt-6 w-full max-w-md">
-            <p className="text-sm text-ink">{listenNote}</p>
+            <p className="text-sm text-ink">{voiceAllowed ? listenNote : PARENT_NEEDS_VOICE}</p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <button type="button" onClick={() => finishRef.current("correct")} className="min-h-11 flex-1 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
                 Correct

@@ -29,6 +29,7 @@ import {
   type SchoolFailure,
   type SchoolProfile,
 } from "./school-account.ts";
+import type { VoiceConsentRecord } from "./voice-consent.ts";
 
 const PATHS = {
   register: "/api/account/register",
@@ -37,6 +38,7 @@ const PATHS = {
   resendConfirmation: "/api/account/confirm-email/resend",
   sendCode: "/api/account/forgot-password/send-code",
   confirm: "/api/account/forgot-password/confirm",
+  voiceConsent: "/api/account/voice-consent",
 } as const;
 
 const RETIRED_RESET = "/api/vkole/password-reset";
@@ -325,4 +327,24 @@ export async function confirmSchoolReset(
     deps,
   );
   return { message: websiteErrorText(body) || "Password updated" };
+}
+
+/** Store the parent's voice answer on the website. One answer covers both sides. */
+export async function shareVoiceConsent(id: string, record: VoiceConsentRecord, deps?: CallDeps): Promise<void> {
+  const email = accountId(id);
+  const token = await tokenFor(email, deps);
+  const body = {
+    voiceConsent: record.voiceConsent,
+    voiceConsentAt: record.voiceConsentAt,
+    voiceConsentVersion: record.voiceConsentVersion,
+  };
+  try {
+    const response = await callSchool("POST", PATHS.voiceConsent, body, { ...deps, token });
+    noteRotatedGrant(response, deps);
+  } catch (err) {
+    if (err instanceof SchoolCallError && err.reason === "unauthorized" && !deps?.token && !deps?.engineActive) {
+      await clearStoredGrant(email);
+    }
+    throw err;
+  }
 }

@@ -35,6 +35,14 @@ The account id is the email after trimming and lowercasing. Dots in the address 
 
 The password is the typed password with trailing newlines removed. It is not trimmed and it is not lowercased. Register, sign-in, and password confirm all send that same value.
 
+## Voice answers
+
+A parent agrees once, for the whole account, at registration or at the first sign-in. The child never sees that question. `family.voiceConsent` is `allowed`, `declined`, or `not-asked`. `family.voiceConsentAt` is the ISO date and time. `family.voiceConsentVersion` starts at `v1`. Missing fields mean the website has not answered yet. The app then keeps an answer it already stored.
+
+`POST /api/account/voice-consent` with the bearer token and `{ voiceConsent, voiceConsentAt, voiceConsentVersion }` saves that answer. The app does not POST or PATCH `/api/account/family` for this. One answer covers the app and the website. Turning it off takes effect at once. Until it is `allowed`, no microphone engine listens.
+
+On Android 13 and newer, with the English on-device speech pack, the sound becomes text on the phone. In a web browser, and on older Android phones, Google's speech service turns the answer into text. The voice is not recorded and is not saved. Android still asks its own microphone question once per phone.
+
 `VKOLE_MASTER_EMAIL`, or `kirksamalpha@dotheimpossible.ai` when that variable is empty, is never on a free week and never has to pay. Register, sign-in, and the family read for that email return `access: "open"` and do not send a finished free week.
 
 The app does not save a family to the website. A name, age, grade, level, day clock, and seen question stay on the app. `clock.limit`, when the website sends one, is not used. Both sides use the built-in limit of 28800 seconds.

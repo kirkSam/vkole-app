@@ -3,9 +3,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   ANDROID_LISTEN_MIN,
+  GOOGLE_LISTEN,
   MIC_ASK_LINE,
-  MIC_DENIED_LINE,
-  MIC_PRIVATE_UNAVAILABLE,
   NATIVE_LISTEN,
   PA_NEEDS_SOUND_LINE,
   SPEAK_FAILED_LINE,
@@ -18,6 +17,7 @@ import {
   useSpeakPorts,
   type ListenPorts,
 } from "./listener.ts";
+import { PHONE_CANNOT_HEAR } from "../voice-consent.ts";
 
 function source(path: string): string {
   return readFileSync(new URL(path, import.meta.url), "utf8");
@@ -32,6 +32,7 @@ describe("shared listening helper", () => {
     const began: unknown[] = [];
     const ports: ListenPorts = {
       onDevice: async () => false,
+      service: async () => false,
       permit: async () => "granted",
       begin: async (options) => {
         began.push(options);
@@ -51,8 +52,30 @@ describe("shared listening helper", () => {
     await flush();
     assert.deepEqual(errors, ["not-available"]);
     assert.deepEqual(began, []);
-    assert.equal(listenFailureLine("private"), MIC_PRIVATE_UNAVAILABLE);
+    assert.equal(listenFailureLine("private"), PHONE_CANNOT_HEAR);
+    assert.equal(listenFailureLine("denied"), PHONE_CANNOT_HEAR);
     assert.equal(ANDROID_LISTEN_MIN, 13);
+    useListenPorts(null);
+  });
+
+  it("uses Google's speech service only when the phone cannot listen on the device", async () => {
+    const began: unknown[] = [];
+    const ports: ListenPorts = {
+      onDevice: async () => false,
+      service: async () => true,
+      permit: async () => "granted",
+      begin: async (options) => {
+        began.push(options);
+      },
+      halt: async () => {},
+    };
+    useListenPorts(ports);
+    const listener = createListener();
+    assert.ok(listener);
+    listener.start();
+    await flush();
+    assert.deepEqual(began, [GOOGLE_LISTEN]);
+    assert.equal(GOOGLE_LISTEN.useOnDeviceRecognition, false);
     useListenPorts(null);
   });
 
@@ -61,6 +84,7 @@ describe("shared listening helper", () => {
     let matches: (lines: string[], isFinal?: boolean) => void = () => {};
     const ports: ListenPorts = {
       onDevice: async () => true,
+      service: async () => true,
       permit: async () => "denied",
       begin: async (options, onMatch) => {
         began.push(options);
@@ -79,7 +103,7 @@ describe("shared listening helper", () => {
     await flush();
     assert.deepEqual(errors, ["not-allowed"]);
     assert.deepEqual(began, []);
-    assert.equal(listenFailureLine("denied"), MIC_DENIED_LINE);
+    assert.equal(listenFailureLine("denied"), PHONE_CANNOT_HEAR);
 
     ports.permit = async () => "granted";
     const heard: string[] = [];
@@ -157,9 +181,14 @@ describe("shared listening helper", () => {
     assert.equal(helper.includes("popup: false"), true);
     for (const path of ["../../components/sight-word-stage.tsx", "../../components/phonemic-stage.tsx", "../../components/alphabet-stage.tsx"]) {
       const stage = source(path);
-      assert.equal(stage.includes("MIC_ASK_LINE"), true, path);
+      assert.equal(stage.includes("PARENT_NEEDS_VOICE"), true, path);
+      assert.equal(stage.includes("PHONE_CANNOT_HEAR"), true, path);
+      assert.equal(stage.includes("LISTENING_BEST"), true, path);
+      assert.equal(stage.includes("voiceAllowed"), true, path);
+      assert.equal(stage.includes("Allow voice answers"), false, path);
       assert.equal(stage.includes("webkitSpeechRecognition"), false, path);
       assert.equal(stage.includes("createListener"), true, path);
+      assert.equal(stage.includes("rec?.abort()"), true, path);
     }
     assert.equal(source("../../components/phonemic-stage.tsx").includes("PA_NEEDS_SOUND_LINE"), true);
     assert.equal(source("../../components/phonemic-stage.tsx").includes("speakLine(item.say"), true);

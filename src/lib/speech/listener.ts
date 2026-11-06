@@ -2,6 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { TextToSpeech } from "@capacitor-community/text-to-speech";
 import { SpeechRecognition } from "@capgo/capacitor-speech-recognition";
 import { holdEngineAudio, noteEngineActivity } from "@/lib/engine-activity";
+import { PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 
 /** Shown before the phone asks for the microphone. */
 export const MIC_ASK_LINE =
@@ -27,6 +28,14 @@ export const NATIVE_LISTEN = {
   partialResults: true,
   popup: false,
   useOnDeviceRecognition: true,
+} as const;
+
+/** Older Android, after the parent has allowed voice answers. The audio goes to Google and is not saved. */
+export const GOOGLE_LISTEN = {
+  language: "en-US",
+  partialResults: true,
+  popup: false,
+  useOnDeviceRecognition: false,
 } as const;
 
 type SpeechAlternative = { transcript?: string };
@@ -56,8 +65,8 @@ export function listenKind(error?: string): ListenKind | null {
   return null;
 }
 
-export function listenFailureLine(kind: ListenKind): string {
-  return kind === "denied" ? MIC_DENIED_LINE : MIC_PRIVATE_UNAVAILABLE;
+export function listenFailureLine(_kind: ListenKind): string {
+  return PHONE_CANNOT_HEAR;
 }
 
 export function isNativeApp(): boolean {
@@ -85,8 +94,10 @@ type MatchHandler = (matches: string[], isFinal?: boolean) => void;
 
 export type ListenPorts = {
   onDevice: (language: string) => Promise<boolean>;
+  /** Any speech service, including Google's, when on-device recognition is missing. */
+  service: () => Promise<boolean>;
   permit: () => Promise<"granted" | "denied">;
-  begin: (options: typeof NATIVE_LISTEN, onMatch: MatchHandler) => Promise<void>;
+  begin: (options: typeof NATIVE_LISTEN | typeof GOOGLE_LISTEN, onMatch: MatchHandler) => Promise<void>;
   halt: () => Promise<void>;
 };
 
@@ -197,13 +208,18 @@ class NativeListener implements SpeechListener {
     const ports = listenPorts;
     const language = this.lang || "en-US";
     try {
-      const available = ports
+      const onDevice = ports
         ? await ports.onDevice(language)
         : (await SpeechRecognition.isOnDeviceRecognitionAvailable({ language })).available;
       if (this.aborted) return;
-      if (!available) {
-        this.fail("not-available");
-        return;
+      let google = false;
+      if (!onDevice) {
+        google = ports ? await ports.service() : (await SpeechRecognition.available()).available;
+        if (this.aborted) return;
+        if (!google) {
+          this.fail("not-available");
+          return;
+        }
       }
       const permission = ports
         ? await ports.permit()
@@ -215,7 +231,8 @@ class NativeListener implements SpeechListener {
         this.fail("not-allowed");
         return;
       }
-      const options = { ...NATIVE_LISTEN, language, maxResults: this.maxAlternatives || 5 };
+      const room = onDevice ? NATIVE_LISTEN : GOOGLE_LISTEN;
+      const options = { ...room, language, maxResults: this.maxAlternatives || 5 };
       const onMatch = (matches: string[], isFinal = false) => {
         if (this.aborted || this.fatal) return;
         const heard = matches.map((match) => match.trim()).filter(Boolean);
@@ -224,7 +241,7 @@ class NativeListener implements SpeechListener {
         this.onresult?.(matchesEvent(heard, isFinal));
       };
       if (ports) {
-        await ports.begin(NATIVE_LISTEN, onMatch);
+        await ports.begin(room, onMatch);
       } else {
         await SpeechRecognition.removeAllListeners();
         await SpeechRecognition.addListener("partialResults", (event) => {
