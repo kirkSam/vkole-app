@@ -1,3 +1,7 @@
+## 2026-11-09 grading rules, Update 5 (App Builder)
+**Decision:** Update 5 is saved in docs/team-memo-2026-11-09-update-5.md. Where it disagrees with the earlier memos, Update 5 wins. Grading is not built. It waits with the shared package, after voice consent. Every typed pool item already has an answer key: Mathematics 22,262; ELA 6,057; Social Studies 4,110; General 5,955; Singapore 5,184. None are missing a key. Mathematics grade 8, step 1, has 40 slope items that accept the number and the fraction but not the number word. Those need the word added.
+**Next:** School Site reports how the website grades typed answers today. No grading code until the shared-package go.
+
 ## 2026-11-09 VEKOLE Update 4 (App Builder)
 **Decision:** Update 4 is saved in docs/team-memo-2026-11-09-update-4.md. Where it disagrees with the earlier memos, Update 4 wins. The shared rules are not built. Voice consent stays first (app pull request #70, not merged). The Android id is com.dotheimpossible.vkole. Recommendation: keep it. Sam decides before the first Play submission. The package plan is docs/vekole-shared-package-plan.md. It waits for School Site and for Sam's go.
 **Next:** School Site agrees or sends a change. No engine code until that go.
