@@ -3,6 +3,11 @@ From Sam, written with Claude
 For School Site and app Builder. Same text to both.
 Save this with the earlier memos. Where they disagree, this update wins.
 
+Amended 2026-11-09 by Sam, via Claude, option b, agreed with School Site.
+A correct same-session re-check leaves strength at 4.5 days. There is
+no 1.2 boost. A missed re-check still sets S = max(1.0, S x 0.4).
+One schedule table (about 1, 2.5, 6, 16, 40 days) holds for every child.
+
 =====================================================================
 0. WHAT THIS IS
 =====================================================================
@@ -49,7 +54,8 @@ SAME-SESSION RE-CHECK (once per new item)
   After a new item is first answered correctly, show it once more in the
   same session, after about 10 minutes or 8 other items, whichever comes
   first. If the session ends first, skip it.
-  - Correct: S = S x 1.2. The first review stays about one day away.
+  - Correct: strength stays 4.5 days. There is no 1.2 boost.
+    The first review stays about one day away.
   - Miss: handle it with the engine's normal miss rule (speak, show),
     then S = max(1.0, S x 0.4).
 

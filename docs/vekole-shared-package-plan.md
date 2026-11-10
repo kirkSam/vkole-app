@@ -51,9 +51,12 @@ last practiced, review count, and miss count.
 - R = e^(-t/S). Due when R is below 0.80.
 - Same-session re-check once, after 10 minutes or 8 other items,
   whichever comes first. Skip it if the session ends first.
+- A correct re-check leaves S at 4.5 days. There is no boost.
+- A missed re-check uses the engine's own miss rule first, then
+  S = max(1.0, S x 0.4).
 - On-time correct review multiplies S by 2.5. A later-than-due correct
   review multiplies by 2.5 plus 2 times how far R fell below 0.80.
-- A miss uses the engine's own miss rule first (speak, show). Then
+- A missed scheduled review uses the engine's own miss rule first, then
   S = max(1.0, S x 0.4).
 - The most faded due item (lowest R) is the next review.
 - A review is offered only when it would still be at most 1 of every 4
@@ -85,18 +88,15 @@ asserts the level did not move.
 
 ## The schedule test
 
-The formula wins. The printed table is the on-time path with no
-same-session re-check (the session ended first, so the re-check was
-skipped). Starting at S = 4.5, the due gaps are about:
+One table, for every child. A correct re-check does not change S, and
+a skipped re-check does not change S, so both stay on this path.
+Starting at S = 4.5, the on-time due gaps are about:
 
 1.00 day, 2.51 days, 6.28 days, 15.7 days, 39.2 days.
 
 That is the memo's "about 1, 2.5, 6, 16, 40."
-
-If the same-session re-check was correct, S is multiplied by 1.2 first.
-The first review is then about 1.20 days, which is still "about one
-day." Later gaps are 1.2 times the table above. The test will lock both
-paths so the two sides cannot pick different ones.
+A missed re-check is not a second table. It shortens S, so that one
+item comes back sooner.
 
 ## What parents read
 
@@ -110,6 +110,18 @@ In the session report:
 
 School Site should use these sentences or send a replacement before the
 build. Do not paraphrase them on one side only.
+
+## Grading, still inside this package, still with no network
+
+Update 5 is built with this package, after voice consent and after Sam's
+go. The package does not call Grok. Each side makes that call itself.
+
+The package does three grading jobs:
+
+- Normalize an answer and match it to the accepted list.
+- Write the instruction that will be sent to Grok. The child's answer
+  goes in its own data field, never inside the instruction sentences.
+- Read Grok's reply and apply the failure rules.
 
 ## What the package must not do
 
@@ -125,26 +137,23 @@ still has no memory strength in it. The website test must show the same.
 
 1. Finish voice consent and Android listening. Do not merge those until
    Sam has tested the Android 12 phone and Claude has checked both.
-2. School Site agrees to this plan, or sends a change. Sam says go.
+2. School Site's answer to this plan, then Sam's go. The repository
+   kirkSam/vekole-engine is not created before both of those.
 3. Build the package. Connect both sides at the same tag. Claude checks.
    Sam tests on his phone.
 4. The VEKOLE name sweep on both sides.
 5. Google Play only with Sam's OK, under the app id below.
 
-## Android app id (decided only by Sam)
+## Android app id (Sam decides later)
 
 `applicationId` is `com.dotheimpossible.vkole`.
 The Capacitor app id is the same string.
 `versionCode` is 1. Nothing from this project has been submitted to
-Google Play.
+Google Play. Do not change the id until Sam says so.
 
-Recommendation: keep `com.dotheimpossible.vkole`.
+Parents will see this id in the Google Play link:
+`https://play.google.com/store/apps/details?id=com.dotheimpossible.vkole`
 
-The name parents see can become VEKOLE later. Play does not use this id
-as the title. Changing the id after the first submission makes Play
-treat VEKOLE as a brand-new app. Changing it before submission is still
-possible, but the phone would then see the next build as a different
-app from the one already installed for testing.
-
-If Sam wants the id itself to say vekole, that has to be decided before
-the first submission.
+The store title can say VEKOLE while that link still says vkole.
+Changing the id after the first submission makes Play treat VEKOLE as a
+brand-new app. Sam decides before that submission.
