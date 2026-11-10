@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
+import { voiceAllowedNow } from "@/lib/voice-consent-api";
 import {
   SPEAK_FAILED_LINE,
   createListener,
@@ -119,8 +120,10 @@ export function SightWordStage({
     };
 
     if (listening) {
-      rec = createListener();
-      if (rec) {
+      void voiceAllowedNow().then((ok) => {
+        if (!live || settled.current || !ok) return;
+        rec = createListener();
+        if (!rec) return;
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
@@ -160,7 +163,7 @@ export function SightWordStage({
         } catch {
           setUnsupported(true);
         }
-      }
+      });
     }
 
     return () => {

@@ -22,6 +22,7 @@ import {
 } from "@/lib/vkole/alphabet/items";
 import { holdEngineAudio, holdEngineLetter, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
+import { voiceAllowedNow } from "@/lib/voice-consent-api";
 import {
   SPEAK_FAILED_LINE,
   createListener,
@@ -722,8 +723,10 @@ export function AlphabetStage({
     };
 
     if (listening) {
+      void voiceAllowedNow().then((ok) => {
+      if (!live || !ok) return;
       rec = createListener() as SpeechListener | null;
-      if (rec) {
+      if (!rec) return;
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
@@ -842,7 +845,7 @@ export function AlphabetStage({
           micStartAt = performance.now();
           publish("mic-start");
         }
-      }
+      });
     }
 
     return () => {
@@ -995,8 +998,10 @@ export function AlphabetStage({
       noteHeard("");
     };
     if (listening) {
+      void voiceAllowedNow().then((ok) => {
+      if (!live || !ok) return;
       rec = createListener() as SpeechListener | null;
-      if (rec) {
+      if (!rec) return;
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
@@ -1109,7 +1114,7 @@ export function AlphabetStage({
           micStartAt = performance.now();
           publish("mic-start");
         }
-      }
+      });
     }
     return () => {
       live = false;

@@ -112,11 +112,19 @@ describe("parent voice consent", () => {
     assert.equal(session.includes(VOICE_CONSENT_TEXT), false);
     assert.equal(session.includes("voiceAllowed"), true);
     assert.equal(session.includes("subscribeVoiceConsent"), true);
+    assert.equal(session.includes("voiceAllowedNow"), true);
+    assert.equal(session.includes("visibilitychange"), true);
+    assert.equal(session.includes("setInterval(pull, 1000)"), false);
+    assert.equal(session.includes("clearSignInPassword"), true);
     for (const path of ["../components/sight-word-stage.tsx", "../components/phonemic-stage.tsx", "../components/alphabet-stage.tsx"]) {
       const stage = source(path);
       assert.equal(stage.includes("Allow voice answers"), false, path);
       assert.equal(stage.includes(VOICE_CONSENT_TEXT), false, path);
       assert.equal(stage.includes("PARENT_NEEDS_VOICE"), true, path);
+      assert.equal(stage.includes("voiceAllowedNow().then"), true, path);
+      const gate = stage.indexOf("voiceAllowedNow");
+      const call = stage.indexOf("createListener()");
+      assert.equal(gate > 0 && call > gate, true, path);
     }
     assert.equal(post.includes('voiceConsent: "/api/account/voice-consent"'), true);
     assert.equal(post.includes("status, password:"), true);

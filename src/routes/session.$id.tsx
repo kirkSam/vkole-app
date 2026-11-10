@@ -45,7 +45,8 @@ import { deviceTimeZone } from "@/lib/day-clock-math";
 import { SchoolPath } from "@/components/school-path";
 import { WebsiteVisit } from "@/components/website-visit";
 import { openEnginePicker, takeHeldSitting } from "@/lib/engine-picker";
-import { readVoiceConsent } from "@/lib/voice-consent-api";
+import { clearSignInPassword } from "@/lib/voice-password";
+import { voiceAllowedNow } from "@/lib/voice-consent-api";
 import { subscribeVoiceConsent, voiceAnswersAllowed } from "@/lib/voice-consent";
 
 export const Route = createFileRoute("/session/$id")({ component: SessionPage });
@@ -148,22 +149,24 @@ function SessionPage() {
     if (!userId) return;
     let live = true;
     const pull = () => {
-      void readVoiceConsent()
-        .then((row) => {
-          if (live) setVoiceAllowed(voiceAnswersAllowed(row));
-        })
-        .catch(() => {
-          if (live) setVoiceAllowed(false);
-        });
+      void voiceAllowedNow().then((ok) => {
+        if (live) setVoiceAllowed(ok);
+      });
     };
     pull();
-    const timer = window.setInterval(pull, 1000);
+    const onFocus = () => pull();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") pull();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
     const stop = subscribeVoiceConsent((row) => {
       if (live) setVoiceAllowed(voiceAnswersAllowed(row));
     });
     return () => {
       live = false;
-      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
       stop();
     };
   }, [userId]);
@@ -211,6 +214,7 @@ function SessionPage() {
     markEngineSession(true);
     return () => {
       markEngineSession(false);
+      clearSignInPassword();
     };
   }, []);
 
@@ -228,6 +232,7 @@ function SessionPage() {
     let opened = Promise.resolve();
 
     const finish = (reason: EndReason, explicitLogout = false) => {
+      clearSignInPassword();
       if (closing.current) return;
       closing.current = true;
       try {

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { schoolMiddleware } from "@/lib/school-middleware";
 import { accountIdOf } from "@/lib/school-account";
-import { VOICE_NOT_ASKED, voiceAnswersAllowed, type VoiceConsent } from "@/lib/voice-consent";
+import { VOICE_NOT_ASKED, publishVoiceConsent, voiceAnswersAllowed, type VoiceConsent } from "@/lib/voice-consent";
 
 const choice = z.object({
   choice: z.enum(["allowed", "declined"]),
@@ -40,3 +40,15 @@ export const saveVoiceConsent = createServerFn({ method: "POST" })
     if (voiceConsent.status === "not_asked") throw new Error("The website did not store voice answers.");
     return { ...voiceConsent, listening: voiceAnswersAllowed(voiceConsent) };
   });
+
+/** Read the website just before a listen, and when the page is focused again. A failed read does not listen. */
+export async function voiceAllowedNow(): Promise<boolean> {
+  try {
+    const row = await readVoiceConsent();
+    publishVoiceConsent(row);
+    return voiceAnswersAllowed(row);
+  } catch {
+    publishVoiceConsent(VOICE_NOT_ASKED);
+    return false;
+  }
+}
