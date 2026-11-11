@@ -6,6 +6,9 @@ export const CHIME_SRC = "/sounds/vekole-listen-chime.wav";
 
 export const CHIME_SHA256 = "cc8858905713288e237f5db5ea28f747c17442d7c38c6672dcce4e605a457641";
 
+/** Same level as the website. */
+export const CHIME_VOLUME = 0.5;
+
 /** About 0.3 seconds. The backup timer is a little longer so a stuck file cannot hold the mic. */
 export const CHIME_MS = 320;
 
@@ -119,7 +122,7 @@ function playChimeFile(src: string): Promise<void> {
       return;
     }
     const audio = new Audio(src);
-    audio.volume = 0.7;
+    audio.volume = CHIME_VOLUME;
     let done = false;
     const finish = () => {
       if (done) return;

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { CHIME_MS, CHIME_SHA256, CHIME_SRC, NATIVE_RESTORE_MS, chimeAllowed, mediaVolumeAfter, playHeldChime } from "./chime.ts";
+import { CHIME_MS, CHIME_SHA256, CHIME_SRC, CHIME_VOLUME, NATIVE_RESTORE_MS, chimeAllowed, mediaVolumeAfter, playHeldChime } from "./chime.ts";
 import { SPOKEN_ANSWER_MS } from "./answer-window.ts";
 import { MIC_WINDOW_MS } from "./mic-session.ts";
 
@@ -66,6 +66,13 @@ describe("VEKOLE listening chime", () => {
     assert.equal(alphabet.includes('chimeAllowed("listen")'), true);
     assert.equal(alphabet.includes("MIC_WINDOW_MS"), true);
     assert.equal(alphabet.includes("SPOKEN_ANSWER_MS"), false);
+  });
+
+  it("plays the chime at the same volume as the website", () => {
+    assert.equal(CHIME_VOLUME, 0.5);
+    const file = source("./chime.ts");
+    assert.equal(file.includes("audio.volume = CHIME_VOLUME"), true);
+    assert.equal(file.includes("audio.volume = 0.7"), false);
   });
 
   it("puts the media volume back on pause, and on the native timer if JavaScript never releases", () => {

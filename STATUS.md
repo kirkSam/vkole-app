@@ -1,5 +1,5 @@
 ## 2026-11-11 clock starts after the chime (App Builder)
-**Shipped (merged):** not yet. When the chime plays, the 20-second clock and Alphabet's 6-second clock start when the microphone opens. When no chime plays, they start when the word or letter is shown.
+**Shipped (merged):** not yet. When the chime plays, the 20-second clock and Alphabet's 6-second clock start when the microphone opens. The chime plays at 0.5, the same as the website.
 **Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N".
 **Mirrors needed on website:** none. The website already starts the clock after the chime.
 **Blocked:** none
