@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { CHIME_CHOICES, CHIME_MS, CHIME_SRC, chimeAllowed, playHeldChime } from "./chime.ts";
+import { CHIME_MS, CHIME_SHA256, CHIME_SRC, chimeAllowed, playHeldChime } from "./chime.ts";
 import { SPOKEN_ANSWER_MS } from "./answer-window.ts";
 import { MIC_WINDOW_MS } from "./mic-session.ts";
 
@@ -43,11 +44,9 @@ describe("VEKOLE listening chime", () => {
   it("keeps the chime short and leaves both clocks alone", () => {
     assert.equal(SPOKEN_ANSWER_MS, 20_000);
     assert.equal(MIC_WINDOW_MS, 6_000);
-    assert.equal(CHIME_CHOICES.length, 3);
-    for (const choice of CHIME_CHOICES) {
-      const seconds = wavSeconds(`../../../public${choice.src}`);
-      assert.equal(seconds >= 0.25 && seconds <= 0.4, true, choice.id);
-    }
+    const file = readFileSync(new URL(`../../../public${CHIME_SRC}`, import.meta.url));
+    assert.equal(createHash("sha256").update(file).digest("hex"), CHIME_SHA256);
+    assert.equal(wavSeconds(`../../../public${CHIME_SRC}`), 0.3);
     assert.equal(CHIME_MS >= 250 && CHIME_MS <= 400, true);
     for (const path of ["../../components/sight-word-stage.tsx", "../../components/phonemic-stage.tsx"]) {
       const stage = source(path);

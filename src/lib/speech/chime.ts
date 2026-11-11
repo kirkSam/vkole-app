@@ -1,14 +1,10 @@
 import { registerPlugin } from "@capacitor/core";
 import { isNativeApp } from "@/lib/speech/listener";
 
-/** Sam picks one. The app plays the bell until he chooses. */
-export const CHIME_CHOICES = [
-  { id: "bell", src: "/chimes/vekole-bell.wav", note: "One soft A, fading in and out." },
-  { id: "third", src: "/chimes/vekole-third.wav", note: "A quiet major third, C then E." },
-  { id: "drop", src: "/chimes/vekole-drop.wav", note: "One tone that falls a little." },
-] as const;
+/** The master chime from the website: two rising notes, 0.3 seconds. */
+export const CHIME_SRC = "/sounds/vekole-listen-chime.wav";
 
-export const CHIME_SRC = CHIME_CHOICES[0].src;
+export const CHIME_SHA256 = "cc8858905713288e237f5db5ea28f747c17442d7c38c6672dcce4e605a457641";
 
 /** About 0.3 seconds. The backup timer is a little longer so a stuck file cannot hold the mic. */
 export const CHIME_MS = 320;

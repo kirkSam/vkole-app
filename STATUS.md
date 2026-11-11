@@ -1,6 +1,6 @@
 ## 2026-11-11 phone test of 0767ba5 (App Builder)
-**Shipped (merged):** not yet. One pull request adds the VEKOLE listening chime: one short sound before the microphone, never on a quiet restart and never during a prompt. Android still mutes its own beep. Sam picks which of the three chimes to keep.
-**Open, needs Sam:** Claude checks before merge. Then publish and listen on the phone: one gentle chime, no Android beep. Say which chime to keep: bell, third, or drop.
+**Shipped (merged):** not yet. The app uses the website's master chime, vekole-listen-chime.wav. Its sha256 matches cc8858905713288e237f5db5ea28f747c17442d7c38c6672dcce4e605a457641. It plays once, before the microphone, and never on a quiet restart or during a prompt.
+**Open, needs Sam:** Claude checks before merge. Then publish and listen on the phone: one gentle two-note chime, no Android beep.
 **Mirrors needed on website:** the same chime file, played once before recognition starts. Browsers do not beep. The clocks stay 20 seconds and 6 seconds, and the Listening… cue stays the Lucide mic.
 **Blocked:** none
 **Next:** Claude checks. Do not merge before that.
