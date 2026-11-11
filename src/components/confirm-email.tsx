@@ -1,20 +1,33 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Shell } from "@/components/shell";
 import { WebsiteVisit } from "@/components/website-visit";
-import { CONFIRM_EMAIL_TITLE } from "@/lib/school-account";
 import { checkEmailConfirmed, resendSchoolConfirmation } from "@/lib/school-auth";
+import { noteAccount } from "@/lib/ledger";
 
 /** Shown until the parent confirms the email. The pay wall is a different screen. */
 export function ConfirmEmailLock() {
+  const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
   const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    void noteAccount()
+      .then((account) => {
+        if (live) setEmail(account.email);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+
   return (
     <Shell>
-      <h1 className="font-display text-3xl text-ink">{CONFIRM_EMAIL_TITLE}</h1>
-      <p className="mt-4 text-lg text-ink">Open the email we sent. Press the confirm button in that message.</p>
-      <p className="mt-3 text-lg text-ink">Then come back here and press the button below.</p>
-      <p className="mt-3 text-lg text-ink">Your free week is 168 hours. It starts when you confirm the email.</p>
+      <h1 className="font-display text-3xl text-ink">Check your email</h1>
+      <p className="mt-4 text-lg text-ink">{email ? `We sent an email to ${email}.` : "We sent an email."}</p>
+      <p className="mt-3 text-lg text-ink">Open it and tap the link inside. Then come back here.</p>
       <button
         type="button"
         disabled={checking}
@@ -28,13 +41,13 @@ export function ConfirmEmailLock() {
                 window.location.reload();
                 return;
               }
-              setNote(result.ok ? "Not confirmed yet. Open the email and press the confirm button first." : result.message);
+              setNote(result.ok ? "Not confirmed yet. Open the email and tap the link first." : result.message);
             })
             .catch(() => setNote("Could not reach the school website. Try again."))
             .finally(() => setChecking(false));
         }}
       >
-        {checking ? "Checking…" : "I confirmed — continue"}
+        {checking ? "Checking…" : "I tapped the link — continue"}
       </button>
       <button
         type="button"
@@ -49,8 +62,9 @@ export function ConfirmEmailLock() {
             .finally(() => setPending(false));
         }}
       >
-        Send the email again
+        {pending ? "Sending…" : "Send the email again"}
       </button>
+      <p className="mt-3 text-base text-ink">Not there? Check your spam folder. It can take a few minutes.</p>
       {note ? <p className="mt-3 text-base text-ink">{note}</p> : null}
       <WebsiteVisit />
     </Shell>

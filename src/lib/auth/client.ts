@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { createAuthClient } from "better-auth/react";
 import { runSignOut } from "../../../scripts/sign-out-plan.mjs";
+import { clearSignInPassword } from "@/lib/voice-password";
 
 // CLAUDE: true only inside the Capacitor native shell (not the web app, not
 // the live preview). Used below so the native build keeps calling this
@@ -118,6 +119,7 @@ function inLivePreview(): boolean {
  * preview the local clear is sufficient, so it always resolves.
  */
 export async function signOut(redirectTo = "/"): Promise<void> {
+  clearSignInPassword();
   await runSignOut({
     livePreview: inLivePreview(),
     hasBearer: Boolean(getBearerToken()),

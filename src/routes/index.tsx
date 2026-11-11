@@ -7,7 +7,7 @@ import { TeletypeIntro } from "@/components/teletype-intro";
 import { TrialFinished, type EndedReason, type StoppedBecause } from "@/components/trial-finished";
 import { SchoolAccountScreen } from "@/components/school-account-screen";
 import { StudentOffice } from "@/components/student-office";
-import { schoolScreen, SCHOOL_ENGINE_URL, THIRD_STUDENT_MESSAGE, TWO_STUDENTS_LINE, type FamilyStudent } from "@/lib/school-account";
+import { schoolScreen, SCHOOL_ENGINE_URL, THIRD_STUDENT_MESSAGE, TWO_STUDENTS_LINE, schoolPassword, type FamilyStudent } from "@/lib/school-account";
 import { ConfirmEmailLock } from "@/components/confirm-email";
 import { AlphabetMisses } from "@/components/alphabet-misses";
 import { WebsiteVisit } from "@/components/website-visit";
@@ -30,6 +30,10 @@ import { ACCOUNT_GONE_FLAG } from "@/lib/account-purge";
 import { clearStayInApp, ENGINE_PICKER_PARAM, isEnginePickerSearch, markStayInApp, shouldStayInApp } from "@/lib/engine-picker";
 import { takeZpdReturn } from "@/lib/zpd-info";
 import { PASTEL_NAV } from "@/lib/pastel-nav";
+import { VoiceAnswerSetting, VoiceAnswers } from "@/components/voice-answers";
+import { saveVoiceConsent, readVoiceConsent } from "@/lib/voice-consent-api";
+import { LISTENING_BEST, VOICE_CONSENT_VERSION, VOICE_NOT_ASKED, publishVoiceConsent, type VoiceConsent } from "@/lib/voice-consent";
+import { clearSignInPassword, peekSignInPassword } from "@/lib/voice-password";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -301,6 +305,55 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
   const [allowing, setAllowing] = useState(false);
   const [closedApp, setClosedApp] = useState<SubjectId | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [voice, setVoice] = useState<VoiceConsent | null>(null);
+  const [voicePending, setVoicePending] = useState(false);
+  const [voiceNote, setVoiceNote] = useState("");
+  const [askPassword, setAskPassword] = useState(false);
+  useEffect(() => {
+    let live = true;
+    if (peekSignInPassword().length < 8) setAskPassword(true);
+    readVoiceConsent()
+      .then((row) => {
+        if (live) setVoice(row);
+      })
+      .catch(() => {
+        if (live) setVoice(VOICE_NOT_ASKED);
+      });
+    return () => {
+      live = false;
+    };
+  }, [revision]);
+
+  function chooseVoice(choice: "allowed" | "declined", typed: string) {
+    const password = schoolPassword(typed).length >= 8 ? schoolPassword(typed) : peekSignInPassword();
+    if (schoolPassword(password).length < 8) {
+      setAskPassword(true);
+      setVoiceNote("Enter the password of the account that registered.");
+      return;
+    }
+    if (choice === "declined") {
+      publishVoiceConsent({ status: "declined", decidedAt: new Date().toISOString(), wordingVersion: VOICE_CONSENT_VERSION });
+    }
+    setVoicePending(true);
+    setVoiceNote("");
+    void saveVoiceConsent({ data: { choice, password } })
+      .then((saved) => {
+        clearSignInPassword();
+        publishVoiceConsent(saved);
+        setVoice(saved);
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : "Voice answers could not be saved.";
+        if (/password/i.test(message)) {
+          clearSignInPassword();
+          setAskPassword(true);
+        }
+        publishVoiceConsent(VOICE_NOT_ASKED);
+        setVoiceNote(message);
+      })
+      .finally(() => setVoicePending(false));
+  }
+
   useRefetchWhenConnectorReady(Boolean(account?.notice?.pending), () => {
     void noteAccount()
       .then((result) => setAccount(result))
@@ -427,6 +480,18 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
     );
   }
 
+  if (!voice) return <PageSkeleton />;
+
+  if (voice.status === "not_asked") {
+    return (
+      <Shell onSplash={onSplash}>
+        <p className="text-sm font-semibold tracking-wide text-accent uppercase">Parent</p>
+        <VoiceAnswers pending={voicePending} needsPassword={askPassword} onChoose={chooseVoice} />
+        {voiceNote ? <p className="mt-3 text-sm text-ink">{voiceNote}</p> : null}
+      </Shell>
+    );
+  }
+
   return (
     <Shell onSplash={onSplash}>
       <p className="text-sm font-semibold tracking-wide text-accent uppercase">Parent</p>
@@ -437,6 +502,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
           : `The free week is 168 hours. It starts when you confirm the email. No credit card is required for that week. ${TWO_STUDENTS_LINE}. Each student may use all eight engines. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the free week, the payment covers the account for a full month or a full year from the day you pay. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`}
       </p>
       <HeadphoneNotice />
+      <VoiceAnswerSetting consent={voice} onChanged={setVoice} />
       <Link
         to="/practice"
         data-engine="practice"
@@ -663,6 +729,7 @@ function AppGate({
       <h2 className="font-display text-2xl text-ink">VKOLE/{meta.code}</h2>
       <p className="text-sm text-muted">{meta.name}</p>
       <p className="mt-2 text-sm text-ink">{meta.lede}</p>
+      {subject === "sw" || subject === "pa" || subject === "sp" ? <p className="mt-2 text-sm text-ink">{LISTENING_BEST}</p> : null}
       <label className="mt-3 block text-sm text-muted">
         Student’s first name
         <input

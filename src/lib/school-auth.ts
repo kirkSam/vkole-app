@@ -164,6 +164,25 @@ export const checkEmailConfirmed = createServerFn({ method: "POST" })
     }
   });
 
+/** Sends the confirmation email again before this app has a session. The website still sends the mail. */
+export const sendConfirmationAgain = createServerFn({ method: "POST" })
+  .validator((data: unknown) => parse(credentials, data))
+  .handler(async ({ data }) => {
+    const { signInSchoolAccount, resendConfirmationEmail, SchoolCallError } = await import("./school-account.server");
+    try {
+      const account = await signInSchoolAccount({
+        email: data.email,
+        password: data.password,
+        deviceId: data.deviceId,
+      });
+      await resendConfirmationEmail(account.id, { token: account.token });
+      return { ok: true as const, message: "Look in your email for a new message." };
+    } catch (err) {
+      const message = err instanceof SchoolCallError ? err.message : "The email could not be sent. Try again.";
+      return { ok: false as const, message };
+    }
+  });
+
 export const switchSchoolStudent = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
     const parsed = z.object({ index: z.number().int().min(1).max(99) }).safeParse(data);

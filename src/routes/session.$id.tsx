@@ -45,6 +45,9 @@ import { deviceTimeZone } from "@/lib/day-clock-math";
 import { SchoolPath } from "@/components/school-path";
 import { WebsiteVisit } from "@/components/website-visit";
 import { openEnginePicker, takeHeldSitting } from "@/lib/engine-picker";
+import { clearSignInPassword } from "@/lib/voice-password";
+import { voiceAllowedNow } from "@/lib/voice-consent-api";
+import { subscribeVoiceConsent, voiceAnswersAllowed } from "@/lib/voice-consent";
 
 export const Route = createFileRoute("/session/$id")({ component: SessionPage });
 
@@ -120,6 +123,7 @@ function SessionPage() {
   const [alphabetRound, setAlphabetRound] = useState(0);
   const [alphabetHeard, setAlphabetHeard] = useState("");
   const [paRound, setPaRound] = useState(0);
+  const [voiceAllowed, setVoiceAllowed] = useState(false);
   const finishRef = useRef<(reason: EndReason, explicitLogout?: boolean) => void>(() => {});
 
   const userId = user?.id;
@@ -140,6 +144,32 @@ function SessionPage() {
       live = false;
     };
   }, [id, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    const pull = () => {
+      void voiceAllowedNow().then((ok) => {
+        if (live) setVoiceAllowed(ok);
+      });
+    };
+    pull();
+    const onFocus = () => pull();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") pull();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    const stop = subscribeVoiceConsent((row) => {
+      if (live) setVoiceAllowed(voiceAnswersAllowed(row));
+    });
+    return () => {
+      live = false;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+      stop();
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (!climb || climb.blocked || climb.fullAccess) return;
@@ -184,6 +214,7 @@ function SessionPage() {
     markEngineSession(true);
     return () => {
       markEngineSession(false);
+      clearSignInPassword();
     };
   }, []);
 
@@ -201,6 +232,7 @@ function SessionPage() {
     let opened = Promise.resolve();
 
     const finish = (reason: EndReason, explicitLogout = false) => {
+      clearSignInPassword();
       if (closing.current) return;
       closing.current = true;
       try {
@@ -529,6 +561,7 @@ function SessionPage() {
             word={climb.currentPrompt}
             band={climb.standardCode}
             index={climb.standardStep}
+            voiceAllowed={voiceAllowed}
             onDone={(outcome) => {
               noteEngineActivity();
               if (pendingAnswer) return;
@@ -551,6 +584,7 @@ function SessionPage() {
             silence={climb.correctAtLevel}
             wrong={climb.incorrectStreak}
             heard={alphabetHeard}
+            voiceAllowed={voiceAllowed}
             onHeard={setAlphabetHeard}
             onAttempt={(attempt) => {
               void recordAlphabetAttempt({
@@ -595,6 +629,7 @@ function SessionPage() {
             key={`${climb.standardCode}:${climb.standardStep}:${paRound}`}
             band={climb.standardCode}
             index={climb.standardStep}
+            voiceAllowed={voiceAllowed}
             onDone={(outcome) => {
               noteEngineActivity();
               if (pendingAnswer) return;

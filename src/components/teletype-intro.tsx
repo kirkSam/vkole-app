@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { APP_NAME, SCHOOL_SITE } from "@/lib/brand";
 import { beginSharedTrial } from "@/lib/climbs";
 import { PAY_MONTH_URL, PAY_YEAR_URL } from "@/lib/pre-account";
@@ -25,27 +25,13 @@ export function TeletypeIntro({
   onSplash: () => void;
   onContinue: () => void;
 }) {
-  const [lead, setLead] = useState("");
-  const [can, setCan] = useState("");
-  const [price, setPrice] = useState("");
+  const [shown, setShown] = useState({ lead: 0, can: 0, price: 0 });
   const [phase, setPhase] = useState<Phase>("lead");
-  const caretRef = useRef<HTMLSpanElement>(null);
-
-  useEffect(() => {
-    const caret = caretRef.current;
-    if (!caret) return;
-    const actions = document.querySelector(".teletype-actions");
-    const reserve = (actions instanceof HTMLElement ? actions.offsetHeight : 64) + 28;
-    const hidden = caret.getBoundingClientRect().bottom - (window.innerHeight - reserve);
-    if (hidden > 0) window.scrollBy({ top: hidden, behavior: "auto" });
-  }, [lead, can, price, phase]);
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) {
-      setLead(LEAD);
-      setCan(CAN);
-      setPrice(PRICE);
+      setShown({ lead: LEAD.length, can: CAN.length, price: PRICE.length });
       setPhase("done");
       return;
     }
@@ -55,24 +41,24 @@ export function TeletypeIntro({
       new Promise<void>((resolve) => {
         timer = window.setTimeout(resolve, ms);
       });
-    const type = async (text: string, write: (value: string) => void, next: Phase) => {
+    const type = async (text: string, key: "lead" | "can" | "price", next: Phase) => {
       setPhase(next);
       for (let i = 1; i <= text.length; i += 1) {
         if (cancelled) return;
-        write(text.slice(0, i));
+        setShown((current) => ({ ...current, [key]: i }));
         await wait(CHAR_MS);
       }
     };
     void (async () => {
-      await type(LEAD, setLead, "lead");
+      await type(LEAD, "lead", "lead");
       if (cancelled) return;
       await wait(AFTER_LEAD_MS);
       if (cancelled) return;
-      await type(CAN, setCan, "can");
+      await type(CAN, "can", "can");
       if (cancelled) return;
       await wait(AFTER_CAN_MS);
       if (cancelled) return;
-      await type(PRICE, setPrice, "price");
+      await type(PRICE, "price", "price");
       if (!cancelled) setPhase("done");
     })();
     return () => {
@@ -81,44 +67,43 @@ export function TeletypeIntro({
     };
   }, []);
 
-  const caret = (
-    <span
-      ref={caretRef}
-      className={`ml-0.5 inline-block h-[1em] w-2 translate-y-0.5 align-middle ${phase === "lead" ? "bg-[#e6c65c]" : "bg-current"}`}
-    />
+  const caret = (tone: string) => (
+    <span aria-hidden className="inline-block w-0 align-middle">
+      <span className={`inline-block h-[1em] w-2 translate-y-0.5 ${tone}`} />
+    </span>
+  );
+  const typed = (text: string, count: number, active: boolean, tone: string) => (
+    <>
+      {text.slice(0, count)}
+      {active ? caret(tone) : null}
+      <span className="invisible">{text.slice(count)}</span>
+    </>
   );
 
   return (
     <main className="flex min-h-svh flex-col bg-[#05070d] px-6 py-10 text-[#f4f1ea]">
       <p className="text-left font-display text-sm leading-tight tracking-wide text-[#e6c65c]">{APP_NAME}</p>
       <p className="mt-8 max-w-2xl font-mono text-xl leading-relaxed" aria-label={SPOKEN}>
-        {lead}
-        {phase === "lead" ? caret : null}
+        {typed(LEAD, shown.lead, phase === "lead", "bg-[#e6c65c]")}
       </p>
-      {phase !== "lead" ? (
-        <div className="mt-6 max-w-2xl rounded-2xl bg-[#fffdf8] px-5 py-4">
-          <p
-            className="font-display tracking-[0.04em] text-[#163528]"
-            style={{ fontSize: "clamp(1.7rem, 4.2vw, 2.4rem)", fontWeight: 650, lineHeight: 1.15 }}
-          >
-            {can}
-            {phase === "can" ? caret : null}
-          </p>
-          {price ? (
-            <p
-              className="mt-3 font-display text-[#101412]"
-              style={{
-                fontSize: "clamp(1.12rem, 2.5vw, 1.42rem)",
-                fontWeight: 650,
-                lineHeight: 1.3,
-              }}
-            >
-              {price}
-              {phase === "price" ? caret : null}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="mt-6 max-w-2xl rounded-2xl bg-[#fffdf8] px-5 py-4">
+        <p
+          className="font-display tracking-[0.04em] text-[#163528]"
+          style={{ fontSize: "clamp(1.7rem, 4.2vw, 2.4rem)", fontWeight: 650, lineHeight: 1.15 }}
+        >
+          {typed(CAN, shown.can, phase === "can", "bg-[#163528]")}
+        </p>
+        <p
+          className="mt-3 font-display text-[#101412]"
+          style={{
+            fontSize: "clamp(1.12rem, 2.5vw, 1.42rem)",
+            fontWeight: 650,
+            lineHeight: 1.3,
+          }}
+        >
+          {typed(PRICE, shown.price, phase === "price", "bg-[#101412]")}
+        </p>
+      </div>
       <div className="teletype-actions mt-auto w-full max-w-md pt-10">
         <button
           type="button"

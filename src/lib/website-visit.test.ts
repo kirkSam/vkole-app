@@ -88,7 +88,7 @@ describe("website visit", () => {
     assert.equal(home.includes("<WebsiteVisit />"), true);
     assert.equal(home.includes("This email is saved:"), true);
     assert.equal(confirm.includes("<WebsiteVisit />"), true);
-    assert.equal(confirm.includes("Check your email to start your free week") || confirm.includes("CONFIRM_EMAIL_TITLE"), true);
+    assert.equal(confirm.includes("We sent an email to"), true);
     assert.deepEqual(
       SUBJECTS.map((subject) => subject.id),
       ["m", "ela", "ss", "gen", "sg", "sw", "sp", "pa"],

@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { schoolPasswordConfirm, schoolPasswordReset, schoolSignIn, schoolSignUp } from "@/lib/school-auth";
+import { schoolPasswordConfirm, schoolPasswordReset, schoolSignIn, schoolSignUp, sendConfirmationAgain } from "@/lib/school-auth";
 import { readDeviceId } from "@/lib/device-id";
-import { schoolScreen } from "@/lib/school-account";
+import { schoolPassword, schoolScreen } from "@/lib/school-account";
 import { SIGN_IN_AGAIN_NOTE } from "@/lib/account-purge";
 import { rememberAppSession } from "@/lib/auth/client";
 import { recordLogin } from "@/lib/ledger";
@@ -9,6 +9,10 @@ import { ENGINE_PICKER_ROUTE } from "@/lib/engine-picker";
 import { CREATE_ACCOUNT_BUTTON_CLASS } from "@/lib/pre-account";
 import { SchoolAccountScreen } from "@/components/school-account-screen";
 import { Shell } from "@/components/shell";
+import { VoiceAnswers } from "@/components/voice-answers";
+import { readVoiceConsent, saveVoiceConsent } from "@/lib/voice-consent-api";
+import { VOICE_CONSENT_VERSION, VOICE_NOT_ASKED, publishVoiceConsent, type VoiceConsent } from "@/lib/voice-consent";
+import { clearSignInPassword, holdSignInPassword, peekSignInPassword } from "@/lib/voice-password";
 
 type Mode = "in" | "up" | "forgot" | "reset";
 
@@ -31,6 +35,10 @@ export function ParentLogin({
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
+  const [voiceAsk, setVoiceAsk] = useState(false);
+  const [voicePending, setVoicePending] = useState(false);
+  const [voiceNote, setVoiceNote] = useState("");
+  const [askVoicePassword, setAskVoicePassword] = useState(false);
   // CLAUDE: true once sign-up/sign-in succeeds but the website account
   // still needs email confirmation (no session exists yet -- see
   // `pendingConfirmation` on `SchoolAuthResult`). Shows a plain "check your
@@ -56,12 +64,59 @@ export function ParentLogin({
   }
 
   async function enterApp(sessionToken: string) {
+    holdSignInPassword(password);
     if (sessionToken) rememberAppSession(sessionToken);
     await recordLogin({ data: { kind: mode === "up" ? "sign-up" : "sign-in" } }).catch(() => undefined);
     sessionStorage.removeItem("vkole-sync-trial");
     sessionStorage.removeItem("vkole-account-gone");
     onAccountReady?.();
+    let row: VoiceConsent = VOICE_NOT_ASKED;
+    try {
+      row = await readVoiceConsent();
+    } catch {
+      row = VOICE_NOT_ASKED;
+    }
+    if (row.status === "not_asked") {
+      setAskVoicePassword(peekSignInPassword().length < 8);
+      setVoiceAsk(true);
+      return;
+    }
+    clearSignInPassword();
     window.location.assign(ENGINE_PICKER_ROUTE);
+  }
+
+  function chooseVoice(choice: "allowed" | "declined", typed: string) {
+    const typedPassword = schoolPassword(typed);
+    const accountPassword = typedPassword.length >= 8 ? typedPassword : peekSignInPassword();
+    if (schoolPassword(accountPassword).length < 8) {
+      setAskVoicePassword(true);
+      setVoiceNote("Enter the password of the account that registered.");
+      return;
+    }
+    if (choice === "declined") {
+      publishVoiceConsent({
+        status: "declined",
+        decidedAt: new Date().toISOString(),
+        wordingVersion: VOICE_CONSENT_VERSION,
+      });
+    }
+    setVoicePending(true);
+    setVoiceNote("");
+    void saveVoiceConsent({ data: { choice, password: accountPassword } })
+      .then(() => {
+        clearSignInPassword();
+        window.location.assign(ENGINE_PICKER_ROUTE);
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : "Voice answers could not be saved.";
+        if (/password/i.test(message)) {
+          clearSignInPassword();
+          setAskVoicePassword(true);
+        }
+        publishVoiceConsent(VOICE_NOT_ASKED);
+        setVoiceNote(message);
+        setVoicePending(false);
+      });
   }
 
   async function sendCode() {
@@ -159,6 +214,24 @@ export function ParentLogin({
     await enterApp(res.sessionToken);
   }
 
+  async function sendTheEmailAgain() {
+    setError("");
+    setNote("");
+    setPending(true);
+    try {
+      const deviceId = readDeviceId();
+      const result = await sendConfirmationAgain({
+        data: { email: email.trim(), password, ...(deviceId ? { deviceId } : {}) },
+      });
+      if (result.ok) setNote(result.message);
+      else setError(result.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The email could not be sent. Try again.");
+    } finally {
+      setPending(false);
+    }
+  }
+
   async function continueAfterConfirm() {
     setError("");
     setPending(true);
@@ -177,26 +250,42 @@ export function ParentLogin({
     return <SchoolAccountScreen message={error} onRetry={() => setError("")} />;
   }
 
-  // CLAUDE: a new sign-up, or a sign-in before confirming, has no session
-  // yet, so there's nothing to enter -- just the plain "check your email"
-  // message. Unlike the website's `ConfirmEmailLock`, this has no resend
-  // button: there's no signed-in session yet to attach that call to. (A
-  // resend option can be added later if needed.)
+  // A new sign-up that has not opened a session yet. The website still sends the mail.
   if (confirmPending) {
     return (
       <Shell onSplash={onSplash}>
         <h1 className="font-display text-3xl text-ink">Check your email</h1>
-        <p className="mt-4 text-lg text-ink">Open the email we sent and tap the confirmation link.</p>
-        <p className="mt-3 text-lg text-ink">Your free week is 168 hours. It starts the moment you confirm.</p>
+        <p className="mt-4 text-lg text-ink">{email.trim() ? `We sent an email to ${email.trim()}.` : "We sent an email."}</p>
+        <p className="mt-3 text-lg text-ink">Open it and tap the link inside. Then come back here.</p>
         <button
           type="button"
           disabled={pending}
           onClick={() => void continueAfterConfirm()}
           className="mt-6 min-h-11 w-full rounded-xl bg-accent px-4 text-base font-semibold text-accent-ink disabled:opacity-50"
         >
-          {pending ? "Working…" : "I confirmed — continue"}
+          {pending ? "Working…" : "I tapped the link — continue"}
         </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => void sendTheEmailAgain()}
+          className="mt-3 min-h-11 w-full rounded-xl border border-line bg-paper px-4 text-base text-ink disabled:opacity-50"
+        >
+          Send the email again
+        </button>
+        <p className="mt-3 text-base text-ink">Not there? Check your spam folder. It can take a few minutes.</p>
+        {note ? <p className="mt-3 text-base text-ink">{note}</p> : null}
         {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
+      </Shell>
+    );
+  }
+
+  if (voiceAsk) {
+    return (
+      <Shell onSplash={onSplash}>
+        <p className="text-sm font-semibold tracking-wide text-accent uppercase">Parent</p>
+        <VoiceAnswers pending={voicePending} needsPassword={askVoicePassword} onChoose={chooseVoice} />
+        {voiceNote ? <p className="mt-3 text-sm text-ink">{voiceNote}</p> : null}
       </Shell>
     );
   }

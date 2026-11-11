@@ -1,10 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { holdEngineAudio, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
+import { holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
+import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
+import { voiceAllowedNow } from "@/lib/voice-consent-api";
+import {
+  SPEAK_FAILED_LINE,
+  createListener,
+  listenFailureLine,
+  listenKind,
+  listenerReady,
+  setCannotSpeakHook,
+  speakAloud,
+  stopSpeaking,
+} from "@/lib/speech/listener";
 import { SIGHT_WORD_ADVANCE_MS, SIGHT_WORD_MAX_SHOW_MS } from "@/lib/vkole/constants";
 import { judgeSpoken, speechTokens } from "@/lib/vkole/sight-words/match";
 import { entryFor } from "@/lib/vkole/sight-words/words";
 
-const MIC_KEY = "vkole-sw-mic";
 const WORD_COLORS = ["#2c5e4a", "#7a2e1f", "#1d4e89", "#8a5a12", "#5c3d8f", "#0e6b6b", "#9a3d62", "#3d6b1f"];
 
 type SpeechAlternative = { transcript?: string };
@@ -23,86 +34,41 @@ type SpeechListener = {
 
 type Outcome = "correct" | "miss" | "timeout";
 
-function recognitionCtor(): (new () => SpeechListener) | null {
-  if (typeof window === "undefined") return null;
-  const host = window as Window & {
-    SpeechRecognition?: new () => SpeechListener;
-    webkitSpeechRecognition?: new () => SpeechListener;
-  };
-  return host.SpeechRecognition ?? host.webkitSpeechRecognition ?? null;
+function speakWord(word: string, done: () => void): () => void {
+  return speakAloud(word, done, { rate: 0.9, capMs: 8000 });
 }
-
 function colorFor(word: string): string {
   let n = 0;
   for (const ch of word) n = (n * 33 + ch.charCodeAt(0)) >>> 0;
   return WORD_COLORS[n % WORD_COLORS.length] ?? WORD_COLORS[0]!;
 }
 
-function speakWord(word: string, done: () => void): () => void {
-  if (typeof window === "undefined" || !window.speechSynthesis || !word.trim()) {
-    noteEngineActivity();
-    done();
-    return () => {};
-  }
-  const release = holdEngineAudio();
-  let finished = false;
-  const finish = () => {
-    if (finished) return;
-    finished = true;
-    window.clearTimeout(cap);
-    release();
-    done();
-  };
-  const cap = window.setTimeout(finish, 8000);
-  const stop = () => {
-    if (finished) return;
-    finished = true;
-    window.clearTimeout(cap);
-    try {
-      window.speechSynthesis.cancel();
-    } catch {
-      /* already quiet */
-    }
-    release();
-  };
-  window.speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance(word);
-  utter.lang = "en-US";
-  utter.rate = 0.9;
-  utter.onend = finish;
-  utter.onerror = finish;
-  window.speechSynthesis.speak(utter);
-  return stop;
-}
-
 export function SightWordStage({
   word,
   band,
   index = 0,
+  voiceAllowed = false,
   onDone,
 }: {
   word: string;
   band?: string;
   index?: number;
+  voiceAllowed?: boolean;
   onDone: (outcome: Outcome) => void;
 }) {
   const [ready, setReady] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
-  const [allowed, setAllowed] = useState(false);
   const [phase, setPhase] = useState<"show" | "sparkle" | "speak">("show");
+  const [listenNote, setListenNote] = useState(PHONE_CANNOT_HEAR);
+  const [quiet, setQuiet] = useState(false);
   const onDoneRef = useRef(onDone);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
   const advanceRef = useRef(0);
   onDoneRef.current = onDone;
 
   useEffect(() => {
-    const supported = recognitionCtor() != null;
+    const supported = listenerReady();
     setUnsupported(!supported);
-    try {
-      setAllowed(window.sessionStorage.getItem(MIC_KEY) === "1");
-    } catch {
-      setAllowed(false);
-    }
     setReady(true);
   }, []);
 
@@ -110,12 +76,14 @@ export function SightWordStage({
     setPhase("show");
   }, [word]);
 
+  useEffect(() => setCannotSpeakHook(() => setQuiet(true)), []);
+
   useEffect(() => {
     noteEngineActivity();
   }, [phase, word]);
 
   const entry = entryFor(band, index, word);
-  const listening = ready && !unsupported && allowed && phase === "show";
+  const listening = ready && !unsupported && voiceAllowed && phase === "show";
 
   useEffect(() => {
     if (!listening) return;
@@ -123,7 +91,7 @@ export function SightWordStage({
   }, [listening]);
 
   useEffect(() => {
-    if (!ready || phase !== "show" || (!listening && !unsupported)) return;
+    if (!ready || phase !== "show" || (voiceAllowed && !listening && !unsupported)) return;
     let live = true;
     const settled = { current: false };
     let rec: SpeechListener | null = null;
@@ -152,9 +120,10 @@ export function SightWordStage({
     };
 
     if (listening) {
-      const Ctor = recognitionCtor();
-      if (Ctor) {
-        rec = new Ctor();
+      void voiceAllowedNow().then((ok) => {
+        if (!live || settled.current || !ok) return;
+        rec = createListener();
+        if (!rec) return;
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
@@ -175,7 +144,10 @@ export function SightWordStage({
           }
         };
         rec.onerror = (event) => {
-          if (event.error === "not-allowed" || event.error === "service-not-allowed") setUnsupported(true);
+          const kind = listenKind(event.error);
+          if (!kind) return;
+          setListenNote(listenFailureLine(kind));
+          setUnsupported(true);
         };
         rec.onend = () => {
           noteEngineActivity();
@@ -191,7 +163,7 @@ export function SightWordStage({
         } catch {
           setUnsupported(true);
         }
-      }
+      });
     }
 
     return () => {
@@ -203,45 +175,24 @@ export function SightWordStage({
         /* already stopped */
       }
     };
-  }, [entry.also, listening, phase, ready, unsupported, word]);
+  }, [entry.also, listening, phase, ready, unsupported, voiceAllowed, word]);
 
   useEffect(() => {
     return () => {
       window.clearTimeout(advanceRef.current);
-      if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+      if (typeof window !== "undefined") stopSpeaking();
     };
   }, [word]);
 
-  function allowMic() {
-    try {
-      window.sessionStorage.setItem(MIC_KEY, "1");
-    } catch {
-      /* storage may be unavailable */
-    }
-    setAllowed(true);
-  }
-
   if (!ready) return <p className="mt-6 text-sm text-muted">Sight words</p>;
 
-  if (!unsupported && !allowed) {
-    return (
-      <section className="mt-6 rounded-2xl border border-line bg-paper p-5">
-        <h2 className="font-display text-2xl text-ink">Microphone</h2>
-        <p className="mt-2 text-ink">
-          The microphone listens only while a word is on the screen. It does not record or save the sound. Allow it once for this sitting.
-        </p>
-        <button type="button" onClick={allowMic} className="mt-4 min-h-11 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
-          Allow the microphone
-        </button>
-      </section>
-    );
-  }
-
   const shown = phase !== "speak";
+  const adult = !voiceAllowed || unsupported;
 
   return (
     <section className="mt-6" aria-live="polite">
       <p className="text-center text-xs tracking-wide text-muted uppercase">{listening ? "Listening" : "Sight word"}</p>
+      <p className="mt-2 text-center text-sm text-ink">{LISTENING_BEST}</p>
       <div className={phase === "sparkle" ? "sight-sparkle relative mt-4" : "relative mt-4"}>
         {shown ? (
           <p className="sight-word font-display font-semibold" style={{ color: colorFor(word) }}>
@@ -255,9 +206,10 @@ export function SightWordStage({
           <p className="sight-word font-display text-muted"> </p>
         )}
       </div>
-      {unsupported ? (
+      {quiet ? <p className="mt-4 text-center text-sm text-ink">{SPEAK_FAILED_LINE}</p> : null}
+      {adult ? (
         <div className="mt-6">
-          <p className="text-sm text-ink">Speech recognition is not available on this device. An adult can mark this word.</p>
+          <p className="text-sm text-ink">{voiceAllowed ? listenNote : PARENT_NEEDS_VOICE}</p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <button type="button" onClick={() => finishRef.current("correct")} className="min-h-11 flex-1 rounded-xl bg-accent px-5 font-semibold text-accent-ink">
               Correct
