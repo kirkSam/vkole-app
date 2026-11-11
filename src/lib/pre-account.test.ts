@@ -33,6 +33,8 @@ describe("pre-account flow", () => {
     assert.match(teletype, /onClick=\{onContinue\}[\s\S]{0,240}Skip/);
     const free = teletype.indexOf("One week FREE");
     assert.equal(teletype.slice(free - 500, free).includes(".finally(() => onContinue())"), true);
+    assert.equal(teletype.includes("window.scrollBy"), false);
+    assert.equal(teletype.includes('className="invisible"'), true);
   });
 
   it("points each pay button at its own card and does not open an engine", () => {
@@ -62,7 +64,9 @@ describe("pre-account flow", () => {
     const create = login.indexOf("await schoolSignUp");
     assert.equal(create > 0, true);
     assert.equal(login.slice(create - 80, create).includes('mode === "up"'), true);
-    assert.equal(confirm.includes("It starts when you confirm the email."), true);
-    assert.equal(confirm.includes("168 hours"), true);
+    assert.equal(confirm.includes("We sent an email to"), true);
+    assert.equal(confirm.includes("I tapped the link — continue"), true);
+    assert.equal(confirm.includes("Send the email again"), true);
+    assert.equal(confirm.includes("Not there? Check your spam folder. It can take a few minutes."), true);
   });
 });
