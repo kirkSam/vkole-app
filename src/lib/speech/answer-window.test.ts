@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { SPOKEN_ANSWER_MS, answerWindowLeft, cueOnListenStart, keepListeningCue, listenerRestartAllowed } from "./answer-window.ts";
+import { SPOKEN_ANSWER_MS, answerWindowLeft, cueOnListenStart, keepListeningCue, listenerRestartAllowed, quietRestart } from "./answer-window.ts";
 
 function source(path: string): string {
   return readFileSync(new URL(path, import.meta.url), "utf8");
@@ -22,7 +22,16 @@ describe("one 20-second answer window", () => {
       assert.equal(answerWindowLeft(shown, now) < SPOKEN_ANSWER_MS, true);
       assert.equal(shown + SPOKEN_ANSWER_MS, 25_000);
     }
-    assert.equal(listenerRestartAllowed(), false);
+    assert.equal(listenerRestartAllowed(15_000), true);
+    assert.equal(listenerRestartAllowed(0), false);
+    const shownLate = 1_000;
+    const endedAt = shownLate + 5_000;
+    const plan = quietRestart(shownLate, endedAt);
+    assert.equal(plan.restart, true);
+    assert.equal(plan.allowForSilence, 15_000);
+    assert.equal(plan.stopsAt, shownLate + SPOKEN_ANSWER_MS);
+    assert.equal(quietRestart(shownLate, shownLate + SPOKEN_ANSWER_MS).restart, false);
+    assert.equal(quietRestart(shownLate, shownLate + SPOKEN_ANSWER_MS).stopsAt, shownLate + SPOKEN_ANSWER_MS);
     assert.equal(cueOnListenStart(true, "started"), true);
     assert.equal(cueOnListenStart(true, "audio"), false);
     assert.equal(cueOnListenStart(false, "audio"), true);
@@ -60,22 +69,27 @@ describe("one 20-second answer window", () => {
     }
   });
 
-  it("starts the listener once in each spoken engine", () => {
+  it("restarts an early end without moving the 20-second clock", () => {
     for (const path of ["../../components/sight-word-stage.tsx", "../../components/phonemic-stage.tsx"]) {
       const stage = source(path);
       assert.equal(stage.includes("answerWindowLeft"), true, path);
+      assert.equal(stage.includes("quietRestart"), true, path);
+      assert.equal(stage.includes("allowForSilence"), true, path);
       assert.equal(stage.includes("askMicrophone"), true, path);
       assert.equal(stage.includes("MIC_DENIED_LINE"), true, path);
       assert.equal(stage.includes("ListeningCue"), true, path);
       assert.equal(stage.includes("cueOnListenStart"), true, path);
       const ended = stage.slice(stage.indexOf("rec.onend"));
       const handler = ended.slice(0, ended.indexOf("};"));
-      assert.equal(handler.includes(".start("), false, path);
+      assert.equal(handler.includes("quietRestart"), true, path);
+      assert.equal(handler.includes("ear.start()"), true, path);
+      assert.equal(handler.includes("shownAt.current = "), false, path);
     }
     const alphabet = source("../../components/alphabet-stage.tsx");
     assert.equal(alphabet.includes("askMicrophone"), true);
     assert.equal(alphabet.includes("MIC_DENIED_LINE"), true);
     assert.equal(alphabet.includes("listenerRestartAllowed"), true);
     assert.equal(alphabet.includes("ListeningCue"), true);
+    assert.equal(alphabet.includes("armSilence"), true);
   });
 });

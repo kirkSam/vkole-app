@@ -3,6 +3,7 @@ import { TextToSpeech } from "@capacitor-community/text-to-speech";
 import { SpeechRecognition } from "@capgo/capacitor-speech-recognition";
 import { holdEngineAudio, noteEngineActivity } from "@/lib/engine-activity";
 import { PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
+import { SPOKEN_ANSWER_MS } from "@/lib/speech/answer-window";
 
 /** Shown before the phone asks for the microphone. */
 export const MIC_ASK_LINE =
@@ -28,6 +29,8 @@ export const NATIVE_LISTEN = {
   partialResults: true,
   popup: false,
   useOnDeviceRecognition: true,
+  muteRecognizerBeep: true,
+  allowForSilence: SPOKEN_ANSWER_MS,
 } as const;
 
 /** Older Android, after the parent has allowed voice answers. The audio goes to Google and is not saved. */
@@ -36,6 +39,8 @@ export const GOOGLE_LISTEN = {
   partialResults: true,
   popup: false,
   useOnDeviceRecognition: false,
+  muteRecognizerBeep: true,
+  allowForSilence: SPOKEN_ANSWER_MS,
 } as const;
 
 type SpeechAlternative = { transcript?: string };
@@ -53,6 +58,8 @@ export type SpeechListener = {
   onresult: ((event: SpeechEvent) => void) | null;
   onerror: ((event: { error?: string }) => void) | null;
   onend: (() => void) | null;
+  /** Milliseconds of silence still left in the same answer window. */
+  allowForSilence: number;
   start: () => void;
   abort: () => void;
 };
@@ -97,7 +104,17 @@ export type ListenPorts = {
   /** Any speech service, including Google's, when on-device recognition is missing. */
   service: () => Promise<boolean>;
   permit: () => Promise<"granted" | "denied">;
-  begin: (options: typeof NATIVE_LISTEN | typeof GOOGLE_LISTEN, onMatch: MatchHandler) => Promise<void>;
+  begin: (
+    options: {
+      language: string;
+      partialResults: boolean;
+      popup: boolean;
+      useOnDeviceRecognition: boolean;
+      muteRecognizerBeep: boolean;
+      allowForSilence: number;
+    },
+    onMatch: MatchHandler,
+  ) => Promise<void>;
   halt: () => Promise<void>;
 };
 
@@ -210,6 +227,7 @@ class NativeListener implements SpeechListener {
   onresult: ((event: SpeechEvent) => void) | null = null;
   onerror: ((event: { error?: string }) => void) | null = null;
   onend: (() => void) | null = null;
+  allowForSilence = SPOKEN_ANSWER_MS;
   private starting = false;
   private running = false;
   private aborted = false;
@@ -274,7 +292,9 @@ class NativeListener implements SpeechListener {
         return;
       }
       const room = onDevice ? NATIVE_LISTEN : GOOGLE_LISTEN;
-      const options = { ...room, language, maxResults: this.maxAlternatives || 5 };
+      const allowForSilence = Math.max(1, Math.round(this.allowForSilence));
+      const started = { ...room, muteRecognizerBeep: true as const, allowForSilence };
+      const options = { ...started, language, maxResults: this.maxAlternatives || 5 };
       const onMatch = (matches: string[], isFinal = false) => {
         if (this.aborted || this.fatal) return;
         const heard = matches.map((match) => match.trim()).filter(Boolean);
@@ -283,7 +303,7 @@ class NativeListener implements SpeechListener {
         this.onresult?.(matchesEvent(heard, isFinal));
       };
       if (ports) {
-        await ports.begin(room, onMatch);
+        await ports.begin(started, onMatch);
       } else {
         await SpeechRecognition.removeAllListeners();
         await SpeechRecognition.addListener("partialResults", (event) => {

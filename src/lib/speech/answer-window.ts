@@ -15,11 +15,22 @@ export function answerWindowLeft(shownAt: number, now: number, windowMs = SPOKEN
 }
 
 /**
- * Android plays a beep each time the listener starts.
- * Starting again inside the window would beep again, so the listener starts once.
+ * Android can end a session during silence. A quiet restart is allowed
+ * while this same clock still has time. The clock itself never moves.
  */
-export function listenerRestartAllowed(): boolean {
-  return false;
+export function listenerRestartAllowed(leftMs: number): boolean {
+  return Number.isFinite(leftMs) && leftMs > 0;
+}
+
+/** Start again after an early end. `stopsAt` is the original deadline. */
+export function quietRestart(shownAt: number, endedAt: number, windowMs = SPOKEN_ANSWER_MS): {
+  restart: boolean;
+  allowForSilence: number;
+  stopsAt: number;
+} {
+  const allowForSilence = answerWindowLeft(shownAt, endedAt, windowMs);
+  const stopsAt = Number.isFinite(shownAt) && Number.isFinite(windowMs) ? shownAt + windowMs : endedAt;
+  return { restart: listenerRestartAllowed(allowForSilence), allowForSilence, stopsAt };
 }
 
 export type ListenStart = "started" | "audio";

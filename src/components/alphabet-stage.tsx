@@ -76,6 +76,7 @@ type SpeechListener = {
   onresult: ((event: SpeechEvent) => void) | null;
   onerror: ((event: { error?: string }) => void) | null;
   onend: (() => void) | null;
+  allowForSilence: number;
   start: () => void;
   abort: () => void;
 };
@@ -160,6 +161,15 @@ let pendingSpeech: (() => void) | null = null;
 function speechQueueBusy(): boolean {
   const synth = typeof window === "undefined" ? undefined : window.speechSynthesis;
   return Boolean(synth && (synth.speaking || synth.pending));
+}
+
+function letterSilence(audioAt: number | null, letterAt: number, now: number): number {
+  const end = (audioAt ?? letterAt) + MIC_WINDOW_MS;
+  return end - now;
+}
+
+function armSilence(rec: SpeechListener, leftMs: number) {
+  rec.allowForSilence = Math.max(1, Math.round(leftMs));
 }
 
 /**
@@ -694,6 +704,7 @@ export function AlphabetStage({
       if (restartAt != null && now >= restartAt && rec) {
         restartAt = null;
         if (micRestartAllowed(audioAt, now)) {
+          armSilence(rec, letterSilence(audioAt, letterAt, now));
           const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
           if (next != null) {
             serial = next;
@@ -816,7 +827,7 @@ export function AlphabetStage({
         rec.onerror = (event) => {
           const error = event.error;
           const restartListening = () => {
-            if (!listenerRestartAllowed()) return;
+            if (!listenerRestartAllowed(letterSilence(audioAt, letterAt, performance.now()))) return;
             try {
               rec?.abort();
             } catch {
@@ -855,7 +866,7 @@ export function AlphabetStage({
         rec.onend = () => {
           noteEngineActivity();
           releaseRecognizer(serial);
-          const restarting = listenerRestartAllowed() && micRestartAllowed(audioAt, performance.now());
+          const restarting = listenerRestartAllowed(letterSilence(audioAt, letterAt, performance.now())) && micRestartAllowed(audioAt, performance.now());
           if (!keepListeningCue(restarting, restarting)) setMicLive(false);
           if (!live || settled.current || decided || !rec) return;
           if (!restarting) return;
@@ -863,6 +874,7 @@ export function AlphabetStage({
         };
         letterAt = performance.now();
         clockFrame = requestAnimationFrame(pump);
+        armSilence(rec, letterSilence(audioAt, letterAt, performance.now()));
         const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
         if (next != null) {
           serial = next;
@@ -966,6 +978,7 @@ export function AlphabetStage({
       if (restartAt != null && now >= restartAt && rec) {
         restartAt = null;
         if (micRestartAllowed(audioAt, now)) {
+          armSilence(rec, letterSilence(audioAt, letterAt, now));
           const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
           if (next != null) {
             serial = next;
@@ -1105,7 +1118,7 @@ export function AlphabetStage({
         rec.onerror = (event) => {
           const error = event.error;
           const restartListening = () => {
-            if (!listenerRestartAllowed()) return;
+            if (!listenerRestartAllowed(letterSilence(audioAt, letterAt, performance.now()))) return;
             try {
               rec?.abort();
             } catch {
@@ -1143,7 +1156,7 @@ export function AlphabetStage({
         rec.onend = () => {
           noteEngineActivity();
           releaseRecognizer(serial);
-          const restarting = listenerRestartAllowed() && micRestartAllowed(audioAt, performance.now());
+          const restarting = listenerRestartAllowed(letterSilence(audioAt, letterAt, performance.now())) && micRestartAllowed(audioAt, performance.now());
           if (!keepListeningCue(restarting, restarting)) setMicLive(false);
           if (!live || decided || !rec) return;
           if (!restarting) return;
@@ -1151,6 +1164,7 @@ export function AlphabetStage({
         };
         letterAt = performance.now();
         clockFrame = requestAnimationFrame(pump);
+        armSilence(rec, letterSilence(audioAt, letterAt, performance.now()));
         const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
         if (next != null) {
           serial = next;

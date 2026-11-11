@@ -3,7 +3,7 @@ import { ListeningCue } from "@/components/listening-cue";
 import { holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import { voiceAllowedNow } from "@/lib/voice-consent-api";
-import { answerWindowLeft, cueOnListenStart, keepListeningCue, listenerRestartAllowed } from "@/lib/speech/answer-window";
+import { answerWindowLeft, cueOnListenStart, quietRestart } from "@/lib/speech/answer-window";
 import {
   MIC_DENIED_LINE,
   PA_NEEDS_SOUND_LINE,
@@ -33,6 +33,7 @@ type SpeechListener = {
   onresult: ((event: SpeechEvent) => void) | null;
   onerror: ((event: { error?: string }) => void) | null;
   onend: (() => void) | null;
+  allowForSilence: number;
   start: () => void;
   abort: () => void;
 };
@@ -192,8 +193,9 @@ export function PhonemicStage({
     if (listening && permit === "ready") {
       void voiceAllowedNow().then((ok) => {
         if (!live || settled.current || !ok) return;
-        rec = createListener();
-        if (!rec) return;
+        const ear = createListener();
+        if (!ear) return;
+        rec = ear;
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
@@ -228,11 +230,26 @@ export function PhonemicStage({
         };
         rec.onend = () => {
           noteEngineActivity();
-          const open = shownAt.current != null && answerWindowLeft(shownAt.current, performance.now(), PA_MAX_SHOW_MS) > 0;
-          if (!keepListeningCue(listenerRestartAllowed(), open)) setHearing(false);
+          if (!live || settled.current || shownAt.current == null) {
+            setHearing(false);
+            return;
+          }
+          const plan = quietRestart(shownAt.current, performance.now(), PA_MAX_SHOW_MS);
+          if (!plan.restart) {
+            setHearing(false);
+            return;
+          }
+          ear.allowForSilence = plan.allowForSilence;
+          try {
+            ear.start();
+          } catch {
+            setHearing(false);
+          }
         };
+        const opened = quietRestart(shownAt.current ?? performance.now(), performance.now(), PA_MAX_SHOW_MS);
+        ear.allowForSilence = opened.allowForSilence > 0 ? opened.allowForSilence : 1;
         try {
-          rec.start();
+          ear.start();
         } catch {
           setUnsupported(true);
         }
