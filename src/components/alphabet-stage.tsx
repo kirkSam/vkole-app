@@ -25,6 +25,7 @@ import { holdEngineAudio, holdEngineLetter, holdEngineMic, noteEngineActivity } 
 import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import { voiceAllowedNow } from "@/lib/voice-consent-api";
 import { cueOnListenStart, keepListeningCue, listenerRestartAllowed } from "@/lib/speech/answer-window";
+import { chimeAllowed, playHeldChime, releaseBeepMute, releaseBeepMuteSoon } from "@/lib/speech/chime";
 import {
   MIC_DENIED_LINE,
   SPEAK_FAILED_LINE,
@@ -170,6 +171,52 @@ function letterSilence(audioAt: number | null, letterAt: number, now: number): n
 
 function armSilence(rec: SpeechListener, leftMs: number) {
   rec.allowForSilence = Math.max(1, Math.round(leftMs));
+}
+
+type ChimeGate = { played: boolean; pending: boolean };
+
+/** The first open of a letter plays the chime. A quiet restart does not. */
+function openEar(
+  rec: SpeechListener,
+  again: () => void,
+  opened: () => boolean,
+  gate: ChimeGate,
+  still: () => boolean,
+  onCue: () => void,
+  onStarted: (serial: number) => void,
+) {
+  const go = () => {
+    const next = beginWhenReady(rec, again, opened);
+    if (next != null) onStarted(next);
+  };
+  if (gate.played) {
+    go();
+    return;
+  }
+  if (planMicStart({ speechBusy: speechQueueBusy(), previousEnded: recognizerIsIdle() }) !== "start") {
+    again();
+    return;
+  }
+  if (gate.pending) return;
+  gate.pending = true;
+  void (async () => {
+    const allowed = await chimeAllowed("listen");
+    if (!still()) {
+      gate.pending = false;
+      return;
+    }
+    if (allowed) onCue();
+    await playHeldChime(allowed);
+    if (!still()) {
+      releaseBeepMute();
+      gate.pending = false;
+      return;
+    }
+    gate.played = true;
+    gate.pending = false;
+    go();
+    releaseBeepMuteSoon();
+  })();
 }
 
 /**
@@ -630,6 +677,7 @@ export function AlphabetStage({
     let serial = 0;
     let clockFrame = 0;
     let restartAt: number | null = null;
+    const chimeGate: ChimeGate = { played: false, pending: false };
     let permissionTries = 0;
     let shownClock = false;
     let shownSeconds: number | null = null;
@@ -705,14 +753,21 @@ export function AlphabetStage({
         restartAt = null;
         if (micRestartAllowed(audioAt, now)) {
           armSilence(rec, letterSilence(audioAt, letterAt, now));
-          const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
-          if (next != null) {
-            serial = next;
-            if (micStartAt == null) {
-              micStartAt = performance.now();
-              publish("mic-start");
-            }
-          }
+          openEar(
+            rec,
+            scheduleRestart,
+            () => audioAt != null,
+            chimeGate,
+            () => live && !decided,
+            () => setMicLive(true),
+            (next) => {
+              serial = next;
+              if (micStartAt == null) {
+                micStartAt = performance.now();
+                publish("mic-start");
+              }
+            },
+          );
         }
       }
       clockFrame = requestAnimationFrame(pump);
@@ -875,12 +930,19 @@ export function AlphabetStage({
         letterAt = performance.now();
         clockFrame = requestAnimationFrame(pump);
         armSilence(rec, letterSilence(audioAt, letterAt, performance.now()));
-        const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
-        if (next != null) {
-          serial = next;
-          micStartAt = performance.now();
-          publish("mic-start");
-        }
+        openEar(
+          rec,
+          scheduleRestart,
+          () => audioAt != null,
+          chimeGate,
+          () => live && !decided,
+          () => setMicLive(true),
+          (next) => {
+            serial = next;
+            micStartAt = performance.now();
+            publish("mic-start");
+          },
+        );
       });
     }
 
@@ -907,6 +969,7 @@ export function AlphabetStage({
     let serial = 0;
     let clockFrame = 0;
     let restartAt: number | null = null;
+    const chimeGate: ChimeGate = { played: false, pending: false };
     let decided = false;
     let permissionTries = 0;
     let shownClock = false;
@@ -979,14 +1042,21 @@ export function AlphabetStage({
         restartAt = null;
         if (micRestartAllowed(audioAt, now)) {
           armSilence(rec, letterSilence(audioAt, letterAt, now));
-          const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
-          if (next != null) {
-            serial = next;
-            if (micStartAt == null) {
-              micStartAt = performance.now();
-              publish("mic-start");
-            }
-          }
+          openEar(
+            rec,
+            scheduleRestart,
+            () => audioAt != null,
+            chimeGate,
+            () => live && !decided,
+            () => setMicLive(true),
+            (next) => {
+              serial = next;
+              if (micStartAt == null) {
+                micStartAt = performance.now();
+                publish("mic-start");
+              }
+            },
+          );
         }
       }
       clockFrame = requestAnimationFrame(pump);
@@ -1165,12 +1235,19 @@ export function AlphabetStage({
         letterAt = performance.now();
         clockFrame = requestAnimationFrame(pump);
         armSilence(rec, letterSilence(audioAt, letterAt, performance.now()));
-        const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
-        if (next != null) {
-          serial = next;
-          micStartAt = performance.now();
-          publish("mic-start");
-        }
+        openEar(
+          rec,
+          scheduleRestart,
+          () => audioAt != null,
+          chimeGate,
+          () => live && !decided,
+          () => setMicLive(true),
+          (next) => {
+            serial = next;
+            micStartAt = performance.now();
+            publish("mic-start");
+          },
+        );
       });
     }
     return () => {

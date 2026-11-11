@@ -4,6 +4,7 @@ import { holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import { voiceAllowedNow } from "@/lib/voice-consent-api";
 import { answerWindowLeft, cueOnListenStart, quietRestart } from "@/lib/speech/answer-window";
+import { chimeAllowed, playHeldChime, releaseBeepMute, releaseBeepMuteSoon } from "@/lib/speech/chime";
 import {
   MIC_DENIED_LINE,
   SPEAK_FAILED_LINE,
@@ -169,7 +170,7 @@ export function SightWordStage({
     }
 
     if (listening && permit === "ready") {
-      void voiceAllowedNow().then((ok) => {
+      void voiceAllowedNow().then(async (ok) => {
         if (!live || settled.current || !ok) return;
         const ear = createListener();
         if (!ear) return;
@@ -226,11 +227,20 @@ export function SightWordStage({
         };
         const opened = quietRestart(shownAt.current ?? performance.now(), performance.now(), SIGHT_WORD_MAX_SHOW_MS);
         ear.allowForSilence = opened.allowForSilence > 0 ? opened.allowForSilence : 1;
+        const allowed = await chimeAllowed("listen");
+        if (!live || settled.current) return;
+        if (allowed) setHearing(true);
+        await playHeldChime(allowed);
+        if (!live || settled.current) {
+          releaseBeepMute();
+          return;
+        }
         try {
           ear.start();
         } catch {
           setUnsupported(true);
         }
+        releaseBeepMuteSoon();
       });
     }
 

@@ -1,7 +1,7 @@
 ## 2026-11-11 phone test of 0767ba5 (App Builder)
-**Shipped (merged):** not yet. One pull request holds the first word until the parent answers the microphone, keeps one 20-second total for Sight Words and Phonemic Awareness (the clock never restarts; a silent end starts the listener again with the beep muted), keeps Alphabet at 6 seconds per letter, shows the approved Listening… cue only while the mic is hearing, and makes a place tap select that child.
-**Open, needs Sam:** Claude checks the pull request before merge. Then publish and Sam retests on the phone.
-**Mirrors needed on website:** the same clocks (20 seconds, nothing restarts them; Alphabet 6 seconds per letter) and the same Listening… cue: Lucide Mic, 28 px, #2c5e4a, 1.2s pulse.
+**Shipped (merged):** not yet. One pull request adds the VEKOLE listening chime: one short sound before the microphone, never on a quiet restart and never during a prompt. Android still mutes its own beep. Sam picks which of the three chimes to keep.
+**Open, needs Sam:** Claude checks before merge. Then publish and listen on the phone: one gentle chime, no Android beep. Say which chime to keep: bell, third, or drop.
+**Mirrors needed on website:** the same chime file, played once before recognition starts. Browsers do not beep. The clocks stay 20 seconds and 6 seconds, and the Listening… cue stays the Lucide mic.
 **Blocked:** none
 **Next:** Claude checks. Do not merge before that.
 
