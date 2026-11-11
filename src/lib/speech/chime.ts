@@ -12,6 +12,24 @@ export const CHIME_MS = 320;
 /** How long the music stream stays quiet after the recognizer is asked to start. */
 export const BEEP_HOLD_MS = 800;
 
+/** Native backup. Restores the media volume even if JavaScript never calls release. */
+export const NATIVE_RESTORE_MS = 1000;
+
+export type MuteRestore = "pause" | "destroy" | "native-timer" | "speech" | "js-release" | "still";
+
+/** The saved media volume, or null once it has been put back. */
+export function mediaVolumeAfter(
+  saved: number | null,
+  dueAt: number | null,
+  event: MuteRestore,
+  now: number,
+): number | null {
+  if (saved == null) return null;
+  if (event === "still") return saved;
+  if (event === "native-timer" && (dueAt == null || now < dueAt)) return saved;
+  return null;
+}
+
 export type ChimeMoment = "listen" | "restart" | "prompt";
 
 type BeepMutePlugin = {

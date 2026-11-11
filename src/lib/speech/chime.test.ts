@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { CHIME_MS, CHIME_SHA256, CHIME_SRC, chimeAllowed, playHeldChime } from "./chime.ts";
+import { CHIME_MS, CHIME_SHA256, CHIME_SRC, NATIVE_RESTORE_MS, chimeAllowed, mediaVolumeAfter, playHeldChime } from "./chime.ts";
 import { SPOKEN_ANSWER_MS } from "./answer-window.ts";
 import { MIC_WINDOW_MS } from "./mic-session.ts";
 
@@ -66,5 +66,30 @@ describe("VEKOLE listening chime", () => {
     assert.equal(alphabet.includes('chimeAllowed("listen")'), true);
     assert.equal(alphabet.includes("MIC_WINDOW_MS"), true);
     assert.equal(alphabet.includes("SPOKEN_ANSWER_MS"), false);
+  });
+
+  it("puts the media volume back on pause, and on the native timer if JavaScript never releases", () => {
+    const held = 7;
+    const due = NATIVE_RESTORE_MS;
+    assert.equal(NATIVE_RESTORE_MS, 1000);
+    assert.equal(mediaVolumeAfter(held, due, "pause", 10), null);
+    assert.equal(mediaVolumeAfter(held, due, "destroy", 10), null);
+    assert.equal(mediaVolumeAfter(held, due, "speech", 10), null);
+    assert.equal(mediaVolumeAfter(held, due, "js-release", 10), null);
+    assert.equal(mediaVolumeAfter(held, due, "still", 999), held);
+    assert.equal(mediaVolumeAfter(held, due, "native-timer", 999), held);
+    assert.equal(mediaVolumeAfter(held, due, "native-timer", 1000), null);
+    assert.equal(mediaVolumeAfter(null, due, "pause", 10), null);
+
+    const plugin = source("../../../android/app/src/main/java/com/dotheimpossible/vkole/BeepMutePlugin.java");
+    assert.match(plugin, /NATIVE_RESTORE_MS = 1000/);
+    assert.match(plugin, /protected void handleOnPause\(\) \{\s*restoreMusic\(\);/);
+    assert.match(plugin, /protected void handleOnDestroy\(\) \{\s*restoreMusic\(\);/);
+    const hold = plugin.slice(plugin.indexOf("boolean holdMusic()"), plugin.indexOf("void restoreMusic()"));
+    assert.match(hold, /handler\.postDelayed\(restoreLater, NATIVE_RESTORE_MS\)/);
+    const speak = source("./listener.ts");
+    const aloud = speak.slice(speak.indexOf("export function speakAloud"));
+    assert.equal(aloud.indexOf("releaseBeepMute()") < aloud.indexOf("speakInBrowser"), true);
+    assert.equal(aloud.indexOf("releaseBeepMute()") < aloud.indexOf("speakOnDevice"), true);
   });
 });

@@ -1,5 +1,5 @@
 ## 2026-11-11 phone test of 0767ba5 (App Builder)
-**Shipped (merged):** not yet. The app uses the website's master chime, vekole-listen-chime.wav. Its sha256 matches cc8858905713288e237f5db5ea28f747c17442d7c38c6672dcce4e605a457641. It plays once, before the microphone, and never on a quiet restart or during a prompt.
+**Shipped (merged):** not yet. The media-volume mute now restores itself on pause, on destroy, and after one second in Android, and any spoken line releases it first. The chime file is unchanged.
 **Open, needs Sam:** Claude checks before merge. Then publish and listen on the phone: one gentle two-note chime, no Android beep.
 **Mirrors needed on website:** the same chime file, played once before recognition starts. Browsers do not beep. The clocks stay 20 seconds and 6 seconds, and the Listening… cue stays the Lucide mic.
 **Blocked:** none

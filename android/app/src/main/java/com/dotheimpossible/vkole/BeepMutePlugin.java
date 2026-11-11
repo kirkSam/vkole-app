@@ -2,6 +2,8 @@ package com.dotheimpossible.vkole;
 
 import android.content.Context;
 import android.media.AudioManager;
+import android.os.Handler;
+import android.os.Looper;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -13,9 +15,16 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  * The speech plugin already zeros the system and notification streams.
  * Music is the stream Android 12 often uses for the recognizer beep.
  * The VEKOLE chime plays before this hold, so the hold does not mute it.
+ * The volume is restored without waiting for JavaScript: on pause, on
+ * destroy, and by a native timer about one second after the hold.
  */
 @CapacitorPlugin(name = "BeepMute")
 public class BeepMutePlugin extends Plugin {
+    static final long NATIVE_RESTORE_MS = 1000;
+
+    private final Object gate = new Object();
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable restoreLater = this::restoreMusic;
     private Integer savedMusic;
 
     @PluginMethod
@@ -36,6 +45,16 @@ public class BeepMutePlugin extends Plugin {
     public void release(PluginCall call) {
         restoreMusic();
         call.resolve();
+    }
+
+    @Override
+    protected void handleOnPause() {
+        restoreMusic();
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        restoreMusic();
     }
 
     private AudioManager manager() {
@@ -60,20 +79,31 @@ public class BeepMutePlugin extends Plugin {
         AudioManager audio = manager();
         if (audio == null) return false;
         try {
-            if (savedMusic == null) {
-                savedMusic = audio.getStreamVolume(AudioManager.STREAM_MUSIC);
+            synchronized (gate) {
+                if (savedMusic == null) {
+                    savedMusic = audio.getStreamVolume(AudioManager.STREAM_MUSIC);
+                }
+                audio.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
+                handler.removeCallbacks(restoreLater);
+                handler.postDelayed(restoreLater, NATIVE_RESTORE_MS);
             }
-            audio.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
             return true;
         } catch (SecurityException ex) {
-            savedMusic = null;
+            synchronized (gate) {
+                savedMusic = null;
+                handler.removeCallbacks(restoreLater);
+            }
             return false;
         }
     }
 
     private void restoreMusic() {
-        Integer saved = savedMusic;
-        savedMusic = null;
+        Integer saved;
+        synchronized (gate) {
+            handler.removeCallbacks(restoreLater);
+            saved = savedMusic;
+            savedMusic = null;
+        }
         if (saved == null) return;
         AudioManager audio = manager();
         if (audio == null) return;
