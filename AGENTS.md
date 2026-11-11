@@ -2,6 +2,18 @@
 From: Sam Kirkpatrick (owner, VKOLE)
 Effective: Oct 23, 2026
 
+## 2026-11-11 (note from Sam, via Claude) — no merge without Sam's word
+
+This replaces the Oct 23 instructions that said to merge drafts each session and to auto-merge a pull request labeled safe. Do not follow those.
+
+From now on, never merge a pull request yourself. When a pull request is ready:
+
+1. Send Sam the report (the usual form, with clean-copy counts and the commit id).
+2. Wait. Claude reviews that exact commit.
+3. Merge only after Sam writes "merge #N".
+
+If you push any new commit after Claude's review, the review no longer counts. Send the new commit id and wait again.
+
 ## Later decision (kept on purpose)
 The Oct 26 store pause was replaced by Sam's Nov 4 memo. Store release is active. Do not move this app into the website repo unless Sam says so.
 
