@@ -1,3 +1,10 @@
+## 2026-11-11 clock starts after the chime (App Builder)
+**Shipped (merged):** not yet. When the chime plays, the 20-second clock and Alphabet's 6-second clock start when the microphone opens. The chime plays at 0.5, the same as the website.
+**Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N".
+**Mirrors needed on website:** none. The website already starts the clock after the chime.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word.
+
 ## 2026-11-11 phone test of 0767ba5 (App Builder)
 **Shipped (merged):** not yet. The media-volume mute now restores itself on pause, on destroy, and after one second in Android, and any spoken line releases it first. The chime file is unchanged.
 **Open, needs Sam:** Claude checks before merge. Then publish and listen on the phone: one gentle two-note chime, no Android beep.

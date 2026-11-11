@@ -183,6 +183,7 @@ function openEar(
   gate: ChimeGate,
   still: () => boolean,
   onCue: () => void,
+  onChimed: () => void,
   onStarted: (serial: number) => void,
 ) {
   const go = () => {
@@ -212,6 +213,7 @@ function openEar(
       gate.pending = false;
       return;
     }
+    if (allowed) onChimed();
     gate.played = true;
     gate.pending = false;
     go();
@@ -760,6 +762,9 @@ export function AlphabetStage({
             chimeGate,
             () => live && !decided,
             () => setMicLive(true),
+            () => {
+              letterAt = performance.now();
+            },
             (next) => {
               serial = next;
               if (micStartAt == null) {
@@ -937,6 +942,9 @@ export function AlphabetStage({
           chimeGate,
           () => live && !decided,
           () => setMicLive(true),
+          () => {
+            letterAt = performance.now();
+          },
           (next) => {
             serial = next;
             micStartAt = performance.now();
@@ -1049,6 +1057,9 @@ export function AlphabetStage({
             chimeGate,
             () => live && !decided,
             () => setMicLive(true),
+            () => {
+              letterAt = performance.now();
+            },
             (next) => {
               serial = next;
               if (micStartAt == null) {
@@ -1242,6 +1253,9 @@ export function AlphabetStage({
           chimeGate,
           () => live && !decided,
           () => setMicLive(true),
+          () => {
+            letterAt = performance.now();
+          },
           (next) => {
             serial = next;
             micStartAt = performance.now();

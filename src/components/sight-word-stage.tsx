@@ -235,6 +235,11 @@ export function SightWordStage({
           releaseBeepMute();
           return;
         }
+        if (allowed) {
+          shownAt.current = performance.now();
+          window.clearTimeout(timer);
+          timer = window.setTimeout(() => finishRef.current("timeout"), SIGHT_WORD_MAX_SHOW_MS);
+        }
         try {
           ear.start();
         } catch {

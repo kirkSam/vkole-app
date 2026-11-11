@@ -33,6 +33,11 @@ export function quietRestart(shownAt: number, endedAt: number, windowMs = SPOKEN
   return { restart: listenerRestartAllowed(allowForSilence), allowForSilence, stopsAt };
 }
 
+/** A chime starts the clock when the microphone opens. No chime starts it when the word is shown. */
+export function answerClockAt(chimePlayed: boolean, shownAt: number, micOpenedAt: number): number {
+  return chimePlayed ? micOpenedAt : shownAt;
+}
+
 export type ListenStart = "started" | "audio";
 
 /** The phone uses the native listening-started event. A browser uses audio-start. */

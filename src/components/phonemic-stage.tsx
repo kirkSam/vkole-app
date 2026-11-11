@@ -257,6 +257,11 @@ export function PhonemicStage({
           releaseBeepMute();
           return;
         }
+        if (allowed) {
+          shownAt.current = performance.now();
+          window.clearTimeout(timer);
+          timer = window.setTimeout(() => finishRef.current("timeout"), PA_MAX_SHOW_MS);
+        }
         try {
           ear.start();
         } catch {
