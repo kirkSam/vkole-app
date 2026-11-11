@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { SPOKEN_ANSWER_MS, answerWindowLeft, cueOnListenStart, keepListeningCue, listenerRestartAllowed, quietRestart } from "./answer-window.ts";
+import { SPOKEN_ANSWER_MS, answerClockAt, answerWindowLeft, cueOnListenStart, keepListeningCue, listenerRestartAllowed, quietRestart } from "./answer-window.ts";
 
 function source(path: string): string {
   return readFileSync(new URL(path, import.meta.url), "utf8");
@@ -39,6 +39,33 @@ describe("one 20-second answer window", () => {
     assert.equal(keepListeningCue(true, true), true);
     assert.equal(keepListeningCue(false, true), false);
     assert.equal(keepListeningCue(true, false), false);
+  });
+
+  it("starts the clock after a chime, and when the word is shown if no chime plays", () => {
+    const shown = 1_000;
+    const mic = shown + 300;
+    assert.equal(answerClockAt(true, shown, mic), mic);
+    assert.equal(answerWindowLeft(answerClockAt(true, shown, mic), mic), SPOKEN_ANSWER_MS);
+    assert.equal(answerClockAt(false, shown, mic), shown);
+    assert.equal(answerWindowLeft(answerClockAt(false, shown, mic), shown), SPOKEN_ANSWER_MS);
+    assert.equal(answerWindowLeft(shown, mic), SPOKEN_ANSWER_MS - 300);
+    assert.equal(answerClockAt(true, shown, mic) + 6_000, mic + 6_000);
+    assert.equal(answerClockAt(false, shown, mic) + 6_000, shown + 6_000);
+    for (const path of ["../../components/sight-word-stage.tsx", "../../components/phonemic-stage.tsx"]) {
+      const stage = source(path);
+      const after = stage.slice(stage.indexOf("await playHeldChime"));
+      const reset = after.indexOf("if (allowed)");
+      const start = after.indexOf("ear.start()");
+      assert.equal(reset >= 0 && reset < start, true, path);
+      assert.equal(after.includes("shownAt.current = performance.now()"), true, path);
+      assert.equal(stage.includes("if (shownAt.current == null) shownAt.current = performance.now()"), true, path);
+      const ended = stage.slice(stage.indexOf("rec.onend"));
+      const handler = ended.slice(0, ended.indexOf("};"));
+      assert.equal(handler.includes("shownAt.current = "), false, path);
+    }
+    const alphabet = source("../../components/alphabet-stage.tsx");
+    assert.equal(alphabet.includes("if (allowed) onChimed()"), true);
+    assert.equal((alphabet.match(/letterAt = performance\.now\(\)/g) ?? []).length >= 4, true);
   });
 
   it("keeps alphabet at 6 seconds and the cue as Sam approved", () => {
