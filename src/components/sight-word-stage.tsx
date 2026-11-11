@@ -3,12 +3,13 @@ import { ListeningCue } from "@/components/listening-cue";
 import { holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import { voiceAllowedNow } from "@/lib/voice-consent-api";
-import { answerWindowLeft } from "@/lib/speech/answer-window";
+import { answerWindowLeft, cueOnListenStart, keepListeningCue, listenerRestartAllowed } from "@/lib/speech/answer-window";
 import {
   MIC_DENIED_LINE,
   SPEAK_FAILED_LINE,
   askMicrophone,
   createListener,
+  isNativeApp,
   listenFailureLine,
   listenKind,
   listenerReady,
@@ -174,8 +175,12 @@ export function SightWordStage({
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
-        rec.onstart = () => setHearing(true);
-        rec.onaudiostart = () => setHearing(true);
+        rec.onstart = () => {
+          if (cueOnListenStart(isNativeApp(), "started")) setHearing(true);
+        };
+        rec.onaudiostart = () => {
+          if (cueOnListenStart(isNativeApp(), "audio")) setHearing(true);
+        };
         rec.onresult = (event) => {
           noteEngineActivity();
           const start = event.resultIndex ?? 0;
@@ -201,7 +206,8 @@ export function SightWordStage({
         };
         rec.onend = () => {
           noteEngineActivity();
-          setHearing(false);
+          const open = shownAt.current != null && answerWindowLeft(shownAt.current, performance.now(), SIGHT_WORD_MAX_SHOW_MS) > 0;
+          if (!keepListeningCue(listenerRestartAllowed(), open)) setHearing(false);
         };
         try {
           rec.start();
@@ -239,7 +245,6 @@ export function SightWordStage({
     <section className="mt-6" aria-live="polite">
       <p className="text-center text-xs tracking-wide text-muted uppercase">Sight word</p>
       <p className="mt-2 text-center text-sm text-ink">{LISTENING_BEST}</p>
-      <ListeningCue on={hearing} />
       <div className={phase === "sparkle" ? "sight-sparkle relative mt-4" : "relative mt-4"}>
         {shown ? (
           <p className="sight-word font-display font-semibold" style={{ color: colorFor(word) }}>
@@ -253,6 +258,7 @@ export function SightWordStage({
           <p className="sight-word font-display text-muted"> </p>
         )}
       </div>
+      <ListeningCue on={hearing && phase === "show"} />
       {quiet ? <p className="mt-4 text-center text-sm text-ink">{SPEAK_FAILED_LINE}</p> : null}
       {adult ? (
         <div className="mt-6">

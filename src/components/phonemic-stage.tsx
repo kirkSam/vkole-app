@@ -3,7 +3,7 @@ import { ListeningCue } from "@/components/listening-cue";
 import { holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import { voiceAllowedNow } from "@/lib/voice-consent-api";
-import { answerWindowLeft } from "@/lib/speech/answer-window";
+import { answerWindowLeft, cueOnListenStart, keepListeningCue, listenerRestartAllowed } from "@/lib/speech/answer-window";
 import {
   MIC_DENIED_LINE,
   PA_NEEDS_SOUND_LINE,
@@ -197,8 +197,12 @@ export function PhonemicStage({
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
-        rec.onstart = () => setHearing(true);
-        rec.onaudiostart = () => setHearing(true);
+        rec.onstart = () => {
+          if (cueOnListenStart(isNativeApp(), "started")) setHearing(true);
+        };
+        rec.onaudiostart = () => {
+          if (cueOnListenStart(isNativeApp(), "audio")) setHearing(true);
+        };
         rec.onresult = (event) => {
           noteEngineActivity();
           const start = event.resultIndex ?? 0;
@@ -224,7 +228,8 @@ export function PhonemicStage({
         };
         rec.onend = () => {
           noteEngineActivity();
-          setHearing(false);
+          const open = shownAt.current != null && answerWindowLeft(shownAt.current, performance.now(), PA_MAX_SHOW_MS) > 0;
+          if (!keepListeningCue(listenerRestartAllowed(), open)) setHearing(false);
         };
         try {
           rec.start();
@@ -280,7 +285,6 @@ export function PhonemicStage({
           </div>
         </div>
       ) : null}
-      <ListeningCue on={hearing} />
       <p className="text-center text-xs tracking-wide text-muted uppercase">
         {phase === "prompt" ? "Speaking" : phase === "sparkle" ? "Heard" : phase === "listen" ? "Answer" : "Answer"}
       </p>
@@ -295,6 +299,7 @@ export function PhonemicStage({
           </div>
         ) : null}
       </div>
+      <ListeningCue on={hearing && phase === "listen"} />
     </section>
   );
 }

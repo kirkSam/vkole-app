@@ -254,28 +254,43 @@
 
 .listening-cue {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
   margin-top: 1rem;
+  pointer-events: none;
+}
+
+.listening-word {
+  margin-top: 0.25rem;
   color: var(--color-ink);
-  font-size: 1.125rem;
+  font-size: 1.2rem;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .listening-mic {
-  transform-origin: center bottom;
-  animation: listening-pulse 1.4s ease-in-out infinite;
+  width: 28px;
+  height: 28px;
+  color: #2c5e4a;
+  transform-origin: center;
+  animation: listening-pulse 1.2s ease-in-out infinite;
 }
 
 @keyframes listening-pulse {
   0%,
   100% {
-    opacity: 0.4;
-    transform: scale(0.92);
+    opacity: 1;
+    transform: scale(1);
   }
   50% {
-    opacity: 1;
+    opacity: 0.7;
     transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listening-mic {
+    animation: none;
   }
 }
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { SPOKEN_ANSWER_MS, answerWindowLeft, listenerRestartAllowed } from "./answer-window.ts";
+import { SPOKEN_ANSWER_MS, answerWindowLeft, cueOnListenStart, keepListeningCue, listenerRestartAllowed } from "./answer-window.ts";
 
 function source(path: string): string {
   return readFileSync(new URL(path, import.meta.url), "utf8");
@@ -23,6 +23,41 @@ describe("one 20-second answer window", () => {
       assert.equal(shown + SPOKEN_ANSWER_MS, 25_000);
     }
     assert.equal(listenerRestartAllowed(), false);
+    assert.equal(cueOnListenStart(true, "started"), true);
+    assert.equal(cueOnListenStart(true, "audio"), false);
+    assert.equal(cueOnListenStart(false, "audio"), true);
+    assert.equal(cueOnListenStart(false, "started"), false);
+    assert.equal(keepListeningCue(true, true), true);
+    assert.equal(keepListeningCue(false, true), false);
+    assert.equal(keepListeningCue(true, false), false);
+  });
+
+  it("keeps alphabet at 6 seconds and the cue as Sam approved", () => {
+    const alphabet = source("../../components/alphabet-stage.tsx");
+    const session = source("./mic-session.ts");
+    const cue = source("../../components/listening-cue.tsx");
+    const css = source("../../styles.css");
+    assert.equal(alphabet.includes("answerWindowLeft"), false);
+    assert.equal(alphabet.includes("SPOKEN_ANSWER_MS"), false);
+    assert.equal(alphabet.includes("MIC_WINDOW_MS"), true);
+    assert.equal(session.includes("MIC_WINDOW_MS = 6_000"), true);
+    assert.equal(cue.includes("Listening\\u2026"), true);
+    assert.equal(cue.includes("<Mic"), true);
+    assert.equal(cue.includes("size={28}"), true);
+    assert.equal(cue.includes('color="#2c5e4a"'), true);
+    assert.equal(cue.includes('aria-hidden="true"'), true);
+    assert.equal(cue.includes('role="status"'), true);
+    assert.equal(cue.includes('aria-live="polite"'), true);
+    assert.equal(css.includes("listening-pulse 1.2s ease-in-out infinite"), true);
+    assert.equal(css.includes("scale(1.08)"), true);
+    assert.equal(css.includes("opacity: 0.7"), true);
+    assert.equal(css.includes("font-size: 1.2rem"), true);
+    assert.equal(css.includes("prefers-reduced-motion: reduce"), true);
+    for (const path of ["../../components/sight-word-stage.tsx", "../../components/phonemic-stage.tsx"]) {
+      const stage = source(path);
+      assert.equal(stage.includes("if (shownAt.current == null) shownAt.current = performance.now()"), true, path);
+      assert.equal((stage.match(/shownAt\.current = null/g) ?? []).length, 1, path);
+    }
   });
 
   it("starts the listener once in each spoken engine", () => {
@@ -32,6 +67,7 @@ describe("one 20-second answer window", () => {
       assert.equal(stage.includes("askMicrophone"), true, path);
       assert.equal(stage.includes("MIC_DENIED_LINE"), true, path);
       assert.equal(stage.includes("ListeningCue"), true, path);
+      assert.equal(stage.includes("cueOnListenStart"), true, path);
       const ended = stage.slice(stage.indexOf("rec.onend"));
       const handler = ended.slice(0, ended.indexOf("};"));
       assert.equal(handler.includes(".start("), false, path);

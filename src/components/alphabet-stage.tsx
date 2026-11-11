@@ -24,7 +24,7 @@ import {
 import { holdEngineAudio, holdEngineLetter, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import { voiceAllowedNow } from "@/lib/voice-consent-api";
-import { listenerRestartAllowed } from "@/lib/speech/answer-window";
+import { cueOnListenStart, keepListeningCue, listenerRestartAllowed } from "@/lib/speech/answer-window";
 import {
   MIC_DENIED_LINE,
   SPEAK_FAILED_LINE,
@@ -667,6 +667,7 @@ export function AlphabetStage({
       setSecondsLeft(0);
       markClose();
       noteSilence();
+      setMicLive(false);
       const card = viewRef.current;
       onAttemptRef.current?.({ letter: card.answer, exercise: card.exercise, outcome: "timeout", heard: lastHeard });
       try {
@@ -826,34 +827,38 @@ export function AlphabetStage({
           };
           if (error === "not-allowed" || error === "service-not-allowed") {
             setListenNote(MIC_DENIED_LINE);
+            setMicLive(false);
             setUnsupported(true);
             return;
           }
           if (error === "not-available") {
             setListenNote(PHONE_CANNOT_HEAR);
+            setMicLive(false);
             setUnsupported(true);
             return;
           }
           if (recognitionErrorRelistens(error)) restartListening();
         };
         rec.onaudiostart = () => {
-          if (audioAt != null) return;
-          audioAt = performance.now();
-          heardOrigin = audioAt;
-          setMicLive(true);
-          publish("audio");
+          if (audioAt == null) {
+            audioAt = performance.now();
+            heardOrigin = audioAt;
+            publish("audio");
+          }
+          if (cueOnListenStart(isNativeApp(), "audio")) setMicLive(true);
         };
         rec.onstart = () => {
           noteEngineActivity();
           permissionTries = 0;
+          if (cueOnListenStart(isNativeApp(), "started")) setMicLive(true);
         };
         rec.onend = () => {
           noteEngineActivity();
-          setMicLive(false);
           releaseRecognizer(serial);
+          const restarting = listenerRestartAllowed() && micRestartAllowed(audioAt, performance.now());
+          if (!keepListeningCue(restarting, restarting)) setMicLive(false);
           if (!live || settled.current || decided || !rec) return;
-          if (!listenerRestartAllowed()) return;
-          if (!micRestartAllowed(audioAt, performance.now())) return;
+          if (!restarting) return;
           scheduleRestart();
         };
         letterAt = performance.now();
@@ -1111,33 +1116,37 @@ export function AlphabetStage({
           };
           if (error === "not-allowed" || error === "service-not-allowed") {
             setListenNote(MIC_DENIED_LINE);
+            setMicLive(false);
             setUnsupported(true);
             return;
           }
           if (error === "not-available") {
             setListenNote(PHONE_CANNOT_HEAR);
+            setMicLive(false);
             setUnsupported(true);
             return;
           }
           if (recognitionErrorRelistens(error)) restartListening();
         };
         rec.onaudiostart = () => {
-          if (audioAt != null) return;
-          audioAt = performance.now();
-          setMicLive(true);
-          publish("audio");
+          if (audioAt == null) {
+            audioAt = performance.now();
+            publish("audio");
+          }
+          if (cueOnListenStart(isNativeApp(), "audio")) setMicLive(true);
         };
         rec.onstart = () => {
           noteEngineActivity();
           permissionTries = 0;
+          if (cueOnListenStart(isNativeApp(), "started")) setMicLive(true);
         };
         rec.onend = () => {
           noteEngineActivity();
-          setMicLive(false);
           releaseRecognizer(serial);
+          const restarting = listenerRestartAllowed() && micRestartAllowed(audioAt, performance.now());
+          if (!keepListeningCue(restarting, restarting)) setMicLive(false);
           if (!live || decided || !rec) return;
-          if (!listenerRestartAllowed()) return;
-          if (!micRestartAllowed(audioAt, performance.now())) return;
+          if (!restarting) return;
           scheduleRestart();
         };
         letterAt = performance.now();
@@ -1315,7 +1324,6 @@ export function AlphabetStage({
       <AlphabetJumps current={exercise} onPick={beginExercise} />
       <p className="text-center text-base font-semibold text-ink">Exercise {view.exercise}</p>
       <p className="text-center text-xs tracking-wide text-muted uppercase">{status}</p>
-      <ListeningCue on={micLive} />
       <p className="mt-2 text-center text-sm text-ink">{LISTENING_BEST}</p>
       {phase === "celebrate" ? (
         <div className="sp-celebrate" aria-label={GOOD_JOB_LINE}>
@@ -1373,6 +1381,7 @@ export function AlphabetStage({
           <p className="sp-prompt">{view.show}</p>
         </>
       )}
+      <ListeningCue on={micLive && phase === "listen"} />
       {phase === "listen" && voiceAllowed && !unsupported && view.exercise >= 2 && clockOn ? (
         <div className="mt-3 w-full max-w-xs" aria-label="Microphone">
           <p className="text-center text-sm text-muted">Microphone · {secondsLeft} seconds</p>
