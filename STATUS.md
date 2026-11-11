@@ -1,3 +1,7 @@
+## 2026-11-11 no merge without Sam's word (App Builder)
+**Decision:** App Builder never merges a pull request. Sam writes "merge #N" after Claude has reviewed that exact commit. A newer commit needs a new review.
+**Next:** This note is in AGENTS.md. It waits for Sam's "merge" word.
+
 ## 2026-11-11 phone test of 0767ba5 (App Builder)
 **Shipped (merged):** not yet. The media-volume mute now restores itself on pause, on destroy, and after one second in Android, and any spoken line releases it first. The chime file is unchanged.
 **Open, needs Sam:** Claude checks before merge. Then publish and listen on the phone: one gentle two-note chime, no Android beep.
