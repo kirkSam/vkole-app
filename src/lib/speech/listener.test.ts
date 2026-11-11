@@ -131,6 +131,42 @@ describe("shared listening helper", () => {
     useListenPorts(null);
   });
 
+  it("passes a muted beep and the silence left on every start", async () => {
+    const began: Array<{ muteRecognizerBeep?: boolean; allowForSilence?: number }> = [];
+    const ports: ListenPorts = {
+      onDevice: async () => true,
+      service: async () => true,
+      permit: async () => "granted",
+      begin: async (options) => {
+        began.push(options);
+      },
+      halt: async () => {},
+    };
+    useListenPorts(ports);
+    const first = createListener();
+    assert.ok(first);
+    first.allowForSilence = 20_000;
+    first.start();
+    await flush();
+    first.abort();
+    const second = createListener();
+    assert.ok(second);
+    second.allowForSilence = 15_000;
+    second.start();
+    await flush();
+    second.abort();
+    assert.equal(began.length, 2);
+    assert.equal(began[0]?.muteRecognizerBeep, true);
+    assert.equal(began[0]?.allowForSilence, 20_000);
+    assert.equal(began[1]?.muteRecognizerBeep, true);
+    assert.equal(began[1]?.allowForSilence, 15_000);
+    assert.equal(NATIVE_LISTEN.muteRecognizerBeep, true);
+    assert.equal(GOOGLE_LISTEN.muteRecognizerBeep, true);
+    assert.equal(NATIVE_LISTEN.allowForSilence, 20_000);
+    assert.equal(GOOGLE_LISTEN.allowForSilence, 20_000);
+    useListenPorts(null);
+  });
+
   it("keeps silence as no-speech, and a finished native result is final", () => {
     assert.equal(nativeListenError("NO_MATCH"), "no-speech");
     assert.equal(nativeListenError("SPEECH_TIMEOUT"), "no-speech");
@@ -179,6 +215,8 @@ describe("shared listening helper", () => {
     const helper = source("./listener.ts");
     assert.equal(helper.includes("useOnDeviceRecognition: true"), true);
     assert.equal(helper.includes("popup: false"), true);
+    assert.equal(helper.includes("muteRecognizerBeep: true"), true);
+    assert.equal(helper.includes("allowForSilence"), true);
     for (const path of ["../../components/sight-word-stage.tsx", "../../components/phonemic-stage.tsx", "../../components/alphabet-stage.tsx"]) {
       const stage = source(path);
       assert.equal(stage.includes("PARENT_NEEDS_VOICE"), true, path);

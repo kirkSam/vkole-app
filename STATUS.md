@@ -1,3 +1,10 @@
+## 2026-11-11 phone test of 0767ba5 (App Builder)
+**Shipped (merged):** not yet. One pull request holds the first word until the parent answers the microphone, keeps one 20-second total for Sight Words and Phonemic Awareness (the clock never restarts; a silent end starts the listener again with the beep muted), keeps Alphabet at 6 seconds per letter, shows the approved Listening… cue only while the mic is hearing, and makes a place tap select that child.
+**Open, needs Sam:** Claude checks the pull request before merge. Then publish and Sam retests on the phone.
+**Mirrors needed on website:** the same clocks (20 seconds, nothing restarts them; Alphabet 6 seconds per letter) and the same Listening… cue: Lucide Mic, 28 px, #2c5e4a, 1.2s pulse.
+**Blocked:** none
+**Next:** Claude checks. Do not merge before that.
+
 ## 2026-11-10 keep both sides identical, Update 7 (App Builder)
 **Decision:** Update 7 is saved in docs/team-memo-2026-11-10-update-7.md. Once connected, grading, leveling, memory, and fatigue live only in kirkSam/vekole-engine. Both sides pin one agreed tag. The package is not connected. The app still grades a pool question in code and calls Grok only for a question Grok wrote.
 **Next:** School Site reports whether the website grades typed answers the same way. If not, it lists the difference.

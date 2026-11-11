@@ -26,6 +26,50 @@ export function placeTakenMessage(place: 1 | 2): string {
   return place === 1 ? "Student 1 is taken." : "Student 2 is taken.";
 }
 
+export type PlaceSeat = { place: 1 | 2; name: string; fresh: boolean };
+
+/** An open place starts a new child. A used place selects the child already there. */
+export function placeTapResult(choice: { index: 1 | 2; name: string; open: boolean }): PlaceSeat {
+  if (choice.open) return { place: choice.index, name: "", fresh: true };
+  const name = choice.name.trim() === OPEN_PLACE_LABEL ? "" : choice.name.trim();
+  return { place: choice.index, name, fresh: false };
+}
+
+/**
+ * A name that already sits in one place cannot be enrolled into the other.
+ * A different name cannot be enrolled into a place that already has a child.
+ */
+export function enrollNameAtPlace(
+  roster: { index: number; name: string }[],
+  typedName: string,
+  place: 1 | 2 | null | undefined,
+): "ok" | "other-place" | "taken" {
+  if (place !== 1 && place !== 2) return "ok";
+  const typed = typedName.trim().replace(/\s+/g, " ").toLowerCase();
+  if (!typed) return "ok";
+  const owner = roster.find((student) => student.name.trim().toLowerCase() === typed);
+  if (owner && owner.index !== place) return "other-place";
+  const seat = roster.find((student) => student.index === place && student.name.trim());
+  if (seat && seat.name.trim().toLowerCase() !== typed) return "taken";
+  return "ok";
+}
+
+export function namePlaceMessage(
+  roster: { index: number; name: string }[],
+  typedName: string,
+  place: 1 | 2 | null | undefined,
+): string | null {
+  const guard = enrollNameAtPlace(roster, typedName, place);
+  if (guard === "other-place") {
+    const typed = typedName.trim().replace(/\s+/g, " ").toLowerCase();
+    const owner = roster.find((student) => student.name.trim().toLowerCase() === typed);
+    const who = owner?.name.trim() || "That child";
+    return `${who} is already Student ${owner?.index ?? 1}.`;
+  }
+  if (guard === "taken" && (place === 1 || place === 2)) return placeTakenMessage(place);
+  return null;
+}
+
 /** An empty Student 1 or Student 2 place, when a parent is adding a child. */
 export const OPEN_PLACE_LABEL = "open";
 
