@@ -13,7 +13,7 @@ import { AlphabetMisses } from "@/components/alphabet-misses";
 import { WebsiteVisit } from "@/components/website-visit";
 import { HeadphoneNotice } from "@/components/headphone-notice";
 import { StudentSwitcher } from "@/components/student-switcher";
-import { ENROLL_DID_NOT_OPEN, ENROLL_STILL_CLOSED, PICK_PLACE_LINE, placeChoiceLabel, placeTakenMessage, SAME_PLACE_LINE, studentPlaceChoices } from "@/lib/student-card";
+import { ENROLL_DID_NOT_OPEN, ENROLL_STILL_CLOSED, PICK_PLACE_LINE, placeChoiceLabel, placeTakenMessage, namePlaceMessage, placeTapResult, SAME_PLACE_LINE, studentPlaceChoices, type PlaceSeat } from "@/lib/student-card";
 import { EnginePicks, PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
 import { SUBJECTS, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
@@ -284,6 +284,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
   const [confirmEmail, setConfirmEmail] = useState(false);
   const [students, setStudents] = useState<FamilyStudent[]>([]);
   const [activeStudent, setActiveStudent] = useState(1);
+  const [seat, setSeat] = useState<PlaceSeat | null>(null);
   const [trialOver, setTrialOver] = useState(false);
   const [endedPlan, setEndedPlan] = useState<EndedReason>("trial");
   const [stopped, setStopped] = useState<StoppedBecause | undefined>(undefined);
@@ -522,6 +523,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
         activeStudent={activeStudent}
         onSwitched={(index) => {
           setActiveStudent(index);
+          setSeat(null);
           setRevision((value) => value + 1);
         }}
       />
@@ -604,9 +606,11 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
           <AppGate
             key={`${activeStudent}-${subject.id}`}
             subject={subject.id}
-            studentName={students.find((student) => student.index === activeStudent)?.name ?? ""}
+            studentName={seat ? seat.name : (students.find((student) => student.index === activeStudent)?.name ?? "")}
+            seat={seat}
             students={students}
             roster={(climbs ?? []).filter((climb) => climb.subject === subject.id)}
+            onPick={setSeat}
             onTrialFinished={() => setClosedApp(subject.id)}
             onLevelsChanged={() => setRevision((n) => n + 1)}
             onClock={() => setRevision((n) => n + 1)}
@@ -620,16 +624,20 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
 function AppGate({
   subject,
   studentName,
+  seat,
   students,
   roster,
+  onPick,
   onTrialFinished,
   onLevelsChanged,
   onClock,
 }: {
   subject: SubjectId;
   studentName: string;
+  seat: PlaceSeat | null;
   students: FamilyStudent[];
   roster: Climb[];
+  onPick: (seat: PlaceSeat) => void;
   onTrialFinished: () => void;
   onLevelsChanged: () => void;
   onClock: () => void;
@@ -651,11 +659,21 @@ function AppGate({
     setFirstName(studentName);
   }, [studentName]);
 
+  useEffect(() => {
+    setPlace(seat?.place ?? null);
+    setNeedsNew(Boolean(seat?.fresh));
+  }, [seat]);
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     const name = firstName.trim().replace(/\s+/g, " ");
     if (!name) {
       setError("Enter the student’s first name.");
+      return;
+    }
+    const refusal = namePlaceMessage(students, name, place);
+    if (refusal) {
+      setError(refusal);
       return;
     }
     setError("");
@@ -857,18 +875,18 @@ function AppGate({
             <button
               key={choice.index}
               type="button"
-              aria-pressed={place === choice.index && choice.open}
+              aria-pressed={place === choice.index}
               data-student-place={choice.index}
               data-student-place-state={choice.open ? "open" : "used"}
-              className="min-h-12 rounded-xl border border-line bg-paper px-4 text-base font-semibold text-ink"
+              data-student-place-picked={place === choice.index ? "yes" : "no"}
+              className={
+                place === choice.index
+                  ? "student-place-picked min-h-12 rounded-xl border-2 border-accent bg-accent px-4 text-base font-semibold text-accent-ink"
+                  : "min-h-12 rounded-xl border border-line bg-paper px-4 text-base font-semibold text-ink"
+              }
               onClick={() => {
-                if (!choice.open) {
-                  setPlace(null);
-                  setError(placeTakenMessage(choice.index));
-                  return;
-                }
                 setError("");
-                setPlace(choice.index);
+                onPick(placeTapResult(choice));
               }}
             >
               {placeChoiceLabel(choice.index, choice.open ? "" : choice.name)}

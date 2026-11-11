@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ListeningCue } from "@/components/listening-cue";
 import {
   ALPHABET_HAPPY_FACE_MS,
   ALPHABET_LETTER_MS,
@@ -23,8 +24,11 @@ import {
 import { holdEngineAudio, holdEngineLetter, holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import { voiceAllowedNow } from "@/lib/voice-consent-api";
+import { listenerRestartAllowed } from "@/lib/speech/answer-window";
 import {
+  MIC_DENIED_LINE,
   SPEAK_FAILED_LINE,
+  askMicrophone,
   createListener,
   isNativeApp,
   listenerReady,
@@ -619,7 +623,7 @@ export function AlphabetStage({
     let permissionTries = 0;
     let shownClock = false;
     let shownSeconds: number | null = null;
-    const letterAt = performance.now();
+    let letterAt = performance.now();
     let micStartAt: number | null = null;
     let audioAt: number | null = null;
     let closedAt: number | null = null;
@@ -723,8 +727,15 @@ export function AlphabetStage({
     };
 
     if (listening) {
-      void voiceAllowedNow().then((ok) => {
+      void voiceAllowedNow().then(async (ok) => {
       if (!live || !ok) return;
+      const permit = await askMicrophone();
+      if (!live) return;
+      if (permit !== "granted") {
+        setListenNote(MIC_DENIED_LINE);
+        setUnsupported(true);
+        return;
+      }
       rec = createListener() as SpeechListener | null;
       if (!rec) return;
         rec.lang = "en-US";
@@ -804,6 +815,7 @@ export function AlphabetStage({
         rec.onerror = (event) => {
           const error = event.error;
           const restartListening = () => {
+            if (!listenerRestartAllowed()) return;
             try {
               rec?.abort();
             } catch {
@@ -812,7 +824,12 @@ export function AlphabetStage({
             releaseRecognizer(serial);
             scheduleRestart();
           };
-          if (error === "not-available" || error === "not-allowed" || error === "service-not-allowed") {
+          if (error === "not-allowed" || error === "service-not-allowed") {
+            setListenNote(MIC_DENIED_LINE);
+            setUnsupported(true);
+            return;
+          }
+          if (error === "not-available") {
             setListenNote(PHONE_CANNOT_HEAR);
             setUnsupported(true);
             return;
@@ -835,9 +852,11 @@ export function AlphabetStage({
           setMicLive(false);
           releaseRecognizer(serial);
           if (!live || settled.current || decided || !rec) return;
+          if (!listenerRestartAllowed()) return;
           if (!micRestartAllowed(audioAt, performance.now())) return;
           scheduleRestart();
         };
+        letterAt = performance.now();
         clockFrame = requestAnimationFrame(pump);
         const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
         if (next != null) {
@@ -998,8 +1017,15 @@ export function AlphabetStage({
       noteHeard("");
     };
     if (listening) {
-      void voiceAllowedNow().then((ok) => {
+      void voiceAllowedNow().then(async (ok) => {
       if (!live || !ok) return;
+      const permit = await askMicrophone();
+      if (!live) return;
+      if (permit !== "granted") {
+        setListenNote(MIC_DENIED_LINE);
+        setUnsupported(true);
+        return;
+      }
       rec = createListener() as SpeechListener | null;
       if (!rec) return;
         rec.lang = "en-US";
@@ -1074,6 +1100,7 @@ export function AlphabetStage({
         rec.onerror = (event) => {
           const error = event.error;
           const restartListening = () => {
+            if (!listenerRestartAllowed()) return;
             try {
               rec?.abort();
             } catch {
@@ -1082,7 +1109,12 @@ export function AlphabetStage({
             releaseRecognizer(serial);
             scheduleRestart();
           };
-          if (error === "not-available" || error === "not-allowed" || error === "service-not-allowed") {
+          if (error === "not-allowed" || error === "service-not-allowed") {
+            setListenNote(MIC_DENIED_LINE);
+            setUnsupported(true);
+            return;
+          }
+          if (error === "not-available") {
             setListenNote(PHONE_CANNOT_HEAR);
             setUnsupported(true);
             return;
@@ -1104,9 +1136,11 @@ export function AlphabetStage({
           setMicLive(false);
           releaseRecognizer(serial);
           if (!live || decided || !rec) return;
+          if (!listenerRestartAllowed()) return;
           if (!micRestartAllowed(audioAt, performance.now())) return;
           scheduleRestart();
         };
+        letterAt = performance.now();
         clockFrame = requestAnimationFrame(pump);
         const next = beginWhenReady(rec, scheduleRestart, () => audioAt != null);
         if (next != null) {
@@ -1274,13 +1308,14 @@ export function AlphabetStage({
   const shownSwatch = view.shown ? colors[letters.indexOf(view.shown.toUpperCase())] : undefined;
   const pairSwatch = colors[letters.indexOf(view.letter)] ?? colors[0];
   const background = view.kind === "ask" && shownSwatch ? shownSwatch.background : undefined;
-  const status = phase === "prompt" ? "Speaking" : phase === "listen" ? (micLive ? "Listening" : "") : phase === "good-job" || phase === "celebrate" ? "Good job" : "Happy Face";
+  const status = phase === "prompt" ? "Speaking" : phase === "listen" ? "" : phase === "good-job" || phase === "celebrate" ? "Good job" : "Happy Face";
 
   return (
     <section className="sp-review" style={background ? { background } : undefined} aria-live="polite">
       <AlphabetJumps current={exercise} onPick={beginExercise} />
       <p className="text-center text-base font-semibold text-ink">Exercise {view.exercise}</p>
       <p className="text-center text-xs tracking-wide text-muted uppercase">{status}</p>
+      <ListeningCue on={micLive} />
       <p className="mt-2 text-center text-sm text-ink">{LISTENING_BEST}</p>
       {phase === "celebrate" ? (
         <div className="sp-celebrate" aria-label={GOOD_JOB_LINE}>

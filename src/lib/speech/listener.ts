@@ -109,6 +109,48 @@ export function useListenPorts(next: ListenPorts | null) {
   listenPorts = next;
 }
 
+/**
+ * Ask the phone for the microphone and wait for the parent's answer.
+ * This does not start listening. The word's timer stays off until this returns.
+ * A later word checks again. Already decided answers return without a new dialog.
+ */
+export async function askMicrophone(): Promise<"granted" | "denied"> {
+  const ports = listenPorts;
+  if (ports) return ports.permit();
+  if (isNativeApp()) {
+    try {
+      const current = await SpeechRecognition.checkPermissions();
+      if (current.speechRecognition === "granted") return "granted";
+      if (current.speechRecognition === "denied") return "denied";
+      const asked = await SpeechRecognition.requestPermissions();
+      return asked.speechRecognition === "granted" ? "granted" : "denied";
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err ?? "");
+      if (/permission/i.test(message)) return "denied";
+      try {
+        const asked = await SpeechRecognition.requestPermissions();
+        return asked.speechRecognition === "granted" ? "granted" : "denied";
+      } catch {
+        return "denied";
+      }
+    }
+  }
+  return webMicrophone();
+}
+
+async function webMicrophone(): Promise<"granted" | "denied"> {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    return webRecognitionCtor() ? "granted" : "denied";
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    for (const track of stream.getTracks()) track.stop();
+    return "granted";
+  } catch {
+    return "denied";
+  }
+}
+
 export function nativeSpeechActive(): boolean {
   return nativeSpeaking;
 }

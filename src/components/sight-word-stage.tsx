@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { ListeningCue } from "@/components/listening-cue";
 import { holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import { voiceAllowedNow } from "@/lib/voice-consent-api";
+import { answerWindowLeft } from "@/lib/speech/answer-window";
 import {
+  MIC_DENIED_LINE,
   SPEAK_FAILED_LINE,
+  askMicrophone,
   createListener,
   listenFailureLine,
   listenKind,
@@ -25,6 +29,8 @@ type SpeechListener = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  onstart: (() => void) | null;
+  onaudiostart: (() => void) | null;
   onresult: ((event: SpeechEvent) => void) | null;
   onerror: ((event: { error?: string }) => void) | null;
   onend: (() => void) | null;
@@ -61,6 +67,10 @@ export function SightWordStage({
   const [phase, setPhase] = useState<"show" | "sparkle" | "speak">("show");
   const [listenNote, setListenNote] = useState(PHONE_CANNOT_HEAR);
   const [quiet, setQuiet] = useState(false);
+  const [permit, setPermit] = useState<"wait" | "ready" | "denied">("wait");
+  const [hearing, setHearing] = useState(false);
+  const shownAt = useRef<number | null>(null);
+  const holdingMic = useRef(false);
   const onDoneRef = useRef(onDone);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
   const advanceRef = useRef(0);
@@ -74,7 +84,31 @@ export function SightWordStage({
 
   useEffect(() => {
     setPhase("show");
-  }, [word]);
+    setHearing(false);
+    shownAt.current = null;
+    if (!voiceAllowed) {
+      holdingMic.current = false;
+      setPermit("ready");
+      return;
+    }
+    holdingMic.current = true;
+    setPermit("wait");
+    let live = true;
+    void askMicrophone().then((answer) => {
+      if (!live) return;
+      holdingMic.current = false;
+      if (answer === "denied") {
+        setListenNote(MIC_DENIED_LINE);
+        setUnsupported(true);
+        setPermit("denied");
+        return;
+      }
+      setPermit("ready");
+    });
+    return () => {
+      live = false;
+    };
+  }, [voiceAllowed, word]);
 
   useEffect(() => setCannotSpeakHook(() => setQuiet(true)), []);
 
@@ -91,16 +125,17 @@ export function SightWordStage({
   }, [listening]);
 
   useEffect(() => {
-    if (!ready || phase !== "show" || (voiceAllowed && !listening && !unsupported)) return;
+    if (!ready || phase !== "show") return;
     let live = true;
     const settled = { current: false };
     let rec: SpeechListener | null = null;
-    const timer = window.setTimeout(() => finishRef.current("timeout"), SIGHT_WORD_MAX_SHOW_MS);
+    let timer = 0;
 
     finishRef.current = (outcome: Outcome) => {
       if (!live || settled.current) return;
       settled.current = true;
       window.clearTimeout(timer);
+      setHearing(false);
       try {
         rec?.abort();
       } catch {
@@ -119,7 +154,19 @@ export function SightWordStage({
       });
     };
 
-    if (listening) {
+    if (voiceAllowed && (permit === "wait" || holdingMic.current)) {
+      return () => {
+        live = false;
+      };
+    }
+
+    if (!(voiceAllowed && permit === "denied")) {
+      if (shownAt.current == null) shownAt.current = performance.now();
+      const left = answerWindowLeft(shownAt.current, performance.now(), SIGHT_WORD_MAX_SHOW_MS);
+      timer = window.setTimeout(() => finishRef.current("timeout"), left);
+    }
+
+    if (listening && permit === "ready") {
       void voiceAllowedNow().then((ok) => {
         if (!live || settled.current || !ok) return;
         rec = createListener();
@@ -127,6 +174,8 @@ export function SightWordStage({
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
+        rec.onstart = () => setHearing(true);
+        rec.onaudiostart = () => setHearing(true);
         rec.onresult = (event) => {
           noteEngineActivity();
           const start = event.resultIndex ?? 0;
@@ -146,17 +195,13 @@ export function SightWordStage({
         rec.onerror = (event) => {
           const kind = listenKind(event.error);
           if (!kind) return;
-          setListenNote(listenFailureLine(kind));
+          setListenNote(kind === "denied" ? MIC_DENIED_LINE : listenFailureLine(kind));
+          setHearing(false);
           setUnsupported(true);
         };
         rec.onend = () => {
           noteEngineActivity();
-          if (!live || settled.current || !rec) return;
-          try {
-            rec.start();
-          } catch {
-            /* start races with abort */
-          }
+          setHearing(false);
         };
         try {
           rec.start();
@@ -169,13 +214,14 @@ export function SightWordStage({
     return () => {
       live = false;
       window.clearTimeout(timer);
+      setHearing(false);
       try {
         rec?.abort();
       } catch {
         /* already stopped */
       }
     };
-  }, [entry.also, listening, phase, ready, unsupported, voiceAllowed, word]);
+  }, [entry.also, listening, permit, phase, ready, unsupported, voiceAllowed, word]);
 
   useEffect(() => {
     return () => {
@@ -191,8 +237,9 @@ export function SightWordStage({
 
   return (
     <section className="mt-6" aria-live="polite">
-      <p className="text-center text-xs tracking-wide text-muted uppercase">{listening ? "Listening" : "Sight word"}</p>
+      <p className="text-center text-xs tracking-wide text-muted uppercase">Sight word</p>
       <p className="mt-2 text-center text-sm text-ink">{LISTENING_BEST}</p>
+      <ListeningCue on={hearing} />
       <div className={phase === "sparkle" ? "sight-sparkle relative mt-4" : "relative mt-4"}>
         {shown ? (
           <p className="sight-word font-display font-semibold" style={{ color: colorFor(word) }}>

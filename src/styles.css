@@ -252,6 +252,33 @@
   }
 }
 
+.listening-cue {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  color: var(--color-ink);
+  font-size: 1.125rem;
+}
+
+.listening-mic {
+  transform-origin: center bottom;
+  animation: listening-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes listening-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
 /* Alphabet review changes one letter every 1.5s, under 3 changes per second. */
 .sp-review {
   display: flex;

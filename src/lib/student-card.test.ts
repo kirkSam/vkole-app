@@ -15,6 +15,9 @@ import {
   openingForNewClimb,
   placeChoiceLabel,
   placeTakenMessage,
+  placeTapResult,
+  enrollNameAtPlace,
+  namePlaceMessage,
   studentCardButtons,
   studentPlaceChoices,
 } from "./student-card.ts";
@@ -57,6 +60,10 @@ describe("two-student card", () => {
     assert.equal(home.includes("SAME_PLACE_LINE"), true);
     assert.equal(home.includes("placeChoiceLabel"), true);
     assert.equal(home.includes("placeTakenMessage"), true);
+    assert.equal(home.includes("placeTapResult"), true);
+    assert.equal(home.includes("namePlaceMessage"), true);
+    assert.equal(home.includes("student-place-picked"), true);
+    assert.equal(home.includes("onPick(placeTapResult(choice))"), true);
     assert.equal(home.includes("PICK_PLACE_LINE"), true);
     const placeAt = home.indexOf('aria-label="Student place"');
     const pickAt = home.indexOf("{PICK_PLACE_LINE}");
@@ -69,6 +76,22 @@ describe("two-student card", () => {
     assert.equal(home.includes("Student {choice.index} — {choice.name}"), false);
     assert.equal(home.includes("That place already has a child"), false);
     assert.equal(card.includes("SAME_PLACE_LINE"), true);
+  });
+
+  it("selects an open place with a clear name, and a used place with that child", () => {
+    assert.deepEqual(placeTapResult({ index: 2, name: "open", open: true }), { place: 2, name: "", fresh: true });
+    assert.deepEqual(placeTapResult({ index: 1, name: "Jeff", open: false }), { place: 1, name: "Jeff", fresh: false });
+    const roster = [
+      { index: 1, name: "Jeff" },
+      { index: 2, name: "" },
+    ];
+    assert.equal(enrollNameAtPlace(roster, "Sam", 2), "ok");
+    assert.equal(enrollNameAtPlace(roster, "Jeff", 1), "ok");
+    assert.equal(enrollNameAtPlace(roster, "Jeff", 2), "other-place");
+    assert.equal(enrollNameAtPlace(roster, "Sam", 1), "taken");
+    assert.equal(namePlaceMessage(roster, "Jeff", 2), "Jeff is already Student 1.");
+    assert.equal(namePlaceMessage(roster, "Sam", 1), "Student 1 is taken.");
+    assert.equal(namePlaceMessage(roster, "Sam", null), null);
   });
 
   it("uses the first word on the button and keeps the saved name for sign-in", () => {

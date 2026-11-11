@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { ListeningCue } from "@/components/listening-cue";
 import { holdEngineMic, noteEngineActivity } from "@/lib/engine-activity";
 import { LISTENING_BEST, PARENT_NEEDS_VOICE, PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import { voiceAllowedNow } from "@/lib/voice-consent-api";
+import { answerWindowLeft } from "@/lib/speech/answer-window";
 import {
+  MIC_DENIED_LINE,
   PA_NEEDS_SOUND_LINE,
+  askMicrophone,
   createListener,
   isNativeApp,
   listenFailureLine,
@@ -24,6 +28,8 @@ type SpeechListener = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  onstart: (() => void) | null;
+  onaudiostart: (() => void) | null;
   onresult: ((event: SpeechEvent) => void) | null;
   onerror: ((event: { error?: string }) => void) | null;
   onend: (() => void) | null;
@@ -60,6 +66,10 @@ export function PhonemicStage({
   const [spoken, setSpoken] = useState(true);
   const [listenNote, setListenNote] = useState(PHONE_CANNOT_HEAR);
   const [quiet, setQuiet] = useState(false);
+  const [permit, setPermit] = useState<"wait" | "ready" | "denied">("wait");
+  const [hearing, setHearing] = useState(false);
+  const shownAt = useRef<number | null>(null);
+  const holdingMic = useRef(false);
   const onDoneRef = useRef(onDone);
   const itemRef = useRef(item);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
@@ -76,7 +86,32 @@ export function PhonemicStage({
 
   useEffect(() => {
     setPhase("prompt");
-  }, [item.id]);
+    setHearing(false);
+    shownAt.current = null;
+    if (!voiceAllowed) {
+      holdingMic.current = false;
+      setPermit("ready");
+      return;
+    }
+    holdingMic.current = true;
+    setPermit("wait");
+    let live = true;
+    void askMicrophone().then((answer) => {
+      if (!live) return;
+      holdingMic.current = false;
+      if (answer === "denied") {
+        setListenNote(MIC_DENIED_LINE);
+        setUnsupported(true);
+        setPermit("denied");
+        setPhase("listen");
+        return;
+      }
+      setPermit("ready");
+    });
+    return () => {
+      live = false;
+    };
+  }, [item.id, voiceAllowed]);
 
   useEffect(() => {
     noteEngineActivity();
@@ -98,6 +133,8 @@ export function PhonemicStage({
 
   useEffect(() => {
     if (!ready || !waiting || phase !== "prompt") return;
+    if (voiceAllowed && permit !== "ready") return;
+    if (voiceAllowed && holdingMic.current) return;
     let live = true;
     const stop = speakLine(item.say, () => {
       if (live) setPhase("listen");
@@ -107,19 +144,20 @@ export function PhonemicStage({
       stop();
       stopSpeaking();
     };
-  }, [item.say, phase, ready, waiting]);
+  }, [item.say, permit, phase, ready, voiceAllowed, waiting]);
 
   useEffect(() => {
     if (!ready || phase !== "listen") return;
     let live = true;
     const settled = { current: false };
     let rec: SpeechListener | null = null;
-    const timer = window.setTimeout(() => finishRef.current("timeout"), PA_MAX_SHOW_MS);
+    let timer = 0;
 
     finishRef.current = (outcome: Outcome) => {
       if (!live || settled.current) return;
       settled.current = true;
       window.clearTimeout(timer);
+      setHearing(false);
       try {
         rec?.abort();
       } catch {
@@ -139,7 +177,19 @@ export function PhonemicStage({
       });
     };
 
-    if (listening) {
+    if (voiceAllowed && (permit === "wait" || holdingMic.current)) {
+      return () => {
+        live = false;
+      };
+    }
+
+    if (!(voiceAllowed && permit === "denied")) {
+      if (shownAt.current == null) shownAt.current = performance.now();
+      const left = answerWindowLeft(shownAt.current, performance.now(), PA_MAX_SHOW_MS);
+      timer = window.setTimeout(() => finishRef.current("timeout"), left);
+    }
+
+    if (listening && permit === "ready") {
       void voiceAllowedNow().then((ok) => {
         if (!live || settled.current || !ok) return;
         rec = createListener();
@@ -147,6 +197,8 @@ export function PhonemicStage({
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
+        rec.onstart = () => setHearing(true);
+        rec.onaudiostart = () => setHearing(true);
         rec.onresult = (event) => {
           noteEngineActivity();
           const start = event.resultIndex ?? 0;
@@ -166,17 +218,13 @@ export function PhonemicStage({
         rec.onerror = (event) => {
           const kind = listenKind(event.error);
           if (!kind) return;
-          setListenNote(listenFailureLine(kind));
+          setListenNote(kind === "denied" ? MIC_DENIED_LINE : listenFailureLine(kind));
+          setHearing(false);
           setUnsupported(true);
         };
         rec.onend = () => {
           noteEngineActivity();
-          if (!live || settled.current || !rec) return;
-          try {
-            rec.start();
-          } catch {
-            /* start races with abort */
-          }
+          setHearing(false);
         };
         try {
           rec.start();
@@ -189,13 +237,14 @@ export function PhonemicStage({
     return () => {
       live = false;
       window.clearTimeout(timer);
+      setHearing(false);
       try {
         rec?.abort();
       } catch {
         /* already stopped */
       }
     };
-  }, [item.id, listening, phase, ready, voiceAllowed]);
+  }, [item.id, listening, permit, phase, ready, voiceAllowed]);
 
   useEffect(() => {
     return () => {
@@ -231,8 +280,9 @@ export function PhonemicStage({
           </div>
         </div>
       ) : null}
+      <ListeningCue on={hearing} />
       <p className="text-center text-xs tracking-wide text-muted uppercase">
-        {phase === "prompt" ? "Speaking" : phase === "listen" ? "Listening" : phase === "sparkle" ? "Heard" : "Answer"}
+        {phase === "prompt" ? "Speaking" : phase === "sparkle" ? "Heard" : phase === "listen" ? "Answer" : "Answer"}
       </p>
       <div className={phase === "sparkle" ? "sight-sparkle relative mt-4 min-h-16" : "relative mt-4 min-h-16"}>
         {phase === "listen" || phase === "prompt" ? <p className="text-center text-lg text-ink">{item.say}</p> : null}

@@ -4,7 +4,7 @@ import { childAccess, rollRenewals } from "@/lib/subscription";
 import { getSql, type Sql } from "@/lib/db";
 import { schoolMiddleware } from "@/lib/school-middleware";
 import { THIRD_STUDENT_MESSAGE, accountIdOf, isSchoolAccountId, studentIndexOf, studentScopeId } from "@/lib/school-account";
-import { mergeFamilyStudents, openingForNewClimb, type SiteOpening } from "@/lib/student-card";
+import { enrollNameAtPlace, mergeFamilyStudents, openingForNewClimb, type SiteOpening } from "@/lib/student-card";
 import { TRIAL_MS } from "@/lib/academic-email";
 import { dealQuestion } from "@/lib/question-history";
 import { practicePromptText, rememberPrompt } from "@/lib/next-sheet";
@@ -237,6 +237,7 @@ async function placeWebsiteStudent(
     .map((student) => ({ index: student.index, name: "", age: null as number | null, startingGrade: null as number | null }));
   const roster = mergeFamilyStudents(local?.students, places);
   const cap = isWebsiteMasterEmail(userId, process.env.VKOLE_MASTER_EMAIL) ? Number.POSITIVE_INFINITY : 2;
+  if (enrollNameAtPlace(roster, data.firstName, data.place) !== "ok") return { status: "taken" };
   const gate = decideStudent(local?.studentName, data.firstName, roster, cap);
   if (gate === "extra") return { status: "extra" };
   if (gate === "same") {
