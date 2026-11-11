@@ -4,6 +4,7 @@ import { SpeechRecognition } from "@capgo/capacitor-speech-recognition";
 import { holdEngineAudio, noteEngineActivity } from "@/lib/engine-activity";
 import { PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import { SPOKEN_ANSWER_MS } from "@/lib/speech/answer-window";
+import { releaseBeepMute } from "@/lib/speech/chime";
 
 /** Shown before the phone asks for the microphone. */
 export const MIC_ASK_LINE =
@@ -379,6 +380,7 @@ export function useSpeakPorts(next: SpeakPorts | null) {
 
 /** Say one line. The browser uses speechSynthesis. The Android app uses the speech plugin. */
 export function speakAloud(line: string, done: () => void, options: SpeakOptions): () => void {
+  releaseBeepMute();
   const native = speakPorts ? speakPorts.native : isNativeApp();
   if (!line.trim()) {
     noteEngineActivity();
