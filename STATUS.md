@@ -1,3 +1,10 @@
+## 2026-11-12 clear test data (App Builder)
+**Shipped (merged):** not yet. The master account can count this app's saved family records, then confirm and delete the other accounts' records. Tables and operator settings stay.
+**Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N". After publish, run it on the live app. The before counts should name Jeff.
+**Mirrors needed on website:** no. The website already has its own clear button.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word.
+
 ## 2026-11-11 clock starts after the chime (App Builder)
 **Shipped (merged):** not yet. When the chime plays, the 20-second clock and Alphabet's 6-second clock start when the microphone opens. The chime plays at 0.5, the same as the website.
 **Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N".

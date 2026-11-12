@@ -33,6 +33,7 @@ import { PASTEL_NAV } from "@/lib/pastel-nav";
 import { VoiceAnswerSetting, VoiceAnswers } from "@/components/voice-answers";
 import { saveVoiceConsent, readVoiceConsent } from "@/lib/voice-consent-api";
 import { LISTENING_BEST, VOICE_CONSENT_VERSION, VOICE_NOT_ASKED, publishVoiceConsent, type VoiceConsent } from "@/lib/voice-consent";
+import { ClearTestData } from "@/components/clear-test-data";
 import { clearSignInPassword, peekSignInPassword } from "@/lib/voice-password";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -617,6 +618,7 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
           />
         ))}
       </div>
+      <ClearTestData />
     </Shell>
   );
 }
