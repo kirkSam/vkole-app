@@ -1,3 +1,10 @@
+## 2026-11-15 Update 9 is saved, not started (App Builder)
+**Shipped (merged):** not yet. Update 9, the VEKOLE names, is saved. The name sweep has not started. Update 6 is discarded.
+**Open, needs Sam:** The memory package is kirkSam/vekole-engine tag v0.1.0. It is not connected to the app. Say go after it is live on both sides before any name change.
+**Mirrors needed on website:** the same saved memo. The website sweep goes first, when Sam says go.
+**Blocked:** none
+**Next:** Claude reviews the engine commit. Do not rename anything yet.
+
 ## 2026-11-12 clear test data (App Builder)
 **Shipped (merged):** not yet. The master account can count this app's saved family records, then confirm and delete the other accounts' records. Tables and operator settings stay.
 **Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N". After publish, run it on the live app. The before counts should name Jeff.
