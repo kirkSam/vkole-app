@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
-import { AGREED_VERSION } from "@kirkpatrick/vekole-engine";
+import { AGREED_VERSION, VEKOLE_SETTINGS } from "@kirkpatrick/vekole-engine";
 import { cycleInstruction } from "./vkole-cycle.ts";
 import {
   CONNECTED_ENGINE,
@@ -9,6 +9,8 @@ import {
   cleanTypedAnswer,
   freshEngineSession,
   scoreEngineItem,
+  scoreSightWord,
+  sightListAdvances,
   type ItemMemory,
 } from "./engine-connect.ts";
 
@@ -28,6 +30,7 @@ describe("connected engine", () => {
   it("pins the shared package at v0.1.3", () => {
     assert.equal(CONNECTED_ENGINE, "v0.1.3");
     assert.equal(AGREED_VERSION, "v0.1.3");
+    assert.equal(VEKOLE_SETTINGS.answerLimit, 500);
     const installed = readFileSync(new URL("../../node_modules/@kirkpatrick/vekole-engine/package.json", import.meta.url), "utf8");
     assert.match(installed, /"version": "0.1.3"/);
   });
@@ -114,5 +117,35 @@ describe("connected engine", () => {
       subject: "m",
     });
     assert.equal(tired.itemKey, null);
+  });
+
+  it("stays on a sight-word list at 69% and moves at 70%", () => {
+    assert.equal(VEKOLE_SETTINGS.sightWordsListRule, 0.7);
+    assert.equal(sightListAdvances(69, 100), false);
+    assert.equal(sightListAdvances(70, 100), true);
+    const source = readFileSync(new URL("./engine-connect.ts", import.meta.url), "utf8");
+    const start = source.indexOf("export function sightListAdvances");
+    const end = source.indexOf("export function sightItemKey");
+    const fn = source.slice(start, end);
+    assert.equal(fn.includes("0.7"), false);
+    assert.match(fn, /sightWordsListRule/);
+    const missed = scoreSightWord({
+      session: freshEngineSession(NOW),
+      records: [],
+      itemKey: "sw:D-1:2",
+      correct: false,
+      elapsedMs: 4000,
+      now: NOW,
+      });
+    assert.equal(missed.records[0]?.known, false);
+    const later = new Date(NOW.getTime() + 2 * 86_400_000);
+    const review = chooseNextServe({
+      session: { ...missed.session, itemsServed: 3, reviewsServed: 0 },
+      records: missed.records,
+      now: later,
+      subject: "sw",
+    });
+    assert.equal(review.itemKey, "sw:D-1:2");
+    assert.equal(review.session.serveKind, "review");
   });
 });

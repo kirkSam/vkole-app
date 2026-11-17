@@ -1,6 +1,6 @@
 ## 2026-11-17 connect engine v0.1.3 (App Builder)
-**Shipped (merged):** not yet. The app pins kirkSam/vekole-engine tag v0.1.3. Typed answers are cleaned before Grok. Memory records stay in this app's database. A review or a re-check does not change the growth level.
-**Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N".
+**Shipped (merged):** not yet. The app pins kirkSam/vekole-engine tag v0.1.3. Typed answers are cleaned before Grok. Memory records stay in this app's database. A review or a re-check does not change the growth level. Sight Words moves to the next list at the package's sightWordsListRule (70%). Missed words stay in memory and return as reviews.
+**Open, needs Sam:** Claude reviews the latest commit on #80. Merge only after "merge #N".
 **Mirrors needed on website:** yes, the same tag, in the website's own connection.
 **Blocked:** none
 **Next:** Wait for Claude, then Sam's merge word.

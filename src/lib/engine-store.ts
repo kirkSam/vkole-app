@@ -3,7 +3,12 @@ import { parseVariantId, poolQuestion, type PoolQuestion } from "@/lib/question-
 import {
   chooseNextServe,
   freshEngineSession,
+  knownOnList,
+  nextSightPlace,
+  parseSightItemKey,
   scoreEngineItem,
+  scoreSightWord,
+  sightItemKey,
   type EngineSession,
   type ItemMemory,
 } from "@/lib/engine-connect";
@@ -55,6 +60,7 @@ export async function ensureEngineStore(sql: Sql): Promise<void> {
       last_practiced_at timestamptz not null,
       reviews integer not null,
       misses integer not null,
+      known integer not null default 0,
       primary key (user_id, child_key, item_key)
     )
   `;
@@ -72,6 +78,7 @@ export async function ensureEngineStore(sql: Sql): Promise<void> {
       rechecked text not null default ''
     )
   `;
+  await sql`alter table memory_records add column if not exists known integer not null default 0`;
 }
 
 async function loadRecords(sql: Sql, userId: string, childName: string): Promise<ItemMemory[]> {
@@ -81,8 +88,9 @@ async function loadRecords(sql: Sql, userId: string, childName: string): Promise
     last_practiced_at: unknown;
     reviews: number | string;
     misses: number | string;
+    known: number | string | null;
   }>`
-    select item_key, strength_days, last_practiced_at, reviews, misses
+    select item_key, strength_days, last_practiced_at, reviews, misses, known
     from memory_records
     where user_id = ${userId} and child_key = ${childKey(childName)}
   `;
@@ -92,23 +100,26 @@ async function loadRecords(sql: Sql, userId: string, childName: string): Promise
     lastPracticedAt: new Date(row.last_practiced_at as string).toISOString(),
     reviews: Number(row.reviews) || 0,
     misses: Number(row.misses) || 0,
+    known: Number(row.known) === 1,
   }));
 }
 
 async function saveRecords(sql: Sql, userId: string, childName: string, records: ItemMemory[]): Promise<void> {
   const key = childKey(childName);
   for (const record of records) {
+    const known = record.known === true ? 1 : 0;
     await sql`
-      insert into memory_records (user_id, child_key, item_key, strength_days, last_practiced_at, reviews, misses)
+      insert into memory_records (user_id, child_key, item_key, strength_days, last_practiced_at, reviews, misses, known)
       values (
         ${userId}, ${key}, ${record.itemKey}, ${record.strengthDays},
-        ${record.lastPracticedAt}, ${record.reviews}, ${record.misses}
+        ${record.lastPracticedAt}, ${record.reviews}, ${record.misses}, ${known}
       )
       on conflict (user_id, child_key, item_key) do update set
         strength_days = ${record.strengthDays},
         last_practiced_at = ${record.lastPracticedAt},
         reviews = ${record.reviews},
-        misses = ${record.misses}
+        misses = ${record.misses},
+        known = ${known}
     `;
   }
 }
@@ -210,4 +221,74 @@ export async function applyEngineAnswer(
   await saveSession(sql, input.userId, input.climbId, chosen.session);
   const next = chosen.itemKey && chosen.itemKey.startsWith(`${input.subject}:`) ? questionForItem(chosen.itemKey) : null;
   return { holdLevel: scored.holdLevel, earlyStepDown: scored.earlyStepDown, next };
+}
+
+/** Sight words use the package's 70% list rule. A miss stays in memory and can return. */
+export async function applySightAnswer(
+  sql: Sql,
+  input: {
+    userId: string;
+    childName: string;
+    climbId: string;
+    itemKey: string;
+    cursorBand: string;
+    cursorIndex: number;
+    listSize: number;
+    bands: readonly string[];
+    correct: boolean;
+    elapsedMs: number;
+    now?: Date;
+  },
+): Promise<{ showBand: string; showIndex: number; cursorBand: string; cursorIndex: number; advanced: boolean }> {
+  await ensureEngineStore(sql);
+  const now = input.now ?? new Date();
+  const rows = await sql<{
+    items_served: number | string;
+    reviews_served: number | string;
+    items_since_new: number | string;
+    last_new_at: unknown;
+    fatigue: string | null;
+    serve_kind: string | null;
+    serve_item: string | null;
+    rechecked: string | null;
+  }>`
+    select items_served, reviews_served, items_since_new, last_new_at, fatigue, serve_kind, serve_item, rechecked
+    from engine_sessions
+    where climb_id = ${input.climbId} and user_id = ${input.userId}
+  `;
+  const session = asSession(rows[0], now);
+  const wasReview = session.serveKind === "review" || session.serveKind === "recheck";
+  const records = await loadRecords(sql, input.userId, input.childName);
+  const scored = scoreSightWord({
+    session,
+    records,
+    itemKey: input.itemKey,
+    correct: input.correct,
+    elapsedMs: input.elapsedMs,
+    now,
+  });
+  const known = knownOnList(scored.records, input.cursorBand);
+  const unknown = new Set<number>();
+  for (let index = 0; index < input.listSize; index += 1) {
+    const key = sightItemKey(input.cursorBand, index);
+    const row = scored.records.find((item) => item.itemKey === key);
+    if (!row?.known) unknown.add(index);
+  }
+  const cursor = wasReview
+    ? { band: input.cursorBand, index: input.cursorIndex, advanced: false }
+    : nextSightPlace({
+        band: input.cursorBand,
+        index: input.cursorIndex,
+        listSize: input.listSize,
+        known,
+        bands: input.bands,
+        unknown,
+      });
+  const chosen = chooseNextServe({ session: scored.session, records: scored.records, now, subject: "sw" });
+  const review = chosen.itemKey ? parseSightItemKey(chosen.itemKey) : null;
+  const show = review ?? { band: cursor.band, index: cursor.index };
+  const saved = review ? chosen.session : { ...chosen.session, serveKind: "growth" as const, serveItem: "" };
+  await saveRecords(sql, input.userId, input.childName, scored.records);
+  await saveSession(sql, input.userId, input.climbId, saved);
+  return { showBand: show.band, showIndex: show.index, cursorBand: cursor.band, cursorIndex: cursor.index, advanced: cursor.advanced };
 }

@@ -13,16 +13,16 @@ import { getSql, type Sql } from "@/lib/db";
 import { childAccess } from "@/lib/subscription";
 import { settleGradingCall } from "@/lib/grading-pause";
 import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-history";
-import { applyEngineAnswer, questionShownAt, resetEngineSession } from "@/lib/engine-store";
-import { cleanTypedAnswer } from "@/lib/engine-connect";
+import { applyEngineAnswer, applySightAnswer, questionShownAt, resetEngineSession } from "@/lib/engine-store";
+import { cleanTypedAnswer, sightItemKey } from "@/lib/engine-connect";
 import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
 import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
 import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
 import { applyLetterAnswer, formatCompletedExercises, jumpToExercise, letterExercise, letterMoveNote, letterView, normalizeCompletedExercises, normalizeLetterProgress, noteExerciseCompletion, progressAfterSong, rememberCompletedExercise, resumeAlphabetPlace } from "@/lib/vkole/alphabet/items";
 import { savedAlphabetReport, alphabetStatsFromEvents, writeAlphabetReport } from "@/lib/vkole/alphabet/report";
 import { cardFromAccount as paCardFromAccount, migratePaBand, nextAfterAnswer, paPrompt } from "@/lib/vkole/phonemic-awareness/items";
-import { cardFromAccount, nextCard, startCard } from "@/lib/vkole/sight-words/words";
-import { isSightBand } from "@/lib/vkole/constants";
+import { SIGHT_WORD_BANDS, isSightBand } from "@/lib/vkole/constants";
+import { bandWords, cardFromAccount, sightCard, startCard } from "@/lib/vkole/sight-words/words";
 
 export type Climb = {
   id: string;
@@ -692,8 +692,27 @@ export const markSightWord = createServerFn({ method: "POST" })
       current.level,
     );
     const word = current.currentPrompt.trim() || place.word;
-    const next = nextCard(place.band, place.index, current.level);
     const correct = data.outcome === "correct";
+    const stored = await sql<{ question_id: string | null }>`
+      select question_id from climbs where id = ${data.id} and user_id = ${context.userId}
+    `;
+    const storedId = stored[0]?.question_id ?? "";
+    const shownKey = storedId.startsWith("sw:") ? storedId : sightItemKey(place.band, place.index);
+    const shownAt = await questionShownAt(sql, context.userId, data.id);
+    const placed = await applySightAnswer(sql, {
+      userId: context.userId,
+      childName: current.childName,
+      climbId: data.id,
+      itemKey: shownKey,
+      cursorBand: place.band,
+      cursorIndex: place.index,
+      listSize: bandWords(place.band).length,
+      bands: SIGHT_WORD_BANDS,
+      correct,
+      elapsedMs: Date.now() - shownAt,
+    });
+    const show = isSightBand(placed.showBand) ? sightCard(placed.showBand, placed.showIndex, current.level) : place;
+    const cursor = isSightBand(placed.cursorBand) ? sightCard(placed.cursorBand, placed.cursorIndex, current.level) : show;
     const earned = capVkoleGrade(Math.max(current.performanceLevel, current.level));
     const note =
       data.outcome === "correct"
@@ -708,16 +727,16 @@ export const markSightWord = createServerFn({ method: "POST" })
           correct_at_level = 0,
           incorrect_streak = 0,
           grading_failures = 0,
-          standard_step = ${next.index},
+          standard_step = ${cursor.index},
           asked = ${current.asked + 1},
           right_count = ${current.rightCount + (correct ? 1 : 0)},
-          standard_code = ${next.band},
-          standard_label = ${next.label},
-          current_prompt = ${next.word},
-          answer_key = ${next.word},
-          answer_aliases = ${JSON.stringify(next.also)},
-          answer_note = ${next.label},
-          question_id = ${`sw:${next.band}:${next.index}`},
+          standard_code = ${cursor.band},
+          standard_label = ${cursor.label},
+          current_prompt = ${show.word},
+          answer_key = ${show.word},
+          answer_aliases = ${JSON.stringify(show.also)},
+          answer_note = ${show.label},
+          question_id = ${sightItemKey(show.band, show.index)},
           next_prompt = '',
           last_feedback = ${note},
           awaiting_next = 0,
@@ -744,7 +763,7 @@ export const markSightWord = createServerFn({ method: "POST" })
       )
     `;
     await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sw", { word }));
-    await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sw", { word: next.word }));
+    await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sw", { word: show.word }));
     return selectOwned(sql, context.userId, data.id);
   });
 
