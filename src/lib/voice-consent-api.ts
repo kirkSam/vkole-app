@@ -15,7 +15,7 @@ export const readVoiceConsent = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<VoiceConsent> => {
     try {
       const { readSchoolAccount } = await import("@/lib/school-account.server");
-      const profile = await readSchoolAccount(accountIdOf(context.userId), { engineActive: true });
+      const profile = await readSchoolAccount(accountIdOf(context.userId));
       return profile.voiceConsent ?? VOICE_NOT_ASKED;
     } catch (err) {
       const { SchoolCallError } = await import("@/lib/school-account.server");
@@ -34,9 +34,7 @@ export const saveVoiceConsent = createServerFn({ method: "POST" })
   })
   .handler(async ({ context, data }): Promise<VoiceConsent & { listening: boolean }> => {
     const { shareVoiceConsent } = await import("@/lib/school-account.server");
-    const voiceConsent = await shareVoiceConsent(accountIdOf(context.userId), data.choice, data.password, {
-      engineActive: true,
-    });
+    const voiceConsent = await shareVoiceConsent(accountIdOf(context.userId), data.choice, data.password);
     if (voiceConsent.status === "not_asked") throw new Error("The website did not store voice answers.");
     return { ...voiceConsent, listening: voiceAnswersAllowed(voiceConsent) };
   });

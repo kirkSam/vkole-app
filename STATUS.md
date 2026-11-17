@@ -1,3 +1,10 @@
+## 2026-11-17 stale sign-in (App Builder)
+**Shipped (merged):** not yet. A rejected website session clears the saved sign-in and opens the sign-in page with "Please sign in again." Voice answers and the parent page do not stay up.
+**Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N".
+**Mirrors needed on website:** no.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word. The engine fatigue fix is a separate repository and is not connected.
+
 ## 2026-11-12 clear test data (App Builder)
 **Shipped (merged):** not yet. The master account can count this app's saved family records, then confirm and delete the other accounts' records. Tables and operator settings stay.
 **Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N". After publish, run it on the live app. The before counts should name Jeff.

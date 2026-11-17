@@ -29,6 +29,7 @@ import {
   type SchoolFailure,
   type SchoolProfile,
 } from "./school-account.ts";
+import { PLEASE_SIGN_IN_AGAIN, signInAgainError } from "./account-purge.ts";
 import { parseWebsiteVoiceConsent, type VoiceConsent } from "./voice-consent.ts";
 
 const PATHS = {
@@ -70,8 +71,8 @@ function offline(): SchoolCallError {
   return new SchoolCallError("offline", SCHOOL_OFFLINE_MESSAGE);
 }
 
-function signInAgain(spoken = ""): SchoolCallError {
-  return new SchoolCallError("unauthorized", spoken.trim() || "Sign in again.");
+function signInAgain(): SchoolCallError {
+  return new SchoolCallError("unauthorized", signInAgainError(PLEASE_SIGN_IN_AGAIN));
 }
 
 async function callSchool(
@@ -121,14 +122,14 @@ async function callSchool(
   }
   if (response.status >= 500) throw offline();
   if (response.status === 401 && deps?.token) {
-    throw signInAgain(websiteErrorText(parsed));
+    throw signInAgain();
   }
   const reason = failureKind(response.status, parsed);
   if (!response.ok) {
     if (reason === "offline") throw offline();
     if (reason === "wait") throw new SchoolCallError("wait", SCHOOL_WAIT_MESSAGE);
     if (reason === "gone") throw new SchoolCallError("gone", SCHOOL_ACCOUNT_GONE_MESSAGE);
-    if (reason === "unauthorized") throw signInAgain(websiteErrorText(parsed));
+    if (reason === "unauthorized") throw signInAgain();
     const signing = path === PATHS.signIn || path === PATHS.register;
     const spoken = redactPassword(websiteErrorText(parsed), passwordOf(body));
     throw new SchoolCallError(reason, schoolFailureMessage(signing, reason, spoken));

@@ -26,7 +26,7 @@ import { allowGmail, noteAccount } from "@/lib/ledger";
 import { useRefetchWhenConnectorReady } from "@/lib/app-data/use-connector-readiness";
 import { endReasonSentence, type EndReason } from "@/lib/academic-email";
 import { ALPHABET_REPORT_LABEL } from "@/lib/vkole/alphabet/report";
-import { ACCOUNT_GONE_FLAG } from "@/lib/account-purge";
+import { ACCOUNT_GONE_FLAG, isSignInAgainError, leaveForSignIn } from "@/lib/account-purge";
 import { clearStayInApp, ENGINE_PICKER_PARAM, isEnginePickerSearch, markStayInApp, shouldStayInApp } from "@/lib/engine-picker";
 import { takeZpdReturn } from "@/lib/zpd-info";
 import { PASTEL_NAV } from "@/lib/pastel-nav";
@@ -318,8 +318,13 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       .then((row) => {
         if (live) setVoice(row);
       })
-      .catch(() => {
-        if (live) setVoice(VOICE_NOT_ASKED);
+      .catch((err: unknown) => {
+        if (!live) return;
+        if (isSignInAgainError(err)) {
+          void leaveForSignIn(err instanceof Error ? err.message : "");
+          return;
+        }
+        setVoice(VOICE_NOT_ASKED);
       });
     return () => {
       live = false;
@@ -346,6 +351,10 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : "Voice answers could not be saved.";
+        if (isSignInAgainError(err)) {
+          void leaveForSignIn(message);
+          return;
+        }
         if (/password/i.test(message)) {
           clearSignInPassword();
           setAskPassword(true);
@@ -429,6 +438,10 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       })
       .catch((err: unknown) => {
         if (!live) return;
+        if (isSignInAgainError(err)) {
+          void leaveForSignIn(err instanceof Error ? err.message : "");
+          return;
+        }
         setClimbs([]);
         setLoadError(err instanceof Error ? err.message : "The climbs could not be loaded. Refresh the page.");
       });
