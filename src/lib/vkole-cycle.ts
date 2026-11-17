@@ -2,6 +2,7 @@ import { subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { capVkoleGrade, moveVkoleRung } from "@/lib/vkole-cap";
 import { poolCount, poolQuestion } from "@/lib/question-pool";
 import { studentFacingReply } from "@/lib/space-xsi";
+import { cleanTypedAnswer } from "@/lib/engine-connect";
 
 const SUBJECT_NAME: Record<SubjectId, string> = {
   m: "Mathematics",
@@ -226,7 +227,7 @@ export function cycleInstruction(input: {
     `Correct-in-a-row streak: ${input.correctStreak}.`,
     `Incorrect-in-a-row streak: ${input.incorrectStreak}.`,
     `Question: ${input.question}`,
-    `Answer: ${input.answer}`,
+    `Answer: ${cleanTypedAnswer(input.answer)}`,
     recent.length
       ? `The student has already seen these questions. Do not write a next question that repeats one of them or a near-duplicate:\n${recent.map((prompt, index) => `${index + 1}. ${prompt}`).join("\n")}`
       : "Do not repeat a question this student has already seen.",

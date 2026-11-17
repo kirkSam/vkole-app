@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "outDir": "../node_modules/@kirkpatrick/vekole-engine/dist",
+    "rootDir": "../node_modules/@kirkpatrick/vekole-engine/src",
+    "rewriteRelativeImportExtensions": true,
+    "skipLibCheck": true,
+    "declaration": false
+  },
+  "include": ["../node_modules/@kirkpatrick/vekole-engine/src/**/*.ts"],
+  "exclude": ["../node_modules/@kirkpatrick/vekole-engine/src/**/*.test.ts"]
+}

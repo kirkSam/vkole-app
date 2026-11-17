@@ -32,6 +32,8 @@ import { GRADING_PAUSE_MESSAGE, NO_REPLY_MESSAGE } from "@/lib/grading-pause";
 import { showAsSpaceXsi } from "@/lib/space-xsi";
 import { VKOLE_MOVEMENT } from "@/lib/vkole-cap";
 import { SIGHT_WORD_NOTE } from "@/lib/vkole/constants";
+import { isWebsiteMasterEmail } from "@/lib/school-account";
+import { REVIEWS_DUE_REFUSED, makeReviewsDueNow } from "@/lib/engine-due";
 import { ALPHABET_NOTE } from "@/lib/vkole/alphabet/items";
 import { ALPHABET_REPORT_LABEL } from "@/lib/vkole/alphabet/report";
 import { PA_NOTE } from "@/lib/vkole/phonemic-awareness/items";
@@ -124,6 +126,7 @@ function SessionPage() {
   const [alphabetHeard, setAlphabetHeard] = useState("");
   const [paRound, setPaRound] = useState(0);
   const [voiceAllowed, setVoiceAllowed] = useState(false);
+  const [dueNote, setDueNote] = useState("");
   const finishRef = useRef<(reason: EndReason, explicitLogout?: boolean) => void>(() => {});
 
   const userId = user?.id;
@@ -501,6 +504,22 @@ function SessionPage() {
         ) : null}
       </div>
       <p className="mt-3 text-sm text-muted">{climb.subject === "sw" ? SIGHT_WORD_NOTE : climb.subject === "sp" ? ALPHABET_NOTE : climb.subject === "pa" ? PA_NOTE : VKOLE_MOVEMENT}</p>
+      {isWebsiteMasterEmail(user?.primaryEmail ?? user?.id ?? "") ? (
+        <div className="mt-3">
+          <button
+            type="button"
+            className="min-h-11 rounded-xl border border-line px-4 text-sm text-ink"
+            onClick={() => {
+              void makeReviewsDueNow()
+                .then((result) => setDueNote(result.ok ? "Your reviews are due now." : REVIEWS_DUE_REFUSED))
+                .catch(() => setDueNote(REVIEWS_DUE_REFUSED));
+            }}
+          >
+            Make my reviews due now
+          </button>
+          {dueNote ? <p className="mt-2 text-sm text-muted">{dueNote}</p> : null}
+        </div>
+      ) : null}
       {climb.subject === "sg" ? <p className="mt-2 text-sm text-muted">{SG_STAGE_NOTE}</p> : null}
       <SchoolPath />
       {closure ? (

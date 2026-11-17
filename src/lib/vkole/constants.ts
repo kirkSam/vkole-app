@@ -2,6 +2,7 @@
  * Shared VKOLE sight-word constants.
  * Engine key `sw`. Band order and grade labels match docs/sight-words-website-canonical.md.
  */
+import { VEKOLE_SETTINGS } from "@kirkpatrick/vekole-engine";
 
 export const SIGHT_WORD_ENGINE = "sw" as const;
 
@@ -9,7 +10,7 @@ export const SIGHT_WORD_ADVANCE_MS = 2000;
 export const SIGHT_WORD_MAX_SHOW_MS = 20000;
 
 export const SIGHT_WORD_NOTE =
-  "A word stays up for at most 20 seconds. A correct reading gets a sparkle, then the next word after 2 seconds. A miss is spoken aloud, and the next word comes 2 seconds after the speech ends. The word is not tried again. The microphone is on only while a word is shown. The sound is not recorded or saved.";
+  `A word stays up for at most 20 seconds. A correct reading gets a sparkle, then the next word after 2 seconds. A miss is spoken aloud, and the next word comes 2 seconds after the speech ends. Missed words come back later for review. The next list starts when ${Math.round(VEKOLE_SETTINGS.sightWordsListRule * 100)}% of this list is known. The microphone is on only while a word is shown. The sound is not recorded or saved.`;
 
 export const SIGHT_WORD_BANDS = [
   "D-PP",

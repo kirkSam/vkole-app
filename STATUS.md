@@ -1,3 +1,10 @@
+## 2026-11-17 connect engine v0.1.3 (App Builder)
+**Shipped (merged):** not yet. The app pins kirkSam/vekole-engine tag v0.1.3. Typed answers are cleaned before Grok. Memory records stay in this app's database. A review or a re-check does not change the growth level. A re-check is only an item first learned in this sitting. Sight Words moves to the next list at the package's sightWordsListRule (70%). Missed words stay in memory and return as reviews. The master account can make its own reviews due now. Any other account is refused.
+**Open, needs Sam:** Claude reviews the latest commit on #80. Merge only after "merge #N". #80 still merges together with website #112.
+**Mirrors needed on website:** yes, the same tag, in the website's own connection.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word.
+
 ## 2026-11-17 stale sign-in (App Builder)
 **Shipped (merged):** not yet. A rejected website session clears the saved sign-in and opens the sign-in page with "Please sign in again." Voice answers and the parent page do not stay up.
 **Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N".
