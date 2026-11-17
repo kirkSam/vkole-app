@@ -16,6 +16,8 @@ describe("showAsSpaceXsi", () => {
   it("leaves lesson words and people's names unchanged", () => {
     assert.equal(showAsSpaceXsi("Use a model to show 3 x 4"), "Use a model to show 3 x 4");
     assert.equal(showAsSpaceXsi("Claude Monet painted water lilies"), "Claude Monet painted water lilies");
+    assert.equal(showAsSpaceXsi("As Claude Monet said, ..."), "As Claude Monet said, ...");
+    assert.equal(showAsSpaceXsi("This is Claude Debussy's most famous piece."), "This is Claude Debussy's most famous piece.");
     assert.equal(showAsSpaceXsi("Claudette read about Egypt and a model of government."), "Claudette read about Egypt and a model of government.");
     assert.equal(showAsSpaceXsi("The Grok model says hello."), "The Grok model says hello.");
   });
@@ -25,6 +27,8 @@ describe("studentFacingReply", () => {
   it("keeps a lesson sentence and a painter's name, and still rewrites a model naming itself", () => {
     assert.equal(studentFacingReply("Use a model to show 3 x 4", true), "Use a model to show 3 x 4");
     assert.equal(studentFacingReply("Claude Monet painted water lilies", false), "Claude Monet painted water lilies");
+    assert.equal(studentFacingReply("As Claude Monet said, ...", true), "As Claude Monet said, ...");
+    assert.equal(studentFacingReply("This is Claude Debussy's most famous piece.", true), "This is Claude Debussy's most famous piece.");
     assert.equal(studentFacingReply("I am Grok, and the answer is 4.", true), "I am VKOLE/ZPD, and the answer is 4.");
     assert.equal(studentFacingReply("A chatbot named Claude.", false), "A chatbot named Claude.");
     assert.equal(
