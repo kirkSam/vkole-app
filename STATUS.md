@@ -5,6 +5,13 @@
 **Blocked:** none
 **Next:** Wait for Claude, then Sam's merge word. The engine fatigue fix is a separate repository and is not connected.
 
+## 2026-11-17 lesson words (App Builder)
+**Shipped (merged):** not yet. A model naming itself is still rewritten. "model", "chatbot", and a person's name such as Claude Monet stay.
+**Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N".
+**Mirrors needed on website:** yes. `spaceXsiText` in `src/lib/school/config.ts` still rewrites every Claude, Grok, ChatGPT, GPT, and xAI. It does not delete "model". School Site should use the same self-name rule.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word.
+
 ## 2026-11-17 website wording (App Builder)
 **Shipped (merged):** not yet. Visible wording matches website #101. The name is VKOLE/ZPD Learning Engine. "integrated with Grok" stays a separate phrase. Mail From display name is Do the Impossible Alpha Academy. This is not the VEKOLE rename.
 **Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N".

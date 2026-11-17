@@ -6,48 +6,30 @@ import { fileURLToPath } from "node:url";
 import { showAsSpaceXsi, studentFacingReply } from "./space-xsi.ts";
 
 describe("showAsSpaceXsi", () => {
-  it("shows each supporting-model name as VKOLE/ZPD", () => {
-    const samples = [
-      ["Grok", "VKOLE/ZPD"],
-      ["I am Grok.", "I am VKOLE/ZPD."],
-      ["grok-4-1-fast-non-reasoning", "VKOLE/ZPD"],
-      ["xAI", "VKOLE/ZPD"],
-      ["X.AI", "VKOLE/ZPD"],
-      ["powered by x.AI", "powered by VKOLE/ZPD"],
-      ["powered by Space x.AI", "powered by VKOLE/ZPD"],
-      ["OpenAI", "VKOLE/ZPD"],
-      ["Claude", "VKOLE/ZPD"],
-      ["ChatGPT", "VKOLE/ZPD"],
-      ["GPT-4", "VKOLE/ZPD"],
-      ["GPT4", "VKOLE/ZPD"],
-      ["Ask ChatGPT, not GPT.", "Ask VKOLE/ZPD, not VKOLE/ZPD."],
-    ] as const;
-    for (const [before, after] of samples) {
-      assert.equal(showAsSpaceXsi(before), after);
-      assert.equal(showAsSpaceXsi(after), after);
-    }
+  it("rewrites only a model naming itself", () => {
+    assert.equal(showAsSpaceXsi("I am Grok, and the answer is 4."), "I am VKOLE/ZPD, and the answer is 4.");
+    assert.equal(showAsSpaceXsi("As ChatGPT, I would say 4."), "As VKOLE/ZPD, I would say 4.");
+    assert.equal(showAsSpaceXsi("I'm Grok."), "I'm VKOLE/ZPD.");
+    assert.equal(showAsSpaceXsi("I am VKOLE/ZPD."), "I am VKOLE/ZPD.");
   });
 
-  it("leaves ordinary words that only share letters", () => {
-    const text = "Claudette read about Egypt and a model of government.";
-    assert.equal(showAsSpaceXsi(text), text);
+  it("leaves lesson words and people's names unchanged", () => {
+    assert.equal(showAsSpaceXsi("Use a model to show 3 x 4"), "Use a model to show 3 x 4");
+    assert.equal(showAsSpaceXsi("Claude Monet painted water lilies"), "Claude Monet painted water lilies");
+    assert.equal(showAsSpaceXsi("Claudette read about Egypt and a model of government."), "Claudette read about Egypt and a model of government.");
+    assert.equal(showAsSpaceXsi("The Grok model says hello."), "The Grok model says hello.");
   });
 });
 
 describe("studentFacingReply", () => {
-  it("rewrites the model name and still hides chatbot and model", () => {
-    assert.equal(studentFacingReply("The Grok model says hello.", true), "The VKOLE/ZPD says hello.");
-    assert.equal(studentFacingReply("A chatbot named Claude.", false), "A named VKOLE/ZPD.");
-  });
-
-  it("rewrites feedback and the next question the student will read", () => {
+  it("keeps a lesson sentence and a painter's name, and still rewrites a model naming itself", () => {
+    assert.equal(studentFacingReply("Use a model to show 3 x 4", true), "Use a model to show 3 x 4");
+    assert.equal(studentFacingReply("Claude Monet painted water lilies", false), "Claude Monet painted water lilies");
+    assert.equal(studentFacingReply("I am Grok, and the answer is 4.", true), "I am VKOLE/ZPD, and the answer is 4.");
+    assert.equal(studentFacingReply("A chatbot named Claude.", false), "A chatbot named Claude.");
     assert.equal(
-      studentFacingReply("Answer: 4\n\nExplanation: Grok and ChatGPT agree.", true),
-      "Answer: 4\n\nExplanation: VKOLE/ZPD and VKOLE/ZPD agree.",
-    );
-    assert.equal(
-      studentFacingReply("Read: A note from x.AI.\n\nQuestion: What is 2 + 2?", true),
-      "Read: A note from VKOLE/ZPD.\n\nQuestion: What is 2 + 2?",
+      studentFacingReply("Answer: 4\n\nExplanation: Use a model to show 3 x 4.", true),
+      "Answer: 4\n\nExplanation: Use a model to show 3 x 4.",
     );
   });
 });

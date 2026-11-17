@@ -1,21 +1,19 @@
 /**
- * Names a model might use for itself. Longer forms come first so ChatGPT is
- * not left as "Chat" plus a second match on GPT. A leading "Space " is part
- * of the same name, so "Space x.AI" becomes "VKOLE/ZPD" once.
+ * A reply may name the model as the speaker ("I am Grok", "As ChatGPT").
+ * That name becomes VKOLE/ZPD. A person's name, a lesson word, and the
+ * words "model" and "chatbot" stay as written.
  */
-const SUPPORTING_AI =
-  /\b(?:space\s+)?(?:chatgpt|openai|claude|grok|gpt)(?:[-.][\w.-]*|\d+)?\b|\b(?:space\s+)?x\.?ai\b|\bspace\s+xsi\b/gi;
+const SELF_NAME =
+  /\b(i\s+am|i'm|this is|as)\s+((?:an?\s+)?)((?:space\s+)?)((?:chatgpt|openai|claude|grok|gpt)(?:[-.][\w.-]*|\d+)?|x\.?ai)\b/gi;
 
-/** What a student is allowed to see in place of the supporting model name. */
+/** Rewrite only a model naming itself. */
 export function showAsSpaceXsi(text: string): string {
-  return text.replace(new RegExp(SUPPORTING_AI.source, "gi"), "VKOLE/ZPD");
+  return text.replace(SELF_NAME, (_match, verb: string, article: string) => `${verb} ${article}VKOLE/ZPD`);
 }
 
-/** Model reply text, with the supporting name rewritten, before a student sees it. */
+/** Model reply text, before a student sees it. Ordinary lesson words stay. */
 export function studentFacingReply(text: string, keepBreaks: boolean): string {
-  const cleaned = showAsSpaceXsi(text)
-    .replace(/\bchatbots?\b/gi, "")
-    .replace(/\bmodels?\b/gi, "");
+  const cleaned = showAsSpaceXsi(text);
   if (!keepBreaks) {
     return cleaned.replace(/\s{2,}/g, " ").replace(/\s+([.?!])/g, "$1").trim();
   }
