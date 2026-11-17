@@ -38,6 +38,10 @@ export type EngineSession = {
   serveKind: "growth" | "review" | "recheck";
   serveItem: string;
   rechecked: string[];
+  /** Item keys whose first correct answer happened during this sitting. */
+  learnedThisSession: string[];
+  recheckKey: string;
+  recheckAt: string;
 };
 
 export function freshEngineSession(now: Date): EngineSession {
@@ -50,6 +54,9 @@ export function freshEngineSession(now: Date): EngineSession {
     serveKind: "growth",
     serveItem: "",
     rechecked: [],
+    learnedThisSession: [],
+    recheckKey: "",
+    recheckAt: "",
   };
 }
 
@@ -78,20 +85,9 @@ export function scoreEngineItem(input: {
   } else if (kind === "growth" && !input.correct && index >= 0) {
     records[index] = { ...applyRecheck(records[index]!, false, input.now), itemKey: input.itemKey, known };
   }
-  const rechecked =
-    kind === "recheck" && input.itemKey && !input.session.rechecked.includes(input.itemKey)
-      ? [...input.session.rechecked, input.itemKey]
-      : input.session.rechecked;
+  const firstLearned = kind === "growth" && input.correct && index < 0 && Boolean(input.itemKey);
   return {
-    session: {
-      ...input.session,
-      itemsServed: input.session.itemsServed + 1,
-      reviewsServed: input.session.reviewsServed + (kind === "review" ? 1 : 0),
-      itemsSinceNew: kind === "growth" ? input.session.itemsSinceNew + 1 : input.session.itemsSinceNew,
-      lastNewAt: kind === "growth" ? input.now.toISOString() : input.session.lastNewAt,
-      fatigue,
-      rechecked,
-    },
+    session: advanceSession(input.session, { kind, now: input.now, fatigue, itemKey: input.itemKey, firstLearned }),
     records,
     holdLevel,
     earlyStepDown,
@@ -107,14 +103,16 @@ export function chooseNextServe(input: {
 }): { session: EngineSession; itemKey: string | null } {
   const high = input.session.fatigue.high;
   const own = input.records.filter((row) => row.itemKey.startsWith(`${input.subject}:`));
-  const elapsed = input.now.getTime() - Date.parse(input.session.lastNewAt);
-  if (recheckDue(Number.isFinite(elapsed) ? elapsed : 0, input.session.itemsSinceNew, high)) {
-    const fresh = own.find((row) => row.reviews === 0 && row.misses === 0 && !input.session.rechecked.includes(row.itemKey));
-    if (fresh) {
-      return {
-        session: { ...input.session, serveKind: "recheck", serveItem: fresh.itemKey, itemsSinceNew: 0 },
-        itemKey: fresh.itemKey,
-      };
+  const learned = new Set(input.session.learnedThisSession);
+  const elapsed = input.now.getTime() - Date.parse(input.session.recheckAt);
+  if (
+    input.session.recheckKey &&
+    learned.has(input.session.recheckKey) &&
+    recheckDue(Number.isFinite(elapsed) ? elapsed : 0, input.session.itemsSinceNew, high)
+  ) {
+    const item = own.find((row) => row.itemKey === input.session.recheckKey);
+    if (item) {
+      return { session: { ...input.session, serveKind: "recheck", serveItem: item.itemKey }, itemKey: item.itemKey };
     }
   }
   if (reviewSlotOpen(input.session.itemsServed, input.session.reviewsServed, high)) {
@@ -147,18 +145,41 @@ export function parseSightItemKey(key: string): { band: string; index: number } 
   return { band: matched[1], index };
 }
 
-function withSession(session: EngineSession, kind: EngineSession["serveKind"], now: Date, fatigue: FatigueState, itemKey: string): EngineSession {
-  const rechecked =
-    kind === "recheck" && itemKey && !session.rechecked.includes(itemKey) ? [...session.rechecked, itemKey] : session.rechecked;
+function advanceSession(
+  session: EngineSession,
+  input: { kind: EngineSession["serveKind"]; now: Date; fatigue: FatigueState; itemKey: string; firstLearned: boolean },
+): EngineSession {
+  let learned = session.learnedThisSession;
+  let recheckKey = session.recheckKey;
+  let recheckAt = session.recheckAt;
+  let itemsSinceNew = session.itemsSinceNew;
+  if (input.firstLearned && input.itemKey) {
+    if (!learned.includes(input.itemKey)) learned = [...learned, input.itemKey];
+    recheckKey = input.itemKey;
+    recheckAt = input.now.toISOString();
+    itemsSinceNew = 0;
+  } else if (input.kind === "recheck") {
+    recheckKey = "";
+    recheckAt = "";
+    itemsSinceNew = 0;
+  } else if (recheckKey) {
+    itemsSinceNew += 1;
+  }
   return {
     ...session,
     itemsServed: session.itemsServed + 1,
-    reviewsServed: session.reviewsServed + (kind === "review" ? 1 : 0),
-    itemsSinceNew: kind === "growth" ? session.itemsSinceNew + 1 : session.itemsSinceNew,
-    lastNewAt: kind === "growth" ? now.toISOString() : session.lastNewAt,
-    fatigue,
-    rechecked,
+    reviewsServed: session.reviewsServed + (input.kind === "review" ? 1 : 0),
+    itemsSinceNew,
+    lastNewAt: input.firstLearned ? input.now.toISOString() : session.lastNewAt,
+    fatigue: input.fatigue,
+    learnedThisSession: learned,
+    recheckKey,
+    recheckAt,
   };
+}
+
+function withSession(session: EngineSession, kind: EngineSession["serveKind"], now: Date, fatigue: FatigueState, itemKey: string, firstLearned: boolean): EngineSession {
+  return advanceSession(session, { kind, now, fatigue, itemKey, firstLearned });
 }
 
 /** A correct word is known from then on. A miss is remembered and can return as a review. */
@@ -174,6 +195,7 @@ export function scoreSightWord(input: {
   const kind = input.session.serveKind;
   const records = input.records.map((row) => ({ ...row }));
   const index = records.findIndex((row) => row.itemKey === input.itemKey);
+  const firstLearned = kind === "growth" && input.correct && index < 0 && Boolean(input.itemKey);
   if (input.correct && index < 0) {
     records.push({ ...createMemory(input.now), itemKey: input.itemKey, known: true });
   } else if (input.correct && index >= 0) {
@@ -187,7 +209,7 @@ export function scoreSightWord(input: {
     const next = kind === "growth" ? applyRecheck(row, false, input.now) : applyReview(row, false, input.now);
     records[index] = { ...next, itemKey: input.itemKey, known: row.known === true };
   }
-  return { session: withSession(input.session, kind, input.now, fatigue, input.itemKey), records };
+  return { session: withSession(input.session, kind, input.now, fatigue, input.itemKey, firstLearned), records };
 }
 
 export function knownOnList(records: readonly ItemMemory[], band: string): number {

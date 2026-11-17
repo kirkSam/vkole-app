@@ -27,6 +27,9 @@ function asSession(row: {
   serve_kind: string | null;
   serve_item: string | null;
   rechecked: string | null;
+  learned?: string | null;
+  recheck_key?: string | null;
+  recheck_at?: unknown;
 } | undefined, now: Date): EngineSession {
   const fresh = freshEngineSession(now);
   if (!row) return fresh;
@@ -47,6 +50,9 @@ function asSession(row: {
     serveKind: kind,
     serveItem: row.serve_item ?? "",
     rechecked: (row.rechecked ?? "").split(",").map((item) => item.trim()).filter(Boolean),
+    learnedThisSession: (row.learned ?? "").split(",").map((item) => item.trim()).filter(Boolean),
+    recheckKey: row.recheck_key ?? "",
+    recheckAt: row.recheck_at ? new Date(row.recheck_at as string).toISOString() : "",
   };
 }
 
@@ -79,6 +85,9 @@ export async function ensureEngineStore(sql: Sql): Promise<void> {
     )
   `;
   await sql`alter table memory_records add column if not exists known integer not null default 0`;
+  await sql`alter table engine_sessions add column if not exists learned text not null default ''`;
+  await sql`alter table engine_sessions add column if not exists recheck_key text not null default ''`;
+  await sql`alter table engine_sessions add column if not exists recheck_at timestamptz`;
 }
 
 async function loadRecords(sql: Sql, userId: string, childName: string): Promise<ItemMemory[]> {
@@ -127,13 +136,15 @@ async function saveRecords(sql: Sql, userId: string, childName: string, records:
 async function saveSession(sql: Sql, userId: string, climbId: string, session: EngineSession): Promise<void> {
   const fatigue = JSON.stringify(session.fatigue);
   const rechecked = session.rechecked.join(",");
+  const learned = session.learnedThisSession.join(",");
   await sql`
     insert into engine_sessions (
       climb_id, user_id, items_served, reviews_served, items_since_new, last_new_at,
-      fatigue, serve_kind, serve_item, rechecked
+      fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at
     ) values (
       ${climbId}, ${userId}, ${session.itemsServed}, ${session.reviewsServed}, ${session.itemsSinceNew},
-      ${session.lastNewAt}, ${fatigue}, ${session.serveKind}, ${session.serveItem}, ${rechecked}
+      ${session.lastNewAt}, ${fatigue}, ${session.serveKind}, ${session.serveItem}, ${rechecked},
+      ${learned}, ${session.recheckKey}, ${session.recheckAt || null}
     )
     on conflict (climb_id) do update set
       user_id = ${userId},
@@ -144,7 +155,10 @@ async function saveSession(sql: Sql, userId: string, climbId: string, session: E
       fatigue = ${fatigue},
       serve_kind = ${session.serveKind},
       serve_item = ${session.serveItem},
-      rechecked = ${rechecked}
+      rechecked = ${rechecked},
+      learned = ${learned},
+      recheck_key = ${session.recheckKey},
+      recheck_at = ${session.recheckAt || null}
   `;
 }
 
@@ -201,7 +215,7 @@ export async function applyEngineAnswer(
     serve_item: string | null;
     rechecked: string | null;
   }>`
-    select items_served, reviews_served, items_since_new, last_new_at, fatigue, serve_kind, serve_item, rechecked
+    select items_served, reviews_served, items_since_new, last_new_at, fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at
     from engine_sessions
     where climb_id = ${input.climbId} and user_id = ${input.userId}
   `;
@@ -252,7 +266,7 @@ export async function applySightAnswer(
     serve_item: string | null;
     rechecked: string | null;
   }>`
-    select items_served, reviews_served, items_since_new, last_new_at, fatigue, serve_kind, serve_item, rechecked
+    select items_served, reviews_served, items_since_new, last_new_at, fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at
     from engine_sessions
     where climb_id = ${input.climbId} and user_id = ${input.userId}
   `;

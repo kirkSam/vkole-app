@@ -138,6 +138,7 @@ describe("connected engine", () => {
       now: NOW,
       });
     assert.equal(missed.records[0]?.known, false);
+    assert.deepEqual(missed.session.learnedThisSession, []);
     const later = new Date(NOW.getTime() + 2 * 86_400_000);
     const review = chooseNextServe({
       session: { ...missed.session, itemsServed: 3, reviewsServed: 0 },
@@ -147,5 +148,70 @@ describe("connected engine", () => {
     });
     assert.equal(review.itemKey, "sw:D-1:2");
     assert.equal(review.session.serveKind, "review");
+  });
+
+  it("re-checks only an item first learned in this sitting", () => {
+    const learned = scoreEngineItem({
+      session: freshEngineSession(NOW),
+      records: [],
+      itemKey: "m:3:0:4",
+      correct: true,
+      elapsedMs: 3000,
+      now: NOW,
+      engine: "m",
+    });
+    assert.deepEqual(learned.session.learnedThisSession, ["m:3:0:4"]);
+    const later = new Date(NOW.getTime() + 11 * 60 * 1000);
+    const again = chooseNextServe({
+      session: { ...learned.session, itemsServed: 8 },
+      records: learned.records,
+      now: later,
+      subject: "m",
+    });
+    assert.equal(again.itemKey, "m:3:0:4");
+    assert.equal(again.session.serveKind, "recheck");
+    const older = memory("m:2:0:1", 4.5, 3);
+    const noneLearned = chooseNextServe({
+      session: { ...freshEngineSession(NOW), itemsServed: 8, itemsSinceNew: 8 },
+      records: [{ ...older, reviews: 0, misses: 0 }],
+      now: NOW,
+      subject: "m",
+    });
+    assert.equal(noneLearned.itemKey, "m:2:0:1");
+    assert.equal(noneLearned.session.serveKind, "review");
+    const notDue = chooseNextServe({
+      session: { ...freshEngineSession(NOW), itemsServed: 8, itemsSinceNew: 8 },
+      records: [{ ...memory("m:2:0:1", 4.5, 0), reviews: 0, misses: 0 }],
+      now: NOW,
+      subject: "m",
+    });
+    assert.equal(notDue.itemKey, null);
+    assert.equal(notDue.session.serveKind, "growth");
+    const word = scoreSightWord({
+      session: freshEngineSession(NOW),
+      records: [],
+      itemKey: "sw:D-1:4",
+      correct: true,
+      elapsedMs: 3000,
+      now: NOW,
+    });
+    assert.deepEqual(word.session.learnedThisSession, ["sw:D-1:4"]);
+    const wordAgain = chooseNextServe({
+      session: word.session,
+      records: word.records,
+      now: later,
+      subject: "sw",
+    });
+    assert.equal(wordAgain.itemKey, "sw:D-1:4");
+    assert.equal(wordAgain.session.serveKind, "recheck");
+    const already = scoreSightWord({
+      session: { ...freshEngineSession(NOW), serveKind: "review" },
+      records: [{ ...memory("sw:D-1:1", 4.5, 3), known: false }],
+      itemKey: "sw:D-1:1",
+      correct: true,
+      elapsedMs: 3000,
+      now: NOW,
+    });
+    assert.deepEqual(already.session.learnedThisSession, []);
   });
 });
