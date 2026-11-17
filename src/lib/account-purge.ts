@@ -22,11 +22,14 @@ export const ACCOUNT_GONE_FLAG = "vkole-account-gone";
  */
 export const SIGN_IN_AGAIN_NOTE = "vkole-sign-in-again";
 
+/** The sign-in page shows this when a saved session was rejected. */
+export const PLEASE_SIGN_IN_AGAIN = "Please sign in again.";
+
 /** Invisible marker so a token rejection can send the parent back to sign-in. */
 export const SIGN_IN_AGAIN_MARK = "\u2060\u2060\u2060";
 
 export function signInAgainError(website: string): string {
-  const text = website.trim() || "Sign in again.";
+  const text = website.trim() || PLEASE_SIGN_IN_AGAIN;
   return `${text}${SIGN_IN_AGAIN_MARK}`;
 }
 
@@ -124,7 +127,13 @@ export function isAccountGoneError(err: unknown): boolean {
 }
 
 export function isSignInAgainError(err: unknown): boolean {
-  return errorText(err).includes(SIGN_IN_AGAIN_MARK);
+  const text = errorText(err);
+  return text.includes(SIGN_IN_AGAIN_MARK) || text.includes(PLEASE_SIGN_IN_AGAIN);
+}
+
+/** A rejected saved session leaves the signed-in app. The next page is sign-in. */
+export function rejectedSessionDestination(err: unknown): "/login" | null {
+  return isSignInAgainError(err) ? "/login" : null;
 }
 
 /** Ask Better Auth to drop the HttpOnly cookie, then stay on this page. */

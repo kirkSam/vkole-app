@@ -218,7 +218,10 @@ export async function refreshSchoolAccount(accountId: string): Promise<SchoolPro
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
   const grant = await readAccountGrant(sql, accountId);
-  if (!grant) throw new SchoolCallError("unauthorized", "Sign in again.");
+  if (!grant) {
+    const { PLEASE_SIGN_IN_AGAIN, signInAgainError } = await import("./account-purge.ts");
+    throw new SchoolCallError("unauthorized", signInAgainError(PLEASE_SIGN_IN_AGAIN));
+  }
   const { readActiveStudentIndex } = await import("@/lib/school-mirror.server");
   const index = await readActiveStudentIndex(sql, accountId);
   const scope = studentScopeId(accountId, index);
@@ -284,7 +287,8 @@ export async function withSchoolAccount<T>(userId: string, run: () => Promise<T>
 }
 
 async function endWebsiteSession(sql: Sql, userId: string, website: string): Promise<Error> {
-  const { signInAgainError } = await import("./account-purge.ts");
+  void website;
+  const { signInAgainError, PLEASE_SIGN_IN_AGAIN } = await import("./account-purge.ts");
   try {
     const { expireLocalSignInCookies } = await import("./account-purge.server.ts");
     const { clearAccountGrant } = await import("./school-mirror.server.ts");
@@ -293,6 +297,6 @@ async function endWebsiteSession(sql: Sql, userId: string, website: string): Pro
   } catch {
     throw new Error(SCHOOL_OFFLINE_MESSAGE);
   }
-  return new Error(signInAgainError(website));
+  return new Error(signInAgainError(PLEASE_SIGN_IN_AGAIN));
 }
 

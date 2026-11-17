@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { DAY_LIMIT_SECONDS, localDayKey, PACIFIC, projectClock, projectTodayClock } from "./day-clock-math.ts";
+import { PLEASE_SIGN_IN_AGAIN, isSignInAgainError, rejectedSessionDestination, websiteErrorOnScreen } from "./account-purge.ts";
 import { mergeLocalSeen, practicePromptFromDetail, practicePromptText } from "./next-sheet.ts";
 import {
   CLOCK_LIMIT_SECONDS,
@@ -498,7 +499,11 @@ describe("server calls", () => {
             return jsonResponse(200, session("ada@school.test"));
           },
         }),
-      (err: unknown) => err instanceof SchoolCallError && err.reason === "unauthorized" && err.message === "Sign in again.",
+      (err: unknown) =>
+        err instanceof SchoolCallError &&
+        err.reason === "unauthorized" &&
+        websiteErrorOnScreen(err.message) === PLEASE_SIGN_IN_AGAIN &&
+        rejectedSessionDestination(err) === "/login",
     );
     assert.equal(called, false);
     await assert.rejects(
@@ -510,7 +515,11 @@ describe("server calls", () => {
             return jsonResponse(401, { error: "Token expired" });
           },
         }),
-      (err: unknown) => err instanceof SchoolCallError && err.reason === "unauthorized" && err.message === "Token expired",
+      (err: unknown) =>
+        err instanceof SchoolCallError &&
+        err.reason === "unauthorized" &&
+        isSignInAgainError(err) &&
+        rejectedSessionDestination(err) === "/login",
     );
   });
 
@@ -554,7 +563,11 @@ describe("server calls", () => {
             granted = true;
           },
         }),
-      (err: unknown) => err instanceof SchoolCallError && err.reason === "unauthorized" && err.message === "Token expired",
+      (err: unknown) =>
+        err instanceof SchoolCallError &&
+        err.reason === "unauthorized" &&
+        isSignInAgainError(err) &&
+        rejectedSessionDestination(err) === "/login",
     );
     assert.equal(granted, false);
   });

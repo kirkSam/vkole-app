@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
@@ -10,6 +13,8 @@ import {
   isAccountGoneError,
   isSignInAgainError,
   matchingStaleKeys,
+  PLEASE_SIGN_IN_AGAIN,
+  rejectedSessionDestination,
   signInAgainError,
   websiteErrorOnScreen,
 } from "./account-purge.ts";
@@ -88,6 +93,15 @@ describe("device sign-in cache", () => {
     assert.equal(websiteErrorOnScreen(marked), "Token expired");
     assert.equal(isSignInAgainError(new Error(marked)), true);
     assert.equal(isSignInAgainError(new Error("Token expired")), false);
+    assert.equal(rejectedSessionDestination(new Error(signInAgainError(PLEASE_SIGN_IN_AGAIN))), "/login");
+    assert.equal(websiteErrorOnScreen(signInAgainError(PLEASE_SIGN_IN_AGAIN)), "Please sign in again.");
+    assert.equal(rejectedSessionDestination(new Error("The climbs could not be loaded.")), null);
+    const home = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../routes/index.tsx"), "utf8");
+    assert.match(home, /isSignInAgainError\(err\)/);
+    assert.match(home, /leaveForSignIn/);
+    const callAt = home.indexOf("readVoiceConsent()\n");
+    const voiceRead = home.slice(callAt, callAt + 700);
+    assert.match(voiceRead, /isSignInAgainError\(err\)[\s\S]*return;[\s\S]*setVoice\(VOICE_NOT_ASKED\)/);
     assert.equal(isAccountGoneError(new Error(marked)), false);
   });
 });

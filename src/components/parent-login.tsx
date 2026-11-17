@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { schoolPasswordConfirm, schoolPasswordReset, schoolSignIn, schoolSignUp, sendConfirmationAgain } from "@/lib/school-auth";
 import { readDeviceId } from "@/lib/device-id";
 import { schoolPassword, schoolScreen } from "@/lib/school-account";
-import { SIGN_IN_AGAIN_NOTE } from "@/lib/account-purge";
+import { SIGN_IN_AGAIN_NOTE, isSignInAgainError, leaveForSignIn } from "@/lib/account-purge";
 import { rememberAppSession } from "@/lib/auth/client";
 import { recordLogin } from "@/lib/ledger";
 import { ENGINE_PICKER_ROUTE } from "@/lib/engine-picker";
@@ -109,6 +109,10 @@ export function ParentLogin({
       })
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : "Voice answers could not be saved.";
+        if (isSignInAgainError(err)) {
+          void leaveForSignIn(message);
+          return;
+        }
         if (/password/i.test(message)) {
           clearSignInPassword();
           setAskVoicePassword(true);
