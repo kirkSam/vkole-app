@@ -5,6 +5,13 @@
 **Blocked:** none
 **Next:** Wait for Claude, then Sam's merge word. The engine fatigue fix is a separate repository and is not connected.
 
+## 2026-11-17 website wording (App Builder)
+**Shipped (merged):** not yet. Visible wording matches website #101. The name is VKOLE/ZPD Learning Engine. "integrated with Grok" stays a separate phrase. Mail From display name is Do the Impossible Alpha Academy. This is not the VEKOLE rename.
+**Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N".
+**Mirrors needed on website:** already in #101.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word.
+
 ## 2026-11-12 clear test data (App Builder)
 **Shipped (merged):** not yet. The master account can count this app's saved family records, then confirm and delete the other accounts' records. Tables and operator settings stay.
 **Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N". After publish, run it on the live app. The before counts should name Jeff.

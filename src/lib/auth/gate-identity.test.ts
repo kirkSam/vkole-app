@@ -430,7 +430,7 @@ describe("gateIdentityUserInfo", () => {
         id: "User-1",
         email: "user-1@viewer.grok.invalid",
         emailVerified: false,
-        name: "Space XSI user",
+        name: "Grok",
       },
     );
   });
