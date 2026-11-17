@@ -48,12 +48,12 @@ describe("in-app zone of proximal development page", () => {
     const text = zpdInfoText();
     assert.equal(
       zpdInfo.title,
-      "Vygotsky's Zone of Proximal Development: Amplified by VKOLE/ZPD - Space XAI Integrated Learning Engine.",
+      "Vygotsky's Zone of Proximal Development: Amplified by VKOLE/ZPD Learning Engine.",
     );
-    assert.match(text, /From that starting point the VKOLE ZPD Online Learning Engine, in conjunction with Space XAI super-intelligence calibrates/);
-    assert.match(text, /measured against demonstrated grade levels on the Common Core Curriculum/);
-    assert.match(text, /integral to all learning and is the key to measurable learning growth/);
-    assert.doesNotMatch(text, /Baseline\/Growth Test/);
+    assert.match(text, /The difference here is the starting point/);
+    assert.match(text, /aligned to the Common Core/);
+    assert.match(text, /integral to all learning is the key to measurable learning growth/);
+    assert.match(text, /Baseline\/Growth Test/);
     assert.doesNotMatch(text, /Put the cookies within reach/);
     assert.doesNotMatch(text, /How this academy uses the zone/);
     assert.doesNotMatch(text, /Online School Menu/);

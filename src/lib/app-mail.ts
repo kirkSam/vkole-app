@@ -1,6 +1,6 @@
 import tls from "node:tls";
 import { parentMailStaysOnAccount } from "@/lib/account-scope";
-import { APP_NAME, SCHOOL_EMAIL } from "@/lib/brand";
+import { SCHOOL_EMAIL, SCHOOL_NAME } from "@/lib/brand";
 import { getSql, type Sql } from "@/lib/db";
 
 const OWNER_EMAIL = "kirk.sam.alpha@gmail.com";
@@ -92,7 +92,7 @@ export async function sendAppMail(
   const boundary = "vkole-report";
   const text = html
     ? [
-        `From: "${APP_NAME}" <${from}>`,
+        `From: "${SCHOOL_NAME}" <${from}>`,
         `To: ${to}`,
         `Reply-To: ${SCHOOL_EMAIL}`,
         `Subject: ${subject}`,
@@ -111,7 +111,7 @@ export async function sendAppMail(
         ".",
       ].join("\r\n")
     : [
-        `From: "${APP_NAME}" <${from}>`,
+        `From: "${SCHOOL_NAME}" <${from}>`,
         `To: ${to}`,
         `Reply-To: ${SCHOOL_EMAIL}`,
         `Subject: ${subject}`,

@@ -191,7 +191,7 @@ Opening the engine always starts at exercise 1 and continues through exercises 2
 
 Exercise 1 does not wait for an answer. Exercises 2, 3, and 4 wait for a spoken answer on every letter, and the microphone opens after the prompt finishes. Exercise 5 listens for the spoken alphabet and does not use the 5 second letter timer. Exercise 6 waits up to 5 seconds for the correct key, then says and shows `Try again` on that same letter. A finished exercise is saved in `alphabet_completed`, including exercise 6. Audio is not recorded and is not saved. Adult override buttons are Correct and Miss.
 
-At the end of an alphabet sitting, the server writes a short parent report of 3 to 5 sentences. The section is labeled `Report written by Space XSI (Grok)`. The call uses `XAI_API_KEY` on the server, one call for that sitting, and sends only that student's letter stats. It does not send another family's name or any audio. If the key is missing or the call fails, the same section uses a local template. The report is shown to that parent and is included only in that account's progress email.
+At the end of an alphabet sitting, the server writes a short parent report of 3 to 5 sentences. The section is labeled `Report written by VKOLE/ZPD Learning Engine, integrated with Grok`. The call uses `XAI_API_KEY` on the server, one call for that sitting, and sends only that student's letter stats. It does not send another family's name or any audio. If the key is missing or the call fails, the same section uses a local template. The report is shown to that parent and is included only in that account's progress email.
 
 ## level.pa
 
