@@ -3,6 +3,10 @@
  * This loader is only for `node --test`.
  */
 export async function resolve(specifier, context, nextResolve) {
+  if (specifier === "@kirkpatrick/vekole-engine") {
+    const url = new URL("../node_modules/@kirkpatrick/vekole-engine/dist/index.js", import.meta.url);
+    return nextResolve(url.href, context);
+  }
   if (!specifier.startsWith("@/")) return nextResolve(specifier, context);
   const name = specifier.slice(2);
   const file = /\.(ts|tsx|js|mjs|json)$/.test(name) ? name : `${name}.ts`;

@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 import { pacificBuildStamp } from "./src/lib/app-build.ts";
 import { readdirSync } from "node:fs";
@@ -187,7 +188,14 @@ export default defineConfig(({ command, mode, isPreview }) => ({
     port: 8081,
     strictPort: true,
   },
-  resolve: { tsconfigPaths: true },
+  resolve: {
+    tsconfigPaths: true,
+    alias: {
+      "@kirkpatrick/vekole-engine": fileURLToPath(
+        new URL("./node_modules/@kirkpatrick/vekole-engine/dist/index.js", import.meta.url),
+      ),
+    },
+  },
   plugins: [
     pgliteBootstrapPlugin(),
     // Before tanstackStart so /auth/popup never falls through to the SPA.

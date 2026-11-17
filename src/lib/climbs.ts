@@ -13,6 +13,8 @@ import { getSql, type Sql } from "@/lib/db";
 import { childAccess } from "@/lib/subscription";
 import { settleGradingCall } from "@/lib/grading-pause";
 import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-history";
+import { applyEngineAnswer, questionShownAt, resetEngineSession } from "@/lib/engine-store";
+import { cleanTypedAnswer } from "@/lib/engine-connect";
 import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
 import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
 import { formatMasteryReport, masteryFromDetails } from "@/lib/vkole-singapore-report";
@@ -574,24 +576,45 @@ export const recordAnswer = createServerFn({ method: "POST" })
       modelCode = reply.code;
       modelLabel = reply.label;
     }
+    const cleanedAnswer = cleanTypedAnswer(data.answer);
+    const shownAt = await questionShownAt(sql, context.userId, data.id);
+    const engine = await applyEngineAnswer(sql, {
+      userId: context.userId,
+      childName: current.childName,
+      climbId: data.id,
+      subject: current.subject,
+      itemKey: keyed?.id ?? "",
+      correct,
+      elapsedMs: Date.now() - shownAt,
+    });
     const beforeGrade = capVkoleGrade(current.level);
     const beforeStep = current.standardStep ?? 0;
-    const moved = moveRung({
-      grade: beforeGrade,
-      step: beforeStep,
-      correct,
-      correctStreak: current.correctAtLevel,
-      missStreak: current.incorrectStreak,
-    });
+    const moved = engine.holdLevel
+      ? {
+          grade: beforeGrade,
+          step: beforeStep,
+          correctAtLevel: current.correctAtLevel,
+          incorrectStreak: current.incorrectStreak,
+          capped: false,
+        }
+      : moveRung({
+          grade: beforeGrade,
+          step: beforeStep,
+          correct,
+          correctStreak: current.correctAtLevel,
+          missStreak: engine.earlyStepDown ? Math.max(current.incorrectStreak, 1) : current.incorrectStreak,
+        });
     const reached = correct;
-    const pool = await dealQuestion(sql, context.userId, current.childName, current.subject, moved.grade, moved.step);
-    const visible = questionTheChildCanSee(modelPrompt, current.subject, moved.grade);
-    const chosen = chooseNext({
-      modelPrompt: visible?.prompt ?? modelPrompt,
-      recent,
-      pool,
-      preferPool: true,
-    });
+    const pool = engine.next ?? (await dealQuestion(sql, context.userId, current.childName, current.subject, moved.grade, moved.step));
+    const visible = engine.next ? null : questionTheChildCanSee(modelPrompt, current.subject, moved.grade);
+    const chosen = engine.next
+      ? { fromPool: true, prompt: engine.next.stem }
+      : chooseNext({
+          modelPrompt: visible?.prompt ?? modelPrompt,
+          recent,
+          pool,
+          preferPool: true,
+        });
     const nextPrompt = chosen.fromPool ? pool.stem : chosen.prompt;
     const nextCode = chosen.fromPool ? pool.standard : visible?.code || modelCode;
     const nextLabel = chosen.fromPool ? pool.note : visible?.label || modelLabel;
@@ -601,7 +624,9 @@ export const recordAnswer = createServerFn({ method: "POST" })
     const nextId = chosen.fromPool ? pool.id : "";
     const earnedMove = moved.grade > beforeGrade ? 1 : moved.grade < beforeGrade ? -1 : 0;
     const performanceLevel = capVkoleGrade(current.performanceLevel + earnedMove);
-    const note = stepSentence(current.subject, beforeGrade, beforeStep, { ...moved, reached });
+    const note = engine.holdLevel
+      ? "Checked again. The level stays the same."
+      : stepSentence(current.subject, beforeGrade, beforeStep, { ...moved, reached });
     const feedback = modelFeedback ? (modelFeedback.includes(note) ? modelFeedback : `${modelFeedback}\n\n${note}`) : note;
     await sql`
       update climbs
@@ -639,7 +664,7 @@ export const recordAnswer = createServerFn({ method: "POST" })
           stepBefore: beforeStep,
           stepAfter: moved.step,
           question: current.currentPrompt,
-          answer: data.answer.trim() || "(blank)",
+          answer: cleanedAnswer.trim() || "(blank)",
           note,
         })}
       )
@@ -1347,6 +1372,7 @@ export const beginSitting = createServerFn({ method: "POST" })
     }
     const id = crypto.randomUUID();
     await sql`insert into climb_sittings (id, climb_id, user_id) values (${id}, ${data.id}, ${context.userId})`;
+    await resetEngineSession(sql, context.userId, data.id);
     return { sittingId: id, startedAt: new Date().toISOString(), resumed: false };
   });
 

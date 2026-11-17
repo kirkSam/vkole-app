@@ -40,6 +40,8 @@ const ACCOUNT_TABLES: {
   { sqlName: "assignment_sheets", regclass: "assignment_sheets", userColumn: "user_id" },
   { sqlName: "seen_prompts", regclass: "seen_prompts", userColumn: "user_id" },
   { sqlName: "question_bags", regclass: "question_bags", userColumn: "user_id" },
+  { sqlName: "memory_records", regclass: "memory_records", userColumn: "user_id" },
+  { sqlName: "engine_sessions", regclass: "engine_sessions", userColumn: "user_id" },
   { sqlName: "school_mirror", regclass: "school_mirror", userColumn: "user_id" },
   { sqlName: "registrations", regclass: "registrations", emailColumn: "email" },
   { sqlName: '"session"', regclass: '"session"', userColumn: '"userId"' },

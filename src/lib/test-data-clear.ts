@@ -27,6 +27,8 @@ export const CLEAR_TABLES = [
   { key: "day_clocks", label: "day clocks", sqlName: "day_clocks", regclass: "day_clocks", match: "user_id" },
   { key: "seen_prompts", label: "seen prompts", sqlName: "seen_prompts", regclass: "seen_prompts", match: "user_id" },
   { key: "question_bags", label: "question bags", sqlName: "question_bags", regclass: "question_bags", match: "user_id" },
+  { key: "memory_records", label: "memory records", sqlName: "memory_records", regclass: "memory_records", match: "user_id" },
+  { key: "engine_sessions", label: "engine sessions", sqlName: "engine_sessions", regclass: "engine_sessions", match: "user_id" },
   { key: "mail", label: "mail", sqlName: "academic_mail", regclass: "academic_mail", match: "user_id" },
   { key: "trials", label: "trials", sqlName: "app_trials", regclass: "app_trials", match: "user_id" },
   { key: "assignments", label: "assignments", sqlName: "assignment_sheets", regclass: "assignment_sheets", match: "user_id" },

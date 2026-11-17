@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { setCookie } from "@tanstack/react-start/server";
 import { auth, SESSION_TOKEN_COOKIE } from "@/lib/auth/server";
 import { getSql, type Sql } from "@/lib/db";
+import { ensureEngineStore } from "@/lib/engine-store";
 import { isSchoolAccountId } from "@/lib/school-account";
 
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
@@ -62,6 +63,15 @@ async function moveRows(sql: Sql, fromId: string, toId: string): Promise<void> {
     on conflict (user_id, child_key, pool_key) do nothing
   `;
   await sql`delete from question_bags where user_id = ${fromId}`;
+  await ensureEngineStore(sql);
+  await sql`
+    insert into memory_records (user_id, child_key, item_key, strength_days, last_practiced_at, reviews, misses)
+    select ${toId}, child_key, item_key, strength_days, last_practiced_at, reviews, misses
+    from memory_records where user_id = ${fromId}
+    on conflict (user_id, child_key, item_key) do nothing
+  `;
+  await sql`delete from memory_records where user_id = ${fromId}`;
+  await sql`update engine_sessions set user_id = ${toId} where user_id = ${fromId}`;
   await sql`
     insert into student_passwords (user_id, child_key, password_hash)
     select ${toId}, child_key, password_hash

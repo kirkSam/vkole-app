@@ -19,7 +19,7 @@
  * Vite picks the values up because `loadEnv` prefix-matches entries already in
  * `process.env`, which is why the merge has to happen before Vite starts.
  */
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
 import { constants as osConstants } from "node:os";
 import { dirname, join } from "node:path";
@@ -105,6 +105,9 @@ export function isMainModule(moduleUrl) {
 }
 
 function main(argv) {
+  execFileSync(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), "build-vekole-engine.mjs")], {
+    stdio: "inherit",
+  });
   const [command, ...args] = argv;
   if (!command) {
     console.error("usage: node scripts/with-app-env.mjs <command> [args…]");
