@@ -1,3 +1,10 @@
+## 2026-11-18 sight spirals later in a sitting (App Builder)
+**Shipped (merged):** not yet. The app pins kirkSam/vekole-engine tag v0.2.2. A long miss no longer turns fatigue high. A missed word comes back on the spiral, not also in the regular list, and two returns cannot land on back-to-back cards. The master account sees a temporary fatigue line under the word.
+**Open, needs Sam:** Claude reviews the engine tag and this app commit. Merge only after "merge #N". The diagnosis line comes off before launch.
+**Mirrors needed on website:** yes. Same tag v0.2.2. The website chime waits one turn so it plays on every word.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word. Do not connect a branch.
+
 ## 2026-11-18 sight-word spirals (App Builder)
 **Shipped (merged):** not yet. The app pins kirkSam/vekole-engine tag v0.2.0. A missed sight word returns in the same sitting. The package owns the gap and the return cap. A spiral does not move the growth place.
 **Open, needs Sam:** Claude reviews this commit together with the website's connection. Merge only after "merge #N".

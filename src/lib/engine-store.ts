@@ -14,6 +14,7 @@ import {
   type EngineSession,
   type ItemMemory,
 } from "@/lib/engine-connect";
+import { sightStatusLine } from "@/lib/sight-status";
 import type { FatigueState, SpiralWord } from "@kirkpatrick/vekole-engine";
 
 function childKey(name: string): string {
@@ -24,6 +25,7 @@ function asSession(row: {
   items_served: number | string;
   reviews_served: number | string;
   items_since_new: number | string;
+  items_since_mixed?: number | string | null;
   last_new_at: unknown;
   fatigue: string | null;
   serve_kind: string | null;
@@ -48,6 +50,7 @@ function asSession(row: {
     itemsServed: Number(row.items_served) || 0,
     reviewsServed: Number(row.reviews_served) || 0,
     itemsSinceNew: Number(row.items_since_new) || 0,
+    itemsSinceMixed: Number(row.items_since_mixed) || 0,
     lastNewAt: row.last_new_at ? new Date(row.last_new_at as string).toISOString() : fresh.lastNewAt,
     fatigue,
     serveKind: kind,
@@ -112,6 +115,7 @@ export async function ensureEngineStore(sql: Sql): Promise<void> {
   await sql`alter table engine_sessions add column if not exists recheck_key text not null default ''`;
   await sql`alter table engine_sessions add column if not exists recheck_at timestamptz`;
   await sql`alter table engine_sessions add column if not exists spirals text not null default '[]'`;
+  await sql`alter table engine_sessions add column if not exists items_since_mixed integer not null default 0`;
 }
 
 async function loadRecords(sql: Sql, userId: string, childName: string): Promise<ItemMemory[]> {
@@ -164,10 +168,11 @@ async function saveSession(sql: Sql, userId: string, climbId: string, session: E
   const spirals = JSON.stringify(session.spirals);
   await sql`
     insert into engine_sessions (
-      climb_id, user_id, items_served, reviews_served, items_since_new, last_new_at,
+      climb_id, user_id, items_served, reviews_served, items_since_new, items_since_mixed, last_new_at,
       fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at, spirals
     ) values (
       ${climbId}, ${userId}, ${session.itemsServed}, ${session.reviewsServed}, ${session.itemsSinceNew},
+      ${session.itemsSinceMixed},
       ${session.lastNewAt}, ${fatigue}, ${session.serveKind}, ${session.serveItem}, ${rechecked},
       ${learned}, ${session.recheckKey}, ${session.recheckAt || null}, ${spirals}
     )
@@ -176,6 +181,7 @@ async function saveSession(sql: Sql, userId: string, climbId: string, session: E
       items_served = ${session.itemsServed},
       reviews_served = ${session.reviewsServed},
       items_since_new = ${session.itemsSinceNew},
+      items_since_mixed = ${session.itemsSinceMixed},
       last_new_at = ${session.lastNewAt},
       fatigue = ${fatigue},
       serve_kind = ${session.serveKind},
@@ -241,7 +247,7 @@ export async function applyEngineAnswer(
     serve_item: string | null;
     rechecked: string | null;
   }>`
-    select items_served, reviews_served, items_since_new, last_new_at, fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at, spirals
+    select items_served, reviews_served, items_since_new, items_since_mixed, last_new_at, fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at, spirals
     from engine_sessions
     where climb_id = ${input.climbId} and user_id = ${input.userId}
   `;
@@ -292,7 +298,7 @@ export async function applySightAnswer(
     serve_item: string | null;
     rechecked: string | null;
   }>`
-    select items_served, reviews_served, items_since_new, last_new_at, fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at, spirals
+    select items_served, reviews_served, items_since_new, items_since_mixed, last_new_at, fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at, spirals
     from engine_sessions
     where climb_id = ${input.climbId} and user_id = ${input.userId}
   `;
@@ -309,10 +315,15 @@ export async function applySightAnswer(
   });
   const known = knownOnList(scored.records, input.cursorBand);
   const unknown = new Set<number>();
+  const blocked = new Set<number>();
   for (let index = 0; index < input.listSize; index += 1) {
     const key = sightItemKey(input.cursorBand, index);
     const row = scored.records.find((item) => item.itemKey === key);
     if (!row?.known) unknown.add(index);
+  }
+  for (const word of scored.session.spirals) {
+    const parsed = parseSightItemKey(word.itemKey);
+    if (parsed && parsed.band === input.cursorBand) blocked.add(parsed.index);
   }
   const cursor = holdsPlace
     ? { band: input.cursorBand, index: input.cursorIndex, advanced: false }
@@ -323,6 +334,7 @@ export async function applySightAnswer(
         known,
         bands: input.bands,
         unknown,
+        blocked,
       });
   const chosen = chooseSightNext({ session: scored.session, records: scored.records, now });
   const review = chosen.itemKey ? parseSightItemKey(chosen.itemKey) : null;
@@ -331,4 +343,30 @@ export async function applySightAnswer(
   await saveRecords(sql, input.userId, input.childName, scored.records);
   await saveSession(sql, input.userId, input.climbId, saved);
   return { showBand: show.band, showIndex: show.index, cursorBand: cursor.band, cursorIndex: cursor.index, advanced: cursor.advanced };
+}
+
+/** The diagnosis line for this sitting. The caller shows it only to the master account. */
+export async function loadSightStatus(sql: Sql, userId: string, climbId: string): Promise<string> {
+  await ensureEngineStore(sql);
+  const rows = await sql<{
+    items_served: number | string;
+    reviews_served: number | string;
+    items_since_new: number | string;
+    items_since_mixed: number | string;
+    last_new_at: unknown;
+    fatigue: string | null;
+    serve_kind: string | null;
+    serve_item: string | null;
+    rechecked: string | null;
+    learned: string | null;
+    recheck_key: string | null;
+    recheck_at: unknown;
+    spirals: string | null;
+  }>`
+    select items_served, reviews_served, items_since_new, items_since_mixed, last_new_at, fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at, spirals
+    from engine_sessions
+    where climb_id = ${climbId} and user_id = ${userId}
+  `;
+  const session = asSession(rows[0], new Date());
+  return sightStatusLine({ fatigueHigh: session.fatigue.high, spirals: session.spirals });
 }

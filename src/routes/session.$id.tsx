@@ -581,12 +581,13 @@ function SessionPage() {
             band={climb.standardCode}
             index={climb.standardStep}
             voiceAllowed={voiceAllowed}
-            onDone={(outcome) => {
+            status={climb.sightStatus}
+            onDone={(outcome, elapsedMs) => {
               noteEngineActivity();
               if (pendingAnswer) return;
               setPendingAnswer(true);
               setError("");
-              void markSightWord({ data: { id: climb.id, outcome } })
+              void markSightWord({ data: { id: climb.id, outcome, elapsedMs } })
                 .then((row) => setClimb(row))
                 .catch((err: unknown) => {
                   setError(err instanceof Error ? err.message : "Could not save that word.");

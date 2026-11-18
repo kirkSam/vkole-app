@@ -51,7 +51,7 @@ describe("one 20-second answer window", () => {
     assert.equal(answerWindowLeft(shown, mic), SPOKEN_ANSWER_MS - 300);
     assert.equal(answerClockAt(true, shown, mic) + 6_000, mic + 6_000);
     assert.equal(answerClockAt(false, shown, mic) + 6_000, shown + 6_000);
-    for (const path of ["../../components/sight-word-stage.tsx", "../../components/phonemic-stage.tsx"]) {
+    for (const path of ["../../components/phonemic-stage.tsx"]) {
       const stage = source(path);
       const after = stage.slice(stage.indexOf("await playHeldChime"));
       const reset = after.indexOf("if (allowed)");
@@ -63,6 +63,19 @@ describe("one 20-second answer window", () => {
       const handler = ended.slice(0, ended.indexOf("};"));
       assert.equal(handler.includes("shownAt.current = "), false, path);
     }
+    const sight = source("../../components/sight-word-stage.tsx");
+    assert.equal(sight.includes("if (shownAt.current == null) shownAt.current = performance.now()"), true);
+    const micClock = sight.slice(sight.indexOf("const openMicClock"), sight.indexOf("if (voiceAllowed && (permit"));
+    assert.match(micClock, /micAt\.current = now/);
+    assert.match(micClock, /shownAt\.current = now/);
+    assert.match(sight, /rec\.onstart = \(\) => \{[\s\S]*?openMicClock\(\)/);
+    assert.match(sight, /rec\.onaudiostart = \(\) => \{[\s\S]*?openMicClock\(\)/);
+    const afterChime = sight.slice(sight.indexOf("await playHeldChime"));
+    assert.equal(afterChime.indexOf("ear.start()") >= 0, true);
+    assert.equal(afterChime.includes("shownAt.current = performance.now()"), false);
+    const sightEnded = sight.slice(sight.indexOf("rec.onend"));
+    const sightHandler = sightEnded.slice(0, sightEnded.indexOf("};"));
+    assert.equal(sightHandler.includes("shownAt.current = "), false);
     const alphabet = source("../../components/alphabet-stage.tsx");
     assert.equal(alphabet.includes("if (allowed) onChimed()"), true);
     assert.equal((alphabet.match(/letterAt = performance\.now\(\)/g) ?? []).length >= 4, true);

@@ -57,13 +57,16 @@ export function SightWordStage({
   band,
   index = 0,
   voiceAllowed = false,
+  status,
   onDone,
 }: {
   word: string;
   band?: string;
   index?: number;
   voiceAllowed?: boolean;
-  onDone: (outcome: Outcome) => void;
+  /** Master-only diagnosis. Remove before launch. */
+  status?: string;
+  onDone: (outcome: Outcome, elapsedMs: number) => void;
 }) {
   const [ready, setReady] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
@@ -73,6 +76,7 @@ export function SightWordStage({
   const [permit, setPermit] = useState<"wait" | "ready" | "denied">("wait");
   const [hearing, setHearing] = useState(false);
   const shownAt = useRef<number | null>(null);
+  const micAt = useRef<number | null>(null);
   const holdingMic = useRef(false);
   const onDoneRef = useRef(onDone);
   const finishRef = useRef<(outcome: Outcome) => void>(() => {});
@@ -89,6 +93,7 @@ export function SightWordStage({
     setPhase("show");
     setHearing(false);
     shownAt.current = null;
+    micAt.current = null;
     if (!voiceAllowed) {
       holdingMic.current = false;
       setPermit("ready");
@@ -146,15 +151,27 @@ export function SightWordStage({
       }
       rec = null;
       window.clearTimeout(advanceRef.current);
+      const started = micAt.current ?? (voiceAllowed ? null : shownAt.current);
+      const elapsedMs = started == null ? 0 : Math.max(0, Math.round(performance.now() - started));
+      const finish = () => onDoneRef.current(outcome, elapsedMs);
       if (outcome === "correct") {
         setPhase("sparkle");
-        advanceRef.current = window.setTimeout(() => onDoneRef.current("correct"), SIGHT_WORD_ADVANCE_MS);
+        advanceRef.current = window.setTimeout(finish, SIGHT_WORD_ADVANCE_MS);
         return;
       }
       setPhase("speak");
       speakWord(word, () => {
-        advanceRef.current = window.setTimeout(() => onDoneRef.current(outcome), SIGHT_WORD_ADVANCE_MS);
+        advanceRef.current = window.setTimeout(finish, SIGHT_WORD_ADVANCE_MS);
       });
+    };
+
+    const openMicClock = () => {
+      if (micAt.current != null) return;
+      const now = performance.now();
+      micAt.current = now;
+      shownAt.current = now;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => finishRef.current("timeout"), SIGHT_WORD_MAX_SHOW_MS);
     };
 
     if (voiceAllowed && (permit === "wait" || holdingMic.current)) {
@@ -180,9 +197,11 @@ export function SightWordStage({
         rec.interimResults = true;
         rec.onstart = () => {
           if (cueOnListenStart(isNativeApp(), "started")) setHearing(true);
+          openMicClock();
         };
         rec.onaudiostart = () => {
           if (cueOnListenStart(isNativeApp(), "audio")) setHearing(true);
+          openMicClock();
         };
         rec.onresult = (event) => {
           noteEngineActivity();
@@ -235,11 +254,6 @@ export function SightWordStage({
           releaseBeepMute();
           return;
         }
-        if (allowed) {
-          shownAt.current = performance.now();
-          window.clearTimeout(timer);
-          timer = window.setTimeout(() => finishRef.current("timeout"), SIGHT_WORD_MAX_SHOW_MS);
-        }
         try {
           ear.start();
         } catch {
@@ -290,6 +304,7 @@ export function SightWordStage({
           <p className="sight-word font-display text-muted"> </p>
         )}
       </div>
+      {status ? <p className="mt-3 text-center text-sm text-muted">{status}</p> : null}
       <ListeningCue on={hearing && phase === "show"} />
       {quiet ? <p className="mt-4 text-center text-sm text-ink">{SPEAK_FAILED_LINE}</p> : null}
       {adult ? (
