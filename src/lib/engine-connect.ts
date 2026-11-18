@@ -10,13 +10,16 @@ import {
   recheckDue,
   removePersonalDetails,
   reviewSlotOpen,
+  settleSightWord,
   VEKOLE_SETTINGS,
+  chooseSightServe,
   type FatigueState,
   type MemoryRecord,
+  type SpiralWord,
 } from "@kirkpatrick/vekole-engine";
 
 /** The app and the website pin this tag. Neither side points at a branch. */
-export const CONNECTED_ENGINE = "v0.1.3" as const;
+export const CONNECTED_ENGINE = "v0.2.0" as const;
 
 export function engineTagMatches(): boolean {
   return AGREED_VERSION === CONNECTED_ENGINE;
@@ -35,13 +38,15 @@ export type EngineSession = {
   itemsSinceNew: number;
   lastNewAt: string;
   fatigue: FatigueState;
-  serveKind: "growth" | "review" | "recheck";
+  serveKind: "growth" | "review" | "recheck" | "spiral";
   serveItem: string;
   rechecked: string[];
   /** Item keys whose first correct answer happened during this sitting. */
   learnedThisSession: string[];
   recheckKey: string;
   recheckAt: string;
+  /** Missed sight words waiting to return in this sitting. The package owns the rules. */
+  spirals: SpiralWord[];
 };
 
 export function freshEngineSession(now: Date): EngineSession {
@@ -57,6 +62,7 @@ export function freshEngineSession(now: Date): EngineSession {
     learnedThisSession: [],
     recheckKey: "",
     recheckAt: "",
+    spirals: [],
   };
 }
 
@@ -127,6 +133,37 @@ export function chooseNextServe(input: {
   return { session: { ...input.session, serveKind: "growth", serveItem: "" }, itemKey: null };
 }
 
+/** A review, a re-check, or a spiral does not move the sight-word place. */
+export function sightServeHoldsPlace(kind: EngineSession["serveKind"]): boolean {
+  return kind !== "growth";
+}
+
+/**
+ * Sight Words only. A same-session re-check still wins.
+ * Otherwise the package chooses a spiral before an Ebbinghaus review.
+ */
+export function chooseSightNext(input: {
+  session: EngineSession;
+  records: ItemMemory[];
+  now: Date;
+}): { session: EngineSession; itemKey: string | null } {
+  const recheck = chooseNextServe({ ...input, subject: "sw" });
+  if (recheck.session.serveKind === "recheck") return recheck;
+  const own = input.records.filter((row) => row.itemKey.startsWith("sw:"));
+  const choice = chooseSightServe({
+    itemsServed: input.session.itemsServed,
+    reviewsServed: input.session.reviewsServed,
+    fatigueHigh: input.session.fatigue.high,
+    spirals: input.session.spirals,
+    records: own,
+    now: input.now,
+  });
+  if (choice.kind === "spiral" || choice.kind === "review") {
+    return { session: { ...input.session, serveKind: choice.kind, serveItem: choice.itemKey }, itemKey: choice.itemKey };
+  }
+  return { session: { ...input.session, serveKind: "growth", serveItem: "" }, itemKey: null };
+}
+
 /** The package owns this number. The app does not keep its own copy. */
 export function sightListAdvances(known: number, listSize: number): boolean {
   if (listSize <= 0 || known <= 0) return false;
@@ -182,7 +219,30 @@ function withSession(session: EngineSession, kind: EngineSession["serveKind"], n
   return advanceSession(session, { kind, now, fatigue, itemKey, firstLearned });
 }
 
-/** A correct word is known from then on. A miss is remembered and can return as a review. */
+function applySightSession(
+  session: EngineSession,
+  input: {
+    now: Date;
+    fatigue: FatigueState;
+    kind: EngineSession["serveKind"];
+    itemKey: string;
+    firstLearned: boolean;
+    itemsServed: number;
+    reviewsServed: number;
+    spirals: SpiralWord[];
+  },
+): EngineSession {
+  const advanced = advanceSession(session, {
+    kind: input.kind,
+    now: input.now,
+    fatigue: input.fatigue,
+    itemKey: input.itemKey,
+    firstLearned: input.firstLearned,
+  });
+  return { ...advanced, itemsServed: input.itemsServed, reviewsServed: input.reviewsServed, spirals: input.spirals };
+}
+
+/** A correct word is known from then on. A miss can return in this sitting, then on the forgetting curve. */
 export function scoreSightWord(input: {
   session: EngineSession;
   records: ItemMemory[];
@@ -195,21 +255,53 @@ export function scoreSightWord(input: {
   const kind = input.session.serveKind;
   const records = input.records.map((row) => ({ ...row }));
   const index = records.findIndex((row) => row.itemKey === input.itemKey);
+  const prior = index >= 0 ? records[index] : undefined;
   const firstLearned = kind === "growth" && input.correct && index < 0 && Boolean(input.itemKey);
-  if (input.correct && index < 0) {
-    records.push({ ...createMemory(input.now), itemKey: input.itemKey, known: true });
-  } else if (input.correct && index >= 0) {
-    const row = records[index]!;
-    const next = !row.known ? createMemory(input.now) : kind === "growth" ? row : applyReview(row, true, input.now);
-    records[index] = { ...next, itemKey: input.itemKey, known: true };
-  } else if (!input.correct && index < 0) {
-    records.push({ ...applyRecheck(createMemory(input.now), false, input.now), itemKey: input.itemKey, known: false });
-  } else if (!input.correct && index >= 0) {
-    const row = records[index]!;
-    const next = kind === "growth" ? applyRecheck(row, false, input.now) : applyReview(row, false, input.now);
-    records[index] = { ...next, itemKey: input.itemKey, known: row.known === true };
+  if (kind === "recheck") {
+    if (index >= 0 && input.itemKey) {
+      const row = records[index]!;
+      records[index] = {
+        ...applyRecheck(row, input.correct, input.now),
+        itemKey: input.itemKey,
+        known: input.correct ? true : row.known === true,
+      };
+    }
+    return { session: withSession(input.session, kind, input.now, fatigue, input.itemKey, firstLearned), records };
   }
-  return { session: withSession(input.session, kind, input.now, fatigue, input.itemKey, firstLearned), records };
+  const settled = settleSightWord({
+    itemsServed: input.session.itemsServed,
+    reviewsServed: input.session.reviewsServed,
+    spirals: input.session.spirals,
+    itemKey: input.itemKey,
+    kind: kind === "spiral" ? "spiral" : kind === "review" ? "review" : "new",
+    correct: input.correct,
+    record: prior
+      ? {
+          strengthDays: prior.strengthDays,
+          lastPracticedAt: prior.lastPracticedAt,
+          reviews: prior.reviews,
+          misses: prior.misses,
+        }
+      : null,
+    known: prior?.known === true,
+    now: input.now,
+  });
+  const next = { ...settled.record, itemKey: input.itemKey, known: settled.known };
+  if (index >= 0) records[index] = next;
+  else if (input.itemKey) records.push(next);
+  return {
+    session: applySightSession(input.session, {
+      now: input.now,
+      fatigue,
+      kind,
+      itemKey: input.itemKey,
+      firstLearned,
+      itemsServed: settled.itemsServed,
+      reviewsServed: settled.reviewsServed,
+      spirals: settled.spirals,
+    }),
+    records,
+  };
 }
 
 export function knownOnList(records: readonly ItemMemory[], band: string): number {
