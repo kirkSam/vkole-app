@@ -2,6 +2,7 @@ import type { Sql } from "@/lib/db";
 import { parseVariantId, poolQuestion, type PoolQuestion } from "@/lib/question-pool";
 import {
   chooseNextServe,
+  chooseSightNext,
   freshEngineSession,
   knownOnList,
   nextSightPlace,
@@ -9,10 +10,11 @@ import {
   scoreEngineItem,
   scoreSightWord,
   sightItemKey,
+  sightServeHoldsPlace,
   type EngineSession,
   type ItemMemory,
 } from "@/lib/engine-connect";
-import type { FatigueState } from "@kirkpatrick/vekole-engine";
+import type { FatigueState, SpiralWord } from "@kirkpatrick/vekole-engine";
 
 function childKey(name: string): string {
   return name.trim().toLowerCase();
@@ -30,6 +32,7 @@ function asSession(row: {
   learned?: string | null;
   recheck_key?: string | null;
   recheck_at?: unknown;
+  spirals?: string | null;
 } | undefined, now: Date): EngineSession {
   const fresh = freshEngineSession(now);
   if (!row) return fresh;
@@ -40,7 +43,7 @@ function asSession(row: {
   } catch {
     fatigue = fresh.fatigue;
   }
-  const kind = row.serve_kind === "review" || row.serve_kind === "recheck" ? row.serve_kind : "growth";
+  const kind = row.serve_kind === "review" || row.serve_kind === "recheck" || row.serve_kind === "spiral" ? row.serve_kind : "growth";
   return {
     itemsServed: Number(row.items_served) || 0,
     reviewsServed: Number(row.reviews_served) || 0,
@@ -53,7 +56,27 @@ function asSession(row: {
     learnedThisSession: (row.learned ?? "").split(",").map((item) => item.trim()).filter(Boolean),
     recheckKey: row.recheck_key ?? "",
     recheckAt: row.recheck_at ? new Date(row.recheck_at as string).toISOString() : "",
+    spirals: asSpirals(row.spirals),
   };
+}
+
+function asSpirals(raw: string | null | undefined): SpiralWord[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as SpiralWord[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((word) => {
+      if (!word || typeof word.itemKey !== "string") return [];
+      return [{
+        itemKey: word.itemKey,
+        newWords: Number(word.newWords) || 0,
+        returns: Number(word.returns) || 0,
+        waiting: word.waiting === true,
+      }];
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function ensureEngineStore(sql: Sql): Promise<void> {
@@ -88,6 +111,7 @@ export async function ensureEngineStore(sql: Sql): Promise<void> {
   await sql`alter table engine_sessions add column if not exists learned text not null default ''`;
   await sql`alter table engine_sessions add column if not exists recheck_key text not null default ''`;
   await sql`alter table engine_sessions add column if not exists recheck_at timestamptz`;
+  await sql`alter table engine_sessions add column if not exists spirals text not null default '[]'`;
 }
 
 async function loadRecords(sql: Sql, userId: string, childName: string): Promise<ItemMemory[]> {
@@ -137,14 +161,15 @@ async function saveSession(sql: Sql, userId: string, climbId: string, session: E
   const fatigue = JSON.stringify(session.fatigue);
   const rechecked = session.rechecked.join(",");
   const learned = session.learnedThisSession.join(",");
+  const spirals = JSON.stringify(session.spirals);
   await sql`
     insert into engine_sessions (
       climb_id, user_id, items_served, reviews_served, items_since_new, last_new_at,
-      fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at
+      fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at, spirals
     ) values (
       ${climbId}, ${userId}, ${session.itemsServed}, ${session.reviewsServed}, ${session.itemsSinceNew},
       ${session.lastNewAt}, ${fatigue}, ${session.serveKind}, ${session.serveItem}, ${rechecked},
-      ${learned}, ${session.recheckKey}, ${session.recheckAt || null}
+      ${learned}, ${session.recheckKey}, ${session.recheckAt || null}, ${spirals}
     )
     on conflict (climb_id) do update set
       user_id = ${userId},
@@ -158,7 +183,8 @@ async function saveSession(sql: Sql, userId: string, climbId: string, session: E
       rechecked = ${rechecked},
       learned = ${learned},
       recheck_key = ${session.recheckKey},
-      recheck_at = ${session.recheckAt || null}
+      recheck_at = ${session.recheckAt || null},
+      spirals = ${spirals}
   `;
 }
 
@@ -215,7 +241,7 @@ export async function applyEngineAnswer(
     serve_item: string | null;
     rechecked: string | null;
   }>`
-    select items_served, reviews_served, items_since_new, last_new_at, fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at
+    select items_served, reviews_served, items_since_new, last_new_at, fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at, spirals
     from engine_sessions
     where climb_id = ${input.climbId} and user_id = ${input.userId}
   `;
@@ -266,12 +292,12 @@ export async function applySightAnswer(
     serve_item: string | null;
     rechecked: string | null;
   }>`
-    select items_served, reviews_served, items_since_new, last_new_at, fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at
+    select items_served, reviews_served, items_since_new, last_new_at, fatigue, serve_kind, serve_item, rechecked, learned, recheck_key, recheck_at, spirals
     from engine_sessions
     where climb_id = ${input.climbId} and user_id = ${input.userId}
   `;
   const session = asSession(rows[0], now);
-  const wasReview = session.serveKind === "review" || session.serveKind === "recheck";
+  const holdsPlace = sightServeHoldsPlace(session.serveKind);
   const records = await loadRecords(sql, input.userId, input.childName);
   const scored = scoreSightWord({
     session,
@@ -288,7 +314,7 @@ export async function applySightAnswer(
     const row = scored.records.find((item) => item.itemKey === key);
     if (!row?.known) unknown.add(index);
   }
-  const cursor = wasReview
+  const cursor = holdsPlace
     ? { band: input.cursorBand, index: input.cursorIndex, advanced: false }
     : nextSightPlace({
         band: input.cursorBand,
@@ -298,7 +324,7 @@ export async function applySightAnswer(
         bands: input.bands,
         unknown,
       });
-  const chosen = chooseNextServe({ session: scored.session, records: scored.records, now, subject: "sw" });
+  const chosen = chooseSightNext({ session: scored.session, records: scored.records, now });
   const review = chosen.itemKey ? parseSightItemKey(chosen.itemKey) : null;
   const show = review ?? { band: cursor.band, index: cursor.index };
   const saved = review ? chosen.session : { ...chosen.session, serveKind: "growth" as const, serveItem: "" };

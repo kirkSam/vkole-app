@@ -1,3 +1,10 @@
+## 2026-11-18 sight-word spirals (App Builder)
+**Shipped (merged):** not yet. The app pins kirkSam/vekole-engine tag v0.2.0. A missed sight word returns in the same sitting. The package owns the gap and the return cap. A spiral does not move the growth place.
+**Open, needs Sam:** Claude reviews this commit together with the website's connection. Merge only after "merge #N".
+**Mirrors needed on website:** yes, the same tag, in the website's own connection.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word for both sides together.
+
 ## 2026-11-17 connect engine v0.1.3 (App Builder)
 **Shipped (merged):** not yet. The app pins kirkSam/vekole-engine tag v0.1.3. Typed answers are cleaned before Grok. Memory records stay in this app's database. A review or a re-check does not change the growth level. A re-check is only an item first learned in this sitting. Sight Words moves to the next list at the package's sightWordsListRule (70%). Missed words stay in memory and return as reviews. The master account can make its own reviews due now. Any other account is refused.
 **Open, needs Sam:** Claude reviews the latest commit on #80. Merge only after "merge #N". #80 still merges together with website #112.

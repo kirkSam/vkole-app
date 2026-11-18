@@ -6,11 +6,13 @@ import { cycleInstruction } from "./vkole-cycle.ts";
 import {
   CONNECTED_ENGINE,
   chooseNextServe,
+  chooseSightNext,
   cleanTypedAnswer,
   freshEngineSession,
   scoreEngineItem,
   scoreSightWord,
   sightListAdvances,
+  sightServeHoldsPlace,
   type ItemMemory,
 } from "./engine-connect.ts";
 
@@ -27,12 +29,14 @@ function memory(itemKey: string, strengthDays: number, daysAgo: number): ItemMem
 }
 
 describe("connected engine", () => {
-  it("pins the shared package at v0.1.3", () => {
-    assert.equal(CONNECTED_ENGINE, "v0.1.3");
-    assert.equal(AGREED_VERSION, "v0.1.3");
+  it("pins the shared package at v0.2.0", () => {
+    assert.equal(CONNECTED_ENGINE, "v0.2.0");
+    assert.equal(AGREED_VERSION, "v0.2.0");
     assert.equal(VEKOLE_SETTINGS.answerLimit, 500);
+    assert.equal(VEKOLE_SETTINGS.spiralGapItems, 3);
+    assert.equal(VEKOLE_SETTINGS.spiralMaxReturns, 2);
     const installed = readFileSync(new URL("../../node_modules/@kirkpatrick/vekole-engine/package.json", import.meta.url), "utf8");
-    assert.match(installed, /"version": "0.1.3"/);
+    assert.match(installed, /"version": "0.2.0"/);
   });
 
   it("removes personal details before a typed answer can be sent, and leaves ordinary answers", () => {
@@ -213,5 +217,115 @@ describe("connected engine", () => {
       now: NOW,
     });
     assert.deepEqual(already.session.learnedThisSession, []);
+  });
+
+  it("spirals a missed sight word in this sitting, then rests", () => {
+    const source = readFileSync(new URL("./engine-connect.ts", import.meta.url), "utf8");
+    assert.equal(source.includes("spiralGapItems"), false);
+    assert.equal(source.includes("spiralMaxReturns"), false);
+    assert.match(source, /chooseSightServe/);
+    assert.match(source, /settleSightWord/);
+    const planned = Array.from({ length: 18 }, (_, index) => `sw:D-1:${index}`);
+    const theKey = planned[4]!;
+    let session = freshEngineSession(NOW);
+    let records: ItemMemory[] = [];
+    const served: { kind: string; key: string; known: boolean }[] = [];
+    let plan = 0;
+    for (let step = 0; step < 30; step += 1) {
+      const choice = chooseSightNext({ session, records, now: NOW });
+      let key = choice.itemKey ?? "";
+      let correct = true;
+      const kind = choice.itemKey ? choice.session.serveKind : "growth";
+      if (!choice.itemKey) {
+        const next = planned[plan];
+        plan += 1;
+        if (!next) break;
+        key = next;
+        correct = next !== theKey;
+      } else if (kind === "spiral") {
+        correct = false;
+      }
+      const scored = scoreSightWord({
+        session: { ...choice.session, serveKind: kind, serveItem: choice.itemKey ?? "" },
+        records,
+        itemKey: key,
+        correct,
+        elapsedMs: 1000,
+        now: NOW,
+      });
+      session = scored.session;
+      records = scored.records;
+      served.push({ kind, key, known: scored.records.find((row) => row.itemKey === key)?.known === true });
+    }
+    assert.equal(served[4]?.key, theKey);
+    assert.equal(served[4]?.kind, "growth");
+    assert.equal(served[8]?.key, theKey);
+    assert.equal(served[8]?.kind, "spiral");
+    assert.equal(served[12]?.key, theKey);
+    assert.equal(served[12]?.kind, "spiral");
+    assert.equal(served.slice(13).some((item) => item.key === theKey), false);
+    assert.equal(sightServeHoldsPlace("spiral"), true);
+    assert.equal(sightServeHoldsPlace("growth"), false);
+    for (let index = 0; index + 4 <= served.length; index += 1) {
+      const mixed = served.slice(index, index + 4).filter((item) => item.kind === "spiral" || item.kind === "review").length;
+      assert.ok(mixed <= 1);
+    }
+    assert.equal(records.find((row) => row.itemKey === theKey)?.strengthDays, 1);
+
+    session = freshEngineSession(NOW);
+    records = [];
+    plan = 0;
+    const correctServed: { kind: string; key: string }[] = [];
+    for (let step = 0; step < 16; step += 1) {
+      const choice = chooseSightNext({ session, records, now: NOW });
+      let key = choice.itemKey ?? "";
+      let correct = true;
+      const kind = choice.itemKey ? choice.session.serveKind : "growth";
+      if (!choice.itemKey) {
+        const next = planned[plan];
+        plan += 1;
+        if (!next) break;
+        key = next;
+        correct = next !== theKey;
+      }
+      const before = records.find((row) => row.itemKey === key);
+      const scored = scoreSightWord({
+        session: { ...choice.session, serveKind: kind, serveItem: choice.itemKey ?? "" },
+        records,
+        itemKey: key,
+        correct,
+        elapsedMs: 1000,
+        now: NOW,
+      });
+      session = scored.session;
+      records = scored.records;
+      correctServed.push({ kind, key });
+      if (kind === "spiral") {
+        const row = scored.records.find((item) => item.itemKey === theKey);
+        assert.equal(row?.known, true);
+        assert.equal(row?.strengthDays, 1.8);
+        assert.equal(row?.lastPracticedAt, before?.lastPracticedAt);
+        assert.equal(sightServeHoldsPlace(kind), true);
+      }
+    }
+    assert.equal(correctServed[8]?.kind, "spiral");
+    assert.equal(correctServed.slice(9).some((item) => item.key === theKey), false);
+    const knownBefore = 6;
+    const knownAfter = knownBefore + 1;
+    assert.equal(knownBefore / 10 >= VEKOLE_SETTINGS.sightWordsListRule, false);
+    assert.equal(knownAfter / 10 >= VEKOLE_SETTINGS.sightWordsListRule, true);
+
+    const paused = chooseSightNext({
+      session: {
+        ...freshEngineSession(NOW),
+        itemsServed: 8,
+        fatigue: { timesMs: [1000, 1000, 1000, 1000, 1000], high: true, missStreak: 0, normalStreak: 0 },
+        spirals: [{ itemKey: theKey, newWords: VEKOLE_SETTINGS.spiralGapItems, returns: 0, waiting: true }],
+      },
+      records,
+      now: NOW,
+    });
+    assert.equal(paused.itemKey, null);
+    assert.equal(paused.session.serveKind, "growth");
   });
 });
