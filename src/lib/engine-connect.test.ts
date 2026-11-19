@@ -13,6 +13,7 @@ import {
   scoreSightWord,
   sightListAdvances,
   sightServeHoldsPlace,
+  nextSightPlace,
   type ItemMemory,
 } from "./engine-connect.ts";
 
@@ -29,14 +30,14 @@ function memory(itemKey: string, strengthDays: number, daysAgo: number): ItemMem
 }
 
 describe("connected engine", () => {
-  it("pins the shared package at v0.2.0", () => {
-    assert.equal(CONNECTED_ENGINE, "v0.2.0");
-    assert.equal(AGREED_VERSION, "v0.2.0");
+  it("pins the shared package at v0.2.2", () => {
+    assert.equal(CONNECTED_ENGINE, "v0.2.2");
+    assert.equal(AGREED_VERSION, "v0.2.2");
     assert.equal(VEKOLE_SETTINGS.answerLimit, 500);
     assert.equal(VEKOLE_SETTINGS.spiralGapItems, 3);
     assert.equal(VEKOLE_SETTINGS.spiralMaxReturns, 2);
     const installed = readFileSync(new URL("../../node_modules/@kirkpatrick/vekole-engine/package.json", import.meta.url), "utf8");
-    assert.match(installed, /"version": "0.2.0"/);
+    assert.match(installed, /"version": "0.2.2"/);
   });
 
   it("removes personal details before a typed answer can be sent, and leaves ordinary answers", () => {
@@ -95,7 +96,7 @@ describe("connected engine", () => {
   it("mixes at most one review per four items and skips reviews while fatigue is high", () => {
     const records = [memory("m:3:0:1", 4.5, 3)];
     const open = chooseNextServe({
-      session: { ...freshEngineSession(NOW), itemsServed: 3, reviewsServed: 0 },
+      session: { ...freshEngineSession(NOW), itemsSinceMixed: VEKOLE_SETTINGS.reviewEvery - 1, reviewsServed: 0 },
       records,
       now: NOW,
       subject: "m",
@@ -103,7 +104,7 @@ describe("connected engine", () => {
     assert.equal(open.itemKey, "m:3:0:1");
     assert.equal(open.session.serveKind, "review");
     const closed = chooseNextServe({
-      session: { ...freshEngineSession(NOW), itemsServed: 0, reviewsServed: 0 },
+      session: { ...freshEngineSession(NOW), itemsServed: 40, itemsSinceMixed: 0, reviewsServed: 0 },
       records,
       now: NOW,
       subject: "m",
@@ -145,7 +146,7 @@ describe("connected engine", () => {
     assert.deepEqual(missed.session.learnedThisSession, []);
     const later = new Date(NOW.getTime() + 2 * 86_400_000);
     const review = chooseNextServe({
-      session: { ...missed.session, itemsServed: 3, reviewsServed: 0 },
+      session: { ...missed.session, itemsSinceMixed: VEKOLE_SETTINGS.reviewEvery - 1, reviewsServed: 0 },
       records: missed.records,
       now: later,
       subject: "sw",
@@ -176,7 +177,7 @@ describe("connected engine", () => {
     assert.equal(again.session.serveKind, "recheck");
     const older = memory("m:2:0:1", 4.5, 3);
     const noneLearned = chooseNextServe({
-      session: { ...freshEngineSession(NOW), itemsServed: 8, itemsSinceNew: 8 },
+      session: { ...freshEngineSession(NOW), itemsServed: 8, itemsSinceNew: 8, itemsSinceMixed: VEKOLE_SETTINGS.reviewEvery - 1 },
       records: [{ ...older, reviews: 0, misses: 0 }],
       now: NOW,
       subject: "m",
@@ -266,6 +267,26 @@ describe("connected engine", () => {
     assert.equal(served.slice(13).some((item) => item.key === theKey), false);
     assert.equal(sightServeHoldsPlace("spiral"), true);
     assert.equal(sightServeHoldsPlace("growth"), false);
+    const skipped = nextSightPlace({
+      band: "D-1",
+      index: 0,
+      listSize: 5,
+      known: 0,
+      bands: ["D-1"],
+      unknown: new Set([1, 2]),
+      blocked: new Set([1]),
+    });
+    assert.equal(skipped.index, 2);
+    const onlyBlocked = nextSightPlace({
+      band: "D-1",
+      index: 0,
+      listSize: 5,
+      known: 0,
+      bands: ["D-1"],
+      unknown: new Set([1]),
+      blocked: new Set([1]),
+    });
+    assert.notEqual(onlyBlocked.index, 1);
     for (let index = 0; index + 4 <= served.length; index += 1) {
       const mixed = served.slice(index, index + 4).filter((item) => item.kind === "spiral" || item.kind === "review").length;
       assert.ok(mixed <= 1);

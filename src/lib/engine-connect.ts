@@ -19,7 +19,7 @@ import {
 } from "@kirkpatrick/vekole-engine";
 
 /** The app and the website pin this tag. Neither side points at a branch. */
-export const CONNECTED_ENGINE = "v0.2.0" as const;
+export const CONNECTED_ENGINE = "v0.2.2" as const;
 
 export function engineTagMatches(): boolean {
   return AGREED_VERSION === CONNECTED_ENGINE;
@@ -36,6 +36,8 @@ export type EngineSession = {
   itemsServed: number;
   reviewsServed: number;
   itemsSinceNew: number;
+  /** Items since the last spiral or review. The package owns when that opens the slot. */
+  itemsSinceMixed: number;
   lastNewAt: string;
   fatigue: FatigueState;
   serveKind: "growth" | "review" | "recheck" | "spiral";
@@ -54,6 +56,7 @@ export function freshEngineSession(now: Date): EngineSession {
     itemsServed: 0,
     reviewsServed: 0,
     itemsSinceNew: 0,
+    itemsSinceMixed: 0,
     lastNewAt: now.toISOString(),
     fatigue: freshFatigue(),
     serveKind: "growth",
@@ -121,7 +124,7 @@ export function chooseNextServe(input: {
       return { session: { ...input.session, serveKind: "recheck", serveItem: item.itemKey }, itemKey: item.itemKey };
     }
   }
-  if (reviewSlotOpen(input.session.itemsServed, input.session.reviewsServed, high)) {
+  if (reviewSlotOpen(input.session.itemsSinceMixed, input.session.reviewsServed, high)) {
     const faded = mostFaded(own, input.now);
     if (faded) {
       const match = own.find((row) => row === faded);
@@ -151,7 +154,7 @@ export function chooseSightNext(input: {
   if (recheck.session.serveKind === "recheck") return recheck;
   const own = input.records.filter((row) => row.itemKey.startsWith("sw:"));
   const choice = chooseSightServe({
-    itemsServed: input.session.itemsServed,
+    itemsSinceMixed: input.session.itemsSinceMixed,
     reviewsServed: input.session.reviewsServed,
     fatigueHigh: input.session.fatigue.high,
     spirals: input.session.spirals,
@@ -206,6 +209,7 @@ function advanceSession(
     ...session,
     itemsServed: session.itemsServed + 1,
     reviewsServed: session.reviewsServed + (input.kind === "review" ? 1 : 0),
+    itemsSinceMixed: input.kind === "review" || input.kind === "spiral" ? 0 : session.itemsSinceMixed + 1,
     itemsSinceNew,
     lastNewAt: input.firstLearned ? input.now.toISOString() : session.lastNewAt,
     fatigue: input.fatigue,
@@ -229,6 +233,7 @@ function applySightSession(
     firstLearned: boolean;
     itemsServed: number;
     reviewsServed: number;
+    itemsSinceMixed: number;
     spirals: SpiralWord[];
   },
 ): EngineSession {
@@ -239,7 +244,13 @@ function applySightSession(
     itemKey: input.itemKey,
     firstLearned: input.firstLearned,
   });
-  return { ...advanced, itemsServed: input.itemsServed, reviewsServed: input.reviewsServed, spirals: input.spirals };
+  return {
+    ...advanced,
+    itemsServed: input.itemsServed,
+    reviewsServed: input.reviewsServed,
+    itemsSinceMixed: input.itemsSinceMixed,
+    spirals: input.spirals,
+  };
 }
 
 /** A correct word is known from then on. A miss can return in this sitting, then on the forgetting curve. */
@@ -271,6 +282,7 @@ export function scoreSightWord(input: {
   const settled = settleSightWord({
     itemsServed: input.session.itemsServed,
     reviewsServed: input.session.reviewsServed,
+    itemsSinceMixed: input.session.itemsSinceMixed,
     spirals: input.session.spirals,
     itemKey: input.itemKey,
     kind: kind === "spiral" ? "spiral" : kind === "review" ? "review" : "new",
@@ -298,6 +310,7 @@ export function scoreSightWord(input: {
       firstLearned,
       itemsServed: settled.itemsServed,
       reviewsServed: settled.reviewsServed,
+      itemsSinceMixed: settled.itemsSinceMixed,
       spirals: settled.spirals,
     }),
     records,
@@ -315,6 +328,8 @@ export function nextSightPlace(input: {
   known: number;
   bands: readonly string[];
   unknown: ReadonlySet<number>;
+  /** Indexes already in this sitting's spiral list. Regular order must not show them. */
+  blocked?: ReadonlySet<number>;
 }): { band: string; index: number; advanced: boolean } {
   if (sightListAdvances(input.known, input.listSize)) {
     const at = input.bands.indexOf(input.band);
@@ -322,10 +337,16 @@ export function nextSightPlace(input: {
     if (next) return { band: next, index: 0, advanced: true };
     return { band: input.band, index: 0, advanced: false };
   }
+  const blocked = input.blocked ?? new Set<number>();
   const size = input.listSize > 0 ? input.listSize : 1;
   for (let step = 1; step <= size; step += 1) {
     const at = (input.index + step) % size;
+    if (blocked.has(at)) continue;
     if (input.unknown.has(at)) return { band: input.band, index: at, advanced: false };
   }
-  return { band: input.band, index: (input.index + 1) % size, advanced: false };
+  for (let step = 1; step <= size; step += 1) {
+    const at = (input.index + step) % size;
+    if (!blocked.has(at)) return { band: input.band, index: at, advanced: false };
+  }
+  return { band: input.band, index: input.index, advanced: false };
 }

@@ -13,7 +13,7 @@ import { getSql, type Sql } from "@/lib/db";
 import { childAccess } from "@/lib/subscription";
 import { settleGradingCall } from "@/lib/grading-pause";
 import { dealQuestion, keyedAnswer, recentQuestions } from "@/lib/question-history";
-import { applyEngineAnswer, applySightAnswer, questionShownAt, resetEngineSession } from "@/lib/engine-store";
+import { applyEngineAnswer, applySightAnswer, loadSightStatus, questionShownAt, resetEngineSession } from "@/lib/engine-store";
 import { cleanTypedAnswer, sightItemKey } from "@/lib/engine-connect";
 import { answersMatch, chooseNext, keyedFeedback, RECENT_WINDOW } from "@/lib/question-pool";
 import { clampStoredGrade, cycleInstruction, questionTheChildCanSee, requestCycle, unreadableReply } from "@/lib/vkole-cycle";
@@ -61,6 +61,8 @@ export type Climb = {
   onlineSeconds: number;
   /** Alphabet exercises finished in this flow. Other engines leave this empty. */
   completedExercises: number[];
+  /** Master-only sight diagnosis. Absent for every other account. Remove before launch. */
+  sightStatus?: string;
 };
 
 const idSchema = z.object({ id: z.string().trim().min(8).max(80) });
@@ -377,13 +379,19 @@ async function migratedAlphabetClimb(sql: Sql, userId: string, climb: Climb): Pr
   return { ...climb, completedExercises: completed };
 }
 
+/** Master-only. Remove the sight diagnosis line before launch. */
+async function withSightStatus(sql: Awaited<ReturnType<typeof getSql>>, userId: string, climb: Climb): Promise<Climb> {
+  if (climb.subject !== "sw" || !isWebsiteMasterEmail(accountIdOf(userId))) return climb;
+  return { ...climb, sightStatus: await loadSightStatus(sql, userId, climb.id) };
+}
+
 export const getClimb = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(idSchema, data))
   .middleware([schoolMiddleware])
   .handler(async ({ context, data }) => {
     const sql = await getSql();
-    const climb = await selectOwned(sql, context.userId, data.id);
-    return migratedAlphabetClimb(sql, context.userId, climb);
+    const climb = await migratedAlphabetClimb(sql, context.userId, await selectOwned(sql, context.userId, data.id));
+    return withSightStatus(sql, context.userId, climb);
   });
 
 export const setChildAge = createServerFn({ method: "POST" })
@@ -673,7 +681,10 @@ export const recordAnswer = createServerFn({ method: "POST" })
     return { status: "saved" as const, climb: await selectOwned(sql, context.userId, data.id) };
   });
 
-const sightSchema = idSchema.extend({ outcome: z.enum(["correct", "miss", "timeout"]) });
+const sightSchema = idSchema.extend({
+  outcome: z.enum(["correct", "miss", "timeout"]),
+  elapsedMs: z.number().finite().min(0).max(120_000).optional(),
+});
 
 export const markSightWord = createServerFn({ method: "POST" })
   .validator((data: unknown) => parse(sightSchema, data))
@@ -699,6 +710,7 @@ export const markSightWord = createServerFn({ method: "POST" })
     const storedId = stored[0]?.question_id ?? "";
     const shownKey = storedId.startsWith("sw:") ? storedId : sightItemKey(place.band, place.index);
     const shownAt = await questionShownAt(sql, context.userId, data.id);
+    const elapsedMs = typeof data.elapsedMs === "number" ? data.elapsedMs : Math.max(0, Date.now() - shownAt);
     const placed = await applySightAnswer(sql, {
       userId: context.userId,
       childName: current.childName,
@@ -709,7 +721,7 @@ export const markSightWord = createServerFn({ method: "POST" })
       listSize: bandWords(place.band).length,
       bands: SIGHT_WORD_BANDS,
       correct,
-      elapsedMs: Date.now() - shownAt,
+      elapsedMs,
     });
     const show = isSightBand(placed.showBand) ? sightCard(placed.showBand, placed.showIndex, current.level) : place;
     const cursor = isSightBand(placed.cursorBand) ? sightCard(placed.cursorBand, placed.cursorIndex, current.level) : show;
@@ -764,7 +776,7 @@ export const markSightWord = createServerFn({ method: "POST" })
     `;
     await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sw", { word }));
     await rememberPrompt(sql, context.userId, current.childName, practicePromptText("sw", { word: show.word }));
-    return selectOwned(sql, context.userId, data.id);
+    return withSightStatus(sql, context.userId, await selectOwned(sql, context.userId, data.id));
   });
 
 const alphabetSchema = idSchema.extend({ outcome: z.enum(["correct", "miss", "timeout"]) });
