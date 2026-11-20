@@ -13,7 +13,7 @@ import { AlphabetMisses } from "@/components/alphabet-misses";
 import { WebsiteVisit } from "@/components/website-visit";
 import { HeadphoneNotice } from "@/components/headphone-notice";
 import { StudentSwitcher } from "@/components/student-switcher";
-import { ENROLL_DID_NOT_OPEN, ENROLL_STILL_CLOSED, PICK_PLACE_LINE, placeChoiceLabel, placeTakenMessage, namePlaceMessage, placeTapResult, SAME_PLACE_LINE, studentPlaceChoices, type PlaceSeat } from "@/lib/student-card";
+import { ENROLL_DID_NOT_OPEN, ENROLL_STILL_CLOSED, PICK_PLACE_LINE, WHO_IS_PRACTICING, ADD_STUDENT_LABEL, placeTakenMessage, namePlaceMessage, whoIsPracticing, type PlaceSeat } from "@/lib/student-card";
 import { EnginePicks, PageSkeleton, Shell } from "@/components/shell";
 import { SchoolPath } from "@/components/school-path";
 import { SUBJECTS, levelLabel, subjectMeta, type SubjectId } from "@/lib/climb-rules";
@@ -513,8 +513,8 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
       <h1 className="mt-1 font-display text-4xl text-ink">Eight climbs</h1>
       <p className="mt-3 text-muted">
         {fullAccess
-          ? `This account is open. It is not on a free week and it is not asked to pay. ${TWO_STUDENTS_LINE}. Each student uses all eight engines. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`
-          : `The free week is 168 hours. It starts when you confirm the email. No credit card is required for that week. ${TWO_STUDENTS_LINE}. Each student may use all eight engines. After the parent signs in, the student opens each engine with a first name. A name already on file continues at the saved level. After the free week, the payment covers the account for a full month or a full year from the day you pay. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`}
+          ? `This account is open. It is not on a free week and it is not asked to pay. ${TWO_STUDENTS_LINE}. Each student uses all eight engines. After the parent signs in, the student taps their name on each engine. Add a student asks for a first name, age, and starting grade. A name already on file continues at the saved level. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`
+          : `The free week is 168 hours. It starts when you confirm the email. No credit card is required for that week. ${TWO_STUDENTS_LINE}. Each student may use all eight engines. After the parent signs in, the student taps their name on each engine. Add a student asks for a first name, age, and starting grade. A name already on file continues at the saved level. After the free week, the payment covers the account for a full month or a full year from the day you pay. When the student presses Finished or Log out on one engine, that engine’s record is emailed once to the address given at registration. The other engines stay open.`}
       </p>
       <HeadphoneNotice />
       <VoiceAnswerSetting consent={voice} onChanged={setVoice} />
@@ -624,7 +624,6 @@ function StartSession({ onSplash, onTrialSplash }: { onSplash: () => void; onTri
             seat={seat}
             students={students}
             roster={(climbs ?? []).filter((climb) => climb.subject === subject.id)}
-            onPick={setSeat}
             onTrialFinished={() => setClosedApp(subject.id)}
             onLevelsChanged={() => setRevision((n) => n + 1)}
             onClock={() => setRevision((n) => n + 1)}
@@ -642,7 +641,6 @@ function AppGate({
   seat,
   students,
   roster,
-  onPick,
   onTrialFinished,
   onLevelsChanged,
   onClock,
@@ -652,7 +650,6 @@ function AppGate({
   seat: PlaceSeat | null;
   students: FamilyStudent[];
   roster: Climb[];
-  onPick: (seat: PlaceSeat) => void;
   onTrialFinished: () => void;
   onLevelsChanged: () => void;
   onClock: () => void;
@@ -679,41 +676,14 @@ function AppGate({
     setNeedsNew(Boolean(seat?.fresh));
   }, [seat]);
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    const name = firstName.trim().replace(/\s+/g, " ");
-    if (!name) {
-      setError("Enter the student’s first name.");
-      return;
-    }
-    const refusal = namePlaceMessage(students, name, place);
-    if (refusal) {
-      setError(refusal);
-      return;
-    }
-    setError("");
-    let grade: number | undefined;
-    if (needsNew) {
-      const typed = Number(gradeText);
-      if (!Number.isInteger(typed) || typed < 1 || typed > 12) {
-        setError("Enter a starting grade from 1 to 12.");
-        return;
-      }
-      grade = typed;
-    }
-    if (needsNew && place !== 1 && place !== 2) {
-      setError(PICK_PLACE_LINE);
-      return;
-    }
+  async function openEngine(name: string, fresh: { age: number; grade: number; place: 1 | 2 } | null) {
     setPending(true);
     try {
       const found = await enterEngine({
         data: {
           subject,
           firstName: name,
-          age: needsNew ? age : undefined,
-          grade: needsNew ? grade : undefined,
-          ...(needsNew && (place === 1 || place === 2) ? { place } : {}),
+          ...(fresh ? { age: fresh.age, grade: fresh.grade, place: fresh.place } : {}),
           timeZone: deviceTimeZone(),
         },
       });
@@ -724,7 +694,7 @@ function AppGate({
       if (found.status === "new" || found.status === "pick") {
         setNeedsNew(true);
         if (found.status === "pick") setError(PICK_PLACE_LINE);
-        else if (typeof grade === "number") setError(ENROLL_STILL_CLOSED);
+        else setError(ENROLL_STILL_CLOSED);
         setPending(false);
         return;
       }
@@ -752,6 +722,41 @@ function AppGate({
     }
   }
 
+  async function startSaved(student: { place: 1 | 2; name: string }) {
+    const name = student.name.trim().replace(/\s+/g, " ");
+    if (!name) return;
+    setError("");
+    setNeedsNew(false);
+    setPlace(student.place);
+    setFirstName(name);
+    await openEngine(name, null);
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    const name = firstName.trim().replace(/\s+/g, " ");
+    if (!name) {
+      setError("Enter the student’s first name.");
+      return;
+    }
+    const refusal = namePlaceMessage(students, name, place);
+    if (refusal) {
+      setError(refusal);
+      return;
+    }
+    setError("");
+    const typed = Number(gradeText);
+    if (!Number.isInteger(typed) || typed < 1 || typed > 12) {
+      setError("Enter a starting grade from 1 to 12.");
+      return;
+    }
+    if (place !== 1 && place !== 2) {
+      setError(PICK_PLACE_LINE);
+      return;
+    }
+    await openEngine(name, { age, grade: typed, place });
+  }
+
   return (
     <form
       id={`engine-${subject}`}
@@ -763,19 +768,77 @@ function AppGate({
       <p className="text-sm text-muted">{meta.name}</p>
       <p className="mt-2 text-sm text-ink">{meta.lede}</p>
       {subject === "sw" || subject === "pa" || subject === "sp" ? <p className="mt-2 text-sm text-ink">{LISTENING_BEST}</p> : null}
-      <label className="mt-3 block text-sm text-muted">
-        Student’s first name
-        <input
-          value={firstName}
-          onChange={(event) => {
-            setFirstName(event.target.value);
-            setNeedsNew(false);
-            setGradeText("");
-          }}
-          autoComplete="off"
-          className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
-        />
-      </label>
+      <div className="mt-3">
+        <p className="text-base font-semibold text-ink">{WHO_IS_PRACTICING}</p>
+        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label={WHO_IS_PRACTICING}>
+          {whoIsPracticing(students).map((button) =>
+            button.kind === "student" ? (
+              <button
+                key={button.place}
+                type="button"
+                data-student-practice={button.place}
+                className="min-h-14 min-w-28 rounded-xl border-2 border-accent bg-accent px-5 text-lg font-semibold text-accent-ink"
+                onClick={() => void startSaved(button)}
+              >
+                {button.label}
+              </button>
+            ) : (
+              <button
+                key="add-student"
+                type="button"
+                data-student-practice="add"
+                data-student-place={button.place}
+                className="min-h-14 rounded-xl border border-line bg-paper px-5 text-lg font-semibold text-ink"
+                onClick={() => {
+                  setError("");
+                  setFirstName("");
+                  setGradeText("");
+                  setPlace(button.place);
+                  setNeedsNew(true);
+                }}
+              >
+                {ADD_STUDENT_LABEL}
+              </button>
+            ),
+          )}
+        </div>
+      </div>
+      {needsNew ? (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="block text-sm text-muted sm:col-span-2">
+            Student's first name
+            <input
+              value={firstName}
+              onChange={(event) => setFirstName(event.target.value)}
+              autoComplete="off"
+              className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
+            />
+          </label>
+          <label className="block text-sm text-muted">
+            Age
+            <input
+              type="number"
+              min={4}
+              max={18}
+              value={age}
+              onChange={(event) => setAge(Number(event.target.value))}
+              className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
+            />
+          </label>
+          <label className="block text-sm text-muted">
+            Starting grade
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              value={gradeText}
+              onChange={(event) => setGradeText(event.target.value.replace(/\D/g, "").slice(0, 2))}
+              className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
+            />
+          </label>
+          <p className="text-sm text-muted sm:col-span-2">Type the first name, the age, and a starting grade from 1 to 12. Then press the button below.</p>
+        </div>
+      ) : null}
       {roster.length > 0 ? (
         <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto text-sm text-muted">
           {roster.map((climb) => (
@@ -882,68 +945,16 @@ function AppGate({
           </div>
         </div>
       ) : null}
-      <div className="mt-3">
-        <p className="text-sm text-muted">{SAME_PLACE_LINE}</p>
-        <p className="mt-1 text-base font-semibold text-ink">{PICK_PLACE_LINE}</p>
-        <div className="mt-2 flex flex-wrap gap-2" role="group" aria-label="Student place">
-          {studentPlaceChoices(students).map((choice) => (
-            <button
-              key={choice.index}
-              type="button"
-              aria-pressed={place === choice.index}
-              data-student-place={choice.index}
-              data-student-place-state={choice.open ? "open" : "used"}
-              data-student-place-picked={place === choice.index ? "yes" : "no"}
-              className={
-                place === choice.index
-                  ? "student-place-picked min-h-12 rounded-xl border-2 border-accent bg-accent px-4 text-base font-semibold text-accent-ink"
-                  : "min-h-12 rounded-xl border border-line bg-paper px-4 text-base font-semibold text-ink"
-              }
-              onClick={() => {
-                setError("");
-                onPick(placeTapResult(choice));
-              }}
-            >
-              {placeChoiceLabel(choice.index, choice.open ? "" : choice.name)}
-            </button>
-          ))}
-        </div>
-      </div>
-      {needsNew ? (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm text-muted">
-            Age
-            <input
-              type="number"
-              min={4}
-              max={18}
-              value={age}
-              onChange={(event) => setAge(Number(event.target.value))}
-              className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
-            />
-          </label>
-          <label className="block text-sm text-muted">
-            Starting grade
-            <input
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
-              value={gradeText}
-              onChange={(event) => setGradeText(event.target.value.replace(/\D/g, "").slice(0, 2))}
-              className="mt-1 min-h-11 w-full rounded-xl border border-line bg-paper px-3 text-base text-ink"
-            />
-          </label>
-          <p className="text-sm text-muted sm:col-span-2">Type the age and a starting grade from 1 to 12. Then press the button below.</p>
-        </div>
-      ) : null}
       {error ? <p className="mt-3 text-sm text-miss">{error}</p> : null}
-      <button
-        type="submit"
-        disabled={pending}
-        className="mt-4 min-h-11 w-full rounded-xl bg-accent px-4 text-base font-semibold text-accent-ink disabled:opacity-50"
-      >
-        {pending ? "Opening…" : needsNew ? "Enroll and begin" : "Continue"}
-      </button>
+      {needsNew ? (
+        <button
+          type="submit"
+          disabled={pending}
+          className="mt-4 min-h-11 w-full rounded-xl bg-accent px-4 text-base font-semibold text-accent-ink disabled:opacity-50"
+        >
+          {pending ? "Opening…" : "Enroll and begin"}
+        </button>
+      ) : null}
     </form>
   );
 }

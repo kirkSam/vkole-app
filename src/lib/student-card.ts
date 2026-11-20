@@ -73,6 +73,35 @@ export function namePlaceMessage(
 /** An empty Student 1 or Student 2 place, when a parent is adding a child. */
 export const OPEN_PLACE_LABEL = "open";
 
+export const WHO_IS_PRACTICING = "Who is practicing?";
+
+export const ADD_STUDENT_LABEL = "+ Add a student";
+
+export type PracticeButton =
+  | { kind: "student"; place: 1 | 2; name: string; label: string }
+  | { kind: "add"; place: 1 | 2; label: typeof ADD_STUDENT_LABEL };
+
+/**
+ * Name buttons in place order, then one Add on the first empty place.
+ * A full account (both places named) has no Add button.
+ */
+export function whoIsPracticing(students: { index: number; name: string }[]): PracticeButton[] {
+  const buttons: PracticeButton[] = [];
+  const empty: (1 | 2)[] = [];
+  for (const place of [1, 2] as const) {
+    const named = students.find((student) => student.index === place && student.name.trim());
+    if (!named) {
+      empty.push(place);
+      continue;
+    }
+    const name = named.name.trim().replace(/\s+/g, " ");
+    buttons.push({ kind: "student", place, name, label: firstNameOf(name) });
+  }
+  const open = empty[0];
+  if (open && buttons.length < 2) buttons.push({ kind: "add", place: open, label: ADD_STUDENT_LABEL });
+  return buttons;
+}
+
 export type StudentPlaceChoice = { index: 1 | 2; name: string; open: boolean };
 
 /** Two places. A used place shows the child's name. An empty place says "open". */
