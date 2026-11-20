@@ -1,3 +1,10 @@
+## 2026-11-20 who is practicing (App Builder)
+**Shipped (merged):** not yet. Each engine shows Who is practicing? One button per saved child. An empty place shows Add a student, and only that asks for a name, age, and grade. Two children hide Add.
+**Open, needs Sam:** Claude reviews this commit and the website's matching commit. Merge only after "merge #N", and merge both together.
+**Mirrors needed on website:** yes. Same buttons, same order, same words.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word.
+
 ## 2026-11-18 sight spirals later in a sitting (App Builder)
 **Shipped (merged):** not yet. The app pins kirkSam/vekole-engine tag v0.2.2. A long miss no longer turns fatigue high. A missed word comes back on the spiral, not also in the regular list, and two returns cannot land on back-to-back cards. The master account sees a temporary fatigue line under the word.
 **Open, needs Sam:** Claude reviews the engine tag and this app commit. Merge only after "merge #N". The diagnosis line comes off before launch.

@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
+  ADD_STUDENT_LABEL,
   ENROLL_DID_NOT_OPEN,
   ENROLL_STILL_CLOSED,
   OPEN_ACCT_LABEL,
   OPEN_PLACE_LABEL,
   PICK_PLACE_LINE,
   SAME_PLACE_LINE,
+  WHO_IS_PRACTICING,
   acceptStudentSwitch,
   climbsForActiveStudent,
   engineWorkedLevel,
@@ -18,6 +20,7 @@ import {
   placeTapResult,
   enrollNameAtPlace,
   namePlaceMessage,
+  whoIsPracticing,
   studentCardButtons,
   studentPlaceChoices,
 } from "./student-card.ts";
@@ -57,17 +60,21 @@ describe("two-student card", () => {
     assert.equal(second.name, OPEN_PLACE_LABEL);
     const home = readFileSync(new URL("../routes/index.tsx", import.meta.url), "utf8");
     const card = readFileSync(new URL("../components/student-switcher.tsx", import.meta.url), "utf8");
-    assert.equal(home.includes("SAME_PLACE_LINE"), true);
-    assert.equal(home.includes("placeChoiceLabel"), true);
-    assert.equal(home.includes("placeTakenMessage"), true);
-    assert.equal(home.includes("placeTapResult"), true);
+    const whoAt = home.indexOf("whoIsPracticing(students)");
+    const addAt = home.indexOf("{needsNew ? (");
+    const nameAt = home.indexOf("Student's first name");
+    assert.equal(WHO_IS_PRACTICING, "Who is practicing?");
+    assert.equal(ADD_STUDENT_LABEL, "+ Add a student");
+    assert.ok(whoAt > 0 && addAt > whoAt && nameAt > addAt);
+    assert.equal(home.includes('aria-label="Student place"'), false);
+    assert.equal(home.includes("student-place-picked"), false);
+    assert.equal(home.includes("placeChoiceLabel"), false);
+    assert.equal(home.includes("onPick(placeTapResult(choice))"), false);
+    assert.match(home, /void startSaved\(button\)/);
+    assert.match(home, /data-student-practice="add"/);
+    assert.match(home, /data-student-place=\{button\.place\}/);
     assert.equal(home.includes("namePlaceMessage"), true);
-    assert.equal(home.includes("student-place-picked"), true);
-    assert.equal(home.includes("onPick(placeTapResult(choice))"), true);
-    assert.equal(home.includes("PICK_PLACE_LINE"), true);
-    const placeAt = home.indexOf('aria-label="Student place"');
-    const pickAt = home.indexOf("{PICK_PLACE_LINE}");
-    assert.equal(pickAt > 0 && placeAt > pickAt, true);
+    assert.equal(home.includes("placeTakenMessage"), true);
     assert.equal(home.includes("setError(ENROLL_STILL_CLOSED)"), true);
     assert.equal(home.includes("setError(ENROLL_DID_NOT_OPEN)"), true);
     assert.equal(home.includes('if (found.status !== "open") {\n        setPending(false);'), false);
@@ -76,6 +83,28 @@ describe("two-student card", () => {
     assert.equal(home.includes("Student {choice.index} — {choice.name}"), false);
     assert.equal(home.includes("That place already has a child"), false);
     assert.equal(card.includes("SAME_PLACE_LINE"), true);
+  });
+
+  it("shows one name button per saved child and Add only on an empty place", () => {
+    const two = whoIsPracticing([ada, bea]);
+    assert.deepEqual(
+      two.map((button) => button.label),
+      ["Ada", "Bea"],
+    );
+    assert.equal(two.some((button) => button.kind === "add"), false);
+    const one = whoIsPracticing([ada]);
+    assert.equal(one[0]?.kind, "student");
+    assert.equal(one[0]?.kind === "student" && one[0].label, "Ada");
+    assert.equal(one[1]?.kind, "add");
+    assert.equal(one[1]?.kind === "add" && one[1].place, 2);
+    assert.equal(one[1]?.label, ADD_STUDENT_LABEL);
+    const none = whoIsPracticing([]);
+    assert.deepEqual(none, [{ kind: "add", place: 1, label: ADD_STUDENT_LABEL }]);
+    const home = readFileSync(new URL("../routes/index.tsx", import.meta.url), "utf8");
+    const buttons = home.slice(home.indexOf("whoIsPracticing(students)"), home.indexOf("{needsNew ? ("));
+    assert.equal(buttons.includes("<input"), false);
+    assert.match(home, /Age/);
+    assert.match(home, /Starting grade/);
   });
 
   it("selects an open place with a clear name, and a used place with that child", () => {
