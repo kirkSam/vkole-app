@@ -1,3 +1,10 @@
+## 2026-11-21 accent fairness (App Builder)
+**Shipped (merged):** not yet. Spoken sight words are checked on the server with vekole-engine v0.2.4. The phone asks for 5 alternatives. Android 13+ can lean toward the word on the card. The pronunciation dictionary stays off the phone.
+**Open, needs Sam:** Claude reviews this commit together with the website's connection. Merge only after "merge #N", and merge both together.
+**Mirrors needed on website:** yes. Same tag v0.2.4. The website checks alternatives on its server too.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word.
+
 ## 2026-11-20 who is practicing (App Builder)
 **Shipped (merged):** not yet. Each engine shows Who is practicing? One button per saved child. An empty place shows Add a student, and only that asks for a name, age, and grade. Two children hide Add.
 **Open, needs Sam:** Claude reviews this commit and the website's matching commit. Merge only after "merge #N", and merge both together.

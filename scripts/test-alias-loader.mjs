@@ -7,6 +7,10 @@ export async function resolve(specifier, context, nextResolve) {
     const url = new URL("../node_modules/@kirkpatrick/vekole-engine/dist/index.js", import.meta.url);
     return nextResolve(url.href, context);
   }
+  if (specifier === "@kirkpatrick/vekole-engine/server") {
+    const url = new URL("../node_modules/@kirkpatrick/vekole-engine/dist/server.js", import.meta.url);
+    return nextResolve(url.href, context);
+  }
   if (!specifier.startsWith("@/")) return nextResolve(specifier, context);
   const name = specifier.slice(2);
   const file = /\.(ts|tsx|js|mjs|json)$/.test(name) ? name : `${name}.ts`;

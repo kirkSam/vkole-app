@@ -18,8 +18,10 @@ import {
   speakAloud,
   stopSpeaking,
 } from "@/lib/speech/listener";
+import { VEKOLE_SETTINGS } from "@kirkpatrick/vekole-engine";
 import { SIGHT_WORD_ADVANCE_MS, SIGHT_WORD_MAX_SHOW_MS } from "@/lib/vkole/constants";
-import { judgeSpoken, speechTokens } from "@/lib/vkole/sight-words/match";
+import { sightAlternatives } from "@/lib/vkole/sight-words/alternatives";
+import { hearSightWord } from "@/lib/vkole/sight-words/hear";
 import { entryFor } from "@/lib/vkole/sight-words/words";
 
 const WORD_COLORS = ["#2c5e4a", "#7a2e1f", "#1d4e89", "#8a5a12", "#5c3d8f", "#0e6b6b", "#9a3d62", "#3d6b1f"];
@@ -31,6 +33,8 @@ type SpeechListener = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  maxAlternatives: number;
+  biasingStrings?: readonly string[];
   onstart: (() => void) | null;
   onaudiostart: (() => void) | null;
   onresult: ((event: SpeechEvent) => void) | null;
@@ -136,6 +140,7 @@ export function SightWordStage({
     if (!ready || phase !== "show") return;
     let live = true;
     const settled = { current: false };
+    const hearTicket = { current: 0 };
     let rec: SpeechListener | null = null;
     let timer = 0;
 
@@ -195,6 +200,8 @@ export function SightWordStage({
         rec.lang = "en-US";
         rec.continuous = true;
         rec.interimResults = true;
+        rec.maxAlternatives = VEKOLE_SETTINGS.recognitionAlternatives;
+        if (isNativeApp()) rec.biasingStrings = [word];
         rec.onstart = () => {
           if (cueOnListenStart(isNativeApp(), "started")) setHearing(true);
           openMicClock();
@@ -209,14 +216,18 @@ export function SightWordStage({
           for (let i = start; i < event.results.length; i += 1) {
             const result = event.results[i];
             if (!result) continue;
-            for (let j = 0; j < result.length; j += 1) {
-              const transcript = result[j]?.transcript ?? "";
-              if (speechTokens(transcript).length === 0) continue;
-              const judged = judgeSpoken(word, transcript, Boolean(result.isFinal), entry.also);
-              if (judged === "wait") continue;
-              finishRef.current(judged);
-              return;
-            }
+            const alternatives = sightAlternatives(result, VEKOLE_SETTINGS.recognitionAlternatives);
+            if (alternatives.length === 0) continue;
+            const final = Boolean(result.isFinal);
+            const ticket = ++hearTicket.current;
+            void hearSightWord({ data: { word, band: band ?? "", alternatives } })
+              .then((row) => {
+                if (!live || settled.current || ticket !== hearTicket.current) return;
+                if (row.match) finishRef.current("correct");
+                else if (final) finishRef.current("miss");
+              })
+              .catch(() => undefined);
+            return;
           }
         };
         rec.onerror = (event) => {
@@ -273,7 +284,7 @@ export function SightWordStage({
         /* already stopped */
       }
     };
-  }, [entry.also, listening, permit, phase, ready, unsupported, voiceAllowed, word]);
+  }, [band, listening, permit, phase, ready, unsupported, voiceAllowed, word]);
 
   useEffect(() => {
     return () => {
