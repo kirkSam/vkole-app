@@ -191,6 +191,9 @@ export default defineConfig(({ command, mode, isPreview }) => ({
   resolve: {
     tsconfigPaths: true,
     alias: {
+      "@kirkpatrick/vekole-engine/server": fileURLToPath(
+        new URL("./node_modules/@kirkpatrick/vekole-engine/dist/server.js", import.meta.url),
+      ),
       "@kirkpatrick/vekole-engine": fileURLToPath(
         new URL("./node_modules/@kirkpatrick/vekole-engine/dist/index.js", import.meta.url),
       ),

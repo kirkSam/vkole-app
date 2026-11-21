@@ -30,14 +30,15 @@ function memory(itemKey: string, strengthDays: number, daysAgo: number): ItemMem
 }
 
 describe("connected engine", () => {
-  it("pins the shared package at v0.2.2", () => {
-    assert.equal(CONNECTED_ENGINE, "v0.2.2");
-    assert.equal(AGREED_VERSION, "v0.2.2");
+  it("pins the shared package at v0.2.4", () => {
+    assert.equal(CONNECTED_ENGINE, "v0.2.4");
+    assert.equal(AGREED_VERSION, "v0.2.4");
     assert.equal(VEKOLE_SETTINGS.answerLimit, 500);
     assert.equal(VEKOLE_SETTINGS.spiralGapItems, 3);
     assert.equal(VEKOLE_SETTINGS.spiralMaxReturns, 2);
+    assert.equal(VEKOLE_SETTINGS.recognitionAlternatives, 5);
     const installed = readFileSync(new URL("../../node_modules/@kirkpatrick/vekole-engine/package.json", import.meta.url), "utf8");
-    assert.match(installed, /"version": "0.2.2"/);
+    assert.match(installed, /"version": "0.2.4"/);
   });
 
   it("removes personal details before a typed answer can be sent, and leaves ordinary answers", () => {

@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { TextToSpeech } from "@capacitor-community/text-to-speech";
 import { SpeechRecognition } from "@capgo/capacitor-speech-recognition";
+import { VEKOLE_SETTINGS } from "@kirkpatrick/vekole-engine";
 import { holdEngineAudio, noteEngineActivity } from "@/lib/engine-activity";
 import { PHONE_CANNOT_HEAR } from "@/lib/voice-consent";
 import { SPOKEN_ANSWER_MS } from "@/lib/speech/answer-window";
@@ -61,6 +62,8 @@ export type SpeechListener = {
   onend: (() => void) | null;
   /** Milliseconds of silence still left in the same answer window. */
   allowForSilence: number;
+  /** Expected words for Android 13+ on-device recognition. Empty elsewhere. */
+  biasingStrings?: readonly string[];
   start: () => void;
   abort: () => void;
 };
@@ -221,7 +224,7 @@ class NativeListener implements SpeechListener {
   lang = "en-US";
   continuous = true;
   interimResults = true;
-  maxAlternatives = 5;
+  maxAlternatives = VEKOLE_SETTINGS.recognitionAlternatives;
   grammars: unknown = null;
   onstart: (() => void) | null = null;
   onaudiostart: (() => void) | null = null;
@@ -229,6 +232,7 @@ class NativeListener implements SpeechListener {
   onerror: ((event: { error?: string }) => void) | null = null;
   onend: (() => void) | null = null;
   allowForSilence = SPOKEN_ANSWER_MS;
+  biasingStrings: string[] = [];
   private starting = false;
   private running = false;
   private aborted = false;
@@ -295,7 +299,21 @@ class NativeListener implements SpeechListener {
       const room = onDevice ? NATIVE_LISTEN : GOOGLE_LISTEN;
       const allowForSilence = Math.max(1, Math.round(this.allowForSilence));
       const started = { ...room, muteRecognizerBeep: true as const, allowForSilence };
-      const options = { ...started, language, maxResults: this.maxAlternatives || 5 };
+      const options: {
+        language: string;
+        maxResults: number;
+        biasingStrings?: string[];
+        partialResults: boolean;
+        popup: boolean;
+        useOnDeviceRecognition: boolean;
+        muteRecognizerBeep: boolean;
+        allowForSilence: number;
+      } = {
+        ...started,
+        language,
+        maxResults: this.maxAlternatives,
+      };
+      if (onDevice && this.biasingStrings.length > 0) options.biasingStrings = [...this.biasingStrings];
       const onMatch = (matches: string[], isFinal = false) => {
         if (this.aborted || this.fatal) return;
         const heard = matches.map((match) => match.trim()).filter(Boolean);
