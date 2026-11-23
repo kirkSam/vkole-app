@@ -302,23 +302,31 @@ function SessionPage() {
     const names = ["pointerdown", "keydown", "touchstart"] as const;
     for (const name of names) window.addEventListener(name, mark, { passive: true });
     window.addEventListener(ENGINE_ACTIVITY_EVENT, onEngine);
+    const pageHidden = () => document.visibilityState === "hidden";
     const poll = window.setInterval(() => {
+      if (pageHidden()) return;
       if (inactivityDue(last, Date.now(), engineIsBusy(), IDLE_MS)) finish("inactivity");
     }, 5000);
-    const beat = window.setInterval(() => {
+    const sendBeat = () => {
+      if (pageHidden()) return;
       if (engineIsBusy()) stamp();
       if (last > lastSent && !inactivityDue(last, Date.now(), false, IDLE_MS)) {
         lastSent = last;
         void touchSitting({ data: { id: climbId } }).catch(() => undefined);
         void beatStudentClock({ data: { id: climbId, timeZone: deviceTimeZone() } }).catch(() => undefined);
       }
-    }, 5000);
+    };
+    const beat = window.setInterval(sendBeat, 5000);
     const onVisible = () => {
-      if (document.visibilityState === "hidden") {
+      if (pageHidden()) {
         void touchSitting({ data: { id: climbId } }).catch(() => undefined);
         return;
       }
-      if (inactivityDue(last, Date.now(), engineIsBusy(), IDLE_MS)) finish("inactivity");
+      if (inactivityDue(last, Date.now(), engineIsBusy(), IDLE_MS)) {
+        finish("inactivity");
+        return;
+      }
+      sendBeat();
     };
     document.addEventListener("visibilitychange", onVisible);
 

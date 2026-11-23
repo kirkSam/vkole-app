@@ -1,3 +1,10 @@
+## 2026-11-23 sitting heartbeat (App Builder)
+**Shipped (merged):** not yet. While a sitting is open, the 5-second database heartbeat (last-seen and the student clock) now waits while the app is hidden, then runs once as soon as it is visible again. Hiding still writes last-seen one time.
+**Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N".
+**Mirrors needed on website:** no. The website's hidden-tab poll was already stopped.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word.
+
 ## 2026-11-21 accent fairness (App Builder)
 **Shipped (merged):** not yet. Spoken sight words are checked on the server with vekole-engine v0.2.4. The phone asks for 5 alternatives. Android 13+ can lean toward the word on the card. The pronunciation dictionary stays off the phone.
 **Open, needs Sam:** Claude reviews this commit together with the website's connection. Merge only after "merge #N", and merge both together.
