@@ -155,6 +155,10 @@ describe("engine activity keeps a sitting open", () => {
     assert.match(session, /inactivityDue\(last, Date\.now\(\), engineIsBusy\(\), IDLE_MS\)/);
     assert.match(session, /ENGINE_ACTIVITY_EVENT/);
     assert.match(session, /if \(engineIsBusy\(\)\) stamp\(\)/);
+    assert.match(session, /const pageHidden = \(\) => document\.visibilityState === "hidden"/);
+    assert.match(session, /if \(pageHidden\(\)\) return/);
+    assert.match(session, /const beat = window\.setInterval\(sendBeat, 5000\)/);
+    assert.match(session, /sendBeat\(\)/);
     assert.equal(session.includes("next.closed"), false);
     assert.equal(session.includes("!next.armed"), false);
     const listener = source("./speech/listener.ts");
