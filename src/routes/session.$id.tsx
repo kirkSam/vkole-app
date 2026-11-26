@@ -302,6 +302,7 @@ function SessionPage() {
     const names = ["pointerdown", "keydown", "touchstart"] as const;
     for (const name of names) window.addEventListener(name, mark, { passive: true });
     window.addEventListener(ENGINE_ACTIVITY_EVENT, onEngine);
+    const SITTING_HEARTBEAT_MS = 30_000;
     const pageHidden = () => document.visibilityState === "hidden";
     const poll = window.setInterval(() => {
       if (pageHidden()) return;
@@ -316,7 +317,7 @@ function SessionPage() {
         void beatStudentClock({ data: { id: climbId, timeZone: deviceTimeZone() } }).catch(() => undefined);
       }
     };
-    const beat = window.setInterval(sendBeat, 5000);
+    const beat = window.setInterval(sendBeat, SITTING_HEARTBEAT_MS);
     const onVisible = () => {
       if (pageHidden()) {
         void touchSitting({ data: { id: climbId } }).catch(() => undefined);

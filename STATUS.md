@@ -1,3 +1,10 @@
+## 2026-11-26 slower heartbeat and one Grok model (App Builder)
+**Shipped (merged):** not yet. The sitting heartbeat is 30 seconds, still paused while the app is hidden. The 5-minute idle rule is unchanged. Grading and the alphabet report call grok-4.3 with reasoning effort none. That name lives in src/lib/grok-model.ts.
+**Open, needs Sam:** Claude reviews this commit with the website's timer and model pull request. Merge only after "merge #N", and merge both together. The standard usage session waits until both are live.
+**Mirrors needed on website:** yes. The same model name, grok-4.3. The website calendar check is the website's change.
+**Blocked:** The published database is not readable from this workspace, so Malakai, Roman, and Elijah were not deleted here.
+**Next:** Wait for Claude, then Sam's merge word.
+
 ## 2026-11-23 sitting heartbeat (App Builder)
 **Shipped (merged):** not yet. While a sitting is open, the 5-second database heartbeat (last-seen and the student clock) now waits while the app is hidden, then runs once as soon as it is visible again. Hiding still writes last-seen one time.
 **Open, needs Sam:** Claude reviews this commit. Merge only after "merge #N".

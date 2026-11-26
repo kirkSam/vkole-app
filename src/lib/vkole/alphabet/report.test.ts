@@ -116,11 +116,13 @@ describe("spelling parent report", () => {
       assert.equal(call.init.headers.Authorization, `Bearer ${key}`);
       const body = JSON.parse(call.init.body) as {
         model: string;
+        reasoning_effort: string;
         max_tokens: number;
         messages: { role: string; content: string }[];
       };
       assert.equal(body.model, ALPHABET_REPORT_MODEL);
-      assert.equal(body.model, "grok-4-1-fast-non-reasoning");
+      assert.equal(body.model, "grok-4.3");
+      assert.equal(body.reasoning_effort, "none");
       assert.equal(body.max_tokens, ALPHABET_REPORT_MAX_TOKENS);
       assert.ok(body.max_tokens <= 200);
       assert.equal(body.messages.length, 2);
