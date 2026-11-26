@@ -1,3 +1,5 @@
+import { GROK_MODEL, GROK_REASONING_EFFORT } from "@/lib/grok-model";
+
 /**
  * One short parent report at the end of an alphabet sitting.
  * The xAI call stays on the server. The key is read from XAI_API_KEY and is never logged.
@@ -5,7 +7,7 @@
  */
 
 export const ALPHABET_REPORT_LABEL = "Report written by VKOLE/ZPD Learning Engine, integrated with Grok";
-export const ALPHABET_REPORT_MODEL = "grok-4-1-fast-non-reasoning";
+export const ALPHABET_REPORT_MODEL = GROK_MODEL;
 export const ALPHABET_REPORT_MAX_TOKENS = 160;
 
 export type AlphabetSessionStats = {
@@ -140,7 +142,8 @@ export async function writeAlphabetReport(stats: AlphabetSessionStats, fetchImpl
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: ALPHABET_REPORT_MODEL,
+        model: GROK_MODEL,
+        reasoning_effort: GROK_REASONING_EFFORT,
         temperature: 0.3,
         max_tokens: ALPHABET_REPORT_MAX_TOKENS,
         messages: [

@@ -1,5 +1,6 @@
 import { subjectMeta, type SubjectId } from "@/lib/climb-rules";
 import { capVkoleGrade, moveVkoleRung } from "@/lib/vkole-cap";
+import { GROK_MODEL, GROK_REASONING_EFFORT } from "@/lib/grok-model";
 import { poolCount, poolQuestion } from "@/lib/question-pool";
 import { studentFacingReply } from "@/lib/space-xsi";
 import { cleanTypedAnswer } from "@/lib/engine-connect";
@@ -264,7 +265,8 @@ export async function requestCycle(instruction: string): Promise<GradeCall> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "grok-4-1-fast-non-reasoning",
+        model: GROK_MODEL,
+        reasoning_effort: GROK_REASONING_EFFORT,
         temperature: 0.2,
         max_tokens: 700,
         messages: [

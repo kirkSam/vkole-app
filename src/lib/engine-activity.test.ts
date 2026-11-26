@@ -157,7 +157,9 @@ describe("engine activity keeps a sitting open", () => {
     assert.match(session, /if \(engineIsBusy\(\)\) stamp\(\)/);
     assert.match(session, /const pageHidden = \(\) => document\.visibilityState === "hidden"/);
     assert.match(session, /if \(pageHidden\(\)\) return/);
-    assert.match(session, /const beat = window\.setInterval\(sendBeat, 5000\)/);
+    assert.match(session, /const SITTING_HEARTBEAT_MS = 30_000/);
+    assert.match(session, /const beat = window\.setInterval\(sendBeat, SITTING_HEARTBEAT_MS\)/);
+    assert.match(session, /setInterval\(\(\) => \{\n      if \(pageHidden\(\)\) return;\n      if \(inactivityDue\(last, Date\.now\(\), engineIsBusy\(\), IDLE_MS\)\) finish\("inactivity"\);\n    \}, 5000\)/);
     assert.match(session, /sendBeat\(\)/);
     assert.equal(session.includes("next.closed"), false);
     assert.equal(session.includes("!next.armed"), false);
