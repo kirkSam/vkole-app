@@ -23,7 +23,7 @@ import {
   startBand,
   startCard,
 } from "./items.ts";
-import { judgePaSpoken, paSpokenMatches } from "./match.ts";
+import { addPaPiece, emptyPaHearing, judgePaHearing, judgePaSpoken, paSpokenMatches } from "./match.ts";
 import lists from "./data.json" with { type: "json" };
 
 const appFile = fileURLToPath(new URL("./data.json", import.meta.url));
@@ -187,6 +187,26 @@ describe("spoken phonemic answers", () => {
     assert.equal(judgePaSpoken(segment, "c-a-t", false), "correct");
     assert.equal(judgePaSpoken(segment, "cat", true), "miss");
     assert.equal(judgePaSpoken(segment, "", false), "wait");
+  });
+
+  it("keeps a segmented answer across pauses and does not stop on the first sound", () => {
+    const segment = itemAt("c-c", 2);
+    let hearing = emptyPaHearing();
+    for (const piece of ["k", "a"]) {
+      hearing = addPaPiece(hearing, piece, true);
+      assert.equal(judgePaHearing(segment, hearing, false), "wait", piece);
+    }
+    hearing = addPaPiece(hearing, "t", true);
+    assert.equal(judgePaHearing(segment, hearing, false), "correct");
+    const short = addPaPiece(emptyPaHearing(), "k", true);
+    assert.equal(judgePaHearing(segment, short, false), "wait");
+    assert.equal(judgePaHearing(segment, short, true), "miss");
+    const whole = addPaPiece(emptyPaHearing(), "kuh aeh tuh", false);
+    assert.equal(judgePaHearing(segment, whole, false), "correct");
+    let repeated = addPaPiece(emptyPaHearing(), "k", false);
+    repeated = addPaPiece(repeated, "k", true);
+    assert.deepEqual(repeated.pieces, ["k"]);
+    assert.equal(repeated.interim, "");
   });
 });
 

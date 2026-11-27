@@ -19,8 +19,7 @@ import {
   stopSpeaking,
 } from "@/lib/speech/listener";
 import { PA_ADVANCE_MS, PA_MAX_SHOW_MS, itemAt, migratePaBand, type PaBand } from "@/lib/vkole/phonemic-awareness/items";
-import { judgePaSpoken } from "@/lib/vkole/phonemic-awareness/match";
-import { speechTokens } from "@/lib/vkole/sight-words/match";
+import { addPaPiece, emptyPaHearing, judgePaHearing, paHearingText, type PaHearing } from "@/lib/vkole/phonemic-awareness/match";
 
 type SpeechAlternative = { transcript?: string };
 type SpeechResult = ArrayLike<SpeechAlternative> & { isFinal?: boolean };
@@ -152,6 +151,7 @@ export function PhonemicStage({
     if (!ready || phase !== "listen") return;
     let live = true;
     const settled = { current: false };
+    let hearing: PaHearing = emptyPaHearing();
     let rec: SpeechListener | null = null;
     let timer = 0;
 
@@ -179,6 +179,11 @@ export function PhonemicStage({
       });
     };
 
+    const endWindow = () => {
+      const judged = judgePaHearing(itemRef.current, hearing, true);
+      finishRef.current(judged === "wait" ? "timeout" : judged);
+    };
+
     if (voiceAllowed && (permit === "wait" || holdingMic.current)) {
       return () => {
         live = false;
@@ -188,7 +193,7 @@ export function PhonemicStage({
     if (!(voiceAllowed && permit === "denied")) {
       if (shownAt.current == null) shownAt.current = performance.now();
       const left = answerWindowLeft(shownAt.current, performance.now(), PA_MAX_SHOW_MS);
-      timer = window.setTimeout(() => finishRef.current("timeout"), left);
+      timer = window.setTimeout(() => endWindow(), left);
     }
 
     if (listening && permit === "ready") {
@@ -212,15 +217,22 @@ export function PhonemicStage({
           for (let i = start; i < event.results.length; i += 1) {
             const result = event.results[i];
             if (!result) continue;
+            const final = Boolean(result.isFinal);
+            let chosen = "";
             for (let j = 0; j < result.length; j += 1) {
               const transcript = result[j]?.transcript ?? "";
-              if (speechTokens(transcript).length === 0) continue;
-              const judged = judgePaSpoken(itemRef.current, transcript, Boolean(result.isFinal));
-              if (judged === "wait") continue;
-              finishRef.current(judged);
-              return;
+              const trial = addPaPiece(hearing, transcript, final);
+              if (!chosen) chosen = paHearingText(trial) === paHearingText(hearing) ? "" : transcript;
+              if (judgePaHearing(itemRef.current, trial, false) === "correct") {
+                chosen = transcript;
+                break;
+              }
             }
+            if (!chosen) continue;
+            hearing = addPaPiece(hearing, chosen, final);
           }
+          const judged = judgePaHearing(itemRef.current, hearing, false);
+          if (judged !== "wait") finishRef.current(judged);
         };
         rec.onerror = (event) => {
           const kind = listenKind(event.error);
@@ -260,7 +272,7 @@ export function PhonemicStage({
         if (allowed) {
           shownAt.current = performance.now();
           window.clearTimeout(timer);
-          timer = window.setTimeout(() => finishRef.current("timeout"), PA_MAX_SHOW_MS);
+          timer = window.setTimeout(() => endWindow(), PA_MAX_SHOW_MS);
         }
         try {
           ear.start();

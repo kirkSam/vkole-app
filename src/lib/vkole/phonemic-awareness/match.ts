@@ -199,3 +199,36 @@ export function judgePaSpoken(
   if (paSpokenMatches(item, heard)) return "correct";
   return final ? "miss" : "wait";
 }
+
+export type PaHearing = { pieces: string[]; interim: string };
+
+export function emptyPaHearing(): PaHearing {
+  return { pieces: [], interim: "" };
+}
+
+export function paHearingText(state: PaHearing): string {
+  return [...state.pieces, state.interim].filter(Boolean).join(" ");
+}
+
+/** A finished pause is kept. A live guess replaces only the unfinished piece. */
+export function addPaPiece(state: PaHearing, transcript: string, final: boolean): PaHearing {
+  const text = transcript.trim();
+  if (speechTokens(text).length === 0) return state;
+  if (final) return { pieces: [...state.pieces, text], interim: "" };
+  return { pieces: state.pieces, interim: text };
+}
+
+/**
+ * The pieces said so far are one answer.
+ * A full answer is accepted as soon as it is heard.
+ * A pause is not a miss. Anything short is judged only when the window ends.
+ */
+export function judgePaHearing(
+  item: Pick<PaItem, "answer" | "also" | "sounds" | "rime" | "cue" | "say">,
+  state: PaHearing,
+  windowEnded: boolean,
+): "correct" | "miss" | "wait" {
+  if (paSpokenMatches(item, paHearingText(state))) return "correct";
+  if (!windowEnded) return "wait";
+  return speechTokens(paHearingText(state)).length === 0 ? "wait" : "miss";
+}
