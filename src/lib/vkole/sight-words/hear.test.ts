@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { VEKOLE_SETTINGS } from "@kirkpatrick/vekole-engine";
 import { anySightAlternativeMatches } from "@kirkpatrick/vekole-engine/server";
 import { sightAlternatives } from "./alternatives.ts";
+import { sightServerCheck } from "./check.ts";
 import { matchSightHearing } from "./hear.server.ts";
 
 describe("sight hearing", () => {
@@ -24,6 +25,39 @@ describe("sight hearing", () => {
     assert.equal(matchSightHearing("two", "D-PP", ["too"]), true);
   });
 
+  it("checks the server once on the final result, not on each guess", () => {
+    const first = sightServerCheck({ sent: false, heard: [], alternatives: ["agi"], final: false, windowEnded: false });
+    assert.equal(first.send, false);
+    const second = sightServerCheck({ sent: first.sent, heard: first.heard, alternatives: ["agin"], final: false, windowEnded: false });
+    assert.equal(second.send, false);
+    const final = sightServerCheck({
+      sent: second.sent,
+      heard: second.heard,
+      alternatives: ["agin", "again"],
+      final: true,
+      windowEnded: false,
+    });
+    assert.equal(final.send, true);
+    assert.equal(final.reason, "final");
+    assert.deepEqual(final.heard, ["agin", "again"]);
+    assert.equal(matchSightHearing("again", "D-1", final.heard), true);
+    const extra = sightServerCheck({ sent: final.sent, heard: final.heard, alternatives: ["again"], final: true, windowEnded: true });
+    assert.equal(extra.send, false);
+  });
+
+  it("checks the last guess once when the window ends without a final", () => {
+    const partial = sightServerCheck({ sent: false, heard: [], alternatives: ["un"], final: false, windowEnded: false });
+    const ended = sightServerCheck({ sent: partial.sent, heard: partial.heard, alternatives: [], final: false, windowEnded: true });
+    assert.equal(ended.send, true);
+    assert.equal(ended.reason, "window");
+    assert.deepEqual(ended.heard, ["un"]);
+    assert.equal(matchSightHearing("an", "D-1", ended.heard), true);
+    const again = sightServerCheck({ sent: ended.sent, heard: ended.heard, alternatives: ["an"], final: true, windowEnded: true });
+    assert.equal(again.send, false);
+    const silence = sightServerCheck({ sent: false, heard: [], alternatives: [], final: false, windowEnded: true });
+    assert.equal(silence.send, false);
+  });
+
   it("keeps five alternatives and does not import the dictionary into the screen", () => {
     assert.equal(VEKOLE_SETTINGS.recognitionAlternatives, 5);
     const heard = sightAlternatives(
@@ -33,6 +67,8 @@ describe("sight hearing", () => {
     assert.deepEqual(heard, ["one", "two", "three", "four", "five"]);
     const stage = readFileSync(new URL("../../../components/sight-word-stage.tsx", import.meta.url), "utf8");
     assert.equal(stage.includes("hearSightWord"), true);
+    assert.equal(stage.includes("sightServerCheck"), true);
+    assert.equal(stage.includes("windowEnded: true"), true);
     assert.equal(stage.includes("recognitionAlternatives"), true);
     assert.equal(stage.includes("@kirkpatrick/vekole-engine/server"), false);
     assert.equal(stage.includes("cmudict"), false);

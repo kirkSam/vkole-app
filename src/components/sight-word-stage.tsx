@@ -22,6 +22,7 @@ import { VEKOLE_SETTINGS } from "@kirkpatrick/vekole-engine";
 import { SIGHT_WORD_ADVANCE_MS, SIGHT_WORD_MAX_SHOW_MS } from "@/lib/vkole/constants";
 import { sightAlternatives } from "@/lib/vkole/sight-words/alternatives";
 import { hearSightWord } from "@/lib/vkole/sight-words/hear";
+import { sightServerCheck } from "@/lib/vkole/sight-words/check";
 import { entryFor } from "@/lib/vkole/sight-words/words";
 
 const WORD_COLORS = ["#2c5e4a", "#7a2e1f", "#1d4e89", "#8a5a12", "#5c3d8f", "#0e6b6b", "#9a3d62", "#3d6b1f"];
@@ -140,7 +141,7 @@ export function SightWordStage({
     if (!ready || phase !== "show") return;
     let live = true;
     const settled = { current: false };
-    const hearTicket = { current: 0 };
+    const heard = { sent: false, last: [] as string[] };
     let rec: SpeechListener | null = null;
     let timer = 0;
 
@@ -170,13 +171,38 @@ export function SightWordStage({
       });
     };
 
+    const askServer = (alternatives: string[]) => {
+      void hearSightWord({ data: { word, band: band ?? "", alternatives } })
+        .then((row) => {
+          if (!live || settled.current) return;
+          finishRef.current(row.match ? "correct" : "miss");
+        })
+        .catch(() => {
+          if (!live || settled.current) return;
+          finishRef.current("timeout");
+        });
+    };
+    const endWindow = () => {
+      const plan = sightServerCheck({
+        sent: heard.sent,
+        heard: heard.last,
+        alternatives: [],
+        final: false,
+        windowEnded: true,
+      });
+      heard.sent = plan.sent;
+      heard.last = plan.heard;
+      if (plan.send) askServer(plan.heard);
+      else finishRef.current("timeout");
+    };
+
     const openMicClock = () => {
       if (micAt.current != null) return;
       const now = performance.now();
       micAt.current = now;
       shownAt.current = now;
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => finishRef.current("timeout"), SIGHT_WORD_MAX_SHOW_MS);
+      timer = window.setTimeout(() => endWindow(), SIGHT_WORD_MAX_SHOW_MS);
     };
 
     if (voiceAllowed && (permit === "wait" || holdingMic.current)) {
@@ -188,7 +214,7 @@ export function SightWordStage({
     if (!(voiceAllowed && permit === "denied")) {
       if (shownAt.current == null) shownAt.current = performance.now();
       const left = answerWindowLeft(shownAt.current, performance.now(), SIGHT_WORD_MAX_SHOW_MS);
-      timer = window.setTimeout(() => finishRef.current("timeout"), left);
+      timer = window.setTimeout(() => endWindow(), left);
     }
 
     if (listening && permit === "ready") {
@@ -218,15 +244,16 @@ export function SightWordStage({
             if (!result) continue;
             const alternatives = sightAlternatives(result, VEKOLE_SETTINGS.recognitionAlternatives);
             if (alternatives.length === 0) continue;
-            const final = Boolean(result.isFinal);
-            const ticket = ++hearTicket.current;
-            void hearSightWord({ data: { word, band: band ?? "", alternatives } })
-              .then((row) => {
-                if (!live || settled.current || ticket !== hearTicket.current) return;
-                if (row.match) finishRef.current("correct");
-                else if (final) finishRef.current("miss");
-              })
-              .catch(() => undefined);
+            const plan = sightServerCheck({
+              sent: heard.sent,
+              heard: heard.last,
+              alternatives,
+              final: Boolean(result.isFinal),
+              windowEnded: false,
+            });
+            heard.sent = plan.sent;
+            heard.last = plan.heard;
+            if (plan.send) askServer(plan.heard);
             return;
           }
         };

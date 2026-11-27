@@ -1,3 +1,10 @@
+## 2026-11-27 one sight-word server check (App Builder)
+**Shipped (merged):** not yet. A spoken sight word is checked on the server once, from the final result and its five alternatives. A running guess is not sent. If the 20 seconds end with no final, the last guess is checked once.
+**Open, needs Sam:** Claude reviews this commit with the website's matching pull request. Merge only after "merge #N", and merge both together. Phonemic Awareness is not changed.
+**Mirrors needed on website:** yes. The same one-check rule for Sight Words.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word.
+
 ## 2026-11-26 slower heartbeat and one Grok model (App Builder)
 **Shipped (merged):** not yet. The sitting heartbeat is 30 seconds, still paused while the app is hidden. The 5-minute idle rule is unchanged. Grading and the alphabet report call grok-4.3 with reasoning effort none. That name lives in src/lib/grok-model.ts.
 **Open, needs Sam:** Claude reviews this commit with the website's timer and model pull request. Merge only after "merge #N", and merge both together. The standard usage session waits until both are live.
