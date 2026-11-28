@@ -23,7 +23,8 @@ import {
   startBand,
   startCard,
 } from "./items.ts";
-import { judgePaSpoken, paSpokenMatches } from "./match.ts";
+import { phonemeQuietMs, planPhonemeHearing } from "@kirkpatrick/vekole-engine";
+import { addPaPiece, emptyPaHearing, judgePaSpoken, paHearingText, paSpokenMatches, type PaHearing } from "./match.ts";
 import lists from "./data.json" with { type: "json" };
 
 const appFile = fileURLToPath(new URL("./data.json", import.meta.url));
@@ -187,6 +188,65 @@ describe("spoken phonemic answers", () => {
     assert.equal(judgePaSpoken(segment, "c-a-t", false), "correct");
     assert.equal(judgePaSpoken(segment, "cat", true), "miss");
     assert.equal(judgePaSpoken(segment, "", false), "wait");
+  });
+
+  it("keeps a segmented answer across short pauses and judges a short answer after 3 seconds", () => {
+    const segment = itemAt("c-c", 2);
+    const decide = (hearing: PaHearing, quietMs: number, elapsedMs: number, judged = false) =>
+      planPhonemeHearing({
+        pieces: [...hearing.pieces, hearing.interim].filter((piece) => piece.trim()),
+        complete: paSpokenMatches(segment, paHearingText(hearing)),
+        quietMs,
+        elapsedMs,
+        windowMs: 20_000,
+        judged,
+      });
+    let hearing = emptyPaHearing();
+    for (const piece of ["k", "a"]) {
+      hearing = addPaPiece(hearing, piece, true);
+      assert.equal(decide(hearing, 2000, 2000).judge, false, piece);
+    }
+    hearing = addPaPiece(hearing, "t", true);
+    assert.deepEqual(decide(hearing, 0, 4000), { judge: true, outcome: "correct", at: "answer" });
+    assert.equal(decide(hearing, 0, 4000, true).judge, false);
+    const short = addPaPiece(emptyPaHearing(), "k", true);
+    assert.equal(decide(short, 2000, 2000).judge, false);
+    assert.deepEqual(decide(short, phonemeQuietMs, phonemeQuietMs), { judge: true, outcome: "miss", at: "quiet" });
+    const whole = addPaPiece(emptyPaHearing(), "kuh aeh tuh", false);
+    const spoken = decide(whole, 0, 0);
+    if (spoken.judge) assert.equal(spoken.outcome, "correct");
+    else assert.fail("a full answer was not accepted");
+    const word = addPaPiece(emptyPaHearing(), "cat", true);
+    assert.equal(paSpokenMatches(segment, "cat"), false);
+    assert.deepEqual(decide(word, phonemeQuietMs, 4000), { judge: true, outcome: "miss", at: "quiet" });
+    assert.deepEqual(decide(emptyPaHearing(), phonemeQuietMs, 20_000), { judge: true, outcome: "miss", at: "window" });
+    let repeated = addPaPiece(emptyPaHearing(), "k", false);
+    repeated = addPaPiece(repeated, "k", true);
+    assert.deepEqual(repeated.pieces, ["k"]);
+    assert.equal(repeated.interim, "");
+    const stage = readFileSync(new URL("../../../components/phonemic-stage.tsx", import.meta.url), "utf8");
+    assert.equal(stage.includes("planPhonemeHearing"), true);
+    assert.equal(stage.includes("phonemeQuietMs"), true);
+    assert.equal(stage.includes("judgePaHearing"), false);
+  });
+
+  it("judges speech from 18.5 seconds at the window, not 3 seconds later", () => {
+    const segment = itemAt("c-c", 2);
+    const hearing = addPaPiece(emptyPaHearing(), "k", true);
+    const decide = (quietMs: number, elapsedMs: number) =>
+      planPhonemeHearing({
+        pieces: hearing.pieces,
+        complete: paSpokenMatches(segment, paHearingText(hearing)),
+        quietMs,
+        elapsedMs,
+        windowMs: 20_000,
+        judged: false,
+      });
+    assert.equal(decide(0, 18_500).judge, false);
+    const atWindow = decide(1_500, 20_000);
+    if (!atWindow.judge) assert.fail("the window did not judge");
+    assert.equal(atWindow.outcome, "miss");
+    assert.equal(atWindow.at, "window");
   });
 });
 

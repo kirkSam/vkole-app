@@ -19,7 +19,7 @@ import {
 } from "@kirkpatrick/vekole-engine";
 
 /** The app and the website pin this tag. Neither side points at a branch. */
-export const CONNECTED_ENGINE = "v0.2.4" as const;
+export const CONNECTED_ENGINE = "v0.2.5" as const;
 
 export function engineTagMatches(): boolean {
   return AGREED_VERSION === CONNECTED_ENGINE;
