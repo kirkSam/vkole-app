@@ -1,3 +1,10 @@
+## 2026-11-28 store notes only (App Builder)
+**Shipped (merged):** not yet. Pull request 1 is closed and was not merged. The store checklist and audit are new notes for the current app. The October pictures are kept, and the feature graphic is marked as not ready to upload. No code from that old branch.
+**Open, needs Sam:** Claude reviews this docs pull request. Merge only after "merge #N".
+**Mirrors needed on website:** no.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word.
+
 ## 2026-11-28 phonemic window test (App Builder)
 **Shipped (merged):** not yet. The type error on the full-answer check is fixed by reading the outcome only after plan.judge is true. Speech at 18.5 seconds with nothing after it is judged at 20 seconds, not at 21.5.
 **Open, needs Sam:** Claude reviews this commit on #88 with the website. Merge only after "merge #N".
