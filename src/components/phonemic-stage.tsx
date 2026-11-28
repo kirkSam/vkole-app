@@ -18,8 +18,9 @@ import {
   speakAloud,
   stopSpeaking,
 } from "@/lib/speech/listener";
+import { phonemeQuietMs, planPhonemeHearing } from "@kirkpatrick/vekole-engine";
 import { PA_ADVANCE_MS, PA_MAX_SHOW_MS, itemAt, migratePaBand, type PaBand } from "@/lib/vkole/phonemic-awareness/items";
-import { addPaPiece, emptyPaHearing, judgePaHearing, paHearingText, type PaHearing } from "@/lib/vkole/phonemic-awareness/match";
+import { addPaPiece, emptyPaHearing, paHearingText, paSpokenMatches, type PaHearing } from "@/lib/vkole/phonemic-awareness/match";
 
 type SpeechAlternative = { transcript?: string };
 type SpeechResult = ArrayLike<SpeechAlternative> & { isFinal?: boolean };
@@ -152,13 +153,37 @@ export function PhonemicStage({
     let live = true;
     const settled = { current: false };
     let hearing: PaHearing = emptyPaHearing();
+    let lastPieceAt: number | null = null;
     let rec: SpeechListener | null = null;
     let timer = 0;
+    let quietTimer = 0;
+    const piecesSaid = () => [...hearing.pieces, hearing.interim].filter((piece) => piece.trim());
+    const consider = (quietFloor = 0) => {
+      if (!live || settled.current) return;
+      const started = shownAt.current ?? performance.now();
+      const now = performance.now();
+      const sincePiece = lastPieceAt == null ? 0 : Math.max(0, now - lastPieceAt);
+      const plan = planPhonemeHearing({
+        pieces: piecesSaid(),
+        complete: paSpokenMatches(itemRef.current, paHearingText(hearing)),
+        quietMs: Math.max(quietFloor, sincePiece),
+        elapsedMs: Math.max(0, now - started),
+        windowMs: PA_MAX_SHOW_MS,
+        judged: settled.current,
+      });
+      if (plan.judge) finishRef.current(plan.outcome);
+    };
+    const armQuiet = () => {
+      window.clearTimeout(quietTimer);
+      if (settled.current || piecesSaid().length === 0) return;
+      quietTimer = window.setTimeout(() => consider(phonemeQuietMs), phonemeQuietMs);
+    };
 
     finishRef.current = (outcome: Outcome) => {
       if (!live || settled.current) return;
       settled.current = true;
       window.clearTimeout(timer);
+      window.clearTimeout(quietTimer);
       setHearing(false);
       try {
         rec?.abort();
@@ -179,10 +204,7 @@ export function PhonemicStage({
       });
     };
 
-    const endWindow = () => {
-      const judged = judgePaHearing(itemRef.current, hearing, true);
-      finishRef.current(judged === "wait" ? "timeout" : judged);
-    };
+    const endWindow = () => consider();
 
     if (voiceAllowed && (permit === "wait" || holdingMic.current)) {
       return () => {
@@ -223,16 +245,17 @@ export function PhonemicStage({
               const transcript = result[j]?.transcript ?? "";
               const trial = addPaPiece(hearing, transcript, final);
               if (!chosen) chosen = paHearingText(trial) === paHearingText(hearing) ? "" : transcript;
-              if (judgePaHearing(itemRef.current, trial, false) === "correct") {
+              if (paSpokenMatches(itemRef.current, paHearingText(trial))) {
                 chosen = transcript;
                 break;
               }
             }
             if (!chosen) continue;
             hearing = addPaPiece(hearing, chosen, final);
+            lastPieceAt = performance.now();
           }
-          const judged = judgePaHearing(itemRef.current, hearing, false);
-          if (judged !== "wait") finishRef.current(judged);
+          consider();
+          armQuiet();
         };
         rec.onerror = (event) => {
           const kind = listenKind(event.error);
@@ -286,6 +309,7 @@ export function PhonemicStage({
     return () => {
       live = false;
       window.clearTimeout(timer);
+      window.clearTimeout(quietTimer);
       setHearing(false);
       try {
         rec?.abort();

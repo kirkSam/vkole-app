@@ -1,3 +1,10 @@
+## 2026-11-28 phonemic quiet is 3 seconds (App Builder)
+**Shipped (merged):** not yet. Phonemic Awareness uses vekole-engine v0.2.5. A full answer is accepted at once. After the child has spoken, 3 seconds of quiet is one miss. A shorter pause is not. Nothing heard is a miss at 20 seconds. An item is judged once. Alphabet is unchanged.
+**Open, needs Sam:** Claude reviews package commit d1f23f3 (tag v0.2.5) and this commit with the website's pull request. Merge only after "merge #N", and merge both sides together.
+**Mirrors needed on website:** yes. Pin v0.2.5 and call planPhonemeHearing.
+**Blocked:** none
+**Next:** Wait for Claude, then Sam's merge word.
+
 ## 2026-11-27 one sight-word server check (App Builder)
 **Shipped (merged):** not yet. A spoken sight word is checked on the server once, from the final result and its five alternatives. A running guess is not sent. If the 20 seconds end with no final, the last guess is checked once.
 **Open, needs Sam:** Claude reviews this commit with the website's matching pull request. Merge only after "merge #N", and merge both together. Phonemic Awareness is not changed.

@@ -217,18 +217,3 @@ export function addPaPiece(state: PaHearing, transcript: string, final: boolean)
   if (final) return { pieces: [...state.pieces, text], interim: "" };
   return { pieces: state.pieces, interim: text };
 }
-
-/**
- * The pieces said so far are one answer.
- * A full answer is accepted as soon as it is heard.
- * A pause is not a miss. Anything short is judged only when the window ends.
- */
-export function judgePaHearing(
-  item: Pick<PaItem, "answer" | "also" | "sounds" | "rime" | "cue" | "say">,
-  state: PaHearing,
-  windowEnded: boolean,
-): "correct" | "miss" | "wait" {
-  if (paSpokenMatches(item, paHearingText(state))) return "correct";
-  if (!windowEnded) return "wait";
-  return speechTokens(paHearingText(state)).length === 0 ? "wait" : "miss";
-}
