@@ -213,7 +213,9 @@ describe("spoken phonemic answers", () => {
     assert.equal(decide(short, 2000, 2000).judge, false);
     assert.deepEqual(decide(short, phonemeQuietMs, phonemeQuietMs), { judge: true, outcome: "miss", at: "quiet" });
     const whole = addPaPiece(emptyPaHearing(), "kuh aeh tuh", false);
-    assert.equal(decide(whole, 0, 0).outcome, "correct");
+    const spoken = decide(whole, 0, 0);
+    if (spoken.judge) assert.equal(spoken.outcome, "correct");
+    else assert.fail("a full answer was not accepted");
     const word = addPaPiece(emptyPaHearing(), "cat", true);
     assert.equal(paSpokenMatches(segment, "cat"), false);
     assert.deepEqual(decide(word, phonemeQuietMs, 4000), { judge: true, outcome: "miss", at: "quiet" });
@@ -226,6 +228,25 @@ describe("spoken phonemic answers", () => {
     assert.equal(stage.includes("planPhonemeHearing"), true);
     assert.equal(stage.includes("phonemeQuietMs"), true);
     assert.equal(stage.includes("judgePaHearing"), false);
+  });
+
+  it("judges speech from 18.5 seconds at the window, not 3 seconds later", () => {
+    const segment = itemAt("c-c", 2);
+    const hearing = addPaPiece(emptyPaHearing(), "k", true);
+    const decide = (quietMs: number, elapsedMs: number) =>
+      planPhonemeHearing({
+        pieces: hearing.pieces,
+        complete: paSpokenMatches(segment, paHearingText(hearing)),
+        quietMs,
+        elapsedMs,
+        windowMs: 20_000,
+        judged: false,
+      });
+    assert.equal(decide(0, 18_500).judge, false);
+    const atWindow = decide(1_500, 20_000);
+    if (!atWindow.judge) assert.fail("the window did not judge");
+    assert.equal(atWindow.outcome, "miss");
+    assert.equal(atWindow.at, "window");
   });
 });
 
